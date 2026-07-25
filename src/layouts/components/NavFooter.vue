@@ -5,9 +5,9 @@ import { Icon } from '@iconify/vue';
 <template>
   <footer class="sz-footer mt-10 mb-4 overflow-hidden rounded-2xl border border-base-content/10">
     <div class="sz-footer-inner px-5 py-6 sm:px-7 sm:py-7">
-      <!-- brand kiri · connect kanan -->
-      <div class="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
-        <div class="min-w-0 sm:max-w-md">
+      <!-- brand left · connect right (always justify-between on sm+) -->
+      <div class="sz-footer-row">
+        <div class="sz-footer-brand min-w-0">
           <div class="flex items-center gap-3">
             <span class="sz-footer-mark">
               <img src="@/assets/logo.png" alt="Shazoes" class="h-7 w-7 object-contain" />
@@ -19,14 +19,14 @@ import { Icon } from '@iconify/vue';
               </div>
             </div>
           </div>
-          <p class="mt-3 text-[13px] leading-relaxed text-secondary">
+          <p class="mt-3 max-w-md text-[13px] leading-relaxed text-secondary">
             Clean multi-chain explorer for Cosmos networks — validators.
           </p>
         </div>
 
-        <div class="flex flex-col items-start gap-2 sm:items-end">
+        <div class="sz-footer-connect">
           <div class="text-[10.5px] font-bold uppercase tracking-[0.16em] text-secondary">Connect</div>
-          <div class="flex flex-wrap items-center gap-2 sm:justify-end">
+          <div class="mt-2 flex flex-wrap items-center gap-2">
             <a
               href="https://x.com/shazoes"
               target="_blank"
@@ -96,6 +96,31 @@ import { Icon } from '@iconify/vue';
     radial-gradient(700px 180px at 0% 0%, color-mix(in srgb, hsl(var(--p)) 12%, transparent), transparent 60%),
     color-mix(in srgb, hsl(var(--b1)) 92%, transparent);
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.03) inset;
+}
+.sz-footer-row {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  width: 100%;
+}
+@media (min-width: 640px) {
+  .sz-footer-row {
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+  .sz-footer-brand {
+    flex: 1 1 auto;
+    max-width: 28rem;
+  }
+  .sz-footer-connect {
+    flex: 0 0 auto;
+    margin-left: auto;
+    text-align: right;
+  }
+  .sz-footer-connect .flex {
+    justify-content: flex-end;
+  }
 }
 .sz-footer-mark {
   display: inline-flex;

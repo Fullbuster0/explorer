@@ -71,6 +71,11 @@ dayjs();
 
 <template>
   <div class="sz-page-shell min-h-screen text-base-content">
+    <!-- explorers.guru-style floating blocks (CSS only) -->
+    <ul class="sz-float-blocks" aria-hidden="true">
+      <li></li><li></li><li></li><li></li><li></li>
+      <li></li><li></li><li></li><li></li><li></li>
+    </ul>
     <!-- ===== SIDEBAR ===== -->
     <aside
       class="sz-sidebar fixed left-0 top-0 bottom-0 z-50 w-64 overflow-y-auto"
@@ -214,7 +219,7 @@ dayjs();
     </aside>
 
     <!-- ===== MAIN ===== -->
-    <div class="xl:!ml-64 flex min-h-screen flex-col px-3 sm:px-5 pt-4">
+    <div class="relative z-10 xl:!ml-64 flex min-h-screen flex-col px-3 sm:px-5 pt-4">
       <!-- header -->
       <header class="sz-header sticky top-0 z-40 mb-4 flex items-center gap-3 rounded-xl px-4 py-2.5">
         <button class="text-2xl xl:!hidden" @click="sidebarShow = true" aria-label="Open menu">

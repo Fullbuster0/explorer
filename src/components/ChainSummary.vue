@@ -41,26 +41,26 @@ const addFavor = (e: Event) => {
     <div class="sz-chain-logo relative flex-shrink-0">
       <img
         :src="conf.logo"
-        class="h-11 w-11 rounded-full object-cover bg-base-200 ring-1 ring-black/5 dark:ring-white/10"
+        class="h-11 w-11 rounded-full object-cover bg-[#101a2e] ring-1 ring-white/10"
         alt=""
         loading="lazy"
       />
     </div>
 
     <div class="min-w-0 flex-1">
-      <div class="truncate text-[14.5px] font-semibold tracking-tight text-base-content capitalize">
+      <div class="truncate text-[14.5px] font-semibold tracking-tight text-slate-100 capitalize">
         {{ displayName }}
       </div>
       <div
         v-if="chainId"
-        class="mt-0.5 truncate font-mono text-[11px] font-medium tracking-tight text-secondary"
+        class="mt-0.5 truncate font-mono text-[11px] font-medium tracking-tight text-slate-400"
         :title="chainId"
       >
         {{ chainId }}
       </div>
       <div
         v-else
-        class="mt-0.5 truncate text-[11px] font-medium uppercase tracking-[0.14em] text-secondary"
+        class="mt-0.5 truncate text-[11px] font-medium uppercase tracking-[0.14em] text-slate-400"
       >
         {{ conf?.chainName || props.name }}
       </div>
@@ -72,7 +72,7 @@ const addFavor = (e: Event) => {
       class="rounded-lg p-1.5 text-lg transition"
       :class="{
         'text-amber-400': dashboardStore?.favoriteMap?.[props.name],
-        'text-base-content/25 hover:text-amber-400/80': !dashboardStore?.favoriteMap?.[props.name],
+        'text-white/25 hover:text-amber-300/90': !dashboardStore?.favoriteMap?.[props.name],
       }"
       :aria-label="dashboardStore?.favoriteMap?.[props.name] ? 'Unfavorite' : 'Favorite'"
     >
@@ -82,35 +82,51 @@ const addFavor = (e: Event) => {
 </template>
 
 <style scoped>
-/* Cards sit on the navy home panel — keep them as lighter floating tiles */
+/* Deep-navy surface matching hero / home panel */
 .sz-chain-card {
-  background: color-mix(in srgb, hsl(var(--b1)) 94%, transparent);
-  border-color: var(--sz-border, rgba(148, 163, 184, 0.14));
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset;
-  backdrop-filter: blur(6px);
-}
-.sz-chain-card:hover {
-  border-color: color-mix(in srgb, hsl(var(--p)) 42%, transparent);
-  background: color-mix(in srgb, hsl(var(--b1)) 96%, hsl(var(--p)));
-  transform: translateY(-2px);
+  background:
+    radial-gradient(220px 120px at 0% 0%, rgba(0, 95, 204, 0.22), transparent 60%),
+    linear-gradient(150deg, #0a1020 0%, #0c1426 55%, #0e1729 100%);
+  border-color: rgba(148, 163, 184, 0.14);
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.05) inset,
-    0 14px 28px -18px rgba(0, 95, 204, 0.55);
+    0 10px 24px -18px rgba(2, 6, 17, 0.8);
+  overflow: hidden;
+}
+.sz-chain-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(148, 163, 184, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.05) 1px, transparent 1px);
+  background-size: 34px 34px;
+  mask-image: radial-gradient(ellipse 90% 80% at 20% 10%, #000 10%, transparent 70%);
+  opacity: 0.5;
+  pointer-events: none;
+}
+.sz-chain-card:hover {
+  border-color: rgba(56, 189, 248, 0.45);
+  background:
+    radial-gradient(240px 130px at 0% 0%, rgba(0, 95, 204, 0.34), transparent 60%),
+    linear-gradient(150deg, #0b1224 0%, #0d1628 55%, #101b30 100%);
+  transform: translateY(-2px);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.06) inset,
+    0 16px 32px -18px rgba(0, 95, 204, 0.55);
 }
 .sz-chain-card--featured {
-  background: linear-gradient(
-    135deg,
-    color-mix(in srgb, hsl(var(--p)) 10%, hsl(var(--b1))) 0%,
-    hsl(var(--b1)) 100%
-  );
-  border-color: color-mix(in srgb, hsl(var(--p)) 24%, transparent);
+  border-color: rgba(56, 189, 248, 0.35);
+  background:
+    radial-gradient(240px 130px at 0% 0%, rgba(0, 95, 204, 0.3), transparent 60%),
+    linear-gradient(150deg, #0b1224 0%, #0e1830 55%, #111d36 100%);
 }
 .sz-chain-logo::after {
   content: '';
   position: absolute;
   inset: -3px;
   border-radius: 999px;
-  border: 1px solid color-mix(in srgb, hsl(var(--p)) 35%, transparent);
+  border: 1px solid rgba(56, 189, 248, 0.4);
   opacity: 0;
   transition: opacity 0.15s ease;
 }

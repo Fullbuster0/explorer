@@ -92,16 +92,6 @@ const chains = computed(() => {
     <section class="sz-home-panel relative overflow-hidden">
       <div class="sz-home-panel-grid" aria-hidden="true"></div>
       <div class="relative z-10">
-        <div class="mb-5 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <div class="sz-panel-kicker">Network directory</div>
-            <h2 class="text-xl sm:text-2xl font-bold tracking-tight text-white">Supported Chains</h2>
-          </div>
-          <div class="text-xs text-slate-400 tabular-nums hidden sm:block">
-            {{ chains.length }} shown · {{ networkTab === 'mainnet' ? mainnetCount : testnetCount }} total
-          </div>
-        </div>
-
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-5">
           <div class="sz-net-tabs" role="tablist" aria-label="Network type">
             <button
@@ -135,7 +125,7 @@ const chains = computed(() => {
               class="px-3 h-11 bg-transparent flex-1 outline-none text-sm text-slate-100 placeholder:text-slate-500"
               v-model="keywords"
             />
-            <div class="px-2 text-xs text-slate-400 tabular-nums sm:!hidden">
+            <div class="px-2 text-xs text-slate-400 tabular-nums">
               {{ chains.length }}
             </div>
           </div>
