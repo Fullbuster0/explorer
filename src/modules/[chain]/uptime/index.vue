@@ -1,9 +1,9 @@
 <script lang="ts" setup>
 import { ref, onMounted, computed, onUnmounted } from 'vue';
-import { fromHex, toBase64, fromBase64, toHex } from '@cosmjs/encoding';
+import { fromHex, toBase64 } from '@cosmjs/encoding';
 import { useStakingStore, useBaseStore, useBlockchain, useFormatter } from '@/stores';
 import UptimeBar from '@/components/UptimeBar.vue';
-import type { SlashingParam, SigningInfo, Block } from '@/types';
+import type { SlashingParam, SigningInfo, Block, Validator } from '@/types';
 import { consensusPubkeyToHexAddress, valconsToBase64 } from '@/libs';
 
 const props = defineProps(['chain']);
@@ -14,10 +14,15 @@ const baseStore = useBaseStore();
 const chainStore = useBlockchain();
 const latest = ref(0);
 const keyword = ref('');
+const tombstonedOnly = ref(false);
 const live = ref(true);
+const loadingAll = ref(false);
 const slashingParam = ref({} as SlashingParam);
 const signingInfo = ref({} as Record<string, SigningInfo>);
+const inactiveValidators = ref([] as Validator[]);
 const consumerValidators = ref([] as { moniker: string; base64: string }[]);
+
+type BondStatus = 'active' | 'unbonding' | 'inactive';
 
 interface BlockColor {
   height: string;
@@ -29,8 +34,12 @@ interface ValidatorUnit {
   hex: string;
   base64: string;
   missed_blocks_counter: number | string;
-  uptime: number;
-  signing: SigningInfo;
+  uptime?: number;
+  signing?: SigningInfo;
+  status: BondStatus;
+  jailed: boolean;
+  operator_address?: string;
+  tokens?: string;
 }
 
 function padding(blocks: BlockColor[] = []) {
@@ -40,49 +49,117 @@ function padding(blocks: BlockColor[] = []) {
   return raw.slice(raw.length - 50);
 }
 
-const validatorSet = computed(() => {
+function mapValidator(v: Validator, status: BondStatus): Omit<ValidatorUnit, 'blocks' | 'uptime' | 'missed_blocks_counter' | 'signing'> {
+  const hex = consensusPubkeyToHexAddress(v.consensus_pubkey);
+  return {
+    moniker: v.description?.moniker || v.operator_address,
+    hex,
+    base64: hex ? toBase64(fromHex(hex)) : '',
+    status,
+    jailed: !!v.jailed,
+    operator_address: v.operator_address,
+    tokens: v.tokens,
+  };
+}
+
+// Blocks tab: active set only (signing set)
+const activeSet = computed(() => {
   if (chainStore.isConsumerChain) {
     return consumerValidators.value.map((v) => {
-      const b64 = valconsToBase64(v.moniker);
-      const moniker = stakingStore.validators.find(
-        (x) => toBase64(fromHex(consensusPubkeyToHexAddress(x.consensus_pubkey))) === b64
-      )?.description.moniker;
+      const b64 = v.base64;
+      const moniker =
+        stakingStore.validators.find(
+          (x) => toBase64(fromHex(consensusPubkeyToHexAddress(x.consensus_pubkey))) === b64
+        )?.description.moniker || v.moniker;
       return {
-        moniker: moniker || v.moniker,
-        base64: v.base64,
+        moniker,
+        hex: '',
+        base64: b64,
+        status: 'active' as BondStatus,
+        jailed: false,
       };
     });
   }
-  return stakingStore.validators.map((v) => {
-    const hex = consensusPubkeyToHexAddress(v.consensus_pubkey);
-    return {
-      moniker: v.description.moniker,
-      base64: toBase64(fromHex(hex)),
-    };
-  });
+  return stakingStore.validators
+    .slice()
+    .sort((a, b) => Number(b.delegator_shares) - Number(a.delegator_shares))
+    .map((v) => mapValidator(v, 'active'));
+});
+
+// Overall tab: active → unbonding/inactive, power order within each group
+const overallSet = computed(() => {
+  if (chainStore.isConsumerChain) return activeSet.value;
+
+  const activeOps = new Set(stakingStore.validators.map((v) => v.operator_address));
+  const active = stakingStore.validators
+    .slice()
+    .sort((a, b) => Number(b.delegator_shares) - Number(a.delegator_shares))
+    .map((v) => mapValidator(v, 'active'));
+
+  const inactive = inactiveValidators.value
+    .filter((v) => !activeOps.has(v.operator_address))
+    .slice()
+    .sort((a, b) => {
+      // unbonding first, then unbonded; then by tokens desc
+      const rank = (s: string) => (s === 'BOND_STATUS_UNBONDING' ? 0 : 1);
+      const d = rank(a.status) - rank(b.status);
+      if (d !== 0) return d;
+      return Number(b.tokens || 0) - Number(a.tokens || 0);
+    })
+    .map((v) =>
+      mapValidator(v, v.status === 'BOND_STATUS_UNBONDING' ? 'unbonding' : 'inactive')
+    );
+
+  return [...active, ...inactive];
 });
 
 const blockColors = ref({} as Record<string, BlockColor[]>);
 
-const grid = computed(() => {
-  const validators =
-    keyword.value.length === 0
-      ? validatorSet.value
-      : validatorSet.value.filter((v) => v.moniker.toLowerCase().includes(keyword.value.toLowerCase()));
-
+function attachSigning(v: Omit<ValidatorUnit, 'blocks' | 'uptime' | 'missed_blocks_counter' | 'signing'>): ValidatorUnit {
   const window = Number(slashingParam.value.signed_blocks_window || 0);
-  return validators.map((v) => {
-    const signing = signingInfo.value[v.base64];
-    const uptime = signing && window > 0 ? (window - Number(signing.missed_blocks_counter)) / window : undefined;
-    return {
-      moniker: v.moniker,
-      base64: v.base64,
-      blocks: padding(blockColors.value[v.base64] || []),
-      uptime,
-      missed_blocks_counter: signing?.missed_blocks_counter,
-      signing,
-    } as ValidatorUnit;
-  });
+  const signing = v.base64 ? signingInfo.value[v.base64] : undefined;
+  const uptime =
+    signing && window > 0
+      ? Math.max(0, Math.min(1, (window - Number(signing.missed_blocks_counter || 0)) / window))
+      : undefined;
+  return {
+    ...v,
+    blocks: padding(blockColors.value[v.base64] || []),
+    uptime,
+    missed_blocks_counter: signing?.missed_blocks_counter ?? '—',
+    signing,
+  };
+}
+
+function matchKeyword(moniker: string) {
+  const q = keyword.value.trim().toLowerCase();
+  if (!q) return true;
+  return moniker.toLowerCase().includes(q);
+}
+
+// Blocks heatmap grid (active only)
+const grid = computed(() =>
+  activeSet.value.filter((v) => matchKeyword(v.moniker)).map((v) => attachSigning(v))
+);
+
+// Overall table rows (active + inactive), optional tombstoned filter
+const overallRows = computed(() => {
+  let rows = overallSet.value.filter((v) => matchKeyword(v.moniker)).map((v) => attachSigning(v));
+  if (tombstonedOnly.value) {
+    rows = rows.filter((v) => !!v.signing?.tombstoned);
+  }
+  return rows;
+});
+
+const overallStats = computed(() => {
+  const all = overallSet.value.map((v) => attachSigning(v));
+  return {
+    total: all.length,
+    active: all.filter((v) => v.status === 'active').length,
+    inactive: all.filter((v) => v.status !== 'active').length,
+    tombstoned: all.filter((v) => !!v.signing?.tombstoned).length,
+    shown: overallRows.value.length,
+  };
 });
 
 const preload = ref(false);
@@ -121,6 +198,24 @@ baseStore.$subscribe((_, state) => {
   }
 });
 
+async function loadAllValidators() {
+  if (chainStore.isConsumerChain) return;
+  loadingAll.value = true;
+  try {
+    const [unbonding, unbonded] = await Promise.all([
+      stakingStore.fetchUnbondingValdiators().catch(() => [] as Validator[]),
+      stakingStore.fetchInacitveValdiators().catch(() => [] as Validator[]),
+    ]);
+    const byOp = new Map<string, Validator>();
+    [...(unbonding || []), ...(unbonded || [])].forEach((v) => {
+      if (v?.operator_address) byOp.set(v.operator_address, v);
+    });
+    inactiveValidators.value = Array.from(byOp.values());
+  } finally {
+    loadingAll.value = false;
+  }
+}
+
 onMounted(() => {
   live.value = true;
 
@@ -130,6 +225,7 @@ onMounted(() => {
   });
 
   updateTotalSigningInfo();
+  loadAllValidators();
 
   chainStore.rpc.getSlashingParams().then((x) => {
     slashingParam.value = x.params;
@@ -157,7 +253,9 @@ function preFill() {
   }
 }
 function fillblock(b: Block, direction: string = 'end') {
-  validatorSet.value.forEach((v) => {
+  // heatmap only tracks active signing set
+  activeSet.value.forEach((v) => {
+    if (!v.base64) return;
     const sig = b.block.last_commit?.signatures.find((s) => s.validator_address === v.base64);
     const block = blockColors.value[v.base64] || [];
     let color = {
@@ -182,10 +280,27 @@ function fillblock(b: Block, direction: string = 'end') {
 
 function updateTotalSigningInfo() {
   chainStore.rpc.getSlashingSigningInfos().then((x) => {
-    x.info?.forEach((i) => {
-      signingInfo.value[valconsToBase64(i.address)] = i;
+    if (!x?.info) return;
+    const next = { ...signingInfo.value } as Record<string, SigningInfo>;
+    x.info.forEach((i) => {
+      const key = valconsToBase64(i.address);
+      if (key) next[key] = i;
     });
+    // replace whole map so Vue reactivity always fires
+    signingInfo.value = next;
   });
+}
+
+function statusChipClass(status: BondStatus, jailed: boolean) {
+  if (jailed) return 'sz-chip--bad';
+  if (status === 'active') return 'sz-chip--ok';
+  if (status === 'unbonding') return 'sz-chip--warn';
+  return 'sz-chip--info';
+}
+
+function statusLabel(status: BondStatus, jailed: boolean) {
+  if (jailed) return 'jailed';
+  return status;
 }
 
 onUnmounted(() => {
@@ -229,20 +344,34 @@ function changeTab(v: string) {
     </div>
 
     <div class="sz-section p-4 sm:p-5">
-      <div class="flex items-center gap-3 mb-4">
+      <div class="flex flex-wrap items-center gap-3 mb-4">
         <input
           type="text"
           v-model="keyword"
           placeholder="Filter validators…"
-          class="input input-sm w-full flex-1 border border-base-content/10 bg-base-100 focus:border-primary"
+          class="input input-sm w-full sm:flex-1 min-w-[12rem] border border-base-content/10 bg-base-100 focus:border-primary"
         />
-        <span class="hidden sm:inline sz-chip font-mono">{{ grid.length }}</span>
+        <label
+          v-if="tab === '3'"
+          class="inline-flex items-center gap-2 text-[12px] cursor-pointer select-none shrink-0"
+        >
+          <input type="checkbox" class="checkbox checkbox-xs checkbox-primary" v-model="tombstonedOnly" />
+          <span>{{ $t('uptime.tombstoned') }} only</span>
+        </label>
+        <span class="sz-chip font-mono shrink-0">
+          <template v-if="tab === '3'">
+            {{ overallStats.shown }}/{{ overallStats.total }}
+            <span class="text-secondary ml-1">· {{ overallStats.active }} act · {{ overallStats.inactive }} inact</span>
+            <span v-if="loadingAll" class="ml-1 opacity-60">…</span>
+          </template>
+          <template v-else>{{ grid.length }}</template>
+        </span>
       </div>
 
-      <!-- block heatmap -->
+      <!-- block heatmap (active set only) -->
       <div :class="tab === '2' ? '' : 'hidden'">
         <div class="flex flex-row flex-wrap gap-x-4 gap-y-3 justify-center">
-          <div v-for="(unit, i) in grid" :key="i" class="sz-uptime-unit">
+          <div v-for="(unit, i) in grid" :key="unit.base64 || i" class="sz-uptime-unit">
             <div class="flex justify-between items-center py-0 w-[248px] mb-1">
               <label class="truncate text-[12.5px] font-medium">
                 <span class="text-secondary font-mono mr-1">{{ i + 1 }}.</span>
@@ -266,60 +395,86 @@ function changeTab(v: string) {
         </div>
       </div>
 
-      <!-- overall table -->
-      <div :class="tab === '3' ? '' : 'hidden'" class="overflow-x-auto -mx-4 sm:-mx-5">
-        <table class="sz-table">
-          <thead>
-            <tr>
-              <th>{{ $t('account.validator') }}</th>
-              <th class="text-right">{{ $t('module.uptime') }}</th>
-              <th>{{ $t('uptime.last_jailed_time') }}</th>
-              <th class="text-right">{{ $t('uptime.signed_precommits') }}</th>
-              <th class="text-right">{{ $t('uptime.start_height') }}</th>
-              <th>{{ $t('uptime.tombstoned') }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="(v, i) in grid" :key="v.base64 || i">
-              <td>
-                <div class="truncate max-w-sm">
-                  <span class="text-secondary font-mono mr-1.5 text-[11px]">{{ i + 1 }}.</span>
-                  {{ v.moniker }}
-                </div>
-              </td>
-              <td class="text-right">
-                <span
-                  class="sz-chip font-mono"
-                  :class="v.uptime && v.uptime > 0.95 ? 'sz-chip--ok' : 'sz-chip--bad'"
-                >
-                  <span class="tooltip" :data-tip="`${v.missed_blocks_counter} missing blocks`">
+      <!-- overall table: active set first, then inactive; tombstoned filter works -->
+      <div :class="tab === '3' ? '' : 'hidden'">
+        <div class="overflow-x-auto -mx-4 sm:-mx-5">
+          <table class="sz-table min-w-[720px]">
+            <thead>
+              <tr>
+                <th class="w-10 text-right">#</th>
+                <th>{{ $t('account.validator') }}</th>
+                <th>Status</th>
+                <th class="text-right">{{ $t('module.uptime') }}</th>
+                <th class="text-right">Missed</th>
+                <th>{{ $t('uptime.last_jailed_time') }}</th>
+                <th class="text-right">{{ $t('uptime.start_height') }}</th>
+                <th>{{ $t('uptime.tombstoned') }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-if="overallRows.length === 0">
+                <td colspan="8" class="text-center text-secondary text-sm py-8">
+                  {{ loadingAll ? 'Loading validators…' : 'No validators match filter' }}
+                </td>
+              </tr>
+              <tr v-for="(v, i) in overallRows" :key="v.operator_address || v.base64 || i">
+                <td class="text-right font-mono text-[11px] text-secondary">{{ i + 1 }}</td>
+                <td>
+                  <div class="truncate max-w-[16rem] sm:max-w-sm font-medium">{{ v.moniker }}</div>
+                </td>
+                <td>
+                  <span class="sz-chip capitalize !text-[10px]" :class="statusChipClass(v.status, v.jailed)">
+                    {{ statusLabel(v.status, v.jailed) }}
+                  </span>
+                </td>
+                <td class="text-right">
+                  <span
+                    v-if="v.uptime !== undefined"
+                    class="sz-chip font-mono"
+                    :class="v.uptime > 0.95 ? 'sz-chip--ok' : v.uptime > 0.9 ? 'sz-chip--warn' : 'sz-chip--bad'"
+                    :title="`${v.missed_blocks_counter} missing blocks`"
+                  >
                     {{ format.percent(v.uptime) }}
                   </span>
-                </span>
-              </td>
-              <td>
-                <span v-if="v.signing && !v.signing.jailed_until.startsWith('1970')">
-                  <div class="tooltip" :data-tip="format.toDay(v.signing.jailed_until, 'long')">
-                    <span class="text-xs">{{ format.toDay(v.signing.jailed_until, 'from') }}</span>
-                  </div>
-                </span>
-                <span v-else class="text-secondary">—</span>
-              </td>
-              <td class="text-right font-mono text-xs">
-                <span v-if="v.signing && v.signing.jailed_until.startsWith('1970')">
-                  {{ format.percent(Number(v.signing.index_offset) / (latest - Number(v.signing.start_height))) }}
-                </span>
-                {{ v.signing?.index_offset }}
-              </td>
-              <td class="text-right font-mono text-xs">{{ v.signing?.start_height || '—' }}</td>
-              <td class="capitalize text-xs">{{ v.signing?.tombstoned ?? '—' }}</td>
-            </tr>
-          </tbody>
-        </table>
-        <div class="flex flex-wrap items-center gap-2 border-t border-base-content/10 px-4 py-3">
+                  <span v-else class="text-secondary text-xs">—</span>
+                </td>
+                <td class="text-right font-mono text-xs">
+                  {{ v.signing ? v.signing.missed_blocks_counter : '—' }}
+                </td>
+                <td>
+                  <span v-if="v.signing && v.signing.jailed_until && !v.signing.jailed_until.startsWith('1970')">
+                    <span
+                      class="text-xs"
+                      :title="format.toDay(v.signing.jailed_until, 'long')"
+                    >{{ format.toDay(v.signing.jailed_until, 'from') }}</span>
+                  </span>
+                  <span v-else class="text-secondary">—</span>
+                </td>
+                <td class="text-right font-mono text-xs">{{ v.signing?.start_height || '—' }}</td>
+                <td>
+                  <span
+                    v-if="v.signing"
+                    class="sz-chip !text-[10px] capitalize"
+                    :class="v.signing.tombstoned ? 'sz-chip--bad' : 'sz-chip--ok'"
+                  >
+                    {{ v.signing.tombstoned ? 'yes' : 'no' }}
+                  </span>
+                  <span v-else class="text-secondary text-xs">—</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="flex flex-wrap items-center gap-2 border-t border-base-content/10 px-1 sm:px-4 py-3">
           <span class="text-[11.5px] text-secondary">{{ $t('uptime.minimum_uptime') }}:</span>
-          <span class="sz-chip sz-chip--bad font-mono tooltip" :data-tip="`Window size: ${slashingParam.signed_blocks_window}`">
+          <span
+            class="sz-chip sz-chip--bad font-mono"
+            :title="`Window size: ${slashingParam.signed_blocks_window}`"
+          >
             {{ format.percent(slashingParam.min_signed_per_window) }}
+          </span>
+          <span v-if="overallStats.tombstoned" class="text-[11.5px] text-secondary">
+            · {{ overallStats.tombstoned }} tombstoned
           </span>
         </div>
       </div>

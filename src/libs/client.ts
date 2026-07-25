@@ -140,7 +140,8 @@ export class CosmosRestClient extends BaseRestClient<RequestRegistry> {
     return this.request(this.registry.slashing_params, {});
   }
   async getSlashingSigningInfos() {
-    const query = '?pagination.limit=300';
+    // higher limit so overall tab can show inactive/tombstoned validators too
+    const query = '?pagination.limit=1000';
     return this.request(this.registry.slashing_signing_info, {}, query);
   }
   // Gov
