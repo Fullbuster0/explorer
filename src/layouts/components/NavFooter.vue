@@ -20,7 +20,7 @@ import { Icon } from '@iconify/vue';
             </div>
           </div>
           <p class="mt-3 max-w-md text-[13px] leading-relaxed text-secondary">
-            Clean multi-chain explorer for Cosmos networks — validators, governance, blocks, and wallets in one place.
+            Clean multi-chain explorer for Cosmos networks — validators.
           </p>
         </div>
 
