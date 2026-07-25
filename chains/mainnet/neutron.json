@@ -1,17 +1,37 @@
 {
   "chain_name": "neutron",
   "api": [
-    { "provider": "Polkachu", "address": "https://neutron-api.polkachu.com" },
-    { "provider": "NodeStake", "address": "https://api.neutron.nodestake.top" },
-    { "provider": "Allnodes", "address": "https://neutron-rest.publicnode.com" }
+    {
+      "provider": "Polkachu",
+      "address": "https://neutron-api.polkachu.com"
+    },
+    {
+      "provider": "NodeStake",
+      "address": "https://api.neutron.nodestake.top"
+    },
+    {
+      "provider": "Allnodes",
+      "address": "https://neutron-rest.publicnode.com"
+    }
   ],
   "rpc": [
-    { "provider": "Polkachu", "address": "https://neutron-rpc.polkachu.com" },
-    { "provider": "NodeStake", "address": "https://rpc.neutron.nodestake.top" },
-    { "provider": "Allnodes", "address": "https://neutron-rpc.publicnode.com:443" }
+    {
+      "address": "https://neutron-rpc.publicnode.com",
+      "provider": "PublicNode"
+    },
+    {
+      "address": "https://neutron-rpc.polkachu.com",
+      "provider": "Polkachu"
+    },
+    {
+      "address": "https://rpc.neutron.nodestake.top",
+      "provider": "NodeStake"
+    }
   ],
   "provider_chain": {
-    "api": ["https://rest.cosmos.directory/cosmoshub"]
+    "api": [
+      "https://rest.cosmos.directory/cosmoshub"
+    ]
   },
   "features": [
     "dashboard",
@@ -20,10 +40,7 @@
     "cosmwasm",
     "uptime",
     "parameters",
-    "state-sync",
-    "consensus",
-    "supply",
-    "widget"
+    "consensus"
   ],
   "sdk_version": "0.45.1",
   "coin_type": "118",

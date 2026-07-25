@@ -1,10 +1,9 @@
 <script lang="ts" setup>
 import fetch from 'cross-fetch';
 import { onMounted, ref, computed, onUnmounted, watch } from 'vue';
-import { useBlockchain, useFormatter, useStakingStore, useBaseStore } from '@/stores';
+import { useBlockchain, useStakingStore, useBaseStore } from '@/stores';
 import { consensusPubkeyToHexAddress } from '@/libs';
 
-const format = useFormatter();
 const chainStore = useBlockchain();
 const stakingStore = useStakingStore();
 const baseStore = useBaseStore();
@@ -22,7 +21,6 @@ const step = ref('');
 let timer: any = null;
 let loading = false;
 let started = false;
-const updatetime = ref(new Date());
 const positions = ref([] as any[]);
 const validatorsData = ref([] as any);
 
@@ -65,9 +63,13 @@ function loadAvatars() {
   );
 }
 
+function baseOf(addr?: string) {
+  return String(addr || '').replace(/\/+$/, '');
+}
+
 function pickRpcList() {
   const list = (chainStore.current?.endpoints?.rpc || []).filter((x) => x?.address);
-  // Prefer Shazoes RPC first (CORS + dump_consensus_state allowed)
+  // Prefer Shazoes RPC first (CORS + consensus endpoints allowed)
   list.sort((a, b) => {
     const as = /shazoes/i.test(a.address || '') || /shazoes/i.test(a.provider || '') ? 0 : 1;
     const bs = /shazoes/i.test(b.address || '') || /shazoes/i.test(b.provider || '') ? 0 : 1;
@@ -83,23 +85,20 @@ function setRpcFromList(preferAddress?: string) {
     return false;
   }
   if (preferAddress) {
-    const hit = rpcList.value.find((x) => x.address === preferAddress || preferAddress.startsWith(x.address));
+    const hit = rpcList.value.find(
+      (x) => baseOf(x.address) === baseOf(preferAddress) || baseOf(preferAddress).startsWith(baseOf(x.address))
+    );
     if (hit) {
-      rpc.value = hit.address.replace(/\/$/, '') + '/consensus_state';
+      rpc.value = baseOf(hit.address);
       return true;
     }
   }
-  rpc.value = rpcList.value[0].address.replace(/\/$/, '') + '/consensus_state';
+  rpc.value = baseOf(rpcList.value[0].address);
   return true;
 }
 
 async function startMonitor() {
   if (started || loading) return;
-  if (!setRpcFromList()) {
-    httpstatus.value = 0;
-    httpStatusText.value = 'No RPC endpoint configured for this chain';
-    return;
-  }
   started = true;
   loading = true;
   try {
@@ -109,19 +108,34 @@ async function startMonitor() {
     } catch (e) {
       console.warn('validators load failed', e);
     }
-    await fetchPosition();
-    // If dump_consensus_state blocked (403/etc), try next RPC that supports it
-    if (httpstatus.value !== 200 && rpcList.value.length > 1) {
-      for (const ep of rpcList.value.slice(1)) {
-        rpc.value = ep.address.replace(/\/$/, '') + '/consensus_state';
-        await fetchPosition();
-        if (httpstatus.value === 200) break;
+
+    rpcList.value = pickRpcList();
+    if (rpcList.value.length === 0) {
+      httpstatus.value = 0;
+      httpStatusText.value = 'No RPC endpoint configured for this chain';
+      return;
+    }
+    // Try each RPC until one supports both /validators and /consensus_state
+    let ok = false;
+    for (const ep of rpcList.value) {
+      rpc.value = baseOf(ep.address);
+      await fetchPosition();
+      if (httpstatus.value === 200 && positions.value.length > 0) {
+        await update();
+        if (httpstatus.value === 200) {
+          ok = true;
+          break;
+        }
       }
     }
-    if (httpstatus.value === 200) {
-      await update();
+    if (ok) {
       clearTime();
       timer = setInterval(() => update(), Math.max(1000, Math.round(baseStore.blocktime / 2) || 3000));
+    } else {
+      if (httpstatus.value === 200) httpstatus.value = 503;
+      if (!httpStatusText.value) {
+        httpStatusText.value = 'No configured RPC supports consensus endpoints (/validators, /consensus_state)';
+      }
     }
   } finally {
     loading = false;
@@ -164,9 +178,6 @@ function clearTime() {
   clearInterval(timer);
   timer = null;
 }
-
-const newTime = computed(() => format.toDay(updatetime.value, 'time'));
-const chainId = computed(() => baseStore.currentChainId || chainStore.current?.chainId || '');
 
 const vals = computed(() =>
   validatorsData.value.map((x: any) => {
@@ -279,9 +290,11 @@ async function onChange() {
   clearTime();
   try {
     await fetchPosition();
-    if (httpstatus.value === 200) {
+    if (httpstatus.value === 200 && positions.value.length > 0) {
       await update();
-      timer = setInterval(() => update(), Math.max(1000, Math.round(baseStore.blocktime / 2) || 3000));
+      if (httpstatus.value === 200) {
+        timer = setInterval(() => update(), Math.max(1000, Math.round(baseStore.blocktime / 2) || 3000));
+      }
     }
   } finally {
     loading = false;
@@ -291,34 +304,46 @@ async function fetchPosition() {
   if (!rpc.value) {
     httpstatus.value = 0;
     httpStatusText.value = 'No RPC selected';
+    positions.value = [];
     return;
   }
-  const dumpurl = rpc.value.replace('consensus_state', 'dump_consensus_state');
+  const base = rpc.value;
   try {
-    const response = await fetch(dumpurl);
-    httpstatus.value = response.status;
-    httpStatusText.value = response.statusText || (response.ok ? 'OK' : `HTTP ${response.status}`);
-    if (!response.ok) {
-      positions.value = [];
-      return;
-    }
-    const data = await response.json();
-    positions.value = data?.result?.round_state?.validators?.validators || [];
-    if (!positions.value.length) {
+    const all: any[] = [];
+    let page = 1;
+    let total = 0;
+    do {
+      const res = await fetch(`${base}/validators?per_page=100&page=${page}`);
+      if (!res.ok) {
+        httpstatus.value = res.status;
+        httpStatusText.value = res.statusText || `HTTP ${res.status}`;
+        positions.value = [];
+        return;
+      }
+      const data = await res.json();
+      const vals = data?.result?.validators || [];
+      total = Number(data?.result?.total ?? vals.length);
+      all.push(...vals);
+      page++;
+    } while (all.length < total && page <= 10);
+    positions.value = all;
+    if (all.length === 0) {
       httpstatus.value = 204;
-      httpStatusText.value = 'dump_consensus_state returned empty validators';
+      httpStatusText.value = '/validators returned empty set';
+    } else {
+      httpstatus.value = 200;
+      httpStatusText.value = 'OK';
     }
   } catch (error: any) {
     httpstatus.value = error?.status || 500;
-    httpStatusText.value = error?.message || String(error) || 'Error fetching dump_consensus_state';
+    httpStatusText.value = error?.message || String(error) || 'Error fetching /validators';
     positions.value = [];
   }
 }
 async function update() {
-  updatetime.value = new Date();
   if (!rpc.value) return;
   try {
-    const data = await fetch(rpc.value);
+    const data = await fetch(`${rpc.value}/consensus_state`);
     httpstatus.value = data.status;
     httpStatusText.value = data.statusText;
     if (!data.ok) return;
@@ -359,30 +384,6 @@ function exportCsv() {
 
 <template>
   <div class="space-y-4">
-    <!-- status bar -->
-    <div
-      class="bg-base-100 border border-base-300 rounded-lg shadow px-5 py-3 flex flex-wrap items-center gap-x-8 gap-y-2 text-sm"
-    >
-      <div class="flex items-center gap-1.5">
-        <span class="opacity-70">Chain ID:</span>
-        <span class="font-mono font-semibold">{{ chainId || '--' }}</span>
-      </div>
-      <div class="flex items-center gap-2">
-        <span class="opacity-70">Block Height:</span>
-        <span class="font-mono font-semibold">{{ height ? Number(height).toLocaleString() : '--' }}</span>
-        <span
-          class="w-2 h-2 rounded-full animate-pulse"
-          :class="httpstatus === 200 ? 'bg-success' : 'bg-error'"
-          :title="httpstatus === 200 ? 'Live updating' : 'Disconnected'"
-        ></span>
-      </div>
-      <div class="flex items-center gap-1.5">
-        <span class="opacity-70">{{ $t('consensus.updated_at') }}:</span>
-        <span class="font-mono">{{ newTime }}</span>
-      </div>
-      <div v-if="httpstatus !== 200" class="text-error font-mono text-xs">{{ httpstatus }}: {{ httpStatusText }}</div>
-    </div>
-
     <!-- metric cards -->
     <div v-if="roundState['height/round/step']" class="flex flex-wrap gap-3">
       <!-- Height H/R/S -->
@@ -517,7 +518,7 @@ function exportCsv() {
             <div class="flex items-center gap-1.5">
               <span class="text-xs opacity-70">RPC:</span>
               <select v-model="rpc" class="select select-bordered select-xs w-auto max-w-[220px] min-h-0 h-7 text-xs" @change="onChange">
-                <option v-for="(item, index) in rpcList" :key="index" :value="(item?.address || '').replace(/\/$/, '') + '/consensus_state'">
+                <option v-for="(item, index) in rpcList" :key="index" :value="(item?.address || '').replace(/\/+$/, '')">
                   {{ item?.provider || item?.address }}
                 </option>
               </select>

@@ -1,7 +1,18 @@
 {
   "chain_name": "axelar",
-  "api": ["https://rest.axelar.lava.build/lava-referer-97409c72-1a82-4861-8651-119c15151cbe"],
-  "rpc": ["https://tm.axelar.lava.build/lava-referer-97409c72-1a82-4861-8651-119c15151cbe"],
+  "api": [
+    "https://rest.axelar.lava.build/lava-referer-97409c72-1a82-4861-8651-119c15151cbe"
+  ],
+  "rpc": [
+    {
+      "address": "https://axelar-rpc.polkachu.com",
+      "provider": "Polkachu"
+    },
+    {
+      "address": "https://axelar-rpc.publicnode.com",
+      "provider": "PublicNode"
+    }
+  ],
   "snapshot_provider": "",
   "sdk_version": "0.45.6",
   "coin_type": "118",

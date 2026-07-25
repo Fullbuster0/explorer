@@ -6,22 +6,18 @@
   "network_type": "mainnet",
   "rpc": [
     {
-      "address": "https://rpc.xion-mainnet-1.burnt.com",
-      "provider": "🔥BurntLabs🔥"
-    },
-    {
-      "address": "https://rpc-burnt.imperator.co/",
-      "provider": "Imperator.co"
-    },
-    {
       "address": "https://xion-rpc.polkachu.com",
       "provider": "Polkachu"
+    },
+    {
+      "address": "https://rpc.xion-mainnet-1.burnt.com",
+      "provider": "BurntLabs"
     }
   ],
   "api": [
     {
       "address": "https://api.xion-mainnet-1.burnt.com",
-      "provider": "🔥BurntLabs🔥"
+      "provider": "\ud83d\udd25BurntLabs\ud83d\udd25"
     },
     {
       "address": "https://lcd-burnt.imperator.co/",
@@ -140,7 +136,6 @@
     "tx",
     "uptime",
     "ibc",
-    "supply",
     "parameters",
     "consensus",
     "cosmwasm",

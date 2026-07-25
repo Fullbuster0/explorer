@@ -2,14 +2,36 @@
   "chain_name": "cosmos",
   "registry_name": "cosmoshub",
   "api": [
-    { "provider": "cosmos.directory", "address": "https://rest.cosmos.directory/cosmoshub" },
-    { "provider": "publicnode", "address": "https://cosmos-rest.publicnode.com" },
-    { "provider": "silknode", "address": "https://cosmos.api.silknodes.io" }
+    {
+      "provider": "cosmos.directory",
+      "address": "https://rest.cosmos.directory/cosmoshub"
+    },
+    {
+      "provider": "publicnode",
+      "address": "https://cosmos-rest.publicnode.com"
+    },
+    {
+      "provider": "silknode",
+      "address": "https://cosmos.api.silknodes.io"
+    }
   ],
   "rpc": [
-    { "provider": "icycro", "address": "https://cosmos-rpc.icycro.org" },
-    { "provider": "dragonstake", "address": "https://rpc.cosmos.dragonstake.io" },
-    { "provider": "Golden Ratio Staking", "address": "https://rpc-cosmoshub.goldenratiostaking.net" }
+    {
+      "address": "https://rpc.cosmos.directory/cosmoshub",
+      "provider": "cosmos.directory"
+    },
+    {
+      "address": "https://cosmos-rpc.polkachu.com",
+      "provider": "Polkachu"
+    },
+    {
+      "address": "https://rpc-cosmoshub.keplr.app",
+      "provider": "Keplr"
+    },
+    {
+      "address": "https://cosmoshub.rpc.kjnodes.com",
+      "provider": "kjnodes"
+    }
   ],
   "sdk_version": "0.45.1",
   "coin_type": "118",
