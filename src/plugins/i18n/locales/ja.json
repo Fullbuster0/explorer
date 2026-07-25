@@ -23,11 +23,11 @@
     "links": "リンク"
   },
   "pages": {
-    "title": "Ping ダッシュボード",
+    "title": "Shazoes Explorer",
     "title_all": "404",
     "tag": "ベータ",
     "tag_all": "ページが見つかりません",
-    "slogan": "Ping ダッシュボードは単なるエクスプローラーではなく、ウォレットなどもあります... 🛠",
+    "slogan": "Shazoes Validator によるマルチチェーン Cosmos エクスプローラー — ステーキング、探索、資産管理。",
     "description": "Cosmos エコシステムブロックチェーン 🚀",
     "search_placeholder": "チェーンを検索",
     "description_all": "お探しのページは見つかりませんでした。",
