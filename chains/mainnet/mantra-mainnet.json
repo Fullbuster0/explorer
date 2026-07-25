@@ -6,54 +6,26 @@
   "coingecko": "",
   "api": [
     {
-      "address": "https://mantra-mainnet-api.shazoes.xyz",
-      "provider": "Shazoes"
-    },
-    {
-      "address": "https://mantra-mainnet-api.itrocket.net",
-      "provider": "ITRocket"
+      "address": "https://mantra.api.m.stavr.tech",
+      "provider": "stavr"
     },
     {
       "address": "https://mantra-api.polkachu.com",
-      "provider": "Polkachu"
+      "provider": "polkachu"
     },
     {
-      "address": "https://rest.cosmos.directory/mantrachain",
-      "provider": "cosmos.directory"
-    },
-    {
-      "address": "https://api.mantrachain.io",
-      "provider": "MANTRACHAIN"
-    },
-    {
-      "address": "https://mantra.api.m.stavr.tech",
-      "provider": "🔥STAVR🔥"
+      "address": "https://mantra-rest.publicnode.com",
+      "provider": "publicnode"
     }
   ],
   "rpc": [
     {
-      "address": "https://mantra-mainnet-rpc.shazoes.xyz",
-      "provider": "Shazoes"
+      "address": "https://mantra-rpc.polkachu.com",
+      "provider": "polkachu"
     },
     {
-      "address": "https://mantra-mainnet-rpc.itrocket.net:443",
-      "provider": "ITRocket"
-    },
-    {
-      "address": "https://mantra-rpc.polkachu.com:443",
-      "provider": "Polkachu"
-    },
-    {
-      "address": "https://rpc.cosmos.directory/mantrachain",
-      "provider": "cosmos.directory"
-    },
-    {
-      "address": "https://rpc.mantrachain.io",
-      "provider": "MANTRACHAIN"
-    },
-    {
-      "address": "https://mantra.rpc.m.stavr.tech",
-      "provider": "🔥STAVR🔥"
+      "address": "https://mantra-rpc.publicnode.com",
+      "provider": "publicnode"
     }
   ],
   "snapshot_provider": "",

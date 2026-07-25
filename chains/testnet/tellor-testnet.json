@@ -1,6 +1,6 @@
 {
   "chain_name": "tellor-testnet",
-  "chain_id": "",
+  "chain_id": "layertest-5",
   "network_type": "testnet",
   "registry_name": "Tellor",
   "coingecko": "",
@@ -16,12 +16,8 @@
   ],
   "rpc": [
     {
-      "address": "https://tellor-testnet-rpc.shazoes.xyz",
-      "provider": "Shazoes"
-    },
-    {
-      "address": "https://tellor-testnet-rpc.hazennetworksolutions.com",
-      "provider": "Hazen Network"
+      "address": "https://node-palmito.tellorlayer.com/rpc",
+      "provider": "tellorlayer"
     }
   ],
   "snapshot_provider": "",

@@ -6,14 +6,14 @@
   "coingecko": "",
   "api": [
     {
-      "provider": "Shazoes",
-      "address": "https://atomone-testnet-api.shazoes.xyz"
+      "address": "https://testnet-atomone-api.konsortech.xyz",
+      "provider": "konsortech"
     }
   ],
   "rpc": [
     {
-      "provider": "Shazoes",
-      "address": "https://atomone-testnet-rpc.shazoes.xyz"
+      "address": "https://testnet-atomone-rpc.konsortech.xyz",
+      "provider": "konsortech"
     }
   ],
   "snapshot_provider": "",

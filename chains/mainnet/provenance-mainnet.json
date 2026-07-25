@@ -27,11 +27,11 @@
     },
     {
       "address": "https://provenance-mainnet-lcd.autostake.com:443",
-      "provider": "AutoStake 🛡️ Slash Protected"
+      "provider": "AutoStake \ud83d\udee1\ufe0f Slash Protected"
     },
     {
       "address": "https://provenance.api.m.stavr.tech",
-      "provider": "🔥STAVR🔥"
+      "provider": "\ud83d\udd25STAVR\ud83d\udd25"
     },
     {
       "address": "https://provenance.ibs.team:443/api",
@@ -39,7 +39,7 @@
     },
     {
       "address": "https://provenance-api.highstakes.ch",
-      "provider": "High Stakes 🇨🇭"
+      "provider": "High Stakes \ud83c\udde8\ud83c\udded"
     },
     {
       "address": "https://provenance-api.panthea.eu",
@@ -47,11 +47,11 @@
     },
     {
       "address": "https://provenance_mainnet_api.chain.whenmoonwhenlambo.money",
-      "provider": "🚀 WHEN MOON 🌕 WHEN LAMBO 🔥"
+      "provider": "\ud83d\ude80 WHEN MOON \ud83c\udf15 WHEN LAMBO \ud83d\udd25"
     },
     {
       "address": "https://api.pio-mainnet-1.provenance.aviaone.com",
-      "provider": "AVIAONE 🟢"
+      "provider": "AVIAONE \ud83d\udfe2"
     },
     {
       "address": "https://provenance.api.pocket.network",
@@ -64,60 +64,16 @@
   ],
   "rpc": [
     {
-      "address": "https://provenance-mainnet-rpc.shazoes.xyz",
-      "provider": "Shazoes"
-    },
-    {
-      "address": "https://provenance-rpc.polkachu.com:443",
-      "provider": "Polkachu"
-    },
-    {
-      "address": "https://rpc.cosmos.directory/provenance",
-      "provider": "cosmos.directory"
-    },
-    {
-      "address": "https://rpc.provenance.io:443",
-      "provider": "provenance.io"
-    },
-    {
-      "address": "https://rpc-provenance.takeshi.team",
-      "provider": "TAKESHI"
-    },
-    {
       "address": "https://rpc.provenance.io",
-      "provider": "Figure"
+      "provider": "provenance"
     },
     {
-      "address": "https://provenance-mainnet-rpc.autostake.com:443",
-      "provider": "AutoStake 🛡️ Slash Protected"
+      "address": "https://provenance-rpc.polkachu.com",
+      "provider": "polkachu"
     },
     {
-      "address": "https://provenance.ibs.team:443/rpc",
-      "provider": "Inter Blockchain Services"
-    },
-    {
-      "address": "https://provenance-rpc.highstakes.ch",
-      "provider": "High Stakes 🇨🇭"
-    },
-    {
-      "address": "https://provenance-rpc.panthea.eu",
-      "provider": "Panthea EU"
-    },
-    {
-      "address": "https://provenance_mainnet_rpc.chain.whenmoonwhenlambo.money",
-      "provider": "🚀 WHEN MOON 🌕 WHEN LAMBO 🔥"
-    },
-    {
-      "address": "https://rpc.pio-mainnet-1.provenance.aviaone.com",
-      "provider": "AVIAONE 🟢"
-    },
-    {
-      "address": "https://provenance.api.pocket.network",
-      "provider": "Pocket Network"
-    },
-    {
-      "address": "https://provenance-rpc.kleomedes.network",
-      "provider": "Kleomedes"
+      "address": "https://provenance-rpc.publicnode.com",
+      "provider": "publicnode"
     }
   ],
   "snapshot_provider": "",

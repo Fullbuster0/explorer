@@ -299,7 +299,7 @@ loadAvatars();
                   </div>
                   <div class="min-w-0">
                     <RouterLink
-                      :to="{ name: 'chain-staking-validator', params: { validator: v.operator_address } }"
+                      :to="`/${$route.params.chain}/validator/${v.operator_address}`"
                       class="block truncate text-[13.5px] font-semibold text-primary no-underline hover:underline"
                     >
                       {{ v.description?.moniker }}
