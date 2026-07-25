@@ -79,7 +79,7 @@ dayjs();
       <!-- brand lockup -->
       <RouterLink to="/" class="flex items-center gap-3 px-5 pt-6 pb-5">
         <span class="sz-logo-mark">
-          <img class="h-6 w-6" src="../../assets/logo.svg" alt="Shazoes" />
+          <img class="h-8 w-8 object-contain" src="../../assets/logo.png" alt="Shazoes" />
         </span>
         <span class="flex flex-col leading-none">
           <span class="sz-brand-name">Shazoes</span>
@@ -267,11 +267,13 @@ dayjs();
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  width: 42px;
+  height: 42px;
   border-radius: 12px;
-  background: linear-gradient(135deg, #005fcc, #3385ff);
-  box-shadow: 0 4px 14px -4px rgba(0, 95, 204, 0.55);
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 4px 14px -4px rgba(0, 95, 204, 0.45);
+  overflow: hidden;
+  padding: 4px;
 }
 .sz-brand-name {
   font-size: 19px;

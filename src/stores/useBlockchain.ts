@@ -90,7 +90,7 @@ export const useBlockchain = defineStore('blockchain', {
           },
           {
             heading: 'Advanced',
-            keys: ['ibc', 'cosmwasm', 'parameters', 'consensus', 'nft'],
+            keys: ['consensus', 'ibc', 'cosmwasm', 'parameters', 'nft'],
           },
         ];
 

@@ -47,7 +47,7 @@ const chainStore = useBlockchain();
 
         <div class="flex items-center gap-4">
           <span class="sz-hero-logo">
-            <img src="@/assets/logo.svg" alt="Shazoes" class="h-10 w-10" />
+            <img src="@/assets/logo.png" alt="Shazoes" class="h-11 w-11 object-contain" />
           </span>
           <h1 class="sz-hero-title text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight text-white">
             {{ $t('pages.title') }}
@@ -161,12 +161,14 @@ const chainStore = useBlockchain();
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 56px;
-  height: 56px;
+  width: 60px;
+  height: 60px;
   border-radius: 16px;
-  background: linear-gradient(135deg, #005fcc, #3385ff);
-  box-shadow: 0 8px 24px -8px rgba(0, 95, 204, 0.65);
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 8px 24px -8px rgba(0, 95, 204, 0.55);
   flex-shrink: 0;
+  overflow: hidden;
+  padding: 6px;
 }
 .sz-hero-title {
   letter-spacing: -0.035em;
