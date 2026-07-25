@@ -171,6 +171,27 @@ html[data-theme='dark'] .sz-card {
   color: var(--text-secondary);
 }
 
+/* social / connect icons (footer + hero) */
+.sz-social {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  font-size: 17px;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid var(--sz-border);
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+}
+.sz-social:hover {
+  color: hsl(var(--p));
+  border-color: color-mix(in srgb, hsl(var(--p)) 45%, var(--sz-border));
+  background: var(--sz-accent-soft);
+  transform: translateY(-1px);
+}
+
 /* live pulse */
 .sz-live-dot {
   width: 7px;

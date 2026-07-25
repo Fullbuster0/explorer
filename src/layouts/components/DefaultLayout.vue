@@ -184,13 +184,28 @@ dayjs();
           <Icon icon="mdi:frequently-asked-questions" class="text-[18px] mr-2.5 ml-1 sz-nav-icon" />
           <span class="text-[13.5px] capitalize text-slate-300 group-hover:text-slate-100">Wallet Helper</span>
         </RouterLink>
-        <div class="sz-section-title">{{ $t('module.links') }}</div>
-        <a href="https://github.com/Fullbuster0/explorer" target="_blank" rel="noopener" class="sz-nav-item group">
+        <div class="sz-section-title">Connect</div>
+        <a href="https://x.com/shazoes" target="_blank" rel="noopener noreferrer" class="sz-nav-item group">
           <span class="sz-nav-rail" aria-hidden="true"></span>
-          <Icon icon="mdi:github" class="text-[18px] mr-2.5 ml-1 sz-nav-icon" />
-          <span class="text-[13.5px] capitalize text-slate-300 group-hover:text-slate-100">GitHub</span>
+          <Icon icon="mdi:twitter" class="text-[18px] mr-2.5 ml-1 sz-nav-icon" />
+          <span class="text-[13.5px] capitalize text-slate-300 group-hover:text-slate-100">X / Twitter</span>
         </a>
-        <a href="https://services.shazoes.xyz" target="_blank" rel="noopener" class="sz-nav-item group">
+        <a href="https://t.me/shazoes" target="_blank" rel="noopener noreferrer" class="sz-nav-item group">
+          <span class="sz-nav-rail" aria-hidden="true"></span>
+          <Icon icon="mdi:telegram" class="text-[18px] mr-2.5 ml-1 sz-nav-icon" />
+          <span class="text-[13.5px] capitalize text-slate-300 group-hover:text-slate-100">Telegram</span>
+        </a>
+        <a href="http://discordapp.com/users/906483432811561000" target="_blank" rel="noopener noreferrer" class="sz-nav-item group">
+          <span class="sz-nav-rail" aria-hidden="true"></span>
+          <Icon icon="mdi:discord" class="text-[18px] mr-2.5 ml-1 sz-nav-icon" />
+          <span class="text-[13.5px] capitalize text-slate-300 group-hover:text-slate-100">Discord</span>
+        </a>
+        <a href="mailto:hello@shazoes.xyz" class="sz-nav-item group">
+          <span class="sz-nav-rail" aria-hidden="true"></span>
+          <Icon icon="mdi:email-outline" class="text-[18px] mr-2.5 ml-1 sz-nav-icon" />
+          <span class="text-[13.5px] capitalize text-slate-300 group-hover:text-slate-100">Email</span>
+        </a>
+        <a href="https://services.shazoes.xyz" target="_blank" rel="noopener noreferrer" class="sz-nav-item group">
           <span class="sz-nav-rail" aria-hidden="true"></span>
           <Icon icon="mdi:server" class="text-[18px] mr-2.5 ml-1 sz-nav-icon" />
           <span class="text-[13.5px] capitalize text-slate-300 group-hover:text-slate-100">Services</span>

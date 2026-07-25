@@ -201,7 +201,6 @@ loadAvatars();
   <div>
     <div class="sz-page-head">
       <div>
-        <div class="sz-section-kicker">Proof of Stake</div>
         <h1 class="sz-page-title">{{ $t('module.validator') }}</h1>
         <div class="sz-page-sub">
           <span class="font-mono">{{ list.length }}</span> / {{ staking.params.max_validators }}

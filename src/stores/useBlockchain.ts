@@ -25,6 +25,8 @@ export const useBlockchain = defineStore('blockchain', {
       chainName: '',
       endpoint: {} as Endpoint,
       connErr: '',
+      fallbackInProgress: false,
+      lastFallbackAt: 0,
     };
   },
   getters: {
@@ -201,9 +203,63 @@ export const useBlockchain = defineStore('blockchain', {
       }
     },
 
+    restEndpoints(): Endpoint[] {
+      return this.current?.endpoints?.rest || [];
+    },
+
+    // Lightweight liveness probe for a REST/LCD endpoint.
+    async healthCheck(address: string, timeoutMs = 6000): Promise<boolean> {
+      try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), timeoutMs);
+        const url = `${address.replace(/\/$/, '')}/cosmos/base/tendermint/v1beta1/blocks/latest`;
+        const res = await fetch(url, { signal: controller.signal });
+        clearTimeout(timer);
+        if (!res.ok) return false;
+        const data = await res.json();
+        return !!(data && data.block && data.block.header && data.block.header.height);
+      } catch (e) {
+        return false;
+      }
+    },
+
     async randomSetupEndpoint() {
       const endpoint = this.randomEndpoint(this.chainName);
-      if (endpoint) await this.setRestEndpoint(endpoint);
+      if (endpoint) {
+        await this.setRestEndpoint(endpoint);
+        // Self-heal: if the chosen endpoint is dead, fall back in the background
+        // so non-technical users are never stuck on a down RPC.
+        this.healthCheck(endpoint.address, 6000).then((ok) => {
+          if (!ok) this.fallbackEndpoint();
+        });
+      }
+    },
+
+    // Auto-switch to a healthy REST endpoint when the current one is down.
+    async fallbackEndpoint() {
+      const all = this.restEndpoints();
+      if (all.length <= 1) return;
+      const now = Date.now();
+      // Guard against concurrent / rapid-fire fallback loops.
+      if (this.fallbackInProgress || now - this.lastFallbackAt < 15000) return;
+      this.fallbackInProgress = true;
+      this.lastFallbackAt = now;
+      try {
+        const current = this.endpoint?.address;
+        const candidates = all.filter((e) => e.address !== current);
+        const results = await Promise.all(
+          candidates.map(async (ep) => ({ ep, ok: await this.healthCheck(ep.address, 5000) }))
+        );
+        // Pick the first healthy candidate in config order.
+        const healthy = results.find((r) => r.ok);
+        if (healthy && healthy.ep.address !== current) {
+          console.info(`[explorer] RPC fallback: ${current} -> ${healthy.ep.address}`);
+          this.connErr = '';
+          await this.setRestEndpoint(healthy.ep);
+        }
+      } finally {
+        this.fallbackInProgress = false;
+      }
     },
 
     async setRestEndpoint(endpoint: Endpoint) {

@@ -78,20 +78,45 @@ const chainStore = useBlockchain();
           <a
             href="https://services.shazoes.xyz"
             target="_blank"
-            rel="noopener"
+            rel="noopener noreferrer"
             class="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-content shadow-lg shadow-primary/25 hover:brightness-110 transition"
           >
             <Icon icon="mdi:server" class="text-lg" />
             Services
           </a>
           <a
-            href="https://github.com/Fullbuster0/explorer"
+            href="https://x.com/shazoes"
             target="_blank"
-            rel="noopener"
-            class="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm font-semibold text-slate-200 hover:bg-white/10 transition"
+            rel="noopener noreferrer"
+            class="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 py-2.5 text-sm font-semibold text-slate-200 hover:bg-white/10 transition"
+            aria-label="X / Twitter"
           >
-            <Icon icon="mdi:github" class="text-lg" />
-            GitHub
+            <Icon icon="mdi:twitter" class="text-lg" />
+          </a>
+          <a
+            href="https://t.me/shazoes"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 py-2.5 text-sm font-semibold text-slate-200 hover:bg-white/10 transition"
+            aria-label="Telegram"
+          >
+            <Icon icon="mdi:telegram" class="text-lg" />
+          </a>
+          <a
+            href="http://discordapp.com/users/906483432811561000"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 py-2.5 text-sm font-semibold text-slate-200 hover:bg-white/10 transition"
+            aria-label="Discord"
+          >
+            <Icon icon="mdi:discord" class="text-lg" />
+          </a>
+          <a
+            href="mailto:hello@shazoes.xyz"
+            class="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 py-2.5 text-sm font-semibold text-slate-200 hover:bg-white/10 transition"
+            aria-label="Email"
+          >
+            <Icon icon="mdi:email-outline" class="text-lg" />
           </a>
         </div>
       </div>

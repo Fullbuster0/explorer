@@ -84,6 +84,7 @@ export const useBaseStore = defineStore('baseStore', {
       } catch (error) {
         console.error('Error fetching latest block:', error);
         this.connected = false;
+        this.blockchain.fallbackEndpoint();
       }
       if (!this.earliest || this.earliest?.block?.header?.chain_id != this.latest?.block?.header?.chain_id) {
         //reset earliest and recents
@@ -133,6 +134,7 @@ export const useBaseStore = defineStore('baseStore', {
       } catch (error) {
         console.error('Error fetching latest block:', error);
         this.connected = false;
+        this.blockchain.fallbackEndpoint();
       }
       return {} as Block;
     },
