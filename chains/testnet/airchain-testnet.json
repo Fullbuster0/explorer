@@ -1,6 +1,6 @@
 {
   "chain_name": "airchain-testnet",
-  "chain_id": "",
+  "chain_id": "varanasi-1",
   "network_type": "testnet",
   "registry_name": "Airchain",
   "coingecko": "",
@@ -8,12 +8,20 @@
     {
       "address": "https://airchain-testnet-api.shazoes.xyz",
       "provider": "Shazoes"
+    },
+    {
+      "address": "https://airchains-testnet-api.itrocket.net",
+      "provider": "ITRocket"
     }
   ],
   "rpc": [
     {
       "address": "https://airchain-testnet-rpc.shazoes.xyz",
       "provider": "Shazoes"
+    },
+    {
+      "address": "https://airchains-testnet-rpc.itrocket.net",
+      "provider": "ITRocket"
     }
   ],
   "snapshot_provider": "",

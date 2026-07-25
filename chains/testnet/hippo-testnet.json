@@ -1,19 +1,27 @@
 {
   "chain_name": "hippo-testnet",
-  "chain_id": "",
+  "chain_id": "hippo-protocol-testnet-1",
   "network_type": "testnet",
-  "registry_name": "Hippo",
+  "registry_name": "Hippo Protocol",
   "coingecko": "",
   "api": [
     {
       "address": "https://hippo-testnet-api.shazoes.xyz",
       "provider": "Shazoes"
+    },
+    {
+      "address": "https://api.testnet.hippo-protocol.com",
+      "provider": "Hippo Protocol"
     }
   ],
   "rpc": [
     {
       "address": "https://hippo-testnet-rpc.shazoes.xyz",
       "provider": "Shazoes"
+    },
+    {
+      "address": "https://rpc.testnet.hippo-protocol.com",
+      "provider": "Hippo Protocol"
     }
   ],
   "snapshot_provider": "",

@@ -19,7 +19,7 @@
     },
     {
       "address": "https://babylon-rest.publicnode.com",
-      "provider": "Allnodes ⚡️ Nodes & Staking"
+      "provider": "Allnodes \u26a1\ufe0f Nodes & Staking"
     },
     {
       "address": "https://rest.cosmos.directory/babylon",
@@ -27,11 +27,19 @@
     },
     {
       "address": "https://babylon-mainnet-lcd.autostake.com:443",
-      "provider": "AutoStake 🛡️ Slash Protected"
+      "provider": "AutoStake \ud83d\udee1\ufe0f Slash Protected"
     },
     {
       "address": "https://api.babylon.validatus.com",
       "provider": "Validatus"
+    },
+    {
+      "address": "https://babylon-mainnet-api.itrocket.net",
+      "provider": "ITRocket"
+    },
+    {
+      "address": "https://rest.lavenderfive.com:443/babylon",
+      "provider": "Lavenderfive"
     }
   ],
   "rpc": [
@@ -57,7 +65,7 @@
     },
     {
       "address": "https://babylon-rpc.publicnode.com:443",
-      "provider": "Allnodes ⚡️ Nodes & Staking"
+      "provider": "Allnodes \u26a1\ufe0f Nodes & Staking"
     },
     {
       "address": "https://babylon-rpc.polkachu.com:443",
@@ -69,11 +77,15 @@
     },
     {
       "address": "https://babylon-mainnet-rpc.autostake.com:443",
-      "provider": "AutoStake 🛡️ Slash Protected"
+      "provider": "AutoStake \ud83d\udee1\ufe0f Slash Protected"
     },
     {
       "address": "https://rpc.babylon.validatus.com",
       "provider": "Validatus"
+    },
+    {
+      "address": "https://babylon-mainnet-rpc.itrocket.net",
+      "provider": "ITRocket"
     }
   ],
   "snapshot_provider": "",

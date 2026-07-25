@@ -8,12 +8,20 @@
     {
       "address": "https://lcd-testnet.empe.io",
       "provider": "Empeiria"
+    },
+    {
+      "address": "https://empeiria-testnet-api.itrocket.net",
+      "provider": "ITRocket"
     }
   ],
   "rpc": [
     {
       "address": "https://rpc-testnet.empe.io",
       "provider": "empeiria"
+    },
+    {
+      "address": "https://empeiria-testnet-rpc.itrocket.net",
+      "provider": "ITRocket"
     }
   ],
   "snapshot_provider": "https://archive-testnet.empe.io",

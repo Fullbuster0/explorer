@@ -8,26 +8,6 @@
     {
       "address": "https://nillion-mainnet-api.shazoes.xyz",
       "provider": "Shazoes"
-    },
-    {
-      "address": "https://api.nillion.nodestake.org",
-      "provider": "NodeStake"
-    },
-    {
-      "address": "https://rest.cosmos.directory/nillion",
-      "provider": "cosmos.directory"
-    },
-    {
-      "address": "https://nillion-api.lavenderfive.com",
-      "provider": "lavenderfive"
-    },
-    {
-      "address": "https://nillion-mainnet-lcd.autostake.com:443",
-      "provider": "AutoStake 🛡️ Slash Protected"
-    },
-    {
-      "address": "https://api.nillion.validatus.com",
-      "provider": "Validatus"
     }
   ],
   "rpc": [
@@ -49,7 +29,7 @@
     },
     {
       "address": "https://nillion-mainnet-rpc.autostake.com:443",
-      "provider": "AutoStake 🛡️ Slash Protected"
+      "provider": "AutoStake \ud83d\udee1\ufe0f Slash Protected"
     },
     {
       "address": "https://rpc.nillion.validatus.com",
