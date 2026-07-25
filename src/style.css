@@ -85,63 +85,177 @@ html[data-theme='dark'] .sz-page-shell::before {
 }
 
 /*
- * explorers.guru-style floating blocks background
- * pure CSS squares rising from bottom — no canvas/WebGL
+ * Shazoes aurora field — original brand motion
+ * soft drifting orbs + consensus-style pulse rings + light beam
+ * (NOT floating squares / nodes.guru / explorers.guru)
  */
-.sz-float-blocks {
+.sz-aurora {
   position: fixed;
   inset: 0;
   z-index: 0;
   overflow: hidden;
   pointer-events: none;
-  list-style: none;
-  margin: 0;
-  padding: 0;
 }
-.sz-float-blocks li {
-  position: absolute;
-  bottom: -8rem;
-  display: block;
-  border-radius: 0.35rem;
-  background: rgba(0, 95, 204, 0.14);
-  animation: sz-float-blocks 28s linear infinite;
-  will-change: transform, opacity;
-}
-html.dark .sz-float-blocks li,
-html[data-theme='dark'] .sz-float-blocks li {
-  background: rgba(153, 204, 255, 0.1);
-}
-.sz-float-blocks li:nth-child(1)  { left: 8%;  width: 1.1rem; height: 1.1rem; animation-duration: 32s; animation-delay: 0s; }
-.sz-float-blocks li:nth-child(2)  { left: 18%; width: 2.75rem; height: 2.75rem; animation-duration: 40s; animation-delay: 2s; opacity: 0.7; }
-.sz-float-blocks li:nth-child(3)  { left: 28%; width: 0.9rem; height: 0.9rem; animation-duration: 26s; animation-delay: 4s; }
-.sz-float-blocks li:nth-child(4)  { left: 38%; width: 3.5rem; height: 3.5rem; animation-duration: 48s; animation-delay: 1s; opacity: 0.55; }
-.sz-float-blocks li:nth-child(5)  { left: 48%; width: 1.35rem; height: 1.35rem; animation-duration: 34s; animation-delay: 6s; }
-.sz-float-blocks li:nth-child(6)  { left: 58%; width: 5rem; height: 5rem; animation-duration: 55s; animation-delay: 3s; opacity: 0.4; }
-.sz-float-blocks li:nth-child(7)  { left: 68%; width: 1rem; height: 1rem; animation-duration: 29s; animation-delay: 8s; }
-.sz-float-blocks li:nth-child(8)  { left: 76%; width: 2.2rem; height: 2.2rem; animation-duration: 42s; animation-delay: 5s; }
-.sz-float-blocks li:nth-child(9)  { left: 86%; width: 4rem; height: 4rem; animation-duration: 50s; animation-delay: 2.5s; opacity: 0.45; }
-.sz-float-blocks li:nth-child(10) { left: 94%; width: 1.5rem; height: 1.5rem; animation-duration: 36s; animation-delay: 7s; }
 
-@keyframes sz-float-blocks {
+/* soft glowing orbs that drift slowly */
+.sz-orb {
+  position: absolute;
+  border-radius: 999px;
+  filter: blur(48px);
+  will-change: transform, opacity;
+  opacity: 0.55;
+}
+.sz-orb-a {
+  width: 28rem;
+  height: 28rem;
+  left: -6%;
+  top: 8%;
+  background: radial-gradient(circle, rgba(0, 95, 204, 0.45) 0%, rgba(0, 95, 204, 0) 70%);
+  animation: sz-drift-a 22s ease-in-out infinite alternate;
+}
+.sz-orb-b {
+  width: 22rem;
+  height: 22rem;
+  right: -4%;
+  top: 18%;
+  background: radial-gradient(circle, rgba(118, 75, 200, 0.4) 0%, rgba(118, 75, 200, 0) 70%);
+  animation: sz-drift-b 28s ease-in-out infinite alternate;
+}
+.sz-orb-c {
+  width: 18rem;
+  height: 18rem;
+  left: 38%;
+  bottom: 8%;
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.28) 0%, rgba(56, 189, 248, 0) 70%);
+  animation: sz-drift-c 24s ease-in-out infinite alternate;
+}
+.sz-orb-d {
+  width: 14rem;
+  height: 14rem;
+  left: 18%;
+  top: 52%;
+  background: radial-gradient(circle, rgba(153, 204, 255, 0.22) 0%, transparent 70%);
+  animation: sz-drift-a 30s ease-in-out infinite alternate-reverse;
+  filter: blur(36px);
+}
+.sz-orb-e {
+  width: 16rem;
+  height: 16rem;
+  right: 18%;
+  bottom: 18%;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.22) 0%, transparent 70%);
+  animation: sz-drift-b 26s ease-in-out infinite alternate-reverse;
+  filter: blur(40px);
+}
+
+/* consensus-style pulse rings from center-top */
+.sz-ring {
+  position: absolute;
+  left: 50%;
+  top: 22%;
+  width: 12rem;
+  height: 12rem;
+  margin-left: -6rem;
+  margin-top: -6rem;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 95, 204, 0.28);
+  box-shadow: 0 0 24px rgba(0, 95, 204, 0.08);
+  animation: sz-pulse-ring 8s cubic-bezier(0.22, 0.61, 0.36, 1) infinite;
+  opacity: 0;
+}
+.sz-ring-2 {
+  animation-delay: 2.6s;
+  border-color: rgba(118, 75, 200, 0.22);
+}
+.sz-ring-3 {
+  animation-delay: 5.2s;
+  border-color: rgba(56, 189, 248, 0.2);
+}
+
+/* soft diagonal light beam */
+.sz-beam {
+  position: absolute;
+  top: -20%;
+  left: 30%;
+  width: 40%;
+  height: 140%;
+  background: linear-gradient(
+    105deg,
+    transparent 40%,
+    rgba(0, 95, 204, 0.06) 48%,
+    rgba(153, 204, 255, 0.1) 50%,
+    rgba(118, 75, 200, 0.06) 52%,
+    transparent 60%
+  );
+  transform: rotate(18deg);
+  animation: sz-beam-sweep 16s ease-in-out infinite alternate;
+  filter: blur(8px);
+}
+
+html.dark .sz-orb-a,
+html[data-theme='dark'] .sz-orb-a {
+  background: radial-gradient(circle, rgba(0, 95, 204, 0.38) 0%, transparent 70%);
+}
+html.dark .sz-orb-b,
+html[data-theme='dark'] .sz-orb-b {
+  background: radial-gradient(circle, rgba(118, 75, 200, 0.32) 0%, transparent 70%);
+}
+html.dark .sz-ring,
+html[data-theme='dark'] .sz-ring {
+  border-color: rgba(153, 204, 255, 0.18);
+  box-shadow: 0 0 28px rgba(153, 204, 255, 0.06);
+}
+html.dark .sz-beam,
+html[data-theme='dark'] .sz-beam {
+  background: linear-gradient(
+    105deg,
+    transparent 40%,
+    rgba(0, 95, 204, 0.05) 48%,
+    rgba(153, 204, 255, 0.09) 50%,
+    rgba(118, 75, 200, 0.05) 52%,
+    transparent 60%
+  );
+}
+
+@keyframes sz-drift-a {
+  0%   { transform: translate(0, 0) scale(1); }
+  50%  { transform: translate(6%, 8%) scale(1.08); }
+  100% { transform: translate(2%, -4%) scale(0.96); }
+}
+@keyframes sz-drift-b {
+  0%   { transform: translate(0, 0) scale(1.05); }
+  50%  { transform: translate(-8%, 5%) scale(0.94); }
+  100% { transform: translate(-3%, -6%) scale(1.1); }
+}
+@keyframes sz-drift-c {
+  0%   { transform: translate(0, 0) scale(1); }
+  100% { transform: translate(5%, -10%) scale(1.12); }
+}
+@keyframes sz-pulse-ring {
   0% {
-    transform: translateY(0) rotate(0deg);
-    opacity: 0;
-  }
-  8% {
-    opacity: 0.85;
-  }
-  90% {
+    transform: scale(0.35);
     opacity: 0.55;
   }
+  70% {
+    opacity: 0.12;
+  }
   100% {
-    transform: translateY(-110vh) rotate(540deg);
+    transform: scale(3.2);
     opacity: 0;
   }
+}
+@keyframes sz-beam-sweep {
+  0%   { transform: rotate(14deg) translateX(-4%); opacity: 0.55; }
+  100% { transform: rotate(22deg) translateX(6%); opacity: 0.9; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .sz-float-blocks li {
+  .sz-orb,
+  .sz-ring,
+  .sz-beam {
     animation: none !important;
+  }
+  .sz-ring {
     display: none;
   }
 }

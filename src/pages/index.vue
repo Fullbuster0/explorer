@@ -41,29 +41,28 @@ const chains = computed(() => {
 
 <template>
   <div class="mx-auto max-w-7xl pb-12">
-    <!-- ===== HERO — transparent, floating blocks show through ===== -->
+    <!-- ===== HERO — centered brand lockup ===== -->
     <section class="sz-hero relative mb-10">
-      <div class="relative z-10 flex flex-col gap-6 px-2 pt-8 pb-4 sm:px-4 sm:pt-12">
-        <div class="inline-flex w-fit items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-primary backdrop-blur-md">
+      <div class="relative z-10 flex flex-col items-center text-center gap-5 px-2 pt-10 pb-6 sm:px-4 sm:pt-14">
+        <div class="inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-primary backdrop-blur-md">
           <span class="sz-live-dot"></span>
           Multi-chain · Cosmos
         </div>
 
-        <div class="flex flex-col gap-5 sm:flex-row sm:items-center">
-          <span class="sz-hero-logo">
-            <img src="@/assets/logo.png" alt="Shazoes" class="h-12 w-12 object-contain" />
-          </span>
-          <div class="min-w-0">
-            <h1 class="sz-hero-title text-[2.35rem] sm:text-5xl md:text-[3.4rem] font-extrabold tracking-tight leading-[1.05]">
-              {{ $t('pages.title') }}
-            </h1>
-            <p class="mt-3 max-w-xl text-[15px] sm:text-base leading-relaxed text-secondary">
-              {{ $t('pages.slogan') }}
-            </p>
-          </div>
+        <span class="sz-hero-logo">
+          <img src="@/assets/logo.png" alt="Shazoes" class="h-14 w-14 object-contain" />
+        </span>
+
+        <div class="min-w-0 max-w-2xl">
+          <h1 class="sz-hero-title text-[2.35rem] sm:text-5xl md:text-[3.4rem] font-extrabold tracking-tight leading-[1.05]">
+            {{ $t('pages.title') }}
+          </h1>
+          <p class="mx-auto mt-3 max-w-xl text-[15px] sm:text-base leading-relaxed text-secondary">
+            {{ $t('pages.slogan') }}
+          </p>
         </div>
 
-        <div class="flex flex-wrap items-center gap-2.5">
+        <div class="flex flex-wrap items-center justify-center gap-2.5">
           <div class="sz-stat">
             <span class="sz-stat-value">{{ mainnetCount }}</span>
             <span class="sz-stat-label">Mainnets</span>

@@ -71,11 +71,18 @@ dayjs();
 
 <template>
   <div class="sz-page-shell min-h-screen text-base-content">
-    <!-- explorers.guru-style floating blocks (CSS only) -->
-    <ul class="sz-float-blocks" aria-hidden="true">
-      <li></li><li></li><li></li><li></li><li></li>
-      <li></li><li></li><li></li><li></li><li></li>
-    </ul>
+    <!-- Shazoes aurora field — soft orbs + pulse rings (original, not blocks) -->
+    <div class="sz-aurora" aria-hidden="true">
+      <span class="sz-orb sz-orb-a"></span>
+      <span class="sz-orb sz-orb-b"></span>
+      <span class="sz-orb sz-orb-c"></span>
+      <span class="sz-orb sz-orb-d"></span>
+      <span class="sz-orb sz-orb-e"></span>
+      <span class="sz-ring sz-ring-1"></span>
+      <span class="sz-ring sz-ring-2"></span>
+      <span class="sz-ring sz-ring-3"></span>
+      <span class="sz-beam"></span>
+    </div>
     <!-- ===== SIDEBAR ===== -->
     <aside
       class="sz-sidebar fixed left-0 top-0 bottom-0 z-50 w-64 overflow-y-auto"
