@@ -50,11 +50,7 @@ const chains = computed(() => {
           Multi-chain · Cosmos
         </div>
 
-        <div class="flex flex-col items-center text-center gap-5">
-          <span class="sz-hero-logo">
-            <img src="@/assets/logo.svg" alt="Shazoes" class="h-14 w-14 object-contain" />
-          </span>
-
+        <div class="flex flex-col items-center text-center gap-4">
           <div class="min-w-0 max-w-2xl">
             <h1 class="sz-hero-title text-[2.35rem] sm:text-5xl md:text-[3.4rem] font-extrabold tracking-tight leading-[1.05]">
               {{ $t('pages.title') }}
@@ -134,21 +130,6 @@ const chains = computed(() => {
   letter-spacing: -0.04em;
   color: hsl(var(--bc));
 }
-.sz-hero-logo {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 72px;
-  height: 72px;
-  border-radius: 0;
-  background: transparent;
-  border: none;
-  box-shadow: none;
-  flex-shrink: 0;
-  overflow: visible;
-  padding: 0;
-}
-
 .sz-search:focus-within {
   border-color: color-mix(in srgb, hsl(var(--p)) 45%, transparent);
   box-shadow: 0 0 0 3px var(--sz-glow);

@@ -4,21 +4,33 @@ import { onMounted, onUnmounted, ref } from 'vue';
 import TxDialog from './components/TxDialog.vue';
 import { useBaseStore } from '@/stores';
 
-const REFRESH_INTERVAL = import.meta.env.VITE_REFRESH_INTERVAL || 6000;
+// Default 2s so navbar height tracks ~blocktime better (was 6s → looks frozen)
+const REFRESH_INTERVAL = Number(import.meta.env.VITE_REFRESH_INTERVAL || 2000);
 
 const blockStore = useBaseStore();
 const requestCounter = ref(0);
 let pollingTimer: ReturnType<typeof setInterval> | null = null;
+let inflight = false;
+
+async function tick() {
+  if (inflight || requestCounter.value >= 2) return;
+  inflight = true;
+  requestCounter.value += 1;
+  try {
+    await blockStore.fetchLatest();
+  } finally {
+    requestCounter.value -= 1;
+    inflight = false;
+  }
+}
 
 function startPolling() {
   if (pollingTimer !== null) return;
+  // immediate pull so header isn't stuck on "—" / stale height
+  tick();
   pollingTimer = setInterval(() => {
-    if (requestCounter.value >= 5) return;
-    requestCounter.value += 1;
-    blockStore.fetchLatest().finally(() => {
-      requestCounter.value -= 1;
-    });
-  }, REFRESH_INTERVAL);
+    tick();
+  }, Math.max(1000, REFRESH_INTERVAL));
 }
 
 function stopPolling() {

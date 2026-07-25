@@ -32,10 +32,14 @@ const temp = ref('');
 blockchain.$subscribe((m, s) => {
   if (current.value === s.chainName && temp.value != s.endpoint.address) {
     temp.value = s.endpoint.address;
+    // endpoint switch — wipe stale height then re-init
+    baseStore.resetBlockState();
     blockchain.initial();
   }
   if (current.value != s.chainName) {
     current.value = s.chainName;
+    // chain switch — clear previous chain height so navbar doesn't lag
+    baseStore.resetBlockState();
     blockchain.randomSetupEndpoint();
   }
 });
@@ -311,9 +315,10 @@ dayjs();
   width: 42px;
   height: 42px;
   border-radius: 12px;
-  background: transparent;
-  overflow: visible;
-  padding: 0;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 4px 14px -4px rgba(0, 95, 204, 0.45);
+  overflow: hidden;
+  padding: 4px;
 }
 .sz-brand-name {
   font-size: 19px;

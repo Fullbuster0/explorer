@@ -125,12 +125,12 @@ import { Icon } from '@iconify/vue';
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-  overflow: visible;
-  padding: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 6px 16px -8px rgba(0, 95, 204, 0.45);
+  overflow: hidden;
+  padding: 5px;
 }
 </style>

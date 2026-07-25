@@ -68,10 +68,18 @@ export const useBaseStore = defineStore('baseStore', {
   },
   actions: {
     async initial() {
+      // Drop previous chain's height immediately so navbar doesn't show stale #
+      this.resetBlockState();
       while (!this.hasRpc) {
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+        await new Promise((resolve) => setTimeout(resolve, 250));
       }
-      this.fetchLatest();
+      await this.fetchLatest();
+    },
+    resetBlockState() {
+      this.earliest = {} as Block;
+      this.latest = {} as Block;
+      this.recents = [];
+      this.connected = false;
     },
     async clearRecentBlocks() {
       this.recents = [];
@@ -79,20 +87,33 @@ export const useBaseStore = defineStore('baseStore', {
     async fetchLatest() {
       if (!this.hasRpc) return this.latest;
       try {
-        this.latest = await this.blockchain.rpc?.getBaseBlockLatest();
-        this.connected = true;
+        const next = await this.blockchain.rpc?.getBaseBlockLatest();
+        if (next?.block?.header?.height) {
+          // Only advance (or accept first / chain change) — avoid regressions from lagging RPC
+          const prevH = Number(this.latest?.block?.header?.height || 0);
+          const nextH = Number(next.block.header.height);
+          const prevChain = this.latest?.block?.header?.chain_id;
+          const nextChain = next.block.header.chain_id;
+          if (!prevH || prevChain !== nextChain || nextH >= prevH) {
+            this.latest = next;
+          }
+          this.connected = true;
+        }
       } catch (error) {
         console.error('Error fetching latest block:', error);
         this.connected = false;
         this.blockchain.fallbackEndpoint();
       }
-      if (!this.earliest || this.earliest?.block?.header?.chain_id != this.latest?.block?.header?.chain_id) {
+      if (!this.earliest?.block?.header?.height || this.earliest?.block?.header?.chain_id != this.latest?.block?.header?.chain_id) {
         //reset earliest and recents
         this.earliest = this.latest;
         this.recents = [];
       }
       //check if the block exists in recents
-      if (this.recents.findIndex((x) => x?.block_id?.hash === this.latest?.block_id?.hash) === -1) {
+      if (
+        this.latest?.block_id?.hash &&
+        this.recents.findIndex((x) => x?.block_id?.hash === this.latest?.block_id?.hash) === -1
+      ) {
         const newBlocks = await this.fetchNewBlocks();
         const combined = [...this.recents, ...newBlocks];
         this.recents = combined.slice(-RECENT_BLOCKS_LIMIT);
