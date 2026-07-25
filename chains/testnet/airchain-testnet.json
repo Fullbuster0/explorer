@@ -1,0 +1,40 @@
+{
+  "chain_name": "airchain-testnet",
+  "chain_id": "",
+  "network_type": "testnet",
+  "registry_name": "Airchain",
+  "coingecko": "",
+  "api": [
+    {
+      "address": "https://airchain-testnet-api.shazoes.xyz",
+      "provider": "Shazoes"
+    }
+  ],
+  "rpc": [
+    {
+      "address": "https://airchain-testnet-rpc.shazoes.xyz",
+      "provider": "Shazoes"
+    }
+  ],
+  "snapshot_provider": "",
+  "sdk_version": "v0.50.3",
+  "coin_type": "118",
+  "min_tx_fee": "1000",
+  "addr_prefix": "air",
+  "theme_color": "#005fcc",
+  "logo": "/logos/airchain.png",
+  "assets": [
+    {
+      "base": "amf",
+      "symbol": "AMF",
+      "exponent": "6",
+      "coingecko_id": "",
+      "logo": "/logos/airchain.png"
+    }
+  ],
+  "keplr_features": [
+    "ibc-go",
+    "ibc-transfer",
+    "no-legacy-stdTx"
+  ]
+}

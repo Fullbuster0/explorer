@@ -5,8 +5,8 @@ import { ConfigSource, NetworkType } from '@/types/chaindata';
 import { useBlockchain } from './useBlockchain';
 import { coingeckoUrl } from '@/stores';
 
-function apiConverter(api: any[]) {
-  if (!api) return [];
+function apiConverter(api?: any[] | string) {
+  if (!api) return [] as Endpoint[];
   const array = typeof api === 'string' ? [api] : api;
   return array.map((x) => {
     if (typeof x === 'string') {
@@ -38,6 +38,8 @@ export function convertFromLocal(lc: LocalChainConfig): ChainConfig {
       ],
       type_asset: 'sdk.coin',
     }));
+  } else {
+    conf.assets = [];
   }
   conf.versions = {
     cosmosSdk: lc.sdk_version,
@@ -45,13 +47,14 @@ export function convertFromLocal(lc: LocalChainConfig): ChainConfig {
   conf.bech32Prefix = lc.addr_prefix;
   conf.bech32ConsensusPrefix = lc.consensus_prefix ?? lc.addr_prefix + 'valcons';
   conf.chainName = lc.chain_name;
+  conf.chainId = lc.chain_id || '';
   conf.networkType = lc.network_type;
   conf.coinType = lc.coin_type;
   conf.prettyName = lc.registry_name || lc.chain_name;
   conf.endpoints = {
     rest: apiConverter(lc.api),
     rpc: apiConverter(lc.rpc),
-    grpc: apiConverter(lc.grpc),
+    grpc: apiConverter(lc.grpc || []),
   };
   if (lc.provider_chain) {
     conf.providerChain = {
@@ -59,7 +62,12 @@ export function convertFromLocal(lc: LocalChainConfig): ChainConfig {
     };
   }
   conf.features = lc.features;
-  conf.logo = lc.logo.startsWith('http') ? lc.logo : `https://ping.pub${lc.logo}`;
+  // Absolute logos as-is; relative /logos/* fall back to ping.pub host (legacy).
+  conf.logo = lc.logo
+    ? lc.logo.startsWith('http')
+      ? lc.logo
+      : `https://ping.pub${lc.logo.startsWith('/') ? '' : '/'}${lc.logo}`
+    : '';
   conf.keplrFeatures = lc.keplr_features;
   conf.keplrPriceStep = lc.keplr_price_step;
   conf.themeColor = lc.theme_color;
@@ -140,7 +148,7 @@ export enum LoadingStatus {
 
 export const useDashboard = defineStore('dashboard', {
   state: () => {
-    const favMap = JSON.parse(localStorage.getItem('favoriteMap') || '{"cosmos":true, "osmosis":true}');
+    const favMap = JSON.parse(localStorage.getItem('favoriteMap') || '{"atomone-mainnet":true, "CosmosHub-mainnet":true}');
     return {
       status: LoadingStatus.Empty,
       source: ConfigSource.MainnetCosmosDirectory,
@@ -206,19 +214,22 @@ export const useDashboard = defineStore('dashboard', {
         this.networkType = NetworkType.Testnet;
       }
       // Load BOTH mainnet and testnet so the home page can toggle between them.
-      const mainnetSource: Record<string, LocalChainConfig> = import.meta.glob(
-        '../../chains/mainnet/*.json',
-        { eager: true }
-      );
-      const testnetSource: Record<string, LocalChainConfig> = import.meta.glob(
-        '../../chains/testnet/*.json',
-        { eager: true }
-      );
-      Object.values<LocalChainConfig>(mainnetSource).forEach((x: LocalChainConfig) => {
+      // Vite JSON modules may be either the raw object or `{ default: obj }`.
+      const unwrap = (mod: any): LocalChainConfig | null => {
+        const x = (mod && (mod.default || mod)) as LocalChainConfig;
+        return x && x.chain_name ? x : null;
+      };
+      const mainnetSource = import.meta.glob('../../chains/mainnet/*.json', { eager: true });
+      const testnetSource = import.meta.glob('../../chains/testnet/*.json', { eager: true });
+      Object.values(mainnetSource).forEach((mod: any) => {
+        const x = unwrap(mod);
+        if (!x) return;
         this.chains[x.chain_name] = convertFromLocal(x);
         this.chains[x.chain_name].networkType = 'mainnet';
       });
-      Object.values<LocalChainConfig>(testnetSource).forEach((x: LocalChainConfig) => {
+      Object.values(testnetSource).forEach((mod: any) => {
+        const x = unwrap(mod);
+        if (!x) return;
         this.chains[x.chain_name] = convertFromLocal(x);
         this.chains[x.chain_name].networkType = 'testnet';
       });
@@ -227,11 +238,17 @@ export const useDashboard = defineStore('dashboard', {
     },
     async loadLocalConfig(network: NetworkType) {
       const config: Record<string, ChainConfig> = {};
-      const source: Record<string, LocalChainConfig> =
+      const unwrap = (mod: any): LocalChainConfig | null => {
+        const x = (mod && (mod.default || mod)) as LocalChainConfig;
+        return x && x.chain_name ? x : null;
+      };
+      const source =
         network === NetworkType.Mainnet
           ? import.meta.glob('../../chains/mainnet/*.json', { eager: true })
           : import.meta.glob('../../chains/testnet/*.json', { eager: true });
-      Object.values<LocalChainConfig>(source).forEach((x: LocalChainConfig) => {
+      Object.values(source).forEach((mod: any) => {
+        const x = unwrap(mod);
+        if (!x) return;
         config[x.chain_name] = convertFromLocal(x);
         if (!config[x.chain_name].networkType) {
           config[x.chain_name].networkType = network.toString().toLowerCase();

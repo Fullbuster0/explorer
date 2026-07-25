@@ -1,0 +1,40 @@
+{
+  "chain_name": "seda-testnet",
+  "chain_id": "seda-1-testnet",
+  "network_type": "testnet",
+  "registry_name": "SEDA",
+  "coingecko": "",
+  "api": [
+    {
+      "address": "https://lcd.testnet.seda.xyz",
+      "provider": "Seda"
+    }
+  ],
+  "rpc": [
+    {
+      "address": "https://rpc.testnet.seda.xyz",
+      "provider": "Seda"
+    }
+  ],
+  "snapshot_provider": "",
+  "sdk_version": "v0.50.5",
+  "coin_type": "118",
+  "min_tx_fee": "1000",
+  "addr_prefix": "seda",
+  "theme_color": "#005fcc",
+  "logo": "https://raw.githubusercontent.com/cosmos/chain-registry/master/seda/images/seda.png",
+  "assets": [
+    {
+      "base": "aseda",
+      "symbol": "SEDA",
+      "exponent": "18",
+      "coingecko_id": "flux-token",
+      "logo": "/logos/seda.jpg"
+    }
+  ],
+  "keplr_features": [
+    "ibc-go",
+    "ibc-transfer",
+    "no-legacy-stdTx"
+  ]
+}

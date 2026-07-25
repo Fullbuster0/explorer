@@ -1,0 +1,296 @@
+{
+  "chain_name": "atomone-mainnet",
+  "chain_id": "atomone-1",
+  "network_type": "mainnet",
+  "registry_name": "AtomOne",
+  "coingecko": "",
+  "api": [
+    {
+      "address": "https://atomone-mainnet-api.shazoes.xyz",
+      "provider": "Shazoes"
+    },
+    {
+      "address": "https://atomone.api.nodeshub.online",
+      "provider": "NodesHub"
+    },
+    {
+      "address": "https://atomone-rest.publicnode.com",
+      "provider": "Allnodes ⚡️ Nodes & Staking"
+    },
+    {
+      "address": "https://atomone-mainnet-api.itrocket.net",
+      "provider": "ITRocket"
+    },
+    {
+      "address": "https://rest.cosmos.directory/atomone",
+      "provider": "cosmos.directory"
+    },
+    {
+      "address": "https://atomone-api.allinbits.com",
+      "provider": "AllInBits"
+    },
+    {
+      "address": "https://atomone-api.cogwheel.zone",
+      "provider": "Cogwheel ⚙️"
+    },
+    {
+      "address": "https://api-atomone.nodeist.net",
+      "provider": "Nodeist"
+    },
+    {
+      "address": "https://rest-atomone-1.cros-nest.com:443",
+      "provider": "crosnest"
+    },
+    {
+      "address": "https://atomone_mainnet_api.chain.whenmoonwhenlambo.money",
+      "provider": "🚀 WHEN MOON 🌕 WHEN LAMBO 🔥"
+    },
+    {
+      "address": "https://atomone.ibs.team:443/api",
+      "provider": "Inter Blockchain Services"
+    },
+    {
+      "address": "https://atomone-mainnet-lcd.autostake.com:443",
+      "provider": "AutoStake 🛡️ Slash Protected"
+    },
+    {
+      "address": "https://api.atomone-1.atomone.aviaone.com",
+      "provider": "AVIAONE.com 🟢"
+    },
+    {
+      "address": "https://atomone.api.m.stavr.tech",
+      "provider": "🔥STAVR🔥"
+    },
+    {
+      "address": "https://api.atomone.citizenweb3.com",
+      "provider": "Citizen Web3"
+    },
+    {
+      "address": "https://api-atone.vinjan.xyz",
+      "provider": "Vinjan.Inc"
+    },
+    {
+      "address": "https://rest-atomone.ecostake.com",
+      "provider": "ecostake"
+    },
+    {
+      "address": "https://m-atomone.api.utsa.tech",
+      "provider": "UTSA"
+    },
+    {
+      "address": "https://api.atomone.roomit.xyz",
+      "provider": "Roomit"
+    },
+    {
+      "address": "https://api.atomone.chaintools.tech",
+      "provider": "ChainTools"
+    },
+    {
+      "address": "https://atomone-mainnet-api.bonynode.online",
+      "provider": "BonyNode💚"
+    },
+    {
+      "address": "https://rest-atomone.22node.xyz",
+      "provider": "22node"
+    },
+    {
+      "address": "https://m-atomone-api.ruangnode.com:443",
+      "provider": "ruangnode"
+    },
+    {
+      "address": "https://atomone-api.kynraze.com:443",
+      "provider": "kynraze"
+    },
+    {
+      "address": "https://atomone-rest.stakerhouse.com",
+      "provider": "StakerHouse"
+    },
+    {
+      "address": "https://mainnet-atomone-api.konsortech.xyz",
+      "provider": "KonsorTech"
+    },
+    {
+      "address": "https://api.atomone-archive.citizenweb3.com",
+      "provider": "Citizen Web3"
+    },
+    {
+      "address": "https://api.atomone.indonode.net",
+      "provider": "Indonode"
+    },
+    {
+      "address": "https://atomone-api.nyan-cat.net",
+      "provider": "NyanCat"
+    },
+    {
+      "address": "https://atomone.api.pocket.network",
+      "provider": "Pocket Network"
+    },
+    {
+      "address": "https://atomone.blocksync.me/api",
+      "provider": "BlockSync"
+    },
+    {
+      "address": "https://atomone-mainnet-api.oshvank.xyz",
+      "provider": "🏆OshVanK🏆"
+    },
+    {
+      "address": "https://atomone-api.kleomedes.network",
+      "provider": "Kleomedes"
+    }
+  ],
+  "rpc": [
+    {
+      "address": "https://atomone-mainnet-rpc.shazoes.xyz",
+      "provider": "Shazoes"
+    },
+    {
+      "address": "https://atomone.rpc.nodeshub.online:443",
+      "provider": "NodesHub"
+    },
+    {
+      "address": "https://atomone-rpc.publicnode.com:443",
+      "provider": "Allnodes ⚡️ Nodes & Staking"
+    },
+    {
+      "address": "https://atomone-mainnet-rpc.itrocket.net:443",
+      "provider": "ITRocket"
+    },
+    {
+      "address": "https://rpc.cosmos.directory/atomone",
+      "provider": "cosmos.directory"
+    },
+    {
+      "address": "https://atomone-rpc.allinbits.com:443",
+      "provider": "AllInBits"
+    },
+    {
+      "address": "https://atomone-rpc.cogwheel.zone",
+      "provider": "Cogwheel ⚙️"
+    },
+    {
+      "address": "https://rpc-atomone.nodeist.net",
+      "provider": "Nodeist"
+    },
+    {
+      "address": "https://rpc-atomone-1.cros-nest.com:443",
+      "provider": "crosnest"
+    },
+    {
+      "address": "https://atomone_mainnet_rpc.chain.whenmoonwhenlambo.money",
+      "provider": "🚀 WHEN MOON 🌕 WHEN LAMBO 🔥"
+    },
+    {
+      "address": "https://atomone.ibs.team:443/rpc",
+      "provider": "Inter Blockchain Services"
+    },
+    {
+      "address": "https://atomone-mainnet-rpc.autostake.com:443",
+      "provider": "AutoStake 🛡️ Slash Protected"
+    },
+    {
+      "address": "https://rpc.atomone-1.atomone.aviaone.com:443",
+      "provider": "AVIAONE.com 🟢"
+    },
+    {
+      "address": "https://atomone.rpc.m.stavr.tech:443",
+      "provider": "🔥STAVR🔥"
+    },
+    {
+      "address": "https://rpc.atomone.citizenweb3.com:443",
+      "provider": "Citizen Web3"
+    },
+    {
+      "address": "https://rpc-atone.vinjan.xyz",
+      "provider": "Vinjan.Inc"
+    },
+    {
+      "address": "https://rpc-atomone.ecostake.com",
+      "provider": "ecostake"
+    },
+    {
+      "address": "https://m-atomone.rpc.utsa.tech",
+      "provider": "UTSA"
+    },
+    {
+      "address": "https://rpc.atomone.roomit.xyz",
+      "provider": "Roomit"
+    },
+    {
+      "address": "https://rpc.atomone.chaintools.tech",
+      "provider": "ChainTools"
+    },
+    {
+      "address": "https://atomone-mainnet-rpc.bonynode.online",
+      "provider": "BonyNode💚"
+    },
+    {
+      "address": "https://rpc-atomone.22node.xyz",
+      "provider": "22node"
+    },
+    {
+      "address": "https://m-atomone-rpc.ruangnode.com:443",
+      "provider": "ruangnode"
+    },
+    {
+      "address": "https://atomone-rpc.kynraze.com:443",
+      "provider": "kynraze"
+    },
+    {
+      "address": "https://atomone-rpc.stakerhouse.com",
+      "provider": "StakerHouse"
+    },
+    {
+      "address": "https://mainnet-atomone-rpc.konsortech.xyz",
+      "provider": "KonsorTech"
+    },
+    {
+      "address": "https://rpc.atomone-archive.citizenweb3.com:443",
+      "provider": "Citizen Web3"
+    },
+    {
+      "address": "https://rpc.atomone.indonode.net:443",
+      "provider": "Indonode"
+    },
+    {
+      "address": "https://atomone-rpc.nyan-cat.net",
+      "provider": "NyanCat"
+    },
+    {
+      "address": "https://atomone.api.pocket.network",
+      "provider": "Pocket Network"
+    },
+    {
+      "address": "https://atomone.blocksync.me/rpc",
+      "provider": "BlockSync"
+    },
+    {
+      "address": "https://atomone-mainnet-rpc.oshvank.xyz",
+      "provider": "🏆OshVanK🏆"
+    },
+    {
+      "address": "https://atomone-rpc.kleomedes.network",
+      "provider": "Kleomedes"
+    }
+  ],
+  "snapshot_provider": "",
+  "sdk_version": "0.45.1",
+  "coin_type": "118",
+  "min_tx_fee": "800",
+  "addr_prefix": "atone",
+  "theme_color": "#005fcc",
+  "logo": "https://raw.githubusercontent.com/cosmos/chain-registry/master/atomone/images/atomone.png",
+  "assets": [
+    {
+      "base": "uatone",
+      "symbol": "ATONE",
+      "exponent": "6",
+      "coingecko_id": "atone",
+      "logo": "/logos/atomone.png"
+    }
+  ],
+  "keplr_features": [
+    "ibc-go",
+    "ibc-transfer",
+    "no-legacy-stdTx"
+  ]
+}

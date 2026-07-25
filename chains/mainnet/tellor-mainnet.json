@@ -1,0 +1,55 @@
+{
+  "chain_name": "tellor-mainnet",
+  "chain_id": "tellor-1",
+  "network_type": "mainnet",
+  "registry_name": "Tellor",
+  "coingecko": "",
+  "api": [
+    {
+      "address": "https://tellor-testnet-api.shazoes.xyz",
+      "provider": "Shazoes"
+    },
+    {
+      "address": "https://rest.cosmos.directory/tellor",
+      "provider": "cosmos.directory"
+    },
+    {
+      "address": "https://mainnet.tellorlayer.com",
+      "provider": "Tellor Layer"
+    }
+  ],
+  "rpc": [
+    {
+      "address": "https://tellor-testnet-rpc.shazoes.xyz",
+      "provider": "Shazoes"
+    },
+    {
+      "address": "https://rpc.cosmos.directory/tellor",
+      "provider": "cosmos.directory"
+    },
+    {
+      "address": "https://mainnet.tellorlayer.com/rpc",
+      "provider": "Tellor Layer"
+    }
+  ],
+  "snapshot_provider": "",
+  "sdk_version": "0.45.15",
+  "coin_type": "118",
+  "min_tx_fee": "5000",
+  "addr_prefix": "tellor",
+  "theme_color": "#14a278",
+  "logo": "/logos/tellor.png",
+  "assets": [
+    {
+      "base": "loya",
+      "symbol": "LOYA",
+      "exponent": "6",
+      "coingecko_id": "",
+      "logo": "/logos/tellor.png"
+    }
+  ],
+  "keplr_features": [
+    "ibc-transfer",
+    "ibc-go"
+  ]
+}

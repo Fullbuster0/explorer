@@ -1,0 +1,40 @@
+{
+  "chain_name": "atomone-testnet",
+  "chain_id": "atomone-testnet-1",
+  "network_type": "testnet",
+  "registry_name": "AtomOne",
+  "coingecko": "",
+  "api": [
+    {
+      "provider": "Shazoes",
+      "address": "https://atomone-testnet-api.shazoes.xyz"
+    }
+  ],
+  "rpc": [
+    {
+      "provider": "Shazoes",
+      "address": "https://atomone-testnet-rpc.shazoes.xyz"
+    }
+  ],
+  "snapshot_provider": "",
+  "sdk_version": "0.45.1",
+  "coin_type": "118",
+  "min_tx_fee": "800",
+  "addr_prefix": "atone",
+  "theme_color": "#005fcc",
+  "logo": "https://raw.githubusercontent.com/cosmos/chain-registry/master/atomone/images/atomone.png",
+  "assets": [
+    {
+      "base": "uatone",
+      "symbol": "ATONE",
+      "exponent": "6",
+      "coingecko_id": "atone",
+      "logo": "/logos/atomone.png"
+    }
+  ],
+  "keplr_features": [
+    "ibc-go",
+    "ibc-transfer",
+    "no-legacy-stdTx"
+  ]
+}

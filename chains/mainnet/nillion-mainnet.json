@@ -1,0 +1,80 @@
+{
+  "chain_name": "nillion-mainnet",
+  "chain_id": "nillion-1",
+  "network_type": "mainnet",
+  "registry_name": "Nillion",
+  "coingecko": "",
+  "api": [
+    {
+      "address": "https://nillion-mainnet-api.shazoes.xyz",
+      "provider": "Shazoes"
+    },
+    {
+      "address": "https://api.nillion.nodestake.org",
+      "provider": "NodeStake"
+    },
+    {
+      "address": "https://rest.cosmos.directory/nillion",
+      "provider": "cosmos.directory"
+    },
+    {
+      "address": "https://nillion-api.lavenderfive.com",
+      "provider": "lavenderfive"
+    },
+    {
+      "address": "https://nillion-mainnet-lcd.autostake.com:443",
+      "provider": "AutoStake 🛡️ Slash Protected"
+    },
+    {
+      "address": "https://api.nillion.validatus.com",
+      "provider": "Validatus"
+    }
+  ],
+  "rpc": [
+    {
+      "address": "https://nillion-mainnet-rpc.shazoes.xyz",
+      "provider": "Shazoes"
+    },
+    {
+      "address": "https://rpc.nillion.nodestake.org",
+      "provider": "NodeStake"
+    },
+    {
+      "address": "https://rpc.cosmos.directory/nillion",
+      "provider": "cosmos.directory"
+    },
+    {
+      "address": "https://nillion-rpc.lavenderfive.com",
+      "provider": "lavenderfive"
+    },
+    {
+      "address": "https://nillion-mainnet-rpc.autostake.com:443",
+      "provider": "AutoStake 🛡️ Slash Protected"
+    },
+    {
+      "address": "https://rpc.nillion.validatus.com",
+      "provider": "Validatus"
+    }
+  ],
+  "snapshot_provider": "",
+  "sdk_version": "v0.50.11",
+  "coin_type": "118",
+  "min_tx_fee": "3000",
+  "addr_prefix": "nillion",
+  "theme_color": "#005fcc",
+  "logo": "https://raw.githubusercontent.com/cosmos/chain-registry/master/nillion/images/nil.png",
+  "assets": [
+    {
+      "base": "unil",
+      "symbol": "nillion",
+      "exponent": "6",
+      "coingecko_id": "nillion",
+      "logo": "/logos/nillion.png"
+    }
+  ],
+  "keplr_features": [
+    "ibc-go",
+    "ibc-transfer",
+    "no-legacy-stdTx"
+  ]
+}

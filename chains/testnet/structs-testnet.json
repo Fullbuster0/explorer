@@ -1,0 +1,40 @@
+{
+  "chain_name": "structs-testnet",
+  "chain_id": "structstestnet-111",
+  "network_type": "testnet",
+  "registry_name": "Structs",
+  "coingecko": "",
+  "api": [
+    {
+      "address": "https://structs-testnet-api.moonbridge.org",
+      "provider": "unknown"
+    }
+  ],
+  "rpc": [
+    {
+      "address": "https://structs-testnet-rpc.moonbridge.org",
+      "provider": "unknown"
+    }
+  ],
+  "snapshot_provider": "",
+  "sdk_version": "v0.50.3",
+  "coin_type": "118",
+  "min_tx_fee": "1000",
+  "addr_prefix": "structs",
+  "theme_color": "#005fcc",
+  "logo": "/logos/structs.jpg",
+  "assets": [
+    {
+      "base": "ualpha",
+      "symbol": "ALPHA",
+      "exponent": "6",
+      "coingecko_id": "",
+      "logo": "/logos/structs.jpg"
+    }
+  ],
+  "keplr_features": [
+    "ibc-go",
+    "ibc-transfer",
+    "no-legacy-stdTx"
+  ]
+}

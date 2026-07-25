@@ -5,7 +5,6 @@ import type { ChainConfig } from '@/types/chaindata';
 import ChainSummary from '@/components/ChainSummary.vue';
 
 import { computed, ref } from 'vue';
-import { useBlockchain } from '@/stores';
 
 const dashboard = useDashboard();
 
@@ -26,28 +25,18 @@ const testnetCount = computed(
 );
 
 const chains = computed(() => {
-  const all = Object.values(dashboard.chains).filter((x: ChainConfig) =>
-    networkTab.value === 'testnet' ? isTestnet(x) : !isTestnet(x)
-  );
+  const all = Object.values(dashboard.chains)
+    .filter((x: ChainConfig) => (networkTab.value === 'testnet' ? isTestnet(x) : !isTestnet(x)))
+    .sort((a, b) => (a.prettyName || a.chainName).localeCompare(b.prettyName || b.chainName));
   if (!keywords.value) return all;
   const q = keywords.value.toLowerCase();
   return all.filter(
     (x: ChainConfig) =>
       x.chainName.toLowerCase().includes(q) ||
-      x.prettyName.toLowerCase().includes(q)
+      (x.prettyName || '').toLowerCase().includes(q) ||
+      (x.chainId || '').toLowerCase().includes(q)
   );
 });
-
-const featured = computed(() => {
-  // Prefer chains we operate / maintain; fall back to whatever is loaded.
-  // Featured only shows mainnet — testnets stay under the Testnets tab.
-  const names = ['atomone', 'cosmos', 'osmosis', 'axelar', 'neutron', 'xion', 'kiichain', 'nolus'];
-  return Object.values(dashboard.chains)
-    .filter((x) => !isTestnet(x) && names.includes(x.chainName))
-    .sort((a, b) => names.indexOf(a.chainName) - names.indexOf(b.chainName));
-});
-
-const chainStore = useBlockchain();
 </script>
 
 <template>
@@ -73,7 +62,6 @@ const chainStore = useBlockchain();
           {{ $t('pages.slogan') }}
         </p>
 
-        <!-- live network stats -->
         <div class="flex flex-wrap items-center gap-2.5 pt-1">
           <div class="sz-stat">
             <span class="sz-stat-value">{{ mainnetCount }}</span>
@@ -90,7 +78,6 @@ const chainStore = useBlockchain();
         </div>
       </div>
 
-      <!-- ambient glow -->
       <div class="pointer-events-none absolute -right-20 -top-20 h-72 w-72 rounded-full bg-sky-500/20 blur-3xl"></div>
       <div class="pointer-events-none absolute -bottom-24 right-10 h-64 w-64 rounded-full bg-violet-500/15 blur-3xl"></div>
     </section>
@@ -99,31 +86,12 @@ const chainStore = useBlockchain();
       <progress class="progress progress-info w-80 h-1"></progress>
     </div>
 
-    <!-- ===== FEATURED (mainnet only) ===== -->
-    <section v-if="featured.length > 0 && networkTab === 'mainnet'" class="mb-12">
-      <div class="mb-5 flex items-end justify-between gap-3">
-        <div>
-          <div class="text-[11px] font-bold uppercase tracking-[0.2em] text-primary mb-1">Curated</div>
-          <h2 class="text-xl sm:text-2xl font-bold tracking-tight">Featured Networks</h2>
-        </div>
-        <div class="text-xs text-secondary tabular-nums">{{ featured.length }} chains</div>
-      </div>
-
-      <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 md:!grid-cols-3 lg:!grid-cols-4">
-        <ChainSummary v-for="(chain, index) in featured" :key="'f-' + index" :name="chain.chainName" featured />
-      </div>
-    </section>
-
-    <!-- ===== ALL CHAINS ===== -->
+    <!-- ===== SUPPORTED CHAINS ===== -->
     <section>
-      <div class="mb-5 flex flex-col sm:flex-row sm:items-end justify-between gap-3">
-        <div>
-          <div class="text-[11px] font-bold uppercase tracking-[0.2em] text-primary mb-1">Directory</div>
-          <h2 class="text-xl sm:text-2xl font-bold tracking-tight">{{ $t('pages.description') }}</h2>
-        </div>
+      <div class="mb-5">
+        <h2 class="text-xl sm:text-2xl font-bold tracking-tight">Supported Chains</h2>
       </div>
 
-      <!-- Mainnet / Testnet toggle (explorers.guru style) -->
       <div class="sz-net-tabs mb-4" role="tablist" aria-label="Network type">
         <button
           type="button"
@@ -229,7 +197,6 @@ const chainStore = useBlockchain();
   box-shadow: 0 0 0 3px color-mix(in srgb, hsl(var(--p)) 18%, transparent);
 }
 
-/* Mainnet / Testnet toggle — explorers.guru style */
 .sz-net-tabs {
   display: inline-flex;
   align-items: center;

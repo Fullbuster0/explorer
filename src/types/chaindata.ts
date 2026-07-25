@@ -27,20 +27,21 @@ export interface DenomUnit extends RegistryDenomUnit {}
 export interface LocalChainConfig {
   addr_prefix: string;
   consensus_prefix?: string;
-  alias: string;
+  alias?: string;
   api: string[] | Endpoint[];
-  grpc: Endpoint[];
-  provider_chain: {
+  grpc?: Endpoint[];
+  provider_chain?: {
     api: string[] | Endpoint[];
   };
   assets: {
     base: string;
-    coingecko_id: string;
+    coingecko_id?: string;
     exponent: string;
-    logo: string;
+    logo?: string;
     symbol: string;
   }[];
   chain_name: string;
+  chain_id?: string;
   network_type?: string;
   coin_type: string;
   logo: string;
@@ -55,7 +56,7 @@ export interface LocalChainConfig {
     average: number;
     high: number;
   };
-  keplr_features: string[];
+  keplr_features?: string[];
   faucet?: {
     amount: string;
     ip_limit: number;

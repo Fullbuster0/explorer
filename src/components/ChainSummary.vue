@@ -17,6 +17,14 @@ const props = defineProps({
 const dashboardStore = useDashboard();
 const conf = computed(() => dashboardStore.chains[props.name] || {});
 
+const displayName = computed(() => {
+  const pretty = conf.value?.prettyName || props.name;
+  // Strip trailing -mainnet / -testnet for cleaner card title
+  return String(pretty).replace(/[-_](mainnet|testnet)$/i, '');
+});
+
+const chainId = computed(() => conf.value?.chainId || '');
+
 const addFavor = (e: Event) => {
   e.stopPropagation();
   e.preventDefault();
@@ -36,10 +44,20 @@ const addFavor = (e: Event) => {
     </div>
 
     <div class="min-w-0 flex-1">
-      <div class="truncate text-[14.5px] font-semibold capitalize tracking-tight text-base-content">
-        {{ conf?.prettyName || props.name }}
+      <div class="truncate text-[14.5px] font-semibold tracking-tight text-base-content capitalize">
+        {{ displayName }}
       </div>
-      <div class="mt-0.5 truncate text-[11px] font-medium uppercase tracking-[0.14em] text-secondary">
+      <div
+        v-if="chainId"
+        class="mt-0.5 truncate font-mono text-[11px] font-medium tracking-tight text-secondary"
+        :title="chainId"
+      >
+        {{ chainId }}
+      </div>
+      <div
+        v-else
+        class="mt-0.5 truncate text-[11px] font-medium uppercase tracking-[0.14em] text-secondary"
+      >
         {{ conf?.chainName || props.name }}
       </div>
     </div>

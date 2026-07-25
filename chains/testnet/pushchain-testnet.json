@@ -1,0 +1,48 @@
+{
+  "chain_name": "pushchain-testnet",
+  "chain_id": "push_42101-1",
+  "network_type": "testnet",
+  "registry_name": "pushchain-testnet",
+  "coingecko": "",
+  "api": [
+    {
+      "address": "https://pushchain-testnet-api.shazoes.xyz",
+      "provider": "Shazoes"
+    },
+    {
+      "address": "https://api-t.pushchain.nodestake.org",
+      "provider": "Nodestake"
+    }
+  ],
+  "rpc": [
+    {
+      "address": "https://pushchain-testnet-rpc.shazoes.xyz",
+      "provider": "Shazoes"
+    },
+    {
+      "address": "https://rpc-t.pushchain.nodestake.org",
+      "provider": "Nodestake"
+    }
+  ],
+  "snapshot_provider": "",
+  "sdk_version": "v0.50.10",
+  "coin_type": "60",
+  "min_tx_fee": "1000",
+  "addr_prefix": "push",
+  "theme_color": "#099c04",
+  "logo": "/logos/pchain.png",
+  "assets": [
+    {
+      "base": "upc",
+      "symbol": "PC",
+      "exponent": "18",
+      "coingecko_id": "",
+      "logo": "/logos/pchain.png"
+    }
+  ],
+  "keplr_features": [
+    "ibc-go",
+    "ibc-transfer",
+    "no-legacy-stdTx"
+  ]
+}

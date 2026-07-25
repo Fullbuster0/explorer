@@ -1,0 +1,40 @@
+{
+  "chain_name": "hippo-testnet",
+  "chain_id": "",
+  "network_type": "testnet",
+  "registry_name": "Hippo",
+  "coingecko": "",
+  "api": [
+    {
+      "address": "https://hippo-testnet-api.shazoes.xyz",
+      "provider": "Shazoes"
+    }
+  ],
+  "rpc": [
+    {
+      "address": "https://hippo-testnet-rpc.shazoes.xyz",
+      "provider": "Shazoes"
+    }
+  ],
+  "snapshot_provider": "",
+  "sdk_version": "0.50.13",
+  "coin_type": "0",
+  "min_tx_fee": "1000000000000000000",
+  "addr_prefix": "hippo",
+  "theme_color": "#005fcc",
+  "logo": "/logos/hippo-protocol.png",
+  "assets": [
+    {
+      "base": "ahp",
+      "symbol": "HP",
+      "exponent": "18",
+      "coingecko_id": "hippo-protocol",
+      "logo": "/logos/hippo-protocol.png"
+    }
+  ],
+  "keplr_features": [
+    "ibc-go",
+    "ibc-transfer",
+    "no-legacy-stdTx"
+  ]
+}

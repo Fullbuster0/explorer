@@ -1,0 +1,79 @@
+{
+  "chain_name": "mantra-mainnet",
+  "chain_id": "mantra-1",
+  "network_type": "mainnet",
+  "registry_name": "MANTRA",
+  "coingecko": "",
+  "api": [
+    {
+      "address": "https://mantra-mainnet-api.shazoes.xyz",
+      "provider": "Shazoes"
+    },
+    {
+      "address": "https://mantra-mainnet-api.itrocket.net",
+      "provider": "ITRocket"
+    },
+    {
+      "address": "https://mantra-api.polkachu.com",
+      "provider": "Polkachu"
+    },
+    {
+      "address": "https://rest.cosmos.directory/mantrachain",
+      "provider": "cosmos.directory"
+    },
+    {
+      "address": "https://api.mantrachain.io",
+      "provider": "MANTRACHAIN"
+    },
+    {
+      "address": "https://mantra.api.m.stavr.tech",
+      "provider": "🔥STAVR🔥"
+    }
+  ],
+  "rpc": [
+    {
+      "address": "https://mantra-mainnet-rpc.shazoes.xyz",
+      "provider": "Shazoes"
+    },
+    {
+      "address": "https://mantra-mainnet-rpc.itrocket.net:443",
+      "provider": "ITRocket"
+    },
+    {
+      "address": "https://mantra-rpc.polkachu.com:443",
+      "provider": "Polkachu"
+    },
+    {
+      "address": "https://rpc.cosmos.directory/mantrachain",
+      "provider": "cosmos.directory"
+    },
+    {
+      "address": "https://rpc.mantrachain.io",
+      "provider": "MANTRACHAIN"
+    },
+    {
+      "address": "https://mantra.rpc.m.stavr.tech",
+      "provider": "🔥STAVR🔥"
+    }
+  ],
+  "snapshot_provider": "",
+  "sdk_version": "v0.50.0",
+  "coin_type": "118",
+  "min_tx_fee": "10000",
+  "addr_prefix": "mantra",
+  "theme_color": "#005fcc",
+  "logo": "https://raw.githubusercontent.com/cosmos/chain-registry/master/mantrachain/images/OM-Prim-Col.png",
+  "assets": [
+    {
+      "base": "uom",
+      "symbol": "OM",
+      "exponent": "6",
+      "coingecko_id": "mantra-dao",
+      "logo": "/logos/mantra.png"
+    }
+  ],
+  "keplr_features": [
+    "cosmwasm",
+    "evm-feemarket"
+  ]
+}

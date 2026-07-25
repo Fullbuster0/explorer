@@ -1,0 +1,103 @@
+{
+  "chain_name": "axone-mainnet",
+  "chain_id": "axone-1",
+  "network_type": "mainnet",
+  "registry_name": "Axone",
+  "coingecko": "",
+  "api": [
+    {
+      "address": "https://axone-mainnet-api.shazoes.xyz",
+      "provider": "Shazoes"
+    },
+    {
+      "address": "https://api.axone.nodestake.org",
+      "provider": "NodeStake"
+    },
+    {
+      "address": "https://rest.cosmos.directory/axone",
+      "provider": "cosmos.directory"
+    },
+    {
+      "address": "https://api.axone.cumulo.com.es",
+      "provider": "Cumulo"
+    },
+    {
+      "address": "https://axone.lcd.bccnodes.com",
+      "provider": "BccNodes"
+    },
+    {
+      "address": "https://axone-api.highstakes.ch",
+      "provider": "High Stakes 🇨🇭"
+    },
+    {
+      "address": "https://rest.cros-nest.com:443/axone",
+      "provider": "crosnest"
+    },
+    {
+      "address": "https://api.axone.citizenweb3.com",
+      "provider": "Citizen Web3"
+    },
+    {
+      "address": "https://api.axone-archive.citizenweb3.com",
+      "provider": "Citizen Web3"
+    }
+  ],
+  "rpc": [
+    {
+      "address": "https://axone-mainnet-rpc.shazoes.xyz",
+      "provider": "Shazoes"
+    },
+    {
+      "address": "https://rpc.axone.nodestake.org",
+      "provider": "NodeStake"
+    },
+    {
+      "address": "https://rpc.cosmos.directory/axone",
+      "provider": "cosmos.directory"
+    },
+    {
+      "address": "https://rpc.axone.cumulo.com.es",
+      "provider": "Cumulo"
+    },
+    {
+      "address": "https://axone.rpc.bccnodes.com",
+      "provider": "BccNodes"
+    },
+    {
+      "address": "https://axone-rpc.highstakes.ch",
+      "provider": "High Stakes 🇨🇭"
+    },
+    {
+      "address": "https://rpc.cros-nest.com:443/axone",
+      "provider": "crosnest"
+    },
+    {
+      "address": "https://rpc.axone.citizenweb3.com",
+      "provider": "Citizen Web3"
+    },
+    {
+      "address": "https://rpc.axone-archive.citizenweb3.com",
+      "provider": "Citizen Web3"
+    }
+  ],
+  "snapshot_provider": "",
+  "sdk_version": "0.50.9",
+  "coin_type": "118",
+  "min_tx_fee": "800",
+  "addr_prefix": "axone",
+  "theme_color": "#005fcc",
+  "logo": "https://raw.githubusercontent.com/cosmos/chain-registry/master/axone/images/chain.png",
+  "assets": [
+    {
+      "base": "uaxone",
+      "symbol": "AXONE",
+      "exponent": "6",
+      "logo": "/logos/axone.png"
+    }
+  ],
+  "keplr_features": [
+    "ibc-go",
+    "ibc-transfer",
+    "no-legacy-stdTx"
+  ]
+}
