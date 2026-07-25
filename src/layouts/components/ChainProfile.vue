@@ -14,46 +14,44 @@ function changeEndpoint(item: Endpoint) {
 
 <template>
   <div class="dropdown">
-    <label tabindex="0" class="flex items-center">
-      <div class="p-1 relative mr-3 cursor-pointer">
-        <img v-lazy="chainStore.logo" class="w-9 h-9 rounded-full" />
-        <div
-          class="w-2 h-2 rounded-full absolute right-0 bottom-0 shadow"
-          :class="{
-            'bg-success': baseStore.connected,
-            'bg-error': !baseStore.connected,
-          }"
-        ></div>
+    <label tabindex="0" class="flex items-center gap-3 cursor-pointer">
+      <div class="relative">
+        <img v-lazy="chainStore.logo" class="w-9 h-9 rounded-full ring-1 ring-black/5 dark:ring-white/10" />
+        <span
+          class="absolute -right-0.5 -bottom-0.5 w-2.5 h-2.5 rounded-full ring-2 ring-base-100"
+          :class="baseStore.connected ? 'bg-success' : 'bg-error'"
+        ></span>
       </div>
-      <div class="flex-1 w-0">
+      <div class="flex-1 w-0 hidden md:!block">
         <div
           :key="baseStore.latest?.block?.header?.height || chainStore.chainName || ''"
-          class="capitalize whitespace-nowrap text-base font-semibold text-gray-600 dark:text-gray-200 hidden md:!block"
+          class="capitalize whitespace-nowrap text-[13.5px] font-semibold tracking-tight"
         >
           {{
             baseStore.latest?.block?.header?.height
               ? `#${baseStore.latest.block.header.height}`
               : chainStore.chainName || ''
           }}
-          <span class="text-error">{{ baseStore.connected ? '' : 'disconnected' }}</span>
+          <span v-if="!baseStore.connected" class="text-error font-medium">disconnected</span>
         </div>
-        <div class="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap hidden md:!block">
+        <div class="text-[11px] text-secondary whitespace-nowrap truncate font-mono">
           {{ chainStore.connErr || chainStore.endpoint.address }}
         </div>
       </div>
     </label>
-    <div tabindex="0" class="dropdown-content -left-6 w-80 menu shadow bg-base-200 rounded-box overflow-auto">
-      <!-- rest -->
-      <div class="px-4 py-2 text-sm text-gray-400" v-if="chainStore.current?.endpoints?.rest">Rest Endpoint</div>
+    <div tabindex="0" class="dropdown-content -left-2 w-80 menu shadow-lg bg-base-100 border border-base-300/60 rounded-xl overflow-auto z-50 mt-2">
+      <div class="px-4 py-2 text-[10px] font-bold uppercase tracking-[0.2em] text-secondary" v-if="chainStore.current?.endpoints?.rest">
+        Rest Endpoint
+      </div>
       <div
         v-for="(item, index) in chainStore.current?.endpoints?.rest"
-        class="px-4 py-2 w-full hover:bg-gray-100 dark:hover:bg-[#384059] cursor-pointer"
+        class="px-4 py-2.5 w-full hover:bg-base-200 cursor-pointer"
         :key="index"
         @click="changeEndpoint(item)"
       >
-        <div class="flex flex-col">
+        <div class="flex flex-col gap-0.5">
           <div class="flex items-center justify-between w-full">
-            <div class="text-gray-500 dark:text-gray-200 capitalize">
+            <div class="text-sm capitalize font-medium">
               {{ item.provider }}
             </div>
             <span
@@ -61,32 +59,25 @@ function changeEndpoint(item: Endpoint) {
               class="bg-yes inline-block h-2 w-2 rounded-full"
             />
           </div>
-          <div class="text-gray-400 text-xs whitespace-nowrap">
+          <div class="text-secondary text-[11px] whitespace-nowrap font-mono">
             {{ item.address }}
           </div>
         </div>
       </div>
 
-      <!-- rest -->
-      <div class="px-4 py-2 text-sm text-gray-400">Information</div>
+      <div class="px-4 py-2 text-[10px] font-bold uppercase tracking-[0.2em] text-secondary">Information</div>
       <div class="w-full">
-        <div class="py-2 px-4">
+        <div class="py-2 px-4 text-sm">
           Chain Id:
-          {{
-            baseStore.latest.block?.header.chain_id && baseStore.connected
-              ? baseStore.latest.block.header.chain_id
-              : 'N/A'
-          }}
-        </div>
-        <div class="py-2 px-4">
-          Height:
-          {{
-            baseStore.latest.block?.header.height && baseStore.connected ? baseStore.latest.block.header.height : '0'
-          }}
+          <span class="font-mono text-secondary">
+            {{
+              baseStore.latest.block?.header.chain_id && baseStore.connected
+                ? baseStore.latest.block.header.chain_id
+                : 'N/A'
+            }}
+          </span>
         </div>
       </div>
-      <!-- bottom-->
-      <div class="px-4 py-2">&nbsp;</div>
     </div>
   </div>
 </template>

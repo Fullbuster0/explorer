@@ -34,61 +34,133 @@ const featured = computed(() => {
 
 const chainStore = useBlockchain();
 </script>
+
 <template>
-  <div class="">
-    <div
-      class="flex md:!flex-row flex-col items-center justify-center mb-6 mt-14 gap-2"
-    >
-      <div class="w-16 rounded-full">
-        <img src="@/assets/logo.svg" alt="Shazoes" class="w-16 h-16" />
+  <div class="mx-auto max-w-7xl pb-10">
+    <!-- ===== HERO ===== -->
+    <section class="sz-hero relative overflow-hidden rounded-2xl px-6 py-12 sm:px-10 sm:py-16 mb-10">
+      <div class="relative z-10 flex flex-col items-start gap-5 max-w-2xl">
+        <div class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-sky-300">
+          <span class="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+          Multi-chain · Cosmos
+        </div>
+
+        <div class="flex items-center gap-4">
+          <span class="sz-hero-logo">
+            <img src="@/assets/logo.svg" alt="Shazoes" class="h-10 w-10" />
+          </span>
+          <h1 class="sz-hero-title text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight text-white">
+            {{ $t('pages.title') }}
+          </h1>
+        </div>
+
+        <p class="text-base sm:text-lg text-slate-300 leading-relaxed max-w-xl">
+          {{ $t('pages.slogan') }}
+        </p>
+
+        <div class="flex flex-wrap items-center gap-3 pt-1">
+          <a
+            href="https://services.shazoes.xyz"
+            target="_blank"
+            rel="noopener"
+            class="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-content shadow-lg shadow-primary/25 hover:brightness-110 transition"
+          >
+            <Icon icon="mdi:server" class="text-lg" />
+            Services
+          </a>
+          <a
+            href="https://github.com/Fullbuster0/explorer"
+            target="_blank"
+            rel="noopener"
+            class="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm font-semibold text-slate-200 hover:bg-white/10 transition"
+          >
+            <Icon icon="mdi:github" class="text-lg" />
+            GitHub
+          </a>
+        </div>
       </div>
-      <h1 class="text-primary text-3xl md:!text-6xl font-bold">
-        {{ $t('pages.title') }}
-      </h1>
-    </div>
-    <div class="text-center text-base">
-      <p class="mb-1">
-        {{ $t('pages.slogan') }}
-      </p>
-    </div>
-    <div v-if="dashboard.status !== LoadingStatus.Loaded" class="flex justify-center">
+
+      <!-- ambient glow -->
+      <div class="pointer-events-none absolute -right-20 -top-20 h-72 w-72 rounded-full bg-sky-500/20 blur-3xl"></div>
+      <div class="pointer-events-none absolute -bottom-24 right-10 h-64 w-64 rounded-full bg-violet-500/15 blur-3xl"></div>
+    </section>
+
+    <div v-if="dashboard.status !== LoadingStatus.Loaded" class="flex justify-center mb-8">
       <progress class="progress progress-info w-80 h-1"></progress>
     </div>
 
-    <div v-if="featured.length > 0" class="text-center text-base mt-6 text-primary">
-      <h2 class="mb-6">Featured Blockchains 🔥</h2>
-    </div>
+    <!-- ===== FEATURED ===== -->
+    <section v-if="featured.length > 0" class="mb-12">
+      <div class="mb-5 flex items-end justify-between gap-3">
+        <div>
+          <div class="text-[11px] font-bold uppercase tracking-[0.2em] text-primary mb-1">Curated</div>
+          <h2 class="text-xl sm:text-2xl font-bold tracking-tight">Featured Networks</h2>
+        </div>
+        <div class="text-xs text-secondary tabular-nums">{{ featured.length }} chains</div>
+      </div>
 
-    <div
-      v-if="featured.length > 0"
-      class="grid grid-cols-1 gap-4 mt-6 md:!grid-cols-3 lg:!grid-cols-4 2xl:!grid-cols-5"
-    >
-      <ChainSummary v-for="(chain, index) in featured" :key="index" :name="chain.chainName" />
-    </div>
+      <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 md:!grid-cols-3 lg:!grid-cols-4">
+        <ChainSummary v-for="(chain, index) in featured" :key="'f-' + index" :name="chain.chainName" featured />
+      </div>
+    </section>
 
-    <div class="text-center text-base mt-6 text-primary">
-      <h2 class="mb-6">{{ $t('pages.description') }}</h2>
-    </div>
+    <!-- ===== ALL CHAINS ===== -->
+    <section>
+      <div class="mb-5 flex flex-col sm:flex-row sm:items-end justify-between gap-3">
+        <div>
+          <div class="text-[11px] font-bold uppercase tracking-[0.2em] text-primary mb-1">Directory</div>
+          <h2 class="text-xl sm:text-2xl font-bold tracking-tight">{{ $t('pages.description') }}</h2>
+        </div>
+      </div>
 
-    <div class="flex items-center rounded-lg bg-base-100 border border-gray-200 dark:border-gray-700 mt-10">
-      <Icon icon="mdi:magnify" class="text-2xl text-gray-400 ml-3" />
-      <input
-        :placeholder="$t('pages.search_placeholder')"
-        class="px-4 h-10 bg-transparent flex-1 outline-none text-base"
-        v-model="keywords"
-      />
-      <div class="px-4 text-base hidden md:!block">{{ chains.length }}/{{ dashboard.length }}</div>
-    </div>
+      <div class="sz-search mb-6 flex items-center rounded-xl border border-base-content/10 bg-base-100 px-3">
+        <Icon icon="mdi:magnify" class="text-xl text-secondary" />
+        <input
+          :placeholder="$t('pages.search_placeholder')"
+          class="px-3 h-11 bg-transparent flex-1 outline-none text-sm"
+          v-model="keywords"
+        />
+        <div class="px-2 text-xs text-secondary tabular-nums hidden sm:!block">
+          {{ chains.length }}/{{ dashboard.length }}
+        </div>
+      </div>
 
-    <div class="grid grid-cols-1 gap-4 mt-6 md:!grid-cols-3 lg:!grid-cols-4 2xl:!grid-cols-5">
-      <ChainSummary v-for="(chain, index) in chains" :key="index" :name="chain.chainName" />
-    </div>
+      <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 md:!grid-cols-3 lg:!grid-cols-4 2xl:!grid-cols-5">
+        <ChainSummary v-for="(chain, index) in chains" :key="index" :name="chain.chainName" />
+      </div>
+    </section>
   </div>
 </template>
 
 <style scoped>
-.logo path {
-  fill: #171d30;
+.sz-hero {
+  background:
+    radial-gradient(1200px 400px at 10% -10%, rgba(0, 95, 204, 0.35), transparent 55%),
+    radial-gradient(800px 300px at 90% 110%, rgba(118, 75, 200, 0.25), transparent 50%),
+    linear-gradient(145deg, #0b1120 0%, #0c1226 50%, #111827 100%);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  box-shadow: 0 20px 50px -24px rgba(0, 0, 0, 0.55);
+}
+.sz-hero-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #005fcc, #3385ff);
+  box-shadow: 0 8px 24px -8px rgba(0, 95, 204, 0.65);
+  flex-shrink: 0;
+}
+.sz-hero-title {
+  letter-spacing: -0.03em;
+  background: linear-gradient(90deg, #ffffff 0%, #c7e0ff 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.sz-search:focus-within {
+  border-color: color-mix(in srgb, hsl(var(--p)) 45%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, hsl(var(--p)) 18%, transparent);
 }
 </style>
-@/components/ad/ad
