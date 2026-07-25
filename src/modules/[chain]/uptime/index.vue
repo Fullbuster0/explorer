@@ -114,19 +114,32 @@ const overallSet = computed(() => {
 });
 
 const blockColors = ref({} as Record<string, BlockColor[]>);
+// Live missed counter (optimistic). Reconciled from chain signing infos every new block.
+const liveMissed = ref({} as Record<string, number>);
+// Avoid double-counting the same height (subscribe + preFill race)
+const appliedHeights = ref({} as Record<string, Set<string>>);
+
+function readMissed(base64: string, signing?: SigningInfo): number | undefined {
+  if (base64 && liveMissed.value[base64] !== undefined) return liveMissed.value[base64];
+  if (signing?.missed_blocks_counter !== undefined && signing?.missed_blocks_counter !== null) {
+    return Number(signing.missed_blocks_counter);
+  }
+  return undefined;
+}
 
 function attachSigning(v: Omit<ValidatorUnit, 'blocks' | 'uptime' | 'missed_blocks_counter' | 'signing'>): ValidatorUnit {
   const window = Number(slashingParam.value.signed_blocks_window || 0);
   const signing = v.base64 ? signingInfo.value[v.base64] : undefined;
+  const missed = v.base64 ? readMissed(v.base64, signing) : undefined;
   const uptime =
-    signing && window > 0
-      ? Math.max(0, Math.min(1, (window - Number(signing.missed_blocks_counter || 0)) / window))
+    missed !== undefined && window > 0
+      ? Math.max(0, Math.min(1, (window - missed) / window))
       : undefined;
   return {
     ...v,
     blocks: padding(blockColors.value[v.base64] || []),
     uptime,
-    missed_blocks_counter: signing?.missed_blocks_counter ?? '—',
+    missed_blocks_counter: missed !== undefined ? missed : '—',
     signing,
   };
 }
@@ -193,8 +206,9 @@ baseStore.$subscribe((_, state) => {
       });
     }
 
-    if (Number(state.latest.block.header.height) % 7 === 0) updateTotalSigningInfo();
-    fillblock(state.latest);
+    // refresh signing infos every new block so missed counters stay live
+    updateTotalSigningInfo();
+    fillblock(state.latest, 'end');
   }
 });
 
@@ -254,41 +268,101 @@ function preFill() {
 }
 function fillblock(b: Block, direction: string = 'end') {
   // heatmap only tracks active signing set
+  const height = String(b.block.header.height);
+  const nextColors = { ...blockColors.value } as Record<string, BlockColor[]>;
+  let missedChanged = false;
+  const nextMissed = { ...liveMissed.value } as Record<string, number>;
+
   activeSet.value.forEach((v) => {
     if (!v.base64) return;
+
+    // de-dupe per validator+height (preFill + subscribe can race)
+    const seen = appliedHeights.value[v.base64] || new Set<string>();
+    if (seen.has(height)) return;
+    seen.add(height);
+    // keep set small
+    if (seen.size > 80) {
+      const arr = Array.from(seen);
+      arr.slice(0, arr.length - 60).forEach((h) => seen.delete(h));
+    }
+    appliedHeights.value[v.base64] = seen;
+
     const sig = b.block.last_commit?.signatures.find((s) => s.validator_address === v.base64);
-    const block = blockColors.value[v.base64] || [];
-    let color = {
+    const block = [...(nextColors[v.base64] || [])];
+    let color: BlockColor = {
       height: b.block.header.height,
       color: 'bg-red-500',
     };
+    let missedThis = true;
     if (sig) {
+      const committed = sig.block_id_flag === 'BLOCK_ID_FLAG_COMMIT';
       color = {
         height: b.block.header.height,
-        color: sig.block_id_flag === 'BLOCK_ID_FLAG_COMMIT' ? 'bg-green-500' : 'bg-yellow-500',
+        color: committed ? 'bg-green-500' : 'bg-yellow-500',
       };
+      // only pure miss (no signature) counts toward missed_blocks_counter
+      missedThis = false;
     }
+
     if (direction === 'end') {
       block.push(color);
+      // optimistic live counter: +1 on miss for new tip blocks only
+      if (missedThis) {
+        const base =
+          nextMissed[v.base64] !== undefined
+            ? nextMissed[v.base64]
+            : Number(signingInfo.value[v.base64]?.missed_blocks_counter || 0);
+        nextMissed[v.base64] = base + 1;
+        missedChanged = true;
+      }
     } else {
       block.unshift(color);
     }
-    if (block.length > 50) block.shift();
-    blockColors.value[v.base64] = block;
+    if (block.length > 50) {
+      if (direction === 'end') block.shift();
+      else block.pop();
+    }
+    nextColors[v.base64] = block;
   });
+
+  // replace whole maps so Vue always re-renders chips + bars
+  blockColors.value = nextColors;
+  if (missedChanged) liveMissed.value = nextMissed;
 }
 
+let signingFetchInFlight = false;
+let signingFetchQueued = false;
+
 function updateTotalSigningInfo() {
-  chainStore.rpc.getSlashingSigningInfos().then((x) => {
-    if (!x?.info) return;
-    const next = { ...signingInfo.value } as Record<string, SigningInfo>;
-    x.info.forEach((i) => {
-      const key = valconsToBase64(i.address);
-      if (key) next[key] = i;
+  // coalesce concurrent refreshes (every-block polling)
+  if (signingFetchInFlight) {
+    signingFetchQueued = true;
+    return;
+  }
+  signingFetchInFlight = true;
+  chainStore.rpc
+    .getSlashingSigningInfos()
+    .then((x) => {
+      if (!x?.info) return;
+      const next = {} as Record<string, SigningInfo>;
+      const nextMissed = { ...liveMissed.value } as Record<string, number>;
+      x.info.forEach((i) => {
+        const key = valconsToBase64(i.address);
+        if (!key) return;
+        next[key] = i;
+        // authoritative reconcile from chain
+        nextMissed[key] = Number(i.missed_blocks_counter || 0);
+      });
+      signingInfo.value = next;
+      liveMissed.value = nextMissed;
+    })
+    .finally(() => {
+      signingFetchInFlight = false;
+      if (signingFetchQueued) {
+        signingFetchQueued = false;
+        updateTotalSigningInfo();
+      }
     });
-    // replace whole map so Vue reactivity always fires
-    signingInfo.value = next;
-  });
 }
 
 function statusChipClass(status: BondStatus, jailed: boolean) {
