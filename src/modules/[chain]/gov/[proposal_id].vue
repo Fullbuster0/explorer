@@ -45,6 +45,12 @@ const voteFilters = [
   { key: 'did_not_vote' as const, label: 'Did not vote' },
 ];
 
+/** Client-side page sizes: keep tables short on mobile/desktop. */
+const VAL_PAGE_SIZE = 20;
+const OTHER_PAGE_SIZE = 10;
+const valPage = ref(1);
+const otherPage = ref(1);
+
 let tallyTimer: ReturnType<typeof setInterval> | null = null;
 
 function bech32DataHex(addr: string): string {
@@ -342,6 +348,42 @@ const filteredValidatorRows = computed(() => {
     return true;
   });
 });
+
+const valTotalPages = computed(() => Math.max(1, Math.ceil(filteredValidatorRows.value.length / VAL_PAGE_SIZE)));
+const pagedValidatorRows = computed(() => {
+  const page = Math.min(Math.max(valPage.value, 1), valTotalPages.value);
+  const start = (page - 1) * VAL_PAGE_SIZE;
+  return filteredValidatorRows.value.slice(start, start + VAL_PAGE_SIZE);
+});
+const valPageStart = computed(() => {
+  if (!filteredValidatorRows.value.length) return 0;
+  return (Math.min(valPage.value, valTotalPages.value) - 1) * VAL_PAGE_SIZE;
+});
+
+const otherTotalPages = computed(() => Math.max(1, Math.ceil(otherVotes.value.length / OTHER_PAGE_SIZE)));
+const pagedOtherVotes = computed(() => {
+  const page = Math.min(Math.max(otherPage.value, 1), otherTotalPages.value);
+  const start = (page - 1) * OTHER_PAGE_SIZE;
+  return otherVotes.value.slice(start, start + OTHER_PAGE_SIZE);
+});
+
+function goValPage(p: number) {
+  valPage.value = Math.min(Math.max(1, p), valTotalPages.value);
+}
+function goOtherPage(p: number) {
+  otherPage.value = Math.min(Math.max(1, p), otherTotalPages.value);
+}
+
+// Reset page when filter/search changes
+watch([voteFilter, voteSearch], () => {
+  valPage.value = 1;
+});
+watch(
+  () => otherVotes.value.length,
+  () => {
+    otherPage.value = 1;
+  }
+);
 
 const votedCount = computed(() => validatorRows.value.filter((r) => r.voted).length);
 const didNotVoteCount = computed(() => {
@@ -802,9 +844,9 @@ onUnmounted(() => stopTallyPoll());
                 }}
               </td>
             </tr>
-            <tr v-for="(row, i) in filteredValidatorRows" :key="row.operator_address">
+            <tr v-for="(row, i) in pagedValidatorRows" :key="row.operator_address">
               <td>
-                <span class="sz-chip font-mono !text-[10px]">{{ i + 1 }}</span>
+                <span class="sz-chip font-mono !text-[10px]">{{ valPageStart + i + 1 }}</span>
               </td>
               <td>
                 <RouterLink
@@ -824,8 +866,14 @@ onUnmounted(() => stopTallyPoll());
           </tbody>
         </table>
       </div>
-      <div class="px-4 py-2.5 border-t border-base-content/10 flex flex-wrap gap-3 text-[11.5px] text-secondary">
+      <div class="px-4 py-2.5 border-t border-base-content/10 flex flex-wrap items-center gap-3 text-[11.5px] text-secondary">
         <span>Active set <b class="font-mono text-main">{{ validatorRows.length }}</b></span>
+        <span v-if="filteredValidatorRows.length">
+          Showing
+          <b class="font-mono text-main">{{ valPageStart + 1 }}–{{ valPageStart + pagedValidatorRows.length }}</b>
+          of
+          <b class="font-mono text-main">{{ filteredValidatorRows.length }}</b>
+        </span>
         <template v-if="hasVoteRecords">
           <span>Voted <b class="font-mono text-main">{{ votedCount }}</b></span>
           <span>Did not vote <b class="font-mono text-main">{{ didNotVoteCount }}</b></span>
@@ -833,6 +881,21 @@ onUnmounted(() => stopTallyPoll());
         </template>
         <span v-else-if="votesUnavailable">Vote options unknown (index pruned)</span>
         <span v-else-if="votesLoading">Loading vote records…</span>
+        <div v-if="valTotalPages > 1" class="ml-auto flex items-center gap-2">
+          <button
+            type="button"
+            class="btn btn-xs btn-ghost"
+            :disabled="valPage <= 1"
+            @click="goValPage(valPage - 1)"
+          >Prev</button>
+          <span class="font-mono tabular">{{ Math.min(valPage, valTotalPages) }} / {{ valTotalPages }}</span>
+          <button
+            type="button"
+            class="btn btn-xs btn-primary"
+            :disabled="valPage >= valTotalPages"
+            @click="goValPage(valPage + 1)"
+          >Next</button>
+        </div>
       </div>
     </div>
 
@@ -870,7 +933,7 @@ onUnmounted(() => stopTallyPoll());
             </tr>
           </thead>
           <tbody>
-            <tr v-for="item in otherVotes" :key="item.voter">
+            <tr v-for="item in pagedOtherVotes" :key="item.voter">
               <td>
                 <RouterLink
                   :to="`/${chain}/account/${item.voter}`"
@@ -887,6 +950,32 @@ onUnmounted(() => stopTallyPoll());
             </tr>
           </tbody>
         </table>
+        <div
+          v-if="otherTotalPages > 1"
+          class="px-4 py-2.5 border-t border-base-content/10 flex flex-wrap items-center gap-3 text-[11.5px] text-secondary"
+        >
+          <span>
+            Showing
+            <b class="font-mono text-main">{{ (Math.min(otherPage, otherTotalPages) - 1) * OTHER_PAGE_SIZE + 1 }}–{{ (Math.min(otherPage, otherTotalPages) - 1) * OTHER_PAGE_SIZE + pagedOtherVotes.length }}</b>
+            of
+            <b class="font-mono text-main">{{ otherVotes.length }}</b>
+          </span>
+          <div class="ml-auto flex items-center gap-2">
+            <button
+              type="button"
+              class="btn btn-xs btn-ghost"
+              :disabled="otherPage <= 1"
+              @click="goOtherPage(otherPage - 1)"
+            >Prev</button>
+            <span class="font-mono tabular">{{ Math.min(otherPage, otherTotalPages) }} / {{ otherTotalPages }}</span>
+            <button
+              type="button"
+              class="btn btn-xs btn-primary"
+              :disabled="otherPage >= otherTotalPages"
+              @click="goOtherPage(otherPage + 1)"
+            >Next</button>
+          </div>
+        </div>
       </div>
     </div>
 
