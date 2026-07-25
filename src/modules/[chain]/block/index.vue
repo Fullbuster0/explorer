@@ -1,19 +1,92 @@
 <script lang="ts" setup>
-import { computed, ref } from 'vue';
-import { useBaseStore, useFormatter } from '@/stores';
+import { computed, ref, watch } from 'vue';
+import { fromBase64, toHex } from '@cosmjs/encoding';
+import { useBaseStore, useFormatter, useStakingStore } from '@/stores';
+import { consensusPubkeyToHexAddress } from '@/libs';
 import TxsInBlocksChart from '@/components/charts/TxsInBlocksChart.vue';
+import { Icon } from '@iconify/vue';
 
 const props = defineProps(['chain']);
 
 const tab = ref('blocks');
 
 const base = useBaseStore();
-
 const format = useFormatter();
+const staking = useStakingStore();
+
+// ---- avatars (keybase, cached in localStorage) — same pattern as consensus / validators ----
+const avatars = ref<Record<string, string>>(JSON.parse(localStorage.getItem('avatars') || '{}'));
+
+function logo(identity?: string) {
+  if (!identity || !avatars.value[identity]) return '';
+  const url = avatars.value[identity] || '';
+  return url.startsWith('http') ? url : `https://s3.amazonaws.com/keybase_processed_uploads/${url}`;
+}
+
+function fetchAvatar(identity: string) {
+  return new Promise<void>((resolve) => {
+    staking
+      .keybase(identity)
+      .then((d: any) => {
+        if (Array.isArray(d.them) && d.them.length > 0) {
+          const uri = String(d.them[0]?.pictures?.primary?.url).replace(
+            'https://s3.amazonaws.com/keybase_processed_uploads/',
+            ''
+          );
+          avatars.value[identity] = uri;
+        }
+        resolve();
+      })
+      .catch(() => resolve());
+  });
+}
+
+function loadAvatars(identities: string[]) {
+  const ids = identities.filter((id) => id && !avatars.value[id]);
+  if (!ids.length) return;
+  Promise.all(ids.map((id) => fetchAvatar(id))).then(() =>
+    localStorage.setItem('avatars', JSON.stringify(avatars.value))
+  );
+}
+
+/** Resolve block proposer_address (base64) → validator moniker + identity + logo */
+function resolveProposer(proposerAddress?: string) {
+  if (!proposerAddress) return { moniker: '', identity: '', logo: '' };
+  try {
+    const hex = toHex(fromBase64(proposerAddress)).toUpperCase();
+    const val = staking.validators.find(
+      (x) => consensusPubkeyToHexAddress(x.consensus_pubkey) === hex
+    );
+    const identity = val?.description?.identity || '';
+    const moniker = val?.description?.moniker || format.validator(proposerAddress) || proposerAddress;
+    return { moniker, identity, logo: logo(identity) };
+  } catch {
+    return { moniker: format.validator(proposerAddress) || proposerAddress, identity: '', logo: '' };
+  }
+}
 
 const list = computed(() => {
-  return base.recents;
+  return (base.recents || []).map((item) => {
+    const proposer = resolveProposer(item.block?.header?.proposer_address);
+    return { item, proposer };
+  });
 });
+
+// Prefetch avatars for proposers currently in view
+watch(
+  () => list.value.map((x) => x.proposer.identity).filter(Boolean),
+  (ids) => loadAvatars([...new Set(ids)]),
+  { immediate: true }
+);
+
+// Also prefetch when staking validators load (identity map becomes available)
+watch(
+  () => staking.validators.length,
+  () => {
+    const ids = list.value.map((x) => x.proposer.identity).filter(Boolean);
+    loadAvatars([...new Set(ids)]);
+  }
+);
 </script>
 <template>
   <div>
@@ -41,7 +114,7 @@ const list = computed(() => {
 
       <div class="grid grid-cols-1 gap-3 md:!grid-cols-4 xl:!grid-cols-6 mt-4">
         <RouterLink
-          v-for="item in list"
+          v-for="{ item, proposer } in list"
           :key="item.block.header.height"
           class="sz-block-card"
           :to="`/${chain}/block/${item.block.header.height}`"
@@ -52,12 +125,32 @@ const list = computed(() => {
               {{ item.block?.data?.txs.length }} tx
             </span>
           </div>
-          <div class="min-w-0">
-            <div class="truncate text-[11.5px] text-secondary" :title="format.validator(item.block?.header?.proposer_address)">
-              {{ format.validator(item.block?.header?.proposer_address) }}
+          <div class="flex min-w-0 items-center gap-2">
+            <div
+              class="relative h-7 w-7 shrink-0 overflow-hidden rounded-full bg-base-200 ring-1 ring-base-content/10"
+              :title="proposer.moniker"
+            >
+              <img
+                v-if="proposer.logo"
+                :src="proposer.logo"
+                class="h-full w-full object-cover"
+                alt=""
+                @error="() => { if (proposer.identity) fetchAvatar(proposer.identity).then(() => localStorage.setItem('avatars', JSON.stringify(avatars))); }"
+              />
+              <div
+                v-else
+                class="flex h-full w-full items-center justify-center text-[11px] font-bold uppercase text-base-content/50"
+              >
+                {{ (proposer.moniker || '?').slice(0, 1) }}
+              </div>
             </div>
-            <div class="mt-0.5 text-[11px] font-medium text-green-600">
-              {{ format.toDay(item.block?.header?.time, 'from') }}
+            <div class="min-w-0 flex-1">
+              <div class="truncate text-[11.5px] font-medium text-base-content" :title="proposer.moniker">
+                {{ proposer.moniker || '—' }}
+              </div>
+              <div class="mt-0.5 text-[11px] font-medium text-green-600">
+                {{ format.toDay(item.block?.header?.time, 'from') }}
+              </div>
             </div>
           </div>
         </RouterLink>

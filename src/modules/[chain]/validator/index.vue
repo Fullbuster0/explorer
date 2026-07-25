@@ -125,29 +125,9 @@ const calculateRank = function (position: number) {
   }
 };
 
-function isFeatured(endpoints: string[], who?: { website?: string; moniker: string }) {
-  if (!endpoints || !who) return false;
-  return (
-    endpoints.findIndex(
-      (x) =>
-        (who.website && who.website?.substring(0, who.website?.lastIndexOf('.')).endsWith(x)) ||
-        who?.moniker?.toLowerCase().search(x.toLowerCase()) > -1
-    ) > -1
-  );
-}
-
 const list = computed(() => {
   if (tab.value === 'active') {
     return staking.validators.map((x, i) => ({ v: x, rank: calculateRank(i), logo: logo(x.description.identity) }));
-  } else if (tab.value === 'featured') {
-    const endpoint = chainStore.current?.endpoints?.rest?.map((x) => x.provider);
-    if (endpoint) {
-      endpoint.push('ping');
-      return staking.validators
-        .filter((x) => isFeatured(endpoint.filter(Boolean) as string[], x.description))
-        .map((x, i) => ({ v: x, rank: 'primary', logo: logo(x.description.identity) }));
-    }
-    return [];
   }
   return unbondList.value.map((x, i) => ({ v: x, rank: 'primary', logo: logo(x.description.identity) }));
 });
@@ -229,9 +209,6 @@ loadAvatars();
         </div>
       </div>
       <div class="sz-tabs">
-        <a class="sz-tab" :class="{ 'sz-tab--active': tab === 'featured' }" @click="tab = 'featured'">
-          {{ $t('staking.popular') }}
-        </a>
         <a class="sz-tab" :class="{ 'sz-tab--active': tab === 'active' }" @click="tab = 'active'">
           {{ $t('staking.active') }}
         </a>
