@@ -6,14 +6,11 @@
     "governance": "Gobernanza",
     "parameters": "Parámetros",
     "uptime": "Tiempo en línea",
-    "state-sync": "Sincronización de estado",
     "cosmwasm": "Cosmwasm",
-    "widget": "Widgets",
     "tx": "Transacciones",
     "ibc": "IBC",
     "nft": "NFT",
     "consensus": "Consenso",
-    "supply": "Suministro",
     "account": "Cuentas",
     "ecosystem": "Ecosistema",
     "favorite": "Favorito",
@@ -229,23 +226,6 @@
     "liquid_staking_shares": "Acciones Líquidas",
     "validator_bond_share": "Participación de Validador Vinculada"
   },
-  "statesync": {
-    "title": "¿Qué es State Sync?",
-    "title_2": "Iniciando Nuevo Nodo Desde State Sync",
-    "title_3": "Habilitar Snapshot Para State Sync",
-    "description": "La versión 0.34 de Tendermint Core incluye soporte para state sync, que permite que un nuevo nodo se una a una red al obtener una instantánea del estado de la aplicación en una altura reciente en lugar de obtener y reproducir todos los bloques históricos. Esto puede reducir el tiempo necesario para sincronizar con la red de días a minutos. Haz clic",
-    "here": "Aquí",
-    "version": "Versión",
-    "for_more_info": "Para más información",
-    "text_1": "Instalar Binario",
-    "text_1_1": "Primero necesitamos instalar el binario y asegurarnos de que la versión sea la que se utiliza actualmente en la mainnet",
-    "text_2": "Habilitar State Sync",
-    "text_2_1": "Podemos configurar Tendermint para usar state sync en $DAEMON_HOME/config/config.toml",
-    "text_3": "Iniciar el demonio",
-    "text_3_1": "Si estás reiniciando el nodo, ejecuta",
-    "text_3_2": "antes de iniciar el demonio",
-    "text_title_3": "Para que funcione el state sync, podemos habilitar la instantánea en $DAEMON_HOME/config/app.toml"
-  },
   "tx": {
     "title": "Resumen",
     "tx_hash": "Hash de Tx",
@@ -274,14 +254,6 @@
     "committed": "Comprometido",
     "precommitted": "Precomprometido",
     "missed": "Perdido"
-  },
-  "widget": {
-    "title": "Configuración Inicial",
-    "endpoint": "Punto de Acceso",
-    "select_endpoint": "Seleccionar Punto de Acceso",
-    "text_1": "Importar script global",
-    "text_2": "Conectar Cartera",
-    "text_3": "Conversión de Osmosis"
   },
   "index": {
     "rank": "Rango",

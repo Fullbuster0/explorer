@@ -6,14 +6,11 @@
     "governance": "거버넌스",
     "parameters": "파라미터",
     "uptime": "업타임",
-    "state-sync": "스테이트 싱크",
     "cosmwasm": "코스모왓솜",
-    "widget": "위젯",
     "tx": "트랜잭션",
     "ibc": "IBC",
     "nft": "NFT",
     "consensus": "컨센서스",
-    "supply": "공급량",
     "account": "계정",
     "ecosystem": "에코시스템",
     "favorite": "즐겨찾기",
@@ -229,23 +226,6 @@
     "liquid_staking_shares": "유동 지분",
     "validator_bond_share": "검증인 본딩 지분"
   },
-  "statesync": {
-    "title": "상태 동기화란?",
-    "title_2": "상태 동기화로 새 노드 시작하기",
-    "title_3": "상태 동기화를 위한 스냅샷 활성화",
-    "description": "Tendermint Core 0.34 릴리스에는 상태 동기화가 포함되어 있습니다. 이를 통해 새 노드가 모든 역사적 블록을 가져오고 재생하는 대신 최근 높이에서 애플리케이션 상태의 스냅샷을 가져와 네트워크에 참여할 수 있습니다. 이를 통해 네트워크와 동기화하는 시간이 며칠에서 몇 분으로 줄어들 수 있습니다. 자세한 내용은 클릭하세요.",
-    "here": "여기",
-    "version": "버전",
-    "for_more_info": "자세한 정보",
-    "text_1": "바이너리 설치",
-    "text_1_1": "먼저 바이너리를 설치하고 버전이 현재 메인넷에서 사용 중인 버전인지 확인해야 합니다.",
-    "text_2": "상태 동기화 활성화",
-    "text_2_1": "$DAEMON_HOME/config/config.toml에서 Tendermint가 상태 동기화를 사용하도록 구성할 수 있습니다.",
-    "text_3": "데몬 시작",
-    "text_3_1": "노드를 재설정하는 경우, 데몬을 시작하기 전에",
-    "text_3_2": "을 실행하세요.",
-    "text_title_3": "상태 동기화를 작동시키려면 $DAEMON_HOME/config/app.toml에서 스냅샷을 활성화할 수 있습니다."
-  },
   "tx": {
     "title": "요약",
     "tx_hash": "트랜잭션 해시",
@@ -274,14 +254,6 @@
     "committed": "커밋됨",
     "precommitted": "사전 커밋됨",
     "missed": "누락됨"
-  },
-  "widget": {
-    "title": "초기 설정",
-    "endpoint": "엔드포인트",
-    "select_endpoint": "엔드포인트 선택",
-    "text_1": "전역 스크립트 가져오기",
-    "text_2": "지갑 연결",
-    "text_3": "오스모시스 변환"
   },
   "index": {
     "rank": "순위",

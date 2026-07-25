@@ -6,14 +6,11 @@
     "governance": "Governance",
     "parameters": "Parameter",
     "uptime": "Verfügbarkeit",
-    "state-sync": "State Sync",
     "cosmwasm": "Cosmwasm",
-    "widget": "Widgets",
     "tx": "Transaktionen",
     "ibc": "IBC",
     "nft": "NFT",
     "consensus": "Konsens",
-    "supply": "Angebot",
     "account": "Konten",
     "ecosystem": "Ökosystem",
     "favorite": "Favorit",
@@ -229,23 +226,6 @@
     "liquid_staking_shares": "Liquid Shares",
     "validator_bond_share": "Validator-Anteil"
   },
-  "statesync": {
-    "title": "Was ist State Sync?",
-    "title_2": "Neuen Knoten mit State Sync starten",
-    "title_3": "Snapshot für State Sync aktivieren",
-    "description": "Das Tendermint Core 0.34-Release unterstützt State Sync, wodurch ein neuer Knoten dem Netzwerk beitreten kann, indem er einen Schnappschuss des aktuellen Anwendungszustands auf einer kürzlichen Höhe abruft, anstatt alle historischen Blöcke abzurufen und erneut abzuspielen. Dies kann die Zeit zum Synchronisieren mit dem Netzwerk von Tagen auf Minuten reduzieren. Klicken Sie",
-    "here": "Hier",
-    "version": "Version",
-    "for_more_info": "Für weitere Informationen",
-    "text_1": "Binary installieren",
-    "text_1_1": "Zuerst müssen wir das Binary installieren und sicherstellen, dass die Version mit dem Mainnet übereinstimmt",
-    "text_2": "State Sync aktivieren",
-    "text_2_1": "Wir können Tendermint konfigurieren, um State Sync in $DAEMON_HOME/config/config.toml zu verwenden",
-    "text_3": "Daemon starten",
-    "text_3_1": "Falls der Knoten zurückgesetzt wird, führen Sie",
-    "text_3_2": "vor dem Start des Daemons aus",
-    "text_title_3": "Um State Sync zu ermöglichen, können wir den Snapshot in $DAEMON_HOME/config/app.toml aktivieren"
-  },
   "tx": {
     "title": "Zusammenfassung",
     "tx_hash": "Tx-Hash",
@@ -274,14 +254,6 @@
     "committed": "Commitet",
     "precommitted": "Precommitet",
     "missed": "Verpasst"
-  },
-  "widget": {
-    "title": "Erste Einstellung",
-    "endpoint": "Endpunkt",
-    "select_endpoint": "Endpunkt auswählen",
-    "text_1": "Globales Skript importieren",
-    "text_2": "Wallet verbinden",
-    "text_3": "Osmosis-Konvertierung"
   },
   "index": {
     "rank": "Rang",

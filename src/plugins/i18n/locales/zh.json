@@ -7,11 +7,8 @@
     "parameters": "参数",
     "uptime": "状态",
     "consensus": "共识引擎",
-    "supply": "资产供应量",
     "account": "账户列表",
-    "state-sync": "状态同步",
     "cosmwasm": "Cosmwasm",
-    "widget": "Widgets",
     "tx": "交易",
     "ibc": "IBC",
     "ecosystem": "生态系统",
@@ -217,23 +214,6 @@
     "signer_addr": "验证人地址",
     "consensus_pub_key": "验证人公钥"
   },
-  "statesync": {
-    "title": "What's State Sync?",
-    "title_2": "Starting New Node From State Sync",
-    "title_3": "Enable Snapshot For State Sync",
-    "description": "The Tendermint Core 0.34 release includes support for state sync, which allows a new node to join a network by fetching a snapshot of the application state at a recent height instead of fetching and replaying all historical blocks. This can reduce the time needed to sync with the network from days to minutes. Click",
-    "here": "Here",
-    "version": "Version",
-    "for_more_info": "For more infomation",
-    "text_1": "Install Binary",
-    "text_1_1": "We need to install the binary first and make sure that the version is the one currently in use on mainnet",
-    "text_2": "Enable State Sync",
-    "text_2_1": "We can configure Tendermint to use state sync in $DAEMON_HOME/config/config.toml",
-    "text_3": "Start the daemon",
-    "text_3_1": "If you are resetting node, run",
-    "text_3_2": "before you start the daemon",
-    "text_title_3": "To make state sync works, we can enable snapshot in $DAEMON_HOME/config/app.toml"
-  },
   "tx": {
     "title": "概要",
     "tx_hash": "Tx 哈希",
@@ -262,14 +242,6 @@
     "committed": "已提交",
     "precommitted": "预提交",
     "missed": "丢失"
-  },
-  "widget": {
-    "title": "初始设置",
-    "endpoint": "接口地址",
-    "select_endpoint": "选择接口地址",
-    "text_1": "引入全局设置",
-    "text_2": "连接钱包",
-    "text_3": "闪兑"
   },
   "index": {
     "rank": "排名",

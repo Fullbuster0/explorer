@@ -6,14 +6,11 @@
     "governance": "ガバナンス",
     "parameters": "パラメータ",
     "uptime": "アップタイム",
-    "state-sync": "ステート同期",
     "cosmwasm": "Cosmwasm",
-    "widget": "ウィジェット",
     "tx": "取引",
     "ibc": "IBC",
     "nft": "NFT",
     "consensus": "コンセンサス",
-    "supply": "供給",
     "account": "アカウント",
     "ecosystem": "エコシステム",
     "favorite": "お気に入り",
@@ -229,23 +226,6 @@
     "liquid_staking_shares": "流動性シェア",
     "validator_bond_share": "バリデーター担保シェア"
   },
-  "statesync": {
-    "title": "ステートシンクとは？",
-    "title_2": "ステートシンクから新しいノードを開始",
-    "title_3": "ステートシンクのためにスナップショットを有効にする",
-    "description": "Tendermint Core 0.34リリースはステートシンクをサポートしており、新しいノードが最近の高さでアプリケーションの状態のスナップショットを取得してネットワークに参加できるようにします。これにより、数日から数分に同期にかかる時間を短縮できます。クリック",
-    "here": "こちら",
-    "version": "バージョン",
-    "for_more_info": "詳細情報は",
-    "text_1": "バイナリをインストール",
-    "text_1_1": "最初にバイナリをインストールし、メインネットで現在使用されているバージョンであることを確認する必要があります。",
-    "text_2": "ステートシンクを有効にする",
-    "text_2_1": "Tendermintを$DAEMON_HOME/config/config.tomlでステートシンクを使用するように構成できます。",
-    "text_3": "デーモンを開始",
-    "text_3_1": "ノードをリセットしている場合は、デーモンを開始する前に実行します。",
-    "text_3_2": "",
-    "text_title_3": "ステートシンクを機能させるために、$DAEMON_HOME/config/app.tomlでスナップショットを有効にできます。"
-  },
   "tx": {
     "title": "概要",
     "tx_hash": "取引ハッシュ",
@@ -274,14 +254,6 @@
     "committed": "コミット済み",
     "precommitted": "プレコミット済み",
     "missed": "見逃し"
-  },
-  "widget": {
-    "title": "初期設定",
-    "endpoint": "エンドポイント",
-    "select_endpoint": "エンドポイントを選択",
-    "text_1": "グローバルスクリプトをインポート",
-    "text_2": "ウォレットに接続",
-    "text_3": "オスモシス変換"
   },
   "index": {
     "rank": "ランク",
