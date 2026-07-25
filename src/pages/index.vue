@@ -140,19 +140,13 @@ const chains = computed(() => {
   justify-content: center;
   width: 72px;
   height: 72px;
-  border-radius: 20px;
-  background: color-mix(in srgb, hsl(var(--b1)) 70%, transparent);
-  border: 1px solid var(--sz-border);
-  box-shadow: 0 12px 28px -12px var(--sz-glow);
+  border-radius: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
   flex-shrink: 0;
-  overflow: hidden;
-  padding: 10px;
-  backdrop-filter: blur(10px);
-}
-html.dark .sz-hero-logo,
-html[data-theme='dark'] .sz-hero-logo {
-  background: rgba(255, 255, 255, 0.96);
-  border-color: rgba(255, 255, 255, 0.18);
+  overflow: visible;
+  padding: 0;
 }
 
 .sz-search:focus-within {

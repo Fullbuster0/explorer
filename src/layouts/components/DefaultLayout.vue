@@ -12,7 +12,6 @@ import { useDashboard } from '@/stores/useDashboard';
 import { NetworkType } from '@/types/chaindata';
 import { useBaseStore, useBlockchain } from '@/stores';
 
-import NavBarI18n from './NavBarI18n.vue';
 import NavBarWallet from './NavBarWallet.vue';
 import type {
   NavGroup,
@@ -248,9 +247,9 @@ dayjs();
 
         <div class="flex-1 w-0"></div>
 
-        <NavBarI18n class="hidden md:!inline-block" />
-        <NavbarThemeSwitcher class="!inline-block" />
+        <!-- search left of theme toggle (desktop expands) -->
         <NavbarSearch class="!inline-block" />
+        <NavbarThemeSwitcher class="!inline-block" />
         <NavBarWallet />
       </header>
 
@@ -312,10 +311,9 @@ dayjs();
   width: 42px;
   height: 42px;
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.96);
-  box-shadow: 0 4px 14px -4px rgba(0, 95, 204, 0.45);
-  overflow: hidden;
-  padding: 4px;
+  background: transparent;
+  overflow: visible;
+  padding: 0;
 }
 .sz-brand-name {
   font-size: 19px;

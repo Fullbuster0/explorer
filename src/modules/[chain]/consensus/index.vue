@@ -67,6 +67,12 @@ function baseOf(addr?: string) {
   return String(addr || '').replace(/\/+$/, '');
 }
 
+const activeRpcLabel = computed(() => {
+  if (!rpc.value) return '';
+  const hit = rpcList.value.find((x) => baseOf(x.address) === rpc.value);
+  return hit?.provider || rpc.value.replace(/^https?:\/\//, '');
+});
+
 function pickRpcList() {
   const list = (chainStore.current?.endpoints?.rpc || []).filter((x) => x?.address);
   // Prefer Shazoes RPC first (CORS + consensus endpoints allowed)
@@ -276,7 +282,7 @@ const filteredRows = computed(() => {
 });
 
 // ---- actions ----
-async function onChange() {
+async function refetch() {
   if (loading) return;
   loading = true;
   httpstatus.value = 200;
@@ -342,7 +348,10 @@ async function update() {
     const data = await fetch(`${rpc.value}/consensus_state`);
     httpstatus.value = data.status;
     httpStatusText.value = data.statusText;
-    if (!data.ok) return;
+    if (!data.ok) {
+      await fallbackRpc();
+      return;
+    }
     const res = await data.json();
     roundState.value = res?.result?.round_state || {};
     const raw = String(roundState.value?.['height/round/step'] || '').split('/');
@@ -352,6 +361,33 @@ async function update() {
   } catch (err: any) {
     httpstatus.value = 500;
     httpStatusText.value = err?.message || String(err);
+    await fallbackRpc();
+  }
+}
+
+// Auto-fallback: if the active RPC dies mid-session, walk the list to a healthy one.
+let fallbackCooldown = 0;
+async function fallbackRpc() {
+  const now = Date.now();
+  if (now - fallbackCooldown < 10000) return;
+  fallbackCooldown = now;
+  if (!rpcList.value || rpcList.value.length <= 1) return;
+  const current = rpc.value;
+  const candidates = rpcList.value.filter((x) => baseOf(x.address) !== current);
+  for (const ep of candidates) {
+    const candidate = baseOf(ep.address);
+    try {
+      const probe = await fetch(`${candidate}/consensus_state`);
+      if (probe.ok) {
+        rpc.value = candidate;
+        httpstatus.value = 200;
+        httpStatusText.value = 'Switched to fallback RPC';
+        await update();
+        return;
+      }
+    } catch {
+      // try next
+    }
   }
 }
 function exportCsv() {
@@ -394,19 +430,17 @@ function exportCsv() {
               Round {{ round }}
             </span>
           </div>
-          <div class="flex items-center gap-2">
+          <div class="flex items-center gap-2 min-w-0">
             <span class="text-[11px] font-semibold" :class="httpstatus === 200 ? 'text-emerald-400' : 'text-rose-400'">
               {{ httpstatus === 200 ? 'LIVE' : 'OFFLINE' }}
             </span>
-            <select
-              v-model="rpc"
-              class="select select-xs h-7 min-h-0 w-auto max-w-[180px] border-slate-700 bg-slate-800/70 text-[11px] text-slate-200"
-              @change="onChange"
+            <span
+              v-if="activeRpcLabel"
+              class="hidden sm:inline-flex max-w-[220px] truncate rounded-full border border-slate-700 bg-slate-800/60 px-2 py-0.5 text-[10px] font-mono text-slate-400"
+              :title="rpc"
             >
-              <option v-for="(item, index) in rpcList" :key="index" :value="(item?.address || '').replace(/\/+$/, '')">
-                {{ item?.provider || item?.address }}
-              </option>
-            </select>
+              {{ activeRpcLabel }}
+            </span>
           </div>
         </div>
 
