@@ -242,12 +242,27 @@ type ValVoteRow = {
   optionLabel: string;
 };
 
+/** Empty votes on a closed proposal = pruned LCD index, NOT "nobody voted". */
+const votesUnavailable = computed(() => {
+  if (votesLoading.value) return false;
+  if (allVotes.value.length > 0) return false;
+  // During voting period empty can still mean early; only treat closed+tally as pruned.
+  if (isVoting.value) return false;
+  return totalVoted.value > 0;
+});
+
+/** Have real per-voter records to split Yes/No/Did-not-vote. */
+const hasVoteRecords = computed(() => allVotes.value.length > 0);
+
 const validatorRows = computed((): ValVoteRow[] => {
   const voteByHex = new Map<string, GovVote>();
   for (const vote of allVotes.value) {
     const hex = bech32DataHex(vote.voter);
     if (hex && valHexMap.value.has(hex)) voteByHex.set(hex, vote);
   }
+
+  // When records are pruned, never invent DID NOT VOTE — that contradicts tally.
+  const recordsMissing = votesUnavailable.value || (!hasVoteRecords.value && !votesLoading.value && !isVoting.value);
 
   const power = totalPower.value || 1;
   const rows: ValVoteRow[] = [];
@@ -257,6 +272,24 @@ const validatorRows = computed((): ValVoteRow[] => {
     const voted = !!vote;
     const vp = Number(v.delegator_shares || v.tokens || 0);
     const vpPct = vp / power;
+
+    let chipClass = 'sz-chip--info';
+    let label = '—';
+    if (voted) {
+      chipClass = optionChipClass(opt);
+      label = optionLabel(opt);
+    } else if (recordsMissing) {
+      chipClass = '';
+      label = '—';
+    } else if (!votesLoading.value) {
+      // Real empty slot only when we actually have a vote index (or live voting).
+      chipClass = 'sz-chip--warn';
+      label = 'DID NOT VOTE';
+    } else {
+      chipClass = '';
+      label = '…';
+    }
+
     rows.push({
       operator_address: v.operator_address,
       moniker: v.description?.moniker || v.operator_address,
@@ -265,8 +298,8 @@ const validatorRows = computed((): ValVoteRow[] => {
       vpLabel: format.percent(vpPct),
       option: opt,
       voted,
-      chipClass: voted ? optionChipClass(opt) : 'sz-chip--warn',
-      optionLabel: voted ? optionLabel(opt) : 'DID NOT VOTE',
+      chipClass,
+      optionLabel: label,
     });
   }
   rows.sort((a, b) => b.vp - a.vp);
@@ -285,14 +318,24 @@ const otherVotes = computed(() => {
     }));
 });
 
+const activeVoteFilters = computed(() => {
+  // Option filters only make sense when we have per-voter records.
+  if (!hasVoteRecords.value) {
+    return voteFilters.filter((f) => f.key === 'all');
+  }
+  return voteFilters;
+});
+
 const filteredValidatorRows = computed(() => {
   const q = voteSearch.value.trim().toLowerCase();
   return validatorRows.value.filter((r) => {
-    if (voteFilter.value === 'yes' && r.option !== 'VOTE_OPTION_YES') return false;
-    if (voteFilter.value === 'no' && r.option !== 'VOTE_OPTION_NO') return false;
-    if (voteFilter.value === 'veto' && r.option !== 'VOTE_OPTION_NO_WITH_VETO') return false;
-    if (voteFilter.value === 'abstain' && r.option !== 'VOTE_OPTION_ABSTAIN') return false;
-    if (voteFilter.value === 'did_not_vote' && r.voted) return false;
+    if (hasVoteRecords.value) {
+      if (voteFilter.value === 'yes' && r.option !== 'VOTE_OPTION_YES') return false;
+      if (voteFilter.value === 'no' && r.option !== 'VOTE_OPTION_NO') return false;
+      if (voteFilter.value === 'veto' && r.option !== 'VOTE_OPTION_NO_WITH_VETO') return false;
+      if (voteFilter.value === 'abstain' && r.option !== 'VOTE_OPTION_ABSTAIN') return false;
+      if (voteFilter.value === 'did_not_vote' && r.voted) return false;
+    }
     if (q && !r.moniker.toLowerCase().includes(q) && !r.operator_address.toLowerCase().includes(q)) {
       return false;
     }
@@ -301,17 +344,12 @@ const filteredValidatorRows = computed(() => {
 });
 
 const votedCount = computed(() => validatorRows.value.filter((r) => r.voted).length);
-const didNotVoteCount = computed(() => validatorRows.value.filter((r) => !r.voted).length);
+const didNotVoteCount = computed(() => {
+  if (!hasVoteRecords.value) return 0;
+  return validatorRows.value.filter((r) => !r.voted).length;
+});
 const votes = allVotes;
 const depositList = deposits;
-
-/** Empty votes on a closed proposal usually means pruned LCD index — not "nobody voted". */
-const votesUnavailable = computed(() => {
-  if (votesLoading.value) return false;
-  if (allVotes.value.length > 0) return false;
-  if (isVoting.value) return false;
-  return totalVoted.value > 0;
-});
 
 function addCurrentParams(res: any) {
   if (proposal.value.content && res.params) {
@@ -718,9 +756,9 @@ onUnmounted(() => stopTallyPoll());
           </div>
         </div>
         <div class="flex flex-wrap items-center gap-2">
-          <div class="sz-tabs !p-0.5">
+          <div v-if="hasVoteRecords" class="sz-tabs !p-0.5">
             <a
-              v-for="f in voteFilters"
+              v-for="f in activeVoteFilters"
               :key="f.key"
               class="sz-tab !px-2.5 !py-1 !text-[11px]"
               :class="{ 'sz-tab--active': voteFilter === f.key }"
@@ -736,9 +774,10 @@ onUnmounted(() => stopTallyPoll());
         </div>
       </div>
 
-      <!-- honest empty / pruned banner -->
-      <div v-if="votesUnavailable" class="mx-4 mt-3 mb-1 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2.5 text-[12.5px] text-secondary">
-        Vote records unavailable on this node (pruned / not indexed). Tally above is authoritative.
+      <!-- honest empty / pruned banner — do NOT imply validators skipped voting -->
+      <div v-if="votesUnavailable" class="mx-4 mt-3 mb-1 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2.5 text-[12.5px] leading-relaxed text-secondary">
+        <b class="text-main">Per-validator votes unavailable</b> on this LCD (pruned / not indexed).
+        Tally above is the on-chain result — rows below list the active set + VP only; vote option is unknown, not “did not vote”.
       </div>
 
       <div class="overflow-x-auto">
@@ -754,7 +793,13 @@ onUnmounted(() => stopTallyPoll());
           <tbody>
             <tr v-if="filteredValidatorRows.length === 0">
               <td colspan="4" class="text-center text-secondary py-8 text-sm">
-                {{ votesLoading ? 'Loading votes…' : 'No validators match this filter.' }}
+                {{
+                  votesLoading
+                    ? 'Loading votes…'
+                    : votesUnavailable
+                      ? 'Active set loading…'
+                      : 'No validators match this filter.'
+                }}
               </td>
             </tr>
             <tr v-for="(row, i) in filteredValidatorRows" :key="row.operator_address">
@@ -780,9 +825,14 @@ onUnmounted(() => stopTallyPoll());
         </table>
       </div>
       <div class="px-4 py-2.5 border-t border-base-content/10 flex flex-wrap gap-3 text-[11.5px] text-secondary">
-        <span>Voted <b class="font-mono text-main">{{ votedCount }}</b></span>
-        <span>Did not vote <b class="font-mono text-main">{{ didNotVoteCount }}</b></span>
-        <span v-if="votes.length">Records <b class="font-mono text-main">{{ votes.length }}</b></span>
+        <span>Active set <b class="font-mono text-main">{{ validatorRows.length }}</b></span>
+        <template v-if="hasVoteRecords">
+          <span>Voted <b class="font-mono text-main">{{ votedCount }}</b></span>
+          <span>Did not vote <b class="font-mono text-main">{{ didNotVoteCount }}</b></span>
+          <span>Records <b class="font-mono text-main">{{ votes.length }}</b></span>
+        </template>
+        <span v-else-if="votesUnavailable">Vote options unknown (index pruned)</span>
+        <span v-else-if="votesLoading">Loading vote records…</span>
       </div>
     </div>
 
