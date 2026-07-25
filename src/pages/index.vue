@@ -43,37 +43,25 @@ const chains = computed(() => {
   <div class="mx-auto max-w-7xl pb-12">
     <!-- ===== HERO — centered brand lockup ===== -->
     <section class="sz-hero relative mb-10">
-      <div class="relative z-10 flex flex-col items-center text-center gap-5 px-2 pt-10 pb-6 sm:px-4 sm:pt-14">
-        <div class="inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-primary backdrop-blur-md">
+      <div class="relative z-10 px-2 pt-10 pb-6 sm:px-4 sm:pt-14">
+        <!-- badge stays top-left -->
+        <div class="mb-6 inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-primary backdrop-blur-md">
           <span class="sz-live-dot"></span>
           Multi-chain · Cosmos
         </div>
 
-        <span class="sz-hero-logo">
-          <img src="@/assets/logo.png" alt="Shazoes" class="h-14 w-14 object-contain" />
-        </span>
+        <div class="flex flex-col items-center text-center gap-5">
+          <span class="sz-hero-logo">
+            <img src="@/assets/logo.svg" alt="Shazoes" class="h-14 w-14 object-contain" />
+          </span>
 
-        <div class="min-w-0 max-w-2xl">
-          <h1 class="sz-hero-title text-[2.35rem] sm:text-5xl md:text-[3.4rem] font-extrabold tracking-tight leading-[1.05]">
-            {{ $t('pages.title') }}
-          </h1>
-          <p class="mx-auto mt-3 max-w-xl text-[15px] sm:text-base leading-relaxed text-secondary">
-            {{ $t('pages.slogan') }}
-          </p>
-        </div>
-
-        <div class="flex flex-wrap items-center justify-center gap-2.5">
-          <div class="sz-stat">
-            <span class="sz-stat-value">{{ mainnetCount }}</span>
-            <span class="sz-stat-label">Mainnets</span>
-          </div>
-          <div class="sz-stat">
-            <span class="sz-stat-value">{{ testnetCount }}</span>
-            <span class="sz-stat-label">Testnets</span>
-          </div>
-          <div class="sz-stat">
-            <span class="sz-live-dot"></span>
-            <span class="sz-stat-label">Live</span>
+          <div class="min-w-0 max-w-2xl">
+            <h1 class="sz-hero-title text-[2.35rem] sm:text-5xl md:text-[3.4rem] font-extrabold tracking-tight leading-[1.05]">
+              {{ $t('pages.title') }}
+            </h1>
+            <p class="mx-auto mt-3 max-w-xl text-[15px] sm:text-base leading-relaxed text-secondary">
+              {{ $t('pages.slogan') }}
+            </p>
           </div>
         </div>
       </div>
@@ -150,40 +138,21 @@ const chains = computed(() => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 68px;
-  height: 68px;
-  border-radius: 18px;
-  background: hsl(var(--b1));
+  width: 72px;
+  height: 72px;
+  border-radius: 20px;
+  background: color-mix(in srgb, hsl(var(--b1)) 70%, transparent);
   border: 1px solid var(--sz-border);
   box-shadow: 0 12px 28px -12px var(--sz-glow);
   flex-shrink: 0;
   overflow: hidden;
-  padding: 8px;
+  padding: 10px;
   backdrop-filter: blur(10px);
 }
-.sz-stat {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.48rem 0.85rem;
-  border-radius: 999px;
-  border: 1px solid var(--sz-border);
-  background: color-mix(in srgb, hsl(var(--b1)) 55%, transparent);
-  backdrop-filter: blur(10px);
-}
-.sz-stat-value {
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: hsl(var(--bc));
-  letter-spacing: -0.02em;
-}
-.sz-stat-label {
-  font-size: 10.5px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.14em;
-  color: var(--text-secondary);
+html.dark .sz-hero-logo,
+html[data-theme='dark'] .sz-hero-logo {
+  background: rgba(255, 255, 255, 0.96);
+  border-color: rgba(255, 255, 255, 0.18);
 }
 
 .sz-search:focus-within {

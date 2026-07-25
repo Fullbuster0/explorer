@@ -10,7 +10,7 @@ import { Icon } from '@iconify/vue';
         <div class="sz-footer-brand min-w-0">
           <div class="flex items-center gap-3">
             <span class="sz-footer-mark">
-              <img src="@/assets/logo.png" alt="Shazoes" class="h-7 w-7 object-contain" />
+              <img src="@/assets/logo.svg" alt="Shazoes" class="h-7 w-7 object-contain" />
             </span>
             <div class="leading-tight">
               <div class="text-[15px] font-bold tracking-tight text-base-content">Shazoes Explorer</div>
