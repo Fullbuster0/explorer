@@ -186,8 +186,8 @@ export class CosmosRestClient extends BaseRestClient<RequestRegistry> {
   }
   async getGovProposalVotes(proposal_id: string, page?: PageRequest) {
     if (!page) page = new PageRequest();
-    page.reverse = true;
-    const query = `?proposal_status={status}&${page.toQueryString()}`;
+    // votes endpoint has no proposal_status filter — only pagination
+    const query = `?${page.toQueryString()}`;
     return this.request(this.registry.gov_proposals_votes, { proposal_id }, query);
   }
   async getGovProposalVotesVoter(proposal_id: string, voter: string) {
