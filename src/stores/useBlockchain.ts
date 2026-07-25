@@ -86,11 +86,7 @@ export const useBlockchain = defineStore('blockchain', {
         const groups: { heading: string; keys: string[] }[] = [
           {
             heading: 'Explorer',
-            keys: ['dashboard', 'blocks', 'tx', 'validator', 'uptime', 'account'],
-          },
-          {
-            heading: 'Staking & Governance',
-            keys: ['staking', 'governance'],
+            keys: ['dashboard', 'governance', 'staking', 'blocks', 'tx', 'validator', 'uptime', 'account'],
           },
           {
             heading: 'Advanced',
