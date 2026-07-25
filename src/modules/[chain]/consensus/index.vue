@@ -259,8 +259,6 @@ const rows = computed<Row[]>(() => {
   return sorted;
 });
 
-const onlineCount = computed(() => rows.value.filter((r) => r.online).length);
-const offlineCount = computed(() => rows.value.length - onlineCount.value);
 const onlineVP = computed(() => rows.value.filter((r) => r.online).reduce((s, r) => s + r.vpPercent, 0));
 const offlineVP = computed(() => Math.max(0, 100 - onlineVP.value));
 const proposerRow = computed(() => rows.value.find((r) => r.isProposer));
@@ -276,8 +274,6 @@ const filteredRows = computed(() => {
   if (q) list = list.filter((r) => r.moniker.toLowerCase().includes(q) || r.address.toLowerCase().includes(q));
   return list;
 });
-const colA = computed(() => filteredRows.value.filter((_, i) => i % 2 === 0));
-const colB = computed(() => filteredRows.value.filter((_, i) => i % 2 === 1));
 
 // ---- actions ----
 async function onChange() {
@@ -384,244 +380,394 @@ function exportCsv() {
 
 <template>
   <div class="space-y-4">
-    <!-- metric cards -->
-    <div v-if="roundState['height/round/step']" class="flex flex-wrap gap-3">
-      <!-- Height H/R/S -->
-      <div class="bg-base-100 border border-base-300 rounded-lg shadow overflow-hidden inline-block min-w-[170px]">
-        <div class="px-3 py-2 bg-base-200 border-b border-base-300">
-          <h3 class="text-xs font-bold text-center uppercase tracking-wide">{{ $t('account.height') }}</h3>
-        </div>
-        <div class="px-3 py-2.5 flex items-center gap-4 text-xs font-mono">
-          <span><code class="opacity-60">H:</code> {{ height ? Number(height).toLocaleString() : '--' }}</span>
-          <span><code class="opacity-60">R:</code> {{ round || '--' }}</span>
-          <span><code class="opacity-60">S:</code> {{ step || '--' }}</span>
-        </div>
-      </div>
-
-      <!-- Prevotes -->
-      <div class="bg-base-100 border border-base-300 rounded-lg shadow overflow-hidden inline-block min-w-[250px]">
-        <div class="px-3 py-2 bg-base-200 border-b border-base-300">
-          <h3 class="text-xs font-bold text-center uppercase tracking-wide">Prevotes</h3>
-        </div>
-        <div class="px-3 py-2.5 flex items-center gap-3 text-xs">
-          <span v-if="!currentVoteSet" class="opacity-60">Waiting...</span>
-          <span v-else class="font-mono">{{ prevoteSigned }}/{{ rows.length }} signed</span>
-          <span class="flex items-center gap-1 border-l border-base-300 pl-3 ml-auto">
-            <code class="text-info font-mono">Total:</code>
-            <span class="font-mono font-semibold">{{ prevoteRate }}%</span>
-          </span>
-        </div>
-      </div>
-
-      <!-- Precommits -->
-      <div class="bg-base-100 border border-base-300 rounded-lg shadow overflow-hidden inline-block min-w-[250px]">
-        <div class="px-3 py-2 bg-base-200 border-b border-base-300">
-          <h3 class="text-xs font-bold text-center uppercase tracking-wide">Precommits</h3>
-        </div>
-        <div class="px-3 py-2.5 flex items-center gap-3 text-xs">
-          <span v-if="!currentVoteSet" class="opacity-60">Waiting...</span>
-          <span v-else class="font-mono">{{ precommitSigned }}/{{ rows.length }} signed</span>
-          <span class="flex items-center gap-1 border-l border-base-300 pl-3 ml-auto">
-            <code class="text-success font-mono">Total:</code>
-            <span class="font-mono font-semibold">{{ precommitRate }}%</span>
-          </span>
-        </div>
-      </div>
-
-      <!-- VP Status -->
-      <div class="bg-base-100 border border-base-300 rounded-lg shadow overflow-hidden inline-block min-w-[210px]">
-        <div class="px-3 py-2 bg-base-200 border-b border-base-300">
-          <h3 class="text-xs font-bold text-center uppercase tracking-wide">VP Status</h3>
-        </div>
-        <div class="px-3 py-2.5 flex items-center gap-3 text-xs">
-          <span class="flex items-center gap-1">
-            <code class="text-success font-mono">Online:</code>
-            <span class="font-mono font-semibold">{{ onlineVP.toFixed(2) }}%</span>
-          </span>
-          <span class="flex items-center gap-1">
-            <code class="text-error font-mono">Offline:</code>
-            <span class="font-mono font-semibold">{{ offlineVP.toFixed(2) }}%</span>
-          </span>
-        </div>
-      </div>
-
-      <!-- Proposer -->
-      <div class="bg-base-100 border border-base-300 rounded-lg shadow overflow-hidden inline-block ml-auto w-60">
-        <div class="px-3 py-2 bg-base-200 border-b border-base-300">
-          <h3 class="text-xs font-bold text-center uppercase tracking-wide">Proposer</h3>
-        </div>
-        <div class="px-3 py-2.5">
-          <div v-if="proposerRow" class="flex items-center gap-2">
-            <div class="w-6 h-6 rounded-full overflow-hidden bg-base-300 flex-shrink-0 flex items-center justify-center">
-              <img v-if="logo(proposerRow.identity)" v-lazy="logo(proposerRow.identity)" class="w-full h-full object-cover" alt="" />
-              <span v-else class="text-[10px] font-bold">{{ proposerRow.moniker.slice(0, 1) }}</span>
-            </div>
-            <span class="text-warning text-sm font-bold truncate" :title="proposerRow.moniker">{{ proposerRow.moniker }}</span>
+    <!-- ===== CONSENSUS ENGINE — live hero panel ===== -->
+    <section class="consensus-hero relative overflow-hidden rounded-xl">
+      <div class="relative z-10 px-5 py-5 sm:px-7 sm:py-6">
+        <!-- top row: label + live status -->
+        <div class="flex items-center justify-between gap-3">
+          <div class="flex items-center gap-2.5">
+            <span class="hero-dot" :class="httpstatus === 200 ? 'hero-dot--live' : 'hero-dot--off'"></span>
+            <span class="text-[11px] font-bold uppercase tracking-[0.22em] text-slate-400">
+              Consensus Monitor
+            </span>
+            <span v-if="round !== ''" class="hidden sm:inline-flex items-center gap-1 rounded-full border border-slate-700 bg-slate-800/60 px-2 py-0.5 text-[10px] font-semibold text-slate-300">
+              Round {{ round }}
+            </span>
           </div>
-          <span v-else class="opacity-60 text-sm">Unknown</span>
+          <div class="flex items-center gap-2">
+            <span class="text-[11px] font-semibold" :class="httpstatus === 200 ? 'text-emerald-400' : 'text-rose-400'">
+              {{ httpstatus === 200 ? 'LIVE' : 'OFFLINE' }}
+            </span>
+            <select
+              v-model="rpc"
+              class="select select-xs h-7 min-h-0 w-auto max-w-[180px] border-slate-700 bg-slate-800/70 text-[11px] text-slate-200"
+              @change="onChange"
+            >
+              <option v-for="(item, index) in rpcList" :key="index" :value="(item?.address || '').replace(/\/+$/, '')">
+                {{ item?.provider || item?.address }}
+              </option>
+            </select>
+          </div>
+        </div>
+
+        <!-- height + vote progress -->
+        <div class="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,auto)_1fr] lg:items-center">
+          <!-- block height -->
+          <div>
+            <div class="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">Block Height</div>
+            <div class="hero-height mt-1">
+              {{ height ? Number(height).toLocaleString() : '—' }}
+            </div>
+            <div class="mt-1.5 flex items-center gap-3 text-[11px] text-slate-400">
+              <span>Step <b class="font-mono text-slate-200">{{ step || '—' }}</b>/4</span>
+              <span class="hidden sm:inline text-slate-600">·</span>
+              <span class="hidden sm:inline">Proposing now</span>
+            </div>
+          </div>
+
+          <!-- vote progress bars -->
+          <div class="space-y-4">
+            <div>
+              <div class="mb-1.5 flex items-baseline justify-between">
+                <span class="text-[11px] font-bold uppercase tracking-[0.16em] text-sky-300">Prevotes</span>
+                <span class="font-mono text-xs text-slate-300">
+                  <b class="text-sky-300">{{ prevoteSigned }}</b>/{{ rows.length || '—' }}
+                  <span class="ml-2 text-slate-400">{{ prevoteRate }}%</span>
+                </span>
+              </div>
+              <div class="vote-track">
+                <div class="vote-fill vote-fill--prevote" :style="{ width: prevoteRate + '%' }"></div>
+              </div>
+            </div>
+            <div>
+              <div class="mb-1.5 flex items-baseline justify-between">
+                <span class="text-[11px] font-bold uppercase tracking-[0.16em] text-violet-300">Precommits</span>
+                <span class="font-mono text-xs text-slate-300">
+                  <b class="text-violet-300">{{ precommitSigned }}</b>/{{ rows.length || '—' }}
+                  <span class="ml-2 text-slate-400">{{ precommitRate }}%</span>
+                </span>
+              </div>
+              <div class="vote-track">
+                <div class="vote-fill vote-fill--precommit" :style="{ width: precommitRate + '%' }"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- stats strip -->
+        <div class="mt-5 flex flex-wrap items-center gap-x-6 gap-y-2 border-t border-slate-800 pt-4 text-xs">
+          <div class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+            <span class="text-slate-400">Online VP</span>
+            <b class="font-mono text-emerald-300">{{ onlineVP.toFixed(1) }}%</b>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-rose-400"></span>
+            <span class="text-slate-400">Offline VP</span>
+            <b class="font-mono text-rose-300">{{ offlineVP.toFixed(1) }}%</b>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-slate-400">Validators</span>
+            <b class="font-mono text-slate-200">{{ rows.length }}</b>
+          </div>
+          <div class="ml-auto flex items-center gap-2.5">
+            <span class="text-[10px] font-bold uppercase tracking-[0.18em] text-amber-300">Proposer</span>
+            <div class="flex items-center gap-2">
+              <div class="h-6 w-6 overflow-hidden rounded-full bg-slate-700 ring-1 ring-amber-400/50 flex items-center justify-center">
+                <img v-if="proposerRow && logo(proposerRow.identity)" v-lazy="logo(proposerRow.identity)" class="h-full w-full object-cover" alt="" />
+                <span v-else class="text-[10px] font-bold text-slate-200">{{ proposerRow ? proposerRow.moniker.slice(0, 1) : '?' }}</span>
+              </div>
+              <b class="max-w-[160px] truncate text-slate-100" :title="proposerRow?.moniker">
+                {{ proposerRow ? proposerRow.moniker : 'Unknown' }}
+              </b>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
+      <!-- ambient layers -->
+      <div class="hero-glow" aria-hidden="true"></div>
+      <div class="hero-grid" aria-hidden="true"></div>
+    </section>
 
-    <!-- validators panel -->
-    <div class="bg-base-100 border border-base-300 rounded-lg shadow overflow-hidden">
-      <div class="px-4 py-3 bg-base-200 border-b border-base-300">
-        <div class="flex flex-wrap items-center justify-between gap-3">
-          <h3 class="text-sm font-bold flex flex-wrap items-center gap-4">
-            <span>Validators</span>
-            <span class="flex items-center gap-1.5 text-xs font-medium">
-              <span class="w-2 h-2 rounded-full bg-success"></span>
-              <span class="text-success">Online: {{ onlineCount }}</span>
-            </span>
-            <span class="flex items-center gap-1.5 text-xs font-medium">
-              <span class="w-2 h-2 rounded-full bg-error"></span>
-              <span class="text-error">Offline: {{ offlineCount }}</span>
-            </span>
-            <span class="text-xs font-medium opacity-80">Total: {{ rows.length }}</span>
-          </h3>
-
-          <div class="flex flex-wrap items-center gap-3">
-            <div class="flex items-center gap-1.5">
-              <span class="text-xs opacity-70">Show:</span>
-              <select v-model="showFilter" class="select select-bordered select-xs w-auto min-h-0 h-7 text-xs">
-                <option value="all">All</option>
-                <option value="online">Online</option>
-                <option value="offline">Offline</option>
-              </select>
-            </div>
-
-            <input
-              v-model="searchText"
-              type="text"
-              placeholder="Filter validators..."
-              class="input input-bordered input-xs w-56 h-7 min-h-0 text-xs"
-            />
-
+    <!-- ===== VALIDATOR SET ===== -->
+    <section class="overflow-hidden rounded-xl border border-base-300 bg-base-100 shadow-sm">
+      <!-- toolbar -->
+      <div class="flex flex-wrap items-center justify-between gap-3 border-b border-base-300 bg-base-200/60 px-4 py-3">
+        <h3 class="flex items-center gap-2 text-sm font-bold">
+          Validator Set
+          <span class="rounded-full bg-base-300/70 px-2 py-0.5 font-mono text-[11px] font-semibold">{{ filteredRows.length }}</span>
+        </h3>
+        <div class="flex flex-wrap items-center gap-2.5">
+          <div class="flex rounded-lg border border-base-300 bg-base-100 p-0.5">
             <button
-              class="btn btn-ghost btn-xs h-7 min-h-0 px-2 text-success hover:bg-success/10"
-              title="Export to CSV"
-              :disabled="rows.length === 0"
-              @click="exportCsv"
+              v-for="opt in (['all', 'online', 'offline'] as const)"
+              :key="opt"
+              class="seg-btn"
+              :class="{ 'seg-btn--active': showFilter === opt }"
+              @click="showFilter = opt"
             >
-              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                <path
-                  d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm1.8 18H14l-2-3.4-2 3.4H8.2l2.9-4.5L8.2 11H10l2 3.4 2-3.4h1.8l-2.9 4.5 2.9 4.5zM13 9V3.5L18.5 9H13z"
-                />
-              </svg>
+              {{ opt === 'all' ? 'All' : opt === 'online' ? 'Online' : 'Offline' }}
             </button>
-
-            <span class="text-xs flex items-center gap-1.5" :class="httpstatus === 200 ? 'text-success' : 'text-error'">
-              <span class="w-2 h-2 rounded-full animate-pulse" :class="httpstatus === 200 ? 'bg-success' : 'bg-error'"></span>
-              {{ httpstatus === 200 ? 'Live' : 'Offline' }}
-            </span>
-
-            <div class="flex items-center gap-1.5">
-              <span class="text-xs opacity-70">RPC:</span>
-              <select v-model="rpc" class="select select-bordered select-xs w-auto max-w-[220px] min-h-0 h-7 text-xs" @change="onChange">
-                <option v-for="(item, index) in rpcList" :key="index" :value="(item?.address || '').replace(/\/+$/, '')">
-                  {{ item?.provider || item?.address }}
-                </option>
-              </select>
-            </div>
           </div>
+          <input
+            v-model="searchText"
+            type="text"
+            placeholder="Search validator..."
+            class="input input-bordered input-xs h-7 w-44 min-h-0 text-xs"
+          />
+          <button
+            class="btn btn-ghost btn-xs h-7 min-h-0 gap-1 px-2 text-xs"
+            title="Export CSV"
+            :disabled="rows.length === 0"
+            @click="exportCsv"
+          >
+            <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+            CSV
+          </button>
         </div>
       </div>
 
-      <div class="p-3">
-        <div v-if="rows.length === 0" class="text-center text-sm py-8">
-          <span v-if="httpstatus === 200" class="opacity-60">Waiting for consensus data...</span>
-          <span v-else-if="httpstatus === 0" class="opacity-70">{{ httpStatusText || 'Loading...' }}</span>
-          <span v-else class="text-error">RPC error {{ httpstatus }}: {{ httpStatusText }}</span>
-        </div>
-
-        <div v-else class="grid grid-cols-1 lg:grid-cols-2 gap-x-2 gap-y-0">
-          <!-- column A -->
-          <div>
-            <div class="flex items-center gap-1.5 px-2 py-1.5 text-xs font-semibold opacity-70">
-              <span class="w-5 text-right">#</span><span class="w-2"></span><span class="w-5"></span>
-              <span class="flex-1">Validator</span>
-              <span class="w-14 text-right">VP%</span>
-              <span class="w-14 text-center">Prevote</span>
-              <span class="w-14 text-center">Precommit</span>
-            </div>
-            <div
-              v-for="r in colA"
-              :key="r.address"
-              class="flex items-center gap-1.5 px-2 py-1.5 rounded text-xs transition-colors hover:bg-base-200"
-              :class="{ 'opacity-45': !r.online, 'ring-1 ring-warning/60': r.isProposer }"
-            >
-              <span class="w-5 text-right shrink-0 opacity-60">{{ r.rank }}</span>
-              <span class="w-2 h-2 rounded-full shrink-0" :class="r.online ? 'bg-success' : 'bg-error'"></span>
-              <div class="w-5 h-5 shrink-0 rounded-full overflow-hidden bg-base-300 flex items-center justify-center">
-                <img v-if="logo(r.identity)" v-lazy="logo(r.identity)" class="w-full h-full object-cover" alt="" />
-                <span v-else class="text-[9px] font-bold">{{ r.moniker.slice(0, 1) }}</span>
-              </div>
-              <span class="truncate flex-1 min-w-0 font-medium" :title="r.moniker">{{ r.moniker }}</span>
-              <span v-if="r.isProposer" class="badge badge-warning badge-xs shrink-0">P</span>
-              <span class="w-14 text-right shrink-0 font-mono">{{ r.vpPercent.toFixed(1) }}%</span>
-              <span class="w-14 text-center shrink-0">
-                <span v-if="isSigned(r.prevote)" class="text-success font-bold">✓</span>
-                <span v-else class="opacity-40">nil</span>
-              </span>
-              <span class="w-14 text-center shrink-0">
-                <span v-if="isSigned(r.precommit)" class="text-success font-bold">✓</span>
-                <span v-else class="opacity-40">nil</span>
-              </span>
-            </div>
-          </div>
-
-          <!-- column B -->
-          <div>
-            <div class="flex items-center gap-1.5 px-2 py-1.5 text-xs font-semibold opacity-70">
-              <span class="w-5 text-right">#</span><span class="w-2"></span><span class="w-5"></span>
-              <span class="flex-1">Validator</span>
-              <span class="w-14 text-right">VP%</span>
-              <span class="w-14 text-center">Prevote</span>
-              <span class="w-14 text-center">Precommit</span>
-            </div>
-            <div
-              v-for="r in colB"
-              :key="r.address"
-              class="flex items-center gap-1.5 px-2 py-1.5 rounded text-xs transition-colors hover:bg-base-200"
-              :class="{ 'opacity-45': !r.online, 'ring-1 ring-warning/60': r.isProposer }"
-            >
-              <span class="w-5 text-right shrink-0 opacity-60">{{ r.rank }}</span>
-              <span class="w-2 h-2 rounded-full shrink-0" :class="r.online ? 'bg-success' : 'bg-error'"></span>
-              <div class="w-5 h-5 shrink-0 rounded-full overflow-hidden bg-base-300 flex items-center justify-center">
-                <img v-if="logo(r.identity)" v-lazy="logo(r.identity)" class="w-full h-full object-cover" alt="" />
-                <span v-else class="text-[9px] font-bold">{{ r.moniker.slice(0, 1) }}</span>
-              </div>
-              <span class="truncate flex-1 min-w-0 font-medium" :title="r.moniker">{{ r.moniker }}</span>
-              <span v-if="r.isProposer" class="badge badge-warning badge-xs shrink-0">P</span>
-              <span class="w-14 text-right shrink-0 font-mono">{{ r.vpPercent.toFixed(1) }}%</span>
-              <span class="w-14 text-center shrink-0">
-                <span v-if="isSigned(r.prevote)" class="text-success font-bold">✓</span>
-                <span v-else class="opacity-40">nil</span>
-              </span>
-              <span class="w-14 text-center shrink-0">
-                <span v-if="isSigned(r.precommit)" class="text-success font-bold">✓</span>
-                <span v-else class="opacity-40">nil</span>
-              </span>
-            </div>
-          </div>
-        </div>
+      <!-- empty state -->
+      <div v-if="rows.length === 0" class="px-4 py-12 text-center text-sm">
+        <span v-if="httpstatus === 200" class="opacity-60">Waiting for consensus data...</span>
+        <span v-else-if="httpstatus === 0" class="opacity-70">{{ httpStatusText || 'Loading...' }}</span>
+        <span v-else class="text-error">RPC error {{ httpstatus }}: {{ httpStatusText }}</span>
       </div>
-    </div>
+
+      <!-- table -->
+      <div v-else class="overflow-x-auto">
+        <table class="consensus-table w-full text-sm">
+          <thead>
+            <tr>
+              <th class="w-12">#</th>
+              <th>Validator</th>
+              <th class="text-right">Voting Power</th>
+              <th class="text-center">Prevote</th>
+              <th class="text-center">Precommit</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="r in filteredRows"
+              :key="r.address"
+              :class="{ 'row-proposer': r.isProposer, 'row-offline': !r.online }"
+            >
+              <td class="font-mono text-xs opacity-60">{{ r.rank }}</td>
+              <td>
+                <div class="flex items-center gap-2.5">
+                  <span class="status-dot" :class="r.online ? 'status-dot--on' : 'status-dot--off'"></span>
+                  <div class="h-6 w-6 shrink-0 overflow-hidden rounded-full bg-base-300 flex items-center justify-center">
+                    <img v-if="logo(r.identity)" v-lazy="logo(r.identity)" class="h-full w-full object-cover" alt="" />
+                    <span v-else class="text-[10px] font-bold">{{ r.moniker.slice(0, 1) }}</span>
+                  </div>
+                  <span class="truncate font-medium" :title="r.moniker">{{ r.moniker }}</span>
+                  <span v-if="r.isProposer" class="badge badge-warning badge-xs shrink-0 font-bold">P</span>
+                </div>
+              </td>
+              <td class="text-right">
+                <div class="flex items-center justify-end gap-2">
+                  <div class="vp-track hidden sm:block">
+                    <div class="vp-fill" :style="{ width: Math.min(100, r.vpPercent) + '%' }"></div>
+                  </div>
+                  <span class="font-mono text-xs">{{ r.vpPercent.toFixed(1) }}%</span>
+                </div>
+              </td>
+              <td class="text-center">
+                <span v-if="isSigned(r.prevote)" class="vote-chip vote-chip--yes">✓</span>
+                <span v-else class="vote-chip vote-chip--no">nil</span>
+              </td>
+              <td class="text-center">
+                <span v-if="isSigned(r.precommit)" class="vote-chip vote-chip--yes">✓</span>
+                <span v-else class="vote-chip vote-chip--no">nil</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
 
     <!-- tips -->
-    <div class="text-[#00cfe8] bg-[rgba(0,207,232,0.12)] rounded-lg shadow alert-info">
-      <div class="drop-shadow-md px-4 pt-2 pb-2" style="box-shadow: rgba(0, 207, 232, 0.4) 0px 6px 15px -7px">
-        <h2 class="text-base font-semibold">{{ $t('consensus.tips') }}</h2>
-      </div>
-      <div class="px-4 py-4">
-        <ul style="list-style-type: disc" class="pl-8">
+    <details class="rounded-xl border border-base-300 bg-base-100 shadow-sm">
+      <summary class="cursor-pointer select-none px-4 py-3 text-sm font-semibold opacity-80 hover:opacity-100">
+        {{ $t('consensus.tips') }}
+      </summary>
+      <div class="border-t border-base-300 px-5 py-4 text-sm opacity-80">
+        <ul class="list-disc space-y-1 pl-5">
           <li>{{ $t('consensus.tips_description_1') }}</li>
           <li>{{ $t('consensus.tips_description_2') }}</li>
         </ul>
       </div>
-    </div>
+    </details>
   </div>
 </template>
+
+<style scoped>
+/* ---- consensus hero (dark engine panel, works in both themes) ---- */
+.consensus-hero {
+  background: linear-gradient(160deg, #0b1120 0%, #0e1730 55%, #131a3a 100%);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  box-shadow: 0 8px 30px -12px rgba(2, 6, 23, 0.55);
+}
+.hero-glow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(520px 200px at 12% 0%, rgba(56, 132, 255, 0.16), transparent 70%),
+    radial-gradient(460px 200px at 88% 100%, rgba(139, 92, 246, 0.14), transparent 70%);
+}
+.hero-grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.05;
+  background-image: linear-gradient(rgba(148, 163, 184, 0.5) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.5) 1px, transparent 1px);
+  background-size: 34px 34px;
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.9), transparent 85%);
+}
+.hero-height {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: clamp(2rem, 4.5vw, 3rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+  color: #f1f5f9;
+  font-variant-numeric: tabular-nums;
+}
+.hero-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 9999px;
+  flex-shrink: 0;
+}
+.hero-dot--live {
+  background: #34d399;
+  box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.6);
+  animation: pulse-ring 1.8s ease-out infinite;
+}
+.hero-dot--off {
+  background: #fb7185;
+}
+@keyframes pulse-ring {
+  0% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.55); }
+  70% { box-shadow: 0 0 0 8px rgba(52, 211, 153, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0); }
+}
+
+/* ---- vote progress bars ---- */
+.vote-track {
+  height: 8px;
+  border-radius: 9999px;
+  background: rgba(148, 163, 184, 0.16);
+  overflow: hidden;
+}
+.vote-fill {
+  height: 100%;
+  border-radius: 9999px;
+  transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.vote-fill--prevote {
+  background: linear-gradient(90deg, #0ea5e9, #38bdf8);
+}
+.vote-fill--precommit {
+  background: linear-gradient(90deg, #7c3aed, #a78bfa);
+}
+
+/* ---- segmented filter ---- */
+.seg-btn {
+  padding: 2px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: inherit;
+  opacity: 0.65;
+  transition: all 0.15s ease;
+}
+.seg-btn:hover { opacity: 1; }
+.seg-btn--active {
+  background: hsl(var(--p));
+  color: hsl(var(--pc));
+  opacity: 1;
+}
+
+/* ---- table ---- */
+.consensus-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: hsl(var(--b2));
+  padding: 10px 14px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  opacity: 0.7;
+  border-bottom: 1px solid hsl(var(--b3));
+}
+.consensus-table tbody td {
+  padding: 8px 14px;
+  border-bottom: 1px solid hsl(var(--b2));
+}
+.consensus-table tbody tr {
+  transition: background-color 0.15s ease;
+}
+.consensus-table tbody tr:hover {
+  background: hsl(var(--b2));
+}
+.row-offline { opacity: 0.45; }
+.row-proposer {
+  box-shadow: inset 3px 0 0 0 hsl(var(--wa));
+}
+
+/* ---- status dot ---- */
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  flex-shrink: 0;
+}
+.status-dot--on { background: hsl(var(--su)); }
+.status-dot--off { background: hsl(var(--er)); }
+
+/* ---- voting power mini bar ---- */
+.vp-track {
+  width: 56px;
+  height: 4px;
+  border-radius: 9999px;
+  background: hsl(var(--b3));
+  overflow: hidden;
+}
+.vp-fill {
+  height: 100%;
+  border-radius: 9999px;
+  background: hsl(var(--p));
+}
+
+/* ---- vote chips ---- */
+.vote-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30px;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 700;
+}
+.vote-chip--yes {
+  background: color-mix(in srgb, hsl(var(--su)) 16%, transparent);
+  color: hsl(var(--su));
+}
+.vote-chip--no {
+  background: hsl(var(--b2));
+  color: hsl(var(--bc));
+  opacity: 0.45;
+  font-weight: 500;
+}
+</style>
 
 <route>
   {
