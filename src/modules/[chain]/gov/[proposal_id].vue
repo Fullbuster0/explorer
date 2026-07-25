@@ -1,66 +1,312 @@
 <script lang="ts" setup>
-import { computed } from '@vue/reactivity';
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
 import MdEditor from 'md-editor-v3';
 import ObjectElement from '@/components/dynamic/ObjectElement.vue';
-import { useBaseStore, useBlockchain, useFormatter, useGovStore, useStakingStore, useTxDialog } from '@/stores';
-import { PageRequest, type GovProposal, type GovVote, type PaginatedProposalDeposit, type Pagination } from '@/types';
-import { ref, reactive } from 'vue';
 import Countdown from '@/components/Countdown.vue';
-import PaginationBar from '@/components/PaginationBar.vue';
+import {
+  useBaseStore,
+  useBlockchain,
+  useFormatter,
+  useGovStore,
+  useStakingStore,
+  useTxDialog,
+} from '@/stores';
+import { PageRequest, type GovProposal, type GovVote, type Validator } from '@/types';
 import { fromBech32, toHex } from '@cosmjs/encoding';
 
 const props = defineProps(['proposal_id', 'chain']);
-const proposal = ref({} as GovProposal);
 const format = useFormatter();
 const store = useGovStore();
 const dialog = useTxDialog();
 const stakingStore = useStakingStore();
 const chainStore = useBlockchain();
+const baseStore = useBaseStore();
 
-store.fetchProposal(props.proposal_id).then((res) => {
-  let proposalDetail = reactive(res.proposal);
-  // when status under the voting, final_tally_result are no data, should request fetchTally
-  if (res.proposal?.status === 'PROPOSAL_STATUS_VOTING_PERIOD') {
-    store.fetchTally(props.proposal_id).then((tallRes) => {
-      proposalDetail.final_tally_result = tallRes?.tally;
+// expose for template
+const proposal_id = computed(() => props.proposal_id);
+const chain = computed(() => props.chain);
+
+const proposal = ref({} as GovProposal);
+const loading = ref(true);
+const votesLoading = ref(true);
+const allVotes = ref([] as GovVote[]);
+const deposits = ref(
+  [] as { amount: { amount: string; denom: string }[]; proposal_id: string; depositor: string }[]
+);
+
+const voteFilter = ref<'all' | 'yes' | 'no' | 'veto' | 'abstain' | 'did_not_vote'>('all');
+const voteSearch = ref('');
+const voteFilters = [
+  { key: 'all' as const, label: 'All' },
+  { key: 'yes' as const, label: 'Yes' },
+  { key: 'no' as const, label: 'No' },
+  { key: 'veto' as const, label: 'Veto' },
+  { key: 'abstain' as const, label: 'Abstain' },
+  { key: 'did_not_vote' as const, label: 'Did not vote' },
+];
+
+let tallyTimer: ReturnType<typeof setInterval> | null = null;
+
+function bech32DataHex(addr: string): string {
+  try {
+    return toHex(fromBech32(addr).data);
+  } catch {
+    return '';
+  }
+}
+
+function optionLabel(opt?: string | { option?: string }): string {
+  if (!opt) return '—';
+  const raw = typeof opt === 'string' ? opt : opt.option || '';
+  if (!raw) return '—';
+  return String(raw).replace('VOTE_OPTION_', '').replace(/_/g, ' ');
+}
+
+function primaryOption(v: GovVote): string {
+  if (v.option && v.option !== 'VOTE_OPTION_UNSPECIFIED') return v.option;
+  if (v.options?.length) {
+    const top = [...v.options].sort((a, b) => Number(b.weight) - Number(a.weight))[0];
+    return top?.option || '';
+  }
+  return '';
+}
+
+function optionChipClass(opt: string): string {
+  switch (opt) {
+    case 'VOTE_OPTION_YES':
+      return 'sz-chip--ok';
+    case 'VOTE_OPTION_NO':
+      return 'sz-chip--bad';
+    case 'VOTE_OPTION_NO_WITH_VETO':
+      return 'sz-chip--bad';
+    case 'VOTE_OPTION_ABSTAIN':
+      return 'sz-chip--warn';
+    default:
+      return 'sz-chip--info';
+  }
+}
+
+function statusChipFor(status: string): string {
+  switch (status) {
+    case 'PROPOSAL_STATUS_PASSED':
+      return 'sz-chip--ok';
+    case 'PROPOSAL_STATUS_REJECTED':
+    case 'PROPOSAL_STATUS_FAILED':
+      return 'sz-chip--bad';
+    case 'PROPOSAL_STATUS_VOTING_PERIOD':
+      return 'sz-chip--info';
+    case 'PROPOSAL_STATUS_DEPOSIT_PERIOD':
+      return 'sz-chip--warn';
+    default:
+      return '';
+  }
+}
+
+function statusText(status?: string): string {
+  if (!status) return '—';
+  return status.replace('PROPOSAL_STATUS_', '').replace(/_/g, ' ');
+}
+
+function msgTypeOf(content: any): string {
+  const t = content?.['@type'] || '';
+  if (!t) return '';
+  return t.substring(t.lastIndexOf('.') + 1);
+}
+
+function metaItem(metadata: string | undefined): { title: string; summary: string } {
+  if (!metadata) return { title: '', summary: '' };
+  try {
+    if (metadata.startsWith('{') && metadata.endsWith('}')) return JSON.parse(metadata);
+  } catch {
+    /* plain string */
+  }
+  return { title: metadata, summary: '' };
+}
+
+function shortTime(v?: string) {
+  return v ? format.toDay(v, 'from') : '';
+}
+
+function shortAddr(addr?: string): string {
+  if (!addr) return '—';
+  if (addr.length <= 16) return addr;
+  return `${addr.slice(0, 10)}…${addr.slice(-6)}`;
+}
+
+const proposalTitle = computed(() => {
+  const p = proposal.value;
+  if (p?.title) return p.title;
+  if (p?.content?.title) return p.content.title;
+  const meta = metaItem(p?.metadata);
+  return meta.title || `Proposal #${props.proposal_id}`;
+});
+
+const proposalSummary = computed(() => {
+  const p = proposal.value;
+  if (p?.summary) return p.summary;
+  if (p?.content?.description) return p.content.description;
+  return metaItem(p?.metadata).summary || '';
+});
+
+const statusChipClass = computed(() => statusChipFor(proposal.value?.status || ''));
+const statusLabel = computed(() => statusText(proposal.value?.status));
+const msgTypeLabel = computed(() => msgTypeOf(proposal.value?.content));
+const isVoting = computed(() => proposal.value?.status === 'PROPOSAL_STATUS_VOTING_PERIOD');
+
+const totalVoted = computed(() => {
+  const tally = proposal.value?.final_tally_result;
+  if (!tally) return 0;
+  return (
+    Number(tally.yes || 0) +
+    Number(tally.no || 0) +
+    Number(tally.no_with_veto || 0) +
+    Number(tally.abstain || 0)
+  );
+});
+
+const bonded = computed(() => Number(stakingStore.pool?.bonded_tokens || 0) || 1);
+
+const turnoutPct = computed(() => {
+  if (totalVoted.value <= 0) return 0;
+  return totalVoted.value / bonded.value;
+});
+
+const turnoutLabel = computed(() => format.percent(turnoutPct.value));
+
+const optionRows = computed(() => {
+  const tally = proposal.value?.final_tally_result || ({} as any);
+  const total = totalVoted.value || 1;
+  const denom = stakingStore.params?.bond_denom || '';
+  const defs = [
+    { key: 'yes', name: 'Yes', raw: Number(tally.yes || 0), segClass: 'sz-tally-seg--yes', chipClass: 'sz-chip--ok', barClass: 'bg-success' },
+    { key: 'no', name: 'No', raw: Number(tally.no || 0), segClass: 'sz-tally-seg--no', chipClass: 'sz-chip--bad', barClass: 'bg-error' },
+    { key: 'veto', name: 'No With Veto', raw: Number(tally.no_with_veto || 0), segClass: 'sz-tally-seg--veto', chipClass: 'sz-chip--bad', barClass: 'bg-red-800' },
+    { key: 'abstain', name: 'Abstain', raw: Number(tally.abstain || 0), segClass: 'sz-tally-seg--abstain', chipClass: 'sz-chip--warn', barClass: 'bg-warning' },
+  ];
+  return defs.map((r) => {
+    const pctNum = totalVoted.value > 0 ? (r.raw / total) * 100 : 0;
+    return {
+      ...r,
+      pctNum,
+      pct: format.percent(pctNum / 100),
+      amountLabel: denom
+        ? format.formatToken({ amount: String(Math.trunc(r.raw)), denom }, true, '0,0.00a')
+        : format.formatNumber(r.raw, '0,0.00a') || String(r.raw),
+    };
+  });
+});
+
+const votingCountdown = computed((): number => {
+  const end = new Date(proposal.value?.voting_end_time || 0).getTime();
+  return end - Date.now();
+});
+
+const upgradeCountdown = computed((): number => {
+  const height = Number(proposal.value?.content?.plan?.height || 0);
+  if (height > 0) {
+    const current = Number(baseStore.latest?.block?.header?.height || 0);
+    const bt = Number((baseStore.blocktime / 1000).toFixed()) || 6;
+    return (height - current) * bt * 1000;
+  }
+  const end = new Date(proposal.value?.content?.plan?.time || '').getTime();
+  return end - Date.now();
+});
+
+const totalPower = computed(() => {
+  if (stakingStore.totalPower) return stakingStore.totalPower;
+  return (stakingStore.validators || []).reduce((s, v) => s + Number(v.delegator_shares || 0), 0);
+});
+
+const valHexMap = computed(() => {
+  const map = new Map<string, Validator>();
+  for (const v of stakingStore.validators || []) {
+    const hex = bech32DataHex(v.operator_address);
+    if (hex) map.set(hex, v);
+  }
+  return map;
+});
+
+type ValVoteRow = {
+  operator_address: string;
+  moniker: string;
+  vp: number;
+  vpPct: number;
+  vpLabel: string;
+  option: string;
+  voted: boolean;
+  chipClass: string;
+  optionLabel: string;
+};
+
+const validatorRows = computed((): ValVoteRow[] => {
+  const voteByHex = new Map<string, GovVote>();
+  for (const vote of allVotes.value) {
+    const hex = bech32DataHex(vote.voter);
+    if (hex && valHexMap.value.has(hex)) voteByHex.set(hex, vote);
+  }
+
+  const power = totalPower.value || 1;
+  const rows: ValVoteRow[] = [];
+  for (const [hex, v] of valHexMap.value) {
+    const vote = voteByHex.get(hex);
+    const opt = vote ? primaryOption(vote) : '';
+    const voted = !!vote;
+    const vp = Number(v.delegator_shares || v.tokens || 0);
+    const vpPct = vp / power;
+    rows.push({
+      operator_address: v.operator_address,
+      moniker: v.description?.moniker || v.operator_address,
+      vp,
+      vpPct,
+      vpLabel: format.percent(vpPct),
+      option: opt,
+      voted,
+      chipClass: voted ? optionChipClass(opt) : 'sz-chip--warn',
+      optionLabel: voted ? optionLabel(opt) : 'DID NOT VOTE',
     });
   }
-  proposal.value = proposalDetail;
-  // load origin params if the proposal is param change
-  if (proposalDetail.content?.changes) {
-    proposalDetail.content?.changes.forEach((item) => {
-      chainStore.rpc.getParams(item.subspace, item.key).then((res) => {
-        if (proposal.value.content && res.param) {
-          if (proposal.value.content.current) {
-            proposal.value.content.current.push(res.param);
-          } else {
-            proposal.value.content.current = [res.param];
-          }
-        }
-      });
-    });
-  }
+  rows.sort((a, b) => b.vp - a.vp);
+  return rows;
+});
 
-  const msgType = proposalDetail.content?.['@type'] || '';
-  if (msgType.endsWith('MsgUpdateParams')) {
-    if (msgType.indexOf('staking') > -1) {
-      chainStore.rpc.getStakingParams().then((res) => {
-        addCurrentParams(res);
-      });
-    } else if (msgType.indexOf('gov') > -1) {
-      chainStore.rpc.getGovParamsVoting().then((res) => {
-        addCurrentParams(res);
-      });
-    } else if (msgType.indexOf('distribution') > -1) {
-      chainStore.rpc.getDistributionParams().then((res) => {
-        addCurrentParams(res);
-      });
-    } else if (msgType.indexOf('slashing') > -1) {
-      chainStore.rpc.getSlashingParams().then((res) => {
-        addCurrentParams(res);
-      });
+const otherVotes = computed(() => {
+  return allVotes.value
+    .filter((vote) => {
+      const hex = bech32DataHex(vote.voter);
+      return !hex || !valHexMap.value.has(hex);
+    })
+    .map((vote) => ({
+      voter: vote.voter,
+      option: primaryOption(vote),
+    }));
+});
+
+const filteredValidatorRows = computed(() => {
+  const q = voteSearch.value.trim().toLowerCase();
+  return validatorRows.value.filter((r) => {
+    if (voteFilter.value === 'yes' && r.option !== 'VOTE_OPTION_YES') return false;
+    if (voteFilter.value === 'no' && r.option !== 'VOTE_OPTION_NO') return false;
+    if (voteFilter.value === 'veto' && r.option !== 'VOTE_OPTION_NO_WITH_VETO') return false;
+    if (voteFilter.value === 'abstain' && r.option !== 'VOTE_OPTION_ABSTAIN') return false;
+    if (voteFilter.value === 'did_not_vote' && r.voted) return false;
+    if (q && !r.moniker.toLowerCase().includes(q) && !r.operator_address.toLowerCase().includes(q)) {
+      return false;
     }
-  }
+    return true;
+  });
+});
+
+const votedCount = computed(() => validatorRows.value.filter((r) => r.voted).length);
+const didNotVoteCount = computed(() => validatorRows.value.filter((r) => !r.voted).length);
+const votes = allVotes;
+const depositList = deposits;
+
+/** Empty votes on a closed proposal usually means pruned LCD index — not "nobody voted". */
+const votesUnavailable = computed(() => {
+  if (votesLoading.value) return false;
+  if (allVotes.value.length > 0) return false;
+  if (isVoting.value) return false;
+  return totalVoted.value > 0;
 });
 
 function addCurrentParams(res: any) {
@@ -69,244 +315,253 @@ function addCurrentParams(res: any) {
     proposal.value.content.current = [res.params];
   }
 }
-const color = computed(() => {
-  if (proposal.value.status === 'PROPOSAL_STATUS_PASSED') {
-    return 'success';
-  } else if (proposal.value.status === 'PROPOSAL_STATUS_REJECTED') {
-    return 'error';
+
+async function loadParamContext(detail: GovProposal) {
+  if (detail.content?.changes) {
+    for (const item of detail.content.changes) {
+      try {
+        const res = await chainStore.rpc.getParams(item.subspace, item.key);
+        if (proposal.value.content && res.param) {
+          if (proposal.value.content.current) proposal.value.content.current.push(res.param);
+          else proposal.value.content.current = [res.param];
+        }
+      } catch {
+        /* ignore */
+      }
+    }
   }
-  return '';
-});
-const status = computed(() => {
-  if (proposal.value.status) {
-    return proposal.value.status.replace('PROPOSAL_STATUS_', '');
-  }
-  return '';
-});
-
-const deposit = ref({} as PaginatedProposalDeposit);
-store.fetchProposalDeposits(props.proposal_id).then((x) => (deposit.value = x));
-
-const votes = ref({} as GovVote[]);
-const pageRequest = ref(new PageRequest());
-const pageResponse = ref({} as Pagination);
-
-store.fetchProposalVotes(props.proposal_id).then((x) => {
-  votes.value = x.votes;
-  pageResponse.value = x.pagination;
-});
-
-function shortTime(v: string) {
-  if (v) {
-    return format.toDay(v, 'from');
-  }
-  return '';
-}
-
-const votingCountdown = computed((): number => {
-  const now = new Date();
-  const end = new Date(proposal.value.voting_end_time);
-  return end.getTime() - now.getTime();
-});
-
-const upgradeCountdown = computed((): number => {
-  const height = Number(proposal.value.content?.plan?.height || 0);
-  if (height > 0) {
-    const base = useBaseStore();
-    const current = Number(base.latest?.block?.header?.height || 0);
-    return (
-      (height - current) * Number((base.blocktime / 1000).toFixed()) * 1000
-    );
-  }
-  const now = new Date();
-  const end = new Date(proposal.value.content?.plan?.time || '');
-  return end.getTime() - now.getTime();
-});
-
-const total = computed(() => {
-  const tally = proposal.value.final_tally_result;
-  let sum = 0;
-  if (tally) {
-    sum += Number(tally.abstain || 0);
-    sum += Number(tally.yes || 0);
-    sum += Number(tally.no || 0);
-    sum += Number(tally.no_with_veto || 0);
-  }
-  return sum;
-});
-
-const turnout = computed(() => {
-  if (total.value > 0) {
-    const bonded = stakingStore.pool?.bonded_tokens || '1';
-    return format.percent(total.value / Number(bonded));
-  }
-  return 0;
-});
-
-const yes = computed(() => {
-  if (total.value > 0) {
-    const yes = proposal.value?.final_tally_result?.yes || 0;
-    return format.percent(Number(yes) / total.value);
-  }
-  return 0;
-});
-
-const no = computed(() => {
-  if (total.value > 0) {
-    const value = proposal.value?.final_tally_result?.no || 0;
-    return format.percent(Number(value) / total.value);
-  }
-  return 0;
-});
-
-const veto = computed(() => {
-  if (total.value > 0) {
-    const value = proposal.value?.final_tally_result?.no_with_veto || 0;
-    return format.percent(Number(value) / total.value);
-  }
-  return 0;
-});
-
-const abstain = computed(() => {
-  if (total.value > 0) {
-    const value = proposal.value?.final_tally_result?.abstain || 0;
-    return format.percent(Number(value) / total.value);
-  }
-  return 0;
-});
-const processList = computed(() => {
-  return [
-    { name: 'Turnout', value: turnout.value, class: 'bg-info' },
-    { name: 'Yes', value: yes.value, class: 'bg-success' },
-    { name: 'No', value: no.value, class: 'bg-error' },
-    { name: 'No With Veto', value: veto.value, class: 'bg-red-800' },
-    { name: 'Abstain', value: abstain.value, class: 'bg-warning' },
-  ];
-});
-
-function showValidatorName(voter: string) {
+  const msg = detail.content?.['@type'] || '';
+  if (!msg.endsWith('MsgUpdateParams')) return;
   try {
-    const { data } = fromBech32(voter);
-    const hex = toHex(data);
-    const v = stakingStore.validators.find((x) => toHex(fromBech32(x.operator_address).data) === hex);
-    return v ? v.description.moniker : voter;
-  } catch (e) {
-    return voter;
+    if (msg.indexOf('staking') > -1) addCurrentParams(await chainStore.rpc.getStakingParams());
+    else if (msg.indexOf('gov') > -1) addCurrentParams(await chainStore.rpc.getGovParamsVoting());
+    else if (msg.indexOf('distribution') > -1) addCurrentParams(await chainStore.rpc.getDistributionParams());
+    else if (msg.indexOf('slashing') > -1) addCurrentParams(await chainStore.rpc.getSlashingParams());
+  } catch {
+    /* ignore */
   }
 }
 
-function pageload(p: number) {
-  pageRequest.value.setPage(p);
-  store.fetchProposalVotes(props.proposal_id, pageRequest.value).then((x) => {
-    votes.value = x.votes;
-    pageResponse.value = x.pagination;
-  });
+async function fetchAllVotes(proposalId: string): Promise<GovVote[]> {
+  const all: GovVote[] = [];
+  const pr = new PageRequest();
+  pr.limit = 100;
+  pr.count_total = true;
+  for (let i = 0; i < 50; i++) {
+    try {
+      const res = await store.fetchProposalVotes(proposalId, pr);
+      const batch = res?.votes || [];
+      all.push(...batch);
+      const next = res?.pagination?.next_key;
+      if (!next || batch.length === 0 || batch.length < pr.limit) break;
+      pr.key = next;
+      pr.offset = undefined;
+    } catch {
+      break;
+    }
+  }
+  return all;
 }
 
-function metaItem(metadata: string | undefined): { title: string; summary: string } {
-  if (!metadata) {
-    return { title: '', summary: '' };
-  } else if (metadata.startsWith('{') && metadata.endsWith('}')) {
-    return JSON.parse(metadata);
+async function refreshTally() {
+  try {
+    const tallRes = await store.fetchTally(props.proposal_id);
+    if (tallRes?.tally && proposal.value) {
+      proposal.value.final_tally_result = tallRes.tally;
+    }
+  } catch {
+    /* ignore */
   }
-  return { title: metadata, summary: '' };
 }
+
+async function loadProposal() {
+  loading.value = true;
+  try {
+    if (!stakingStore.validators?.length) {
+      await stakingStore.fetchAcitveValdiators();
+    }
+    if (!stakingStore.pool?.bonded_tokens) {
+      await stakingStore.fetchPool();
+    }
+    if (!stakingStore.params?.bond_denom) {
+      await stakingStore.fetchParams();
+    }
+
+    const res = await store.fetchProposal(props.proposal_id);
+    const detail = reactive(res.proposal) as GovProposal;
+    if (detail?.status === 'PROPOSAL_STATUS_VOTING_PERIOD') {
+      try {
+        const tallRes = await store.fetchTally(props.proposal_id);
+        if (tallRes?.tally) detail.final_tally_result = tallRes.tally;
+      } catch {
+        /* keep final_tally_result */
+      }
+    }
+    proposal.value = detail;
+    await loadParamContext(detail);
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function loadVotesAndDeposits() {
+  votesLoading.value = true;
+  try {
+    const [voteList, dep] = await Promise.all([
+      fetchAllVotes(props.proposal_id),
+      store.fetchProposalDeposits(props.proposal_id).catch(() => null),
+    ]);
+    allVotes.value = voteList;
+    const list = (dep as any)?.deposits;
+    deposits.value = Array.isArray(list) ? list : list ? [list] : [];
+  } finally {
+    votesLoading.value = false;
+  }
+}
+
+function startTallyPoll() {
+  stopTallyPoll();
+  if (!isVoting.value) return;
+  tallyTimer = setInterval(() => {
+    refreshTally();
+  }, 15000);
+}
+
+function stopTallyPoll() {
+  if (tallyTimer) {
+    clearInterval(tallyTimer);
+    tallyTimer = null;
+  }
+}
+
+watch(
+  () => props.proposal_id,
+  async () => {
+    stopTallyPoll();
+    allVotes.value = [];
+    voteFilter.value = 'all';
+    voteSearch.value = '';
+    await loadProposal();
+    await loadVotesAndDeposits();
+    startTallyPoll();
+  }
+);
+
+onMounted(async () => {
+  await loadProposal();
+  await loadVotesAndDeposits();
+  startTallyPoll();
+});
+
+onUnmounted(() => stopTallyPoll());
 </script>
 
 <template>
-  <div>
-    <div class="bg-base-100 px-4 pt-3 pb-4 rounded mb-4 shadow">
-      <h2
-        class="card-title flex flex-col md:!justify-between md:!flex-row mb-2"
-      >
-        <p class="truncate w-full">
-          {{ proposal_id }}. {{ proposal.title }}
-        </p>
-        <div
-          class="badge badge-ghost"
-          :class="color === 'success' ? 'text-yes' : color === 'error' ? 'text-no' : 'text-info'"
-        >
-          {{ status }}
+  <div class="gov-detail">
+    <!-- HERO -->
+    <div class="sz-page-head">
+      <div class="min-w-0 flex-1">
+        <div class="flex flex-wrap items-center gap-2 mb-1.5">
+          <span class="sz-chip font-mono !text-[11px]">#{{ proposal_id }}</span>
+          <span class="sz-chip" :class="statusChipClass">{{ statusLabel }}</span>
+          <span v-if="msgTypeLabel" class="sz-msg">{{ msgTypeLabel }}</span>
         </div>
-      </h2>
-      <div class="">
-        <ObjectElement :value="proposal.content" />
+        <h1 class="sz-page-title break-words">{{ proposalTitle }}</h1>
+        <div class="sz-page-sub mt-1">
+          <span v-if="proposal.submit_time">Submitted {{ format.toDay(proposal.submit_time, 'from') }}</span>
+          <span v-if="proposal.voting_end_time"> · Ends {{ format.toDay(proposal.voting_end_time) }}</span>
+        </div>
       </div>
-      <div v-if="proposal.summary">
-        <MdEditor
-          :model-value="
-            format.multiLine(
-              proposal.summary
-            )
-          "
-          previewOnly
-          class="md-editor-recover"
-        ></MdEditor>
+      <div class="flex flex-wrap gap-2 shrink-0">
+        <label
+          for="vote"
+          class="btn btn-primary btn-sm"
+          @click="dialog.open('vote', { proposal_id })"
+        >{{ $t('gov.btn_vote') }}</label>
+        <label
+          for="deposit"
+          class="btn btn-outline btn-sm"
+          @click="dialog.open('deposit', { proposal_id })"
+        >{{ $t('gov.btn_deposit') }}</label>
       </div>
     </div>
-    <!-- grid lg:!!grid-cols-3 auto-rows-max-->
-    <!-- flex-col lg:!!flex-row flex -->
-    <div class="gap-4 mb-4 grid lg:!!grid-cols-3 auto-rows-max">
-      <!-- flex-1 -->
-      <div class="bg-base-100 px-4 pt-3 pb-4 rounded shadow">
-        <h2 class="card-title mb-1">{{ $t('gov.tally') }}</h2>
-        <div class="mb-1" v-for="(item, index) of processList" :key="index">
-          <label class="block text-sm mb-1">{{ item.name }}</label>
-          <div class="h-5 w-full relative">
-            <div class="absolute inset-x-0 inset-y-0 w-full opacity-10 rounded-sm" :class="`${item.class}`"></div>
-            <div
-              class="absolute inset-x-0 inset-y-0 rounded-sm"
-              :class="`${item.class}`"
-              :style="`width: ${item.value === '-' || item.value === 'NaN%' ? '0%' : item.value}`"
-            ></div>
-            <p
-              class="absolute inset-x-0 inset-y-0 text-center text-sm text-[#666] dark:text-[#eee] flex items-center justify-center"
-            >
-              {{ item.value }}
-            </p>
+
+    <!-- TALLY + TIMELINE -->
+    <div class="grid gap-4 mb-4 lg:!grid-cols-5">
+      <!-- Tally -->
+      <div class="sz-section lg:!col-span-3 overflow-hidden">
+        <div class="sz-section-head">
+          <div>
+            <div class="sz-section-kicker">Result</div>
+            <div class="sz-section-title">{{ $t('gov.tally') }}</div>
+          </div>
+          <div class="text-right">
+            <div class="sz-metric-label">Turnout</div>
+            <div class="font-mono text-lg font-bold tabular">{{ turnoutLabel }}</div>
           </div>
         </div>
-        <div class="mt-6 grid grid-cols-2">
-          <label
-            for="vote"
-            class="btn btn-primary float-right btn-sm mx-1"
-            @click="dialog.open('vote', { proposal_id })"
-            >{{ $t('gov.btn_vote') }}</label
-          >
-          <label
-            for="deposit"
-            class="btn btn-primary float-right btn-sm mx-1"
-            @click="dialog.open('deposit', { proposal_id })"
-            >{{ $t('gov.btn_deposit') }}</label
-          >
+        <div class="p-4">
+          <!-- segmented stack -->
+          <div class="sz-tally-stack mb-4">
+            <div
+              v-for="opt in optionRows"
+              :key="opt.key"
+              class="sz-tally-seg"
+              :class="opt.segClass"
+              :style="{ width: opt.pctNum + '%' }"
+              :title="opt.name + ' ' + opt.pct"
+            ></div>
+          </div>
+
+          <div class="space-y-2.5">
+            <div
+              v-for="opt in optionRows"
+              :key="opt.key"
+              class="flex items-center gap-3"
+            >
+              <span class="sz-chip !text-[10px] w-16 justify-center" :class="opt.chipClass">{{ opt.name }}</span>
+              <div class="flex-1 h-1.5 rounded-full bg-base-content/10 overflow-hidden">
+                <div class="h-full rounded-full" :class="opt.barClass" :style="{ width: opt.pctNum + '%' }"></div>
+              </div>
+              <span class="font-mono text-[12.5px] font-semibold w-14 text-right tabular">{{ opt.pct }}</span>
+              <span class="font-mono text-[11px] text-secondary w-28 text-right truncate tabular">{{ opt.amountLabel }}</span>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div class="bg-base-100 px-4 pt-3 pb-5 rounded shadow lg:!!col-span-2">
-        <h2 class="card-title">{{ $t('gov.timeline') }}</h2>
-
-        <div class="px-1">
-          <div class="flex items-center mb-4 mt-2">
-            <div class="w-2 h-2 rounded-full bg-error mr-3"></div>
-            <div class="text-base flex-1 text-main">
-              {{ $t('gov.submit_at') }}:
-              {{ format.toDay(proposal.submit_time) }}
-            </div>
-            <div class="text-sm">{{ shortTime(proposal.submit_time) }}</div>
+      <!-- Timeline -->
+      <div class="sz-section lg:!col-span-2 overflow-hidden">
+        <div class="sz-section-head">
+          <div>
+            <div class="sz-section-kicker">Schedule</div>
+            <div class="sz-section-title">{{ $t('gov.timeline') }}</div>
           </div>
-          <div class="flex items-center mb-4">
-            <div class="w-2 h-2 rounded-full bg-primary mr-3"></div>
-            <div class="text-base flex-1 text-main">
-              {{ $t('gov.deposited_at') }}:
-              {{
-                format.toDay(
-                  proposal.status === 'PROPOSAL_STATUS_DEPOSIT_PERIOD'
-                    ? proposal.deposit_end_time
-                    : proposal.voting_start_time
-                )
-              }}
+        </div>
+        <div class="p-4 space-y-3.5">
+          <div class="flex items-start gap-3">
+            <div class="w-2 h-2 rounded-full bg-error mt-1.5 shrink-0"></div>
+            <div class="min-w-0 flex-1">
+              <div class="text-[12px] text-secondary">{{ $t('gov.submit_at') }}</div>
+              <div class="text-[13px] font-medium">{{ format.toDay(proposal.submit_time) }}</div>
             </div>
-            <div class="text-sm">
+            <div class="text-[11px] text-secondary shrink-0">{{ shortTime(proposal.submit_time) }}</div>
+          </div>
+          <div class="flex items-start gap-3">
+            <div class="w-2 h-2 rounded-full bg-primary mt-1.5 shrink-0"></div>
+            <div class="min-w-0 flex-1">
+              <div class="text-[12px] text-secondary">{{ $t('gov.deposited_at') }}</div>
+              <div class="text-[13px] font-medium">
+                {{
+                  format.toDay(
+                    proposal.status === 'PROPOSAL_STATUS_DEPOSIT_PERIOD'
+                      ? proposal.deposit_end_time
+                      : proposal.voting_start_time
+                  )
+                }}
+              </div>
+            </div>
+            <div class="text-[11px] text-secondary shrink-0">
               {{
                 shortTime(
                   proposal.status === 'PROPOSAL_STATUS_DEPOSIT_PERIOD'
@@ -316,87 +571,254 @@ function metaItem(metadata: string | undefined): { title: string; summary: strin
               }}
             </div>
           </div>
-          <div class="mb-4">
-            <div class="flex items-center">
-              <div class="w-2 h-2 rounded-full bg-yes mr-3"></div>
-              <div class="text-base flex-1 text-main">
-                {{ $t('gov.vote_start_from') }}
-                {{ format.toDay(proposal.voting_start_time) }}
-              </div>
-              <div class="text-sm">
-                {{ shortTime(proposal.voting_start_time) }}
+          <div class="flex items-start gap-3">
+            <div class="w-2 h-2 rounded-full bg-yes mt-1.5 shrink-0"></div>
+            <div class="min-w-0 flex-1">
+              <div class="text-[12px] text-secondary">{{ $t('gov.vote_start_from') }}</div>
+              <div class="text-[13px] font-medium">{{ format.toDay(proposal.voting_start_time) }}</div>
+              <div v-if="isVoting" class="mt-1.5">
+                <Countdown :time="votingCountdown" />
               </div>
             </div>
-            <div class="pl-5 text-sm mt-2">
-              <Countdown :time="votingCountdown" />
-            </div>
+            <div class="text-[11px] text-secondary shrink-0">{{ shortTime(proposal.voting_start_time) }}</div>
           </div>
-          <div>
-            <div class="flex items-center mb-1">
-              <div class="w-2 h-2 rounded-full bg-success mr-3"></div>
-              <div class="text-base flex-1 text-main">
-                {{ $t('gov.vote_end') }}
-                {{ format.toDay(proposal.voting_end_time) }}
-              </div>
-              <div class="text-sm">
-                {{ shortTime(proposal.voting_end_time) }}
+          <div class="flex items-start gap-3">
+            <div class="w-2 h-2 rounded-full bg-success mt-1.5 shrink-0"></div>
+            <div class="min-w-0 flex-1">
+              <div class="text-[12px] text-secondary">{{ $t('gov.vote_end') }}</div>
+              <div class="text-[13px] font-medium">{{ format.toDay(proposal.voting_end_time) }}</div>
+              <div class="text-[11px] text-secondary mt-0.5">
+                {{ $t('gov.current_status') }}:
+                {{ $t(`gov.proposal_statuses.${proposal.status}`) }}
               </div>
             </div>
-            <div class="pl-5 text-sm">
-              {{ $t('gov.current_status') }}:
-              {{ $t(`gov.proposal_statuses.${proposal.status}`) }}
-            </div>
+            <div class="text-[11px] text-secondary shrink-0">{{ shortTime(proposal.voting_end_time) }}</div>
           </div>
-
-          <div class="mt-4" v-if="proposal?.content?.['@type']?.endsWith('SoftwareUpgradeProposal')">
-            <div class="flex items-center">
-              <div class="w-2 h-2 rounded-full bg-warning mr-3"></div>
-              <div class="text-base flex-1 text-main">
-                {{ $t('gov.upgrade_plan') }}:
-                <span v-if="Number(proposal.content?.plan?.height || '0') > 0"> (EST)</span>
+          <div
+            v-if="proposal?.content?.['@type']?.endsWith('SoftwareUpgradeProposal')"
+            class="flex items-start gap-3 pt-1 border-t border-base-content/10"
+          >
+            <div class="w-2 h-2 rounded-full bg-warning mt-1.5 shrink-0"></div>
+            <div class="min-w-0 flex-1">
+              <div class="text-[12px] text-secondary">{{ $t('gov.upgrade_plan') }}</div>
+              <div class="text-[13px] font-medium">
+                <span v-if="Number(proposal.content?.plan?.height || '0') > 0">
+                  Height #{{ proposal.content?.plan?.height }} (EST)
+                </span>
                 <span v-else>{{ format.toDay(proposal.content?.plan?.time) }}</span>
               </div>
-              <div class="text-sm">
-                {{ shortTime(proposal.voting_end_time) }}
+              <div class="mt-1.5">
+                <Countdown :time="upgradeCountdown" />
               </div>
-            </div>
-            <div class="pl-5 text-sm mt-2">
-              <Countdown :time="upgradeCountdown" />
             </div>
           </div>
         </div>
       </div>
     </div>
 
-    <div class="bg-base-100 px-4 pt-3 pb-4 rounded mb-4 shadow">
-      <h2 class="card-title">{{ $t('gov.votes') }}</h2>
+    <!-- CONTENT -->
+    <div class="sz-section mb-4 overflow-hidden">
+      <div class="sz-section-head">
+        <div>
+          <div class="sz-section-kicker">Proposal</div>
+          <div class="sz-section-title">Content</div>
+        </div>
+      </div>
+      <div class="p-4">
+        <div v-if="proposal.content" class="mb-3">
+          <ObjectElement :value="proposal.content" />
+        </div>
+        <div v-if="proposalSummary">
+          <MdEditor
+            :model-value="format.multiLine(proposalSummary)"
+            previewOnly
+            class="md-editor-recover"
+          />
+        </div>
+      </div>
+    </div>
+
+    <!-- VALIDATOR VOTES -->
+    <div class="sz-section mb-4 overflow-hidden">
+      <div class="sz-section-head flex-wrap">
+        <div>
+          <div class="sz-section-kicker">Active set</div>
+          <div class="sz-section-title">
+            Validator votes
+            <span class="font-mono text-secondary text-sm font-normal ml-1">
+              {{ validatorRows.length }}
+            </span>
+          </div>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <div class="sz-tabs !p-0.5">
+            <a
+              v-for="f in voteFilters"
+              :key="f.key"
+              class="sz-tab !px-2.5 !py-1 !text-[11px]"
+              :class="{ 'sz-tab--active': voteFilter === f.key }"
+              @click="voteFilter = f.key"
+            >{{ f.label }}</a>
+          </div>
+          <input
+            v-model="voteSearch"
+            type="search"
+            placeholder="Search moniker"
+            class="input input-sm input-bordered w-36 font-normal"
+          />
+        </div>
+      </div>
+
+      <!-- honest empty / pruned banner -->
+      <div v-if="votesUnavailable" class="mx-4 mt-3 mb-1 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2.5 text-[12.5px] text-secondary">
+        Vote records unavailable on this node (pruned / not indexed). Tally above is authoritative.
+      </div>
+
       <div class="overflow-x-auto">
-        <table class="table w-full table-zebra">
+        <table class="sz-table">
+          <thead>
+            <tr>
+              <th style="width: 3rem">#</th>
+              <th>Validator</th>
+              <th class="text-right">VP %</th>
+              <th class="text-center">Vote</th>
+            </tr>
+          </thead>
           <tbody>
-            <tr v-for="(item, index) of votes" :key="index">
-              <td class="py-2 text-sm">{{ showValidatorName(item.voter) }}</td>
-              <td
-                v-if="item.option && item.option !== 'VOTE_OPTION_UNSPECIFIED'"
-                class="py-2 text-sm"
-                :class="{
-                  'text-yes': item.option === 'VOTE_OPTION_YES',
-                  'text-gray-400': item.option === 'VOTE_OPTION_ABSTAIN',
-                }"
-              >
-                {{ String(item.option).replace('VOTE_OPTION_', '') }}
+            <tr v-if="filteredValidatorRows.length === 0">
+              <td colspan="4" class="text-center text-secondary py-8 text-sm">
+                {{ votesLoading ? 'Loading votes…' : 'No validators match this filter.' }}
               </td>
-              <td v-if="item.options" class="py-2 text-sm">
-                {{
-                  item.options
-                    .map((x) => `${x.option.replace('VOTE_OPTION_', '')}:${format.percent(x.weight)}`)
-                    .join(', ')
-                }}
+            </tr>
+            <tr v-for="(row, i) in filteredValidatorRows" :key="row.operator_address">
+              <td>
+                <span class="sz-chip font-mono !text-[10px]">{{ i + 1 }}</span>
+              </td>
+              <td>
+                <RouterLink
+                  :to="`/${chain}/validator/${row.operator_address}`"
+                  class="text-[13px] font-semibold text-primary no-underline hover:underline truncate block max-w-xs"
+                >
+                  {{ row.moniker }}
+                </RouterLink>
+              </td>
+              <td class="text-right">
+                <span class="font-mono text-[12.5px] tabular">{{ row.vpLabel }}</span>
+              </td>
+              <td class="text-center">
+                <span class="sz-chip !text-[10px]" :class="row.chipClass">{{ row.optionLabel }}</span>
               </td>
             </tr>
           </tbody>
         </table>
-        <PaginationBar :limit="pageRequest.limit" :total="pageResponse.total" :callback="pageload" />
+      </div>
+      <div class="px-4 py-2.5 border-t border-base-content/10 flex flex-wrap gap-3 text-[11.5px] text-secondary">
+        <span>Voted <b class="font-mono text-main">{{ votedCount }}</b></span>
+        <span>Did not vote <b class="font-mono text-main">{{ didNotVoteCount }}</b></span>
+        <span v-if="votes.length">Records <b class="font-mono text-main">{{ votes.length }}</b></span>
+      </div>
+    </div>
+
+    <!-- OTHER VOTES (non-validator) -->
+    <div v-if="otherVotes.length > 0" class="sz-section mb-4 overflow-hidden">
+      <div class="sz-section-head">
+        <div>
+          <div class="sz-section-kicker">Delegators</div>
+          <div class="sz-section-title">
+            Other votes
+            <span class="font-mono text-secondary text-sm font-normal ml-1">{{ otherVotes.length }}</span>
+          </div>
+        </div>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="sz-table">
+          <thead>
+            <tr>
+              <th>Address</th>
+              <th class="text-center">Vote</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="item in otherVotes" :key="item.voter">
+              <td>
+                <RouterLink
+                  :to="`/${chain}/account/${item.voter}`"
+                  class="sz-hash link link-hover text-primary"
+                >
+                  {{ shortAddr(item.voter) }}
+                </RouterLink>
+              </td>
+              <td class="text-center">
+                <span class="sz-chip !text-[10px]" :class="optionChipClass(item.option)">
+                  {{ optionLabel(item) }}
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- DEPOSITS -->
+    <div class="sz-section mb-4 overflow-hidden">
+      <div class="sz-section-head">
+        <div>
+          <div class="sz-section-kicker">Funding</div>
+          <div class="sz-section-title">
+            Deposits
+            <span class="font-mono text-secondary text-sm font-normal ml-1">
+              {{ depositList.length }}
+            </span>
+          </div>
+        </div>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="sz-table">
+          <thead>
+            <tr>
+              <th>Depositor</th>
+              <th class="text-right">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-if="depositList.length === 0">
+              <td colspan="2" class="text-center text-secondary py-6 text-sm">No deposits recorded.</td>
+            </tr>
+            <tr v-for="(d, i) in depositList" :key="i">
+              <td>
+                <RouterLink
+                  :to="`/${chain}/account/${d.depositor}`"
+                  class="sz-hash link link-hover text-primary"
+                >
+                  {{ shortAddr(d.depositor) }}
+                </RouterLink>
+              </td>
+              <td class="text-right font-mono text-[12.5px] tabular">
+                {{ format.formatTokens(d.amount) }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
   </div>
 </template>
+
+<style scoped>
+.sz-tally-stack {
+  display: flex;
+  height: 10px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: color-mix(in srgb, hsl(var(--bc)) 8%, transparent);
+}
+.sz-tally-seg {
+  height: 100%;
+  min-width: 0;
+  transition: width 0.3s ease;
+}
+.sz-tally-seg--yes { background: #10b981; }
+.sz-tally-seg--no { background: #ef4444; }
+.sz-tally-seg--veto { background: #991b1b; }
+.sz-tally-seg--abstain { background: #f59e0b; }
+</style>
