@@ -92,10 +92,9 @@ import { Icon } from '@iconify/vue';
 
 <style scoped>
 .sz-footer {
-  background:
-    radial-gradient(700px 180px at 0% 0%, color-mix(in srgb, hsl(var(--p)) 12%, transparent), transparent 60%),
-    color-mix(in srgb, hsl(var(--b1)) 92%, transparent);
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.03) inset;
+  background: color-mix(in srgb, hsl(var(--b1)) 55%, transparent);
+  backdrop-filter: blur(14px) saturate(1.2);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
 }
 .sz-footer-row {
   display: flex;

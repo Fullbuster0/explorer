@@ -24,6 +24,11 @@ const displayName = computed(() => {
 
 const chainId = computed(() => conf.value?.chainId || '');
 
+const isTest = computed(() => {
+  const nt = (conf.value?.networkType || '').toLowerCase();
+  return nt.includes('test') || /[-_]?test/i.test(props.name);
+});
+
 const addFavor = (e: Event) => {
   e.stopPropagation();
   e.preventDefault();
@@ -35,32 +40,39 @@ const addFavor = (e: Event) => {
 <template>
   <RouterLink
     :to="`/${name}`"
-    class="sz-chain-card group relative flex items-center gap-3.5 rounded-2xl border px-3.5 py-3.5 transition"
-    :class="featured ? 'sz-chain-card--featured' : ''"
+    class="sz-chain-card group relative flex items-center gap-3.5 rounded-xl border px-3.5 py-3.5 transition"
   >
+    <!-- signature left accent rail -->
+    <span class="sz-rail" aria-hidden="true"></span>
+
     <div class="sz-chain-logo relative flex-shrink-0">
       <img
         :src="conf.logo"
-        class="h-11 w-11 rounded-full object-cover bg-[#101a2e] ring-1 ring-white/10"
+        class="h-11 w-11 rounded-full object-cover ring-1 ring-base-content/10"
         alt=""
         loading="lazy"
       />
     </div>
 
     <div class="min-w-0 flex-1">
-      <div class="truncate text-[14.5px] font-semibold tracking-tight text-slate-100 capitalize">
-        {{ displayName }}
+      <div class="flex items-center gap-2">
+        <div class="truncate text-[14.5px] font-semibold tracking-tight text-base-content capitalize">
+          {{ displayName }}
+        </div>
+        <span class="sz-netbadge" :class="isTest ? 'sz-netbadge--test' : 'sz-netbadge--main'">
+          {{ isTest ? 'TEST' : 'MAIN' }}
+        </span>
       </div>
       <div
         v-if="chainId"
-        class="mt-0.5 truncate font-mono text-[11px] font-medium tracking-tight text-slate-400"
+        class="mt-0.5 truncate font-mono text-[11px] font-medium tracking-tight text-secondary"
         :title="chainId"
       >
         {{ chainId }}
       </div>
       <div
         v-else
-        class="mt-0.5 truncate text-[11px] font-medium uppercase tracking-[0.14em] text-slate-400"
+        class="mt-0.5 truncate text-[11px] font-medium uppercase tracking-[0.14em] text-secondary"
       >
         {{ conf?.chainName || props.name }}
       </div>
@@ -72,7 +84,7 @@ const addFavor = (e: Event) => {
       class="rounded-lg p-1.5 text-lg transition"
       :class="{
         'text-amber-400': dashboardStore?.favoriteMap?.[props.name],
-        'text-white/25 hover:text-amber-300/90': !dashboardStore?.favoriteMap?.[props.name],
+        'text-base-content/25 hover:text-amber-400': !dashboardStore?.favoriteMap?.[props.name],
       }"
       :aria-label="dashboardStore?.favoriteMap?.[props.name] ? 'Unfavorite' : 'Favorite'"
     >
@@ -82,51 +94,66 @@ const addFavor = (e: Event) => {
 </template>
 
 <style scoped>
-/* Deep-navy surface matching hero / home panel */
+/* Frosted tile — the animated block field shows through behind it */
 .sz-chain-card {
-  background:
-    radial-gradient(220px 120px at 0% 0%, rgba(0, 95, 204, 0.22), transparent 60%),
-    linear-gradient(150deg, #0a1020 0%, #0c1426 55%, #0e1729 100%);
-  border-color: rgba(148, 163, 184, 0.14);
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.05) inset,
-    0 10px 24px -18px rgba(2, 6, 17, 0.8);
+  background: color-mix(in srgb, hsl(var(--b1)) 58%, transparent);
+  border-color: var(--sz-border);
+  backdrop-filter: blur(14px) saturate(1.25);
+  -webkit-backdrop-filter: blur(14px) saturate(1.25);
+  box-shadow: 0 1px 2px color-mix(in srgb, hsl(var(--bc)) 5%, transparent);
   overflow: hidden;
 }
-.sz-chain-card::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background-image:
-    linear-gradient(rgba(148, 163, 184, 0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(148, 163, 184, 0.05) 1px, transparent 1px);
-  background-size: 34px 34px;
-  mask-image: radial-gradient(ellipse 90% 80% at 20% 10%, #000 10%, transparent 70%);
-  opacity: 0.5;
-  pointer-events: none;
-}
 .sz-chain-card:hover {
-  border-color: rgba(56, 189, 248, 0.45);
-  background:
-    radial-gradient(240px 130px at 0% 0%, rgba(0, 95, 204, 0.34), transparent 60%),
-    linear-gradient(150deg, #0b1224 0%, #0d1628 55%, #101b30 100%);
-  transform: translateY(-2px);
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.06) inset,
-    0 16px 32px -18px rgba(0, 95, 204, 0.55);
+  border-color: color-mix(in srgb, hsl(var(--p)) 45%, var(--sz-border));
+  transform: translateY(-3px);
+  box-shadow: 0 16px 32px -18px var(--sz-glow);
 }
-.sz-chain-card--featured {
-  border-color: rgba(56, 189, 248, 0.35);
-  background:
-    radial-gradient(240px 130px at 0% 0%, rgba(0, 95, 204, 0.3), transparent 60%),
-    linear-gradient(150deg, #0b1224 0%, #0e1830 55%, #111d36 100%);
+
+/* Shazoes signature: a short primary rail on the left edge */
+.sz-rail {
+  position: absolute;
+  left: 0;
+  top: 18%;
+  bottom: 18%;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: linear-gradient(180deg, hsl(var(--p)), color-mix(in srgb, hsl(var(--p)) 30%, transparent));
+  opacity: 0.55;
+  transition: opacity 0.18s ease, top 0.18s ease, bottom 0.18s ease;
 }
+.sz-chain-card:hover .sz-rail {
+  opacity: 1;
+  top: 10%;
+  bottom: 10%;
+}
+
+.sz-netbadge {
+  flex-shrink: 0;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  padding: 0.14rem 0.4rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+}
+.sz-netbadge--main {
+  color: var(--sz-success);
+  background: color-mix(in srgb, var(--sz-success) 12%, transparent);
+  border-color: color-mix(in srgb, var(--sz-success) 28%, transparent);
+}
+.sz-netbadge--test {
+  color: var(--sz-warn);
+  background: color-mix(in srgb, var(--sz-warn) 12%, transparent);
+  border-color: color-mix(in srgb, var(--sz-warn) 28%, transparent);
+}
+
 .sz-chain-logo::after {
   content: '';
   position: absolute;
   inset: -3px;
   border-radius: 999px;
-  border: 1px solid rgba(56, 189, 248, 0.4);
+  border: 1px solid color-mix(in srgb, hsl(var(--p)) 55%, transparent);
   opacity: 0;
   transition: opacity 0.15s ease;
 }
