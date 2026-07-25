@@ -137,6 +137,10 @@ const proposalTitle = computed(() => {
   const p = proposal.value;
   if (p?.title) return p.title;
   if (p?.content?.title) return p.content.title;
+  if (p?.content?.plan?.name) {
+    const t = msgTypeOf(p.content);
+    return t ? `${t}: ${p.content.plan.name}` : String(p.content.plan.name);
+  }
   const meta = metaItem(p?.metadata);
   return meta.title || `Proposal #${props.proposal_id}`;
 });
@@ -363,11 +367,44 @@ async function fetchAllVotes(proposalId: string): Promise<GovVote[]> {
   return all;
 }
 
+function normalizeTally(raw: any) {
+  if (!raw || typeof raw !== 'object') return raw;
+  return {
+    yes: raw.yes ?? raw.yes_count ?? '0',
+    no: raw.no ?? raw.no_count ?? '0',
+    no_with_veto: raw.no_with_veto ?? raw.no_with_veto_count ?? '0',
+    abstain: raw.abstain ?? raw.abstain_count ?? '0',
+  };
+}
+
+function normalizeProposal(raw: any): GovProposal {
+  if (!raw) return raw;
+  const p: any = { ...raw };
+  // gov v1 uses id; keep proposal_id for template/links
+  if (!p.proposal_id && p.id != null) p.proposal_id = String(p.id);
+  if (p.messages?.length && !p.content) {
+    p.content = p.messages[0].content || p.messages[0];
+  }
+  if (p.final_tally_result) p.final_tally_result = normalizeTally(p.final_tally_result);
+  return p as GovProposal;
+}
+
+async function waitForRpc(timeoutMs = 20000): Promise<boolean> {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    if (chainStore.rpc && typeof (chainStore.rpc as any).getGovProposal === 'function') {
+      return true;
+    }
+    await new Promise((r) => setTimeout(r, 200));
+  }
+  return !!(chainStore.rpc && typeof (chainStore.rpc as any).getGovProposal === 'function');
+}
+
 async function refreshTally() {
   try {
     const tallRes = await store.fetchTally(props.proposal_id);
     if (tallRes?.tally && proposal.value) {
-      proposal.value.final_tally_result = tallRes.tally;
+      proposal.value.final_tally_result = normalizeTally(tallRes.tally) as any;
     }
   } catch {
     /* ignore */
@@ -377,28 +414,44 @@ async function refreshTally() {
 async function loadProposal() {
   loading.value = true;
   try {
+    const ready = await waitForRpc();
+    if (!ready) return;
+
     if (!stakingStore.validators?.length) {
-      await stakingStore.fetchAcitveValdiators();
+      await stakingStore.fetchAcitveValdiators().catch(() => null);
     }
     if (!stakingStore.pool?.bonded_tokens) {
-      await stakingStore.fetchPool();
+      await stakingStore.fetchPool().catch(() => null);
     }
     if (!stakingStore.params?.bond_denom) {
-      await stakingStore.fetchParams();
+      await stakingStore.fetchParams().catch(() => null);
     }
 
     const res = await store.fetchProposal(props.proposal_id);
-    const detail = reactive(res.proposal) as GovProposal;
-    if (detail?.status === 'PROPOSAL_STATUS_VOTING_PERIOD') {
+    if (!res?.proposal) return;
+    const detail = reactive(normalizeProposal(res.proposal)) as GovProposal;
+
+    // Live tally for voting period; also fill if final_tally is empty/zero on closed proposals
+    const needLiveTally =
+      detail?.status === 'PROPOSAL_STATUS_VOTING_PERIOD' ||
+      !(
+        Number(detail?.final_tally_result?.yes || 0) +
+        Number(detail?.final_tally_result?.no || 0) +
+        Number(detail?.final_tally_result?.no_with_veto || 0) +
+        Number(detail?.final_tally_result?.abstain || 0)
+      );
+    if (needLiveTally) {
       try {
         const tallRes = await store.fetchTally(props.proposal_id);
-        if (tallRes?.tally) detail.final_tally_result = tallRes.tally;
+        if (tallRes?.tally) detail.final_tally_result = normalizeTally(tallRes.tally) as any;
       } catch {
         /* keep final_tally_result */
       }
     }
     proposal.value = detail;
     await loadParamContext(detail);
+  } catch (e) {
+    console.warn('[gov] loadProposal failed', e);
   } finally {
     loading.value = false;
   }
@@ -407,6 +460,8 @@ async function loadProposal() {
 async function loadVotesAndDeposits() {
   votesLoading.value = true;
   try {
+    const ready = await waitForRpc();
+    if (!ready) return;
     const [voteList, dep] = await Promise.all([
       fetchAllVotes(props.proposal_id),
       store.fetchProposalDeposits(props.proposal_id).catch(() => null),
@@ -414,6 +469,8 @@ async function loadVotesAndDeposits() {
     allVotes.value = voteList;
     const list = (dep as any)?.deposits;
     deposits.value = Array.isArray(list) ? list : list ? [list] : [];
+  } catch (e) {
+    console.warn('[gov] loadVotesAndDeposits failed', e);
   } finally {
     votesLoading.value = false;
   }
@@ -434,23 +491,33 @@ function stopTallyPoll() {
   }
 }
 
-watch(
-  () => props.proposal_id,
-  async () => {
-    stopTallyPoll();
-    allVotes.value = [];
-    voteFilter.value = 'all';
-    voteSearch.value = '';
-    await loadProposal();
-    await loadVotesAndDeposits();
-    startTallyPoll();
-  }
-);
-
-onMounted(async () => {
+async function bootstrap() {
+  stopTallyPoll();
+  allVotes.value = [];
+  voteFilter.value = 'all';
+  voteSearch.value = '';
   await loadProposal();
   await loadVotesAndDeposits();
   startTallyPoll();
+}
+
+watch(
+  () => props.proposal_id,
+  () => {
+    bootstrap();
+  }
+);
+
+// Retry once RPC becomes available (first paint often races chain connect)
+watch(
+  () => chainStore.endpoint?.address,
+  (addr, prev) => {
+    if (addr && addr !== prev) bootstrap();
+  }
+);
+
+onMounted(() => {
+  bootstrap();
 });
 
 onUnmounted(() => stopTallyPoll());
@@ -589,13 +656,13 @@ onUnmounted(() => stopTallyPoll());
               <div class="text-[13px] font-medium">{{ format.toDay(proposal.voting_end_time) }}</div>
               <div class="text-[11px] text-secondary mt-0.5">
                 {{ $t('gov.current_status') }}:
-                {{ $t(`gov.proposal_statuses.${proposal.status}`) }}
+                <span class="font-semibold text-main">{{ statusLabel }}</span>
               </div>
             </div>
             <div class="text-[11px] text-secondary shrink-0">{{ shortTime(proposal.voting_end_time) }}</div>
           </div>
           <div
-            v-if="proposal?.content?.['@type']?.endsWith('SoftwareUpgradeProposal')"
+            v-if="proposal?.content?.['@type']?.endsWith('SoftwareUpgradeProposal') || proposal?.content?.['@type']?.endsWith('MsgSoftwareUpgrade')"
             class="flex items-start gap-3 pt-1 border-t border-base-content/10"
           >
             <div class="w-2 h-2 rounded-full bg-warning mt-1.5 shrink-0"></div>
@@ -750,7 +817,7 @@ onUnmounted(() => stopTallyPoll());
               </td>
               <td class="text-center">
                 <span class="sz-chip !text-[10px]" :class="optionChipClass(item.option)">
-                  {{ optionLabel(item) }}
+                  {{ optionLabel(item.option) }}
                 </span>
               </td>
             </tr>
