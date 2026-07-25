@@ -9,26 +9,41 @@ import { useBlockchain } from '@/stores';
 
 const dashboard = useDashboard();
 
+type NetworkTab = 'mainnet' | 'testnet';
+const networkTab = ref<NetworkTab>('mainnet');
 const keywords = ref('');
-const chains = computed(() => {
-  if (keywords.value) {
-    const lowercaseKeywords = keywords.value.toLowerCase();
 
-    return Object.values(dashboard.chains).filter(
-      (x: ChainConfig) =>
-        x.chainName.toLowerCase().indexOf(lowercaseKeywords) > -1 ||
-        x.prettyName.toLowerCase().indexOf(lowercaseKeywords) > -1
-    );
-  } else {
-    return Object.values(dashboard.chains);
-  }
+function isTestnet(chain: ChainConfig) {
+  const nt = (chain.networkType || '').toLowerCase();
+  return nt.includes('test');
+}
+
+const mainnetCount = computed(
+  () => Object.values(dashboard.chains).filter((c) => !isTestnet(c)).length
+);
+const testnetCount = computed(
+  () => Object.values(dashboard.chains).filter((c) => isTestnet(c)).length
+);
+
+const chains = computed(() => {
+  const all = Object.values(dashboard.chains).filter((x: ChainConfig) =>
+    networkTab.value === 'testnet' ? isTestnet(x) : !isTestnet(x)
+  );
+  if (!keywords.value) return all;
+  const q = keywords.value.toLowerCase();
+  return all.filter(
+    (x: ChainConfig) =>
+      x.chainName.toLowerCase().includes(q) ||
+      x.prettyName.toLowerCase().includes(q)
+  );
 });
 
 const featured = computed(() => {
   // Prefer chains we operate / maintain; fall back to whatever is loaded.
+  // Featured only shows mainnet — testnets stay under the Testnets tab.
   const names = ['atomone', 'cosmos', 'osmosis', 'axelar', 'neutron', 'xion', 'kiichain', 'nolus'];
-  return chains.value
-    .filter((x) => names.includes(x.chainName))
+  return Object.values(dashboard.chains)
+    .filter((x) => !isTestnet(x) && names.includes(x.chainName))
     .sort((a, b) => names.indexOf(a.chainName) - names.indexOf(b.chainName));
 });
 
@@ -61,12 +76,12 @@ const chainStore = useBlockchain();
         <!-- live network stats -->
         <div class="flex flex-wrap items-center gap-2.5 pt-1">
           <div class="sz-stat">
-            <span class="sz-stat-value">{{ dashboard.length }}</span>
-            <span class="sz-stat-label">Networks</span>
+            <span class="sz-stat-value">{{ mainnetCount }}</span>
+            <span class="sz-stat-label">Mainnets</span>
           </div>
           <div class="sz-stat">
-            <span class="sz-stat-value">{{ featured.length }}</span>
-            <span class="sz-stat-label">Curated</span>
+            <span class="sz-stat-value">{{ testnetCount }}</span>
+            <span class="sz-stat-label">Testnets</span>
           </div>
           <div class="sz-stat">
             <span class="sz-live-dot"></span>
@@ -84,8 +99,8 @@ const chainStore = useBlockchain();
       <progress class="progress progress-info w-80 h-1"></progress>
     </div>
 
-    <!-- ===== FEATURED ===== -->
-    <section v-if="featured.length > 0" class="mb-12">
+    <!-- ===== FEATURED (mainnet only) ===== -->
+    <section v-if="featured.length > 0 && networkTab === 'mainnet'" class="mb-12">
       <div class="mb-5 flex items-end justify-between gap-3">
         <div>
           <div class="text-[11px] font-bold uppercase tracking-[0.2em] text-primary mb-1">Curated</div>
@@ -108,6 +123,32 @@ const chainStore = useBlockchain();
         </div>
       </div>
 
+      <!-- Mainnet / Testnet toggle (explorers.guru style) -->
+      <div class="sz-net-tabs mb-4" role="tablist" aria-label="Network type">
+        <button
+          type="button"
+          role="tab"
+          class="sz-net-tab"
+          :class="{ 'is-active': networkTab === 'mainnet' }"
+          :aria-selected="networkTab === 'mainnet'"
+          @click="networkTab = 'mainnet'"
+        >
+          Mainnets
+          <span class="sz-net-count">{{ mainnetCount }}</span>
+        </button>
+        <button
+          type="button"
+          role="tab"
+          class="sz-net-tab"
+          :class="{ 'is-active': networkTab === 'testnet' }"
+          :aria-selected="networkTab === 'testnet'"
+          @click="networkTab = 'testnet'"
+        >
+          Testnets
+          <span class="sz-net-count">{{ testnetCount }}</span>
+        </button>
+      </div>
+
       <div class="sz-search mb-6 flex items-center rounded-xl border border-base-content/10 bg-base-100 px-3">
         <Icon icon="mdi:magnify" class="text-xl text-secondary" />
         <input
@@ -116,12 +157,19 @@ const chainStore = useBlockchain();
           v-model="keywords"
         />
         <div class="px-2 text-xs text-secondary tabular-nums hidden sm:!block">
-          {{ chains.length }}/{{ dashboard.length }}
+          {{ chains.length }}/{{ networkTab === 'mainnet' ? mainnetCount : testnetCount }}
         </div>
       </div>
 
-      <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 md:!grid-cols-3 lg:!grid-cols-4 2xl:!grid-cols-5">
-        <ChainSummary v-for="(chain, index) in chains" :key="index" :name="chain.chainName" />
+      <div
+        v-if="chains.length === 0"
+        class="rounded-xl border border-dashed border-base-content/15 bg-base-100/60 px-6 py-12 text-center text-sm text-secondary"
+      >
+        No {{ networkTab === 'mainnet' ? 'mainnets' : 'testnets' }} match your search.
+      </div>
+
+      <div v-else class="grid grid-cols-1 gap-3 sm:grid-cols-2 md:!grid-cols-3 lg:!grid-cols-4 2xl:!grid-cols-5">
+        <ChainSummary v-for="(chain, index) in chains" :key="chain.chainName + '-' + index" :name="chain.chainName" />
       </div>
     </section>
   </div>
@@ -179,5 +227,58 @@ const chainStore = useBlockchain();
 .sz-search:focus-within {
   border-color: color-mix(in srgb, hsl(var(--p)) 45%, transparent);
   box-shadow: 0 0 0 3px color-mix(in srgb, hsl(var(--p)) 18%, transparent);
+}
+
+/* Mainnet / Testnet toggle — explorers.guru style */
+.sz-net-tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  border-radius: 0.85rem;
+  border: 1px solid color-mix(in srgb, var(--sz-border, rgba(148, 163, 184, 0.18)) 100%, transparent);
+  background: color-mix(in srgb, hsl(var(--b1)) 92%, transparent);
+}
+.sz-net-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.45rem 0.95rem;
+  border-radius: 0.65rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--text-secondary, #94a3b8);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+.sz-net-tab:hover {
+  color: var(--text-primary, #e2e8f0);
+  background: color-mix(in srgb, hsl(var(--p)) 8%, transparent);
+}
+.sz-net-tab.is-active {
+  color: hsl(var(--pc, 0 0% 100%));
+  background: hsl(var(--p));
+  box-shadow: 0 6px 16px -8px color-mix(in srgb, hsl(var(--p)) 70%, transparent);
+}
+.sz-net-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.35rem;
+  height: 1.2rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  background: color-mix(in srgb, currentColor 14%, transparent);
+  color: inherit;
+}
+.sz-net-tab.is-active .sz-net-count {
+  background: color-mix(in srgb, #fff 22%, transparent);
 }
 </style>

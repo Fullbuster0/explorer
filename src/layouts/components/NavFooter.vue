@@ -11,9 +11,6 @@ import { Icon } from '@iconify/vue';
           <span class="opacity-30">·</span>
           <span class="text-secondary">© {{ new Date().getFullYear() }}</span>
         </div>
-        <div class="mt-0.5 text-[11px] text-secondary/80">
-          Open source fork of ping-pub · GPL-2.0
-        </div>
       </div>
 
       <div class="flex flex-wrap items-center gap-2">
