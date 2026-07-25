@@ -62,11 +62,13 @@ export function convertFromLocal(lc: LocalChainConfig): ChainConfig {
     };
   }
   conf.features = lc.features;
-  // Absolute logos as-is; relative /logos/* fall back to ping.pub host (legacy).
+  // Absolute logos as-is; site-local /logos/* stay same-origin; other relatives use ping.pub.
   conf.logo = lc.logo
     ? lc.logo.startsWith('http')
       ? lc.logo
-      : `https://ping.pub${lc.logo.startsWith('/') ? '' : '/'}${lc.logo}`
+      : lc.logo.startsWith('/logos/')
+        ? lc.logo
+        : `https://ping.pub${lc.logo.startsWith('/') ? '' : '/'}${lc.logo}`
     : '';
   conf.keplrFeatures = lc.keplr_features;
   conf.keplrPriceStep = lc.keplr_price_step;
