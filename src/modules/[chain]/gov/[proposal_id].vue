@@ -576,6 +576,8 @@ async function bootstrap() {
   allVotes.value = [];
   voteFilter.value = 'all';
   voteSearch.value = '';
+  valPage.value = 1;
+  otherPage.value = 1;
   await loadProposal();
   await loadVotesAndDeposits();
   startTallyPoll();
