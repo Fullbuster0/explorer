@@ -837,7 +837,10 @@ onUnmounted(() => stopTallyPoll());
     </div>
 
     <!-- OTHER VOTES (non-validator) -->
-    <div v-if="otherVotes.length > 0" class="sz-section mb-4 overflow-hidden">
+    <div
+      v-if="otherVotes.length > 0 || votesUnavailable || (!votesLoading && hasVoteRecords)"
+      class="sz-section mb-4 overflow-hidden"
+    >
       <div class="sz-section-head">
         <div>
           <div class="sz-section-kicker">Delegators</div>
@@ -847,7 +850,18 @@ onUnmounted(() => stopTallyPoll());
           </div>
         </div>
       </div>
-      <div class="overflow-x-auto">
+
+      <div v-if="votesUnavailable" class="px-4 py-6 text-[12.5px] leading-relaxed text-secondary">
+        Non-validator voter list needs the same per-vote index as above.
+        This LCD returned <span class="font-mono text-main">0</span> vote records for a closed proposal
+        (tally still shows real turnout). No address-level Yes/No split is available from public REST.
+      </div>
+
+      <div v-else-if="otherVotes.length === 0" class="px-4 py-6 text-center text-sm text-secondary">
+        No non-validator votes in the returned set — all records matched bonded validators, or none yet.
+      </div>
+
+      <div v-else class="overflow-x-auto">
         <table class="sz-table">
           <thead>
             <tr>
