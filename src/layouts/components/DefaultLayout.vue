@@ -70,7 +70,7 @@ dayjs();
 </script>
 
 <template>
-  <div class="min-h-screen bg-base-200 text-base-content">
+  <div class="sz-page-shell min-h-screen text-base-content">
     <!-- ===== SIDEBAR ===== -->
     <aside
       class="sz-sidebar fixed left-0 top-0 bottom-0 z-50 w-64 overflow-y-auto"
@@ -275,8 +275,12 @@ dayjs();
 <style scoped>
 /* ---- sidebar: always-dark brand surface ---- */
 .sz-sidebar {
-  background: linear-gradient(180deg, #070b14 0%, #0a1020 55%, #0c1226 100%);
+  background:
+    radial-gradient(600px 280px at 0% 0%, rgba(0, 95, 204, 0.18), transparent 55%),
+    radial-gradient(500px 240px at 100% 100%, rgba(118, 75, 200, 0.12), transparent 50%),
+    linear-gradient(180deg, #070b14 0%, #0a1020 55%, #0c1226 100%);
   border-right: 1px solid rgba(148, 163, 184, 0.1);
+  backdrop-filter: blur(8px);
 }
 .sz-logo-mark {
   display: inline-flex;
@@ -358,15 +362,18 @@ dayjs();
 
 /* ---- header ---- */
 .sz-header {
-  background: color-mix(in srgb, hsl(var(--b1)) 82%, transparent);
+  background: color-mix(in srgb, hsl(var(--b1)) 78%, transparent);
   border: 1px solid var(--sz-border);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(16px) saturate(1.2);
+  -webkit-backdrop-filter: blur(16px) saturate(1.2);
+  box-shadow: 0 8px 24px -20px rgba(0, 0, 0, 0.45);
 }
 
 /* ---- status strip ---- */
 .sz-statusbar {
-  background: color-mix(in srgb, hsl(var(--b1)) 70%, transparent);
+  background: color-mix(in srgb, hsl(var(--b1)) 72%, transparent);
   border: 1px solid var(--sz-border);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 </style>

@@ -34,6 +34,9 @@ body {
   --sz-success: #10b981;
   --sz-warn: #f59e0b;
   --sz-danger: #ef4444;
+  --sz-page-bg: #f4f7fc;
+  --sz-page-glow-1: rgba(0, 95, 204, 0.08);
+  --sz-page-glow-2: rgba(118, 75, 200, 0.06);
 }
 
 html.dark,
@@ -44,6 +47,41 @@ html[data-theme='dark'] {
   --sz-border: rgba(148, 163, 184, 0.12);
   --sz-glow: rgba(153, 204, 255, 0.12);
   --sz-accent-soft: rgba(0, 95, 204, 0.18);
+  --sz-page-bg: #08090a;
+  --sz-page-glow-1: rgba(0, 95, 204, 0.14);
+  --sz-page-glow-2: rgba(118, 75, 200, 0.1);
+}
+
+/* ambient page canvas */
+.sz-page-shell {
+  position: relative;
+  isolation: isolate;
+  min-height: 100vh;
+  background:
+    radial-gradient(1200px 500px at 12% -8%, var(--sz-page-glow-1), transparent 55%),
+    radial-gradient(900px 420px at 92% 8%, var(--sz-page-glow-2), transparent 50%),
+    radial-gradient(700px 360px at 50% 100%, rgba(16, 185, 129, 0.04), transparent 55%),
+    var(--sz-page-bg);
+}
+.sz-page-shell::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.35;
+  background-image:
+    linear-gradient(rgba(148, 163, 184, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.05) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse 80% 70% at 50% 30%, #000 20%, transparent 75%);
+}
+html.dark .sz-page-shell::before,
+html[data-theme='dark'] .sz-page-shell::before {
+  opacity: 0.22;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
 }
 
 /* mono helper */
