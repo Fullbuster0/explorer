@@ -26,7 +26,7 @@ const chains = computed(() => {
 
 const featured = computed(() => {
   // Prefer chains we operate / maintain; fall back to whatever is loaded.
-  const names = ['cosmos', 'osmosis', 'axelar', 'neutron', 'xion', 'kiichain', 'nolus'];
+  const names = ['atomone', 'cosmos', 'osmosis', 'axelar', 'neutron', 'xion', 'kiichain', 'nolus'];
   return chains.value
     .filter((x) => names.includes(x.chainName))
     .sort((a, b) => names.indexOf(a.chainName) - names.indexOf(b.chainName));

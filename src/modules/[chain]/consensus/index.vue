@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import fetch from 'cross-fetch';
-import { onMounted, ref, computed, onUnmounted } from 'vue';
+import { onMounted, ref, computed, onUnmounted, watch } from 'vue';
 import { useBlockchain, useFormatter, useStakingStore, useBaseStore } from '@/stores';
 import { consensusPubkeyToHexAddress } from '@/libs';
 
@@ -9,7 +9,7 @@ const chainStore = useBlockchain();
 const stakingStore = useStakingStore();
 const baseStore = useBaseStore();
 
-const rpcList = ref(chainStore.current?.endpoints?.rpc || [{ address: '', provider: '' }]);
+const rpcList = ref<{ address: string; provider?: string }[]>([]);
 const rpc = ref('');
 const validators = ref(stakingStore.validators);
 
@@ -21,6 +21,7 @@ const round = ref('');
 const step = ref('');
 let timer: any = null;
 let loading = false;
+let started = false;
 const updatetime = ref(new Date());
 const positions = ref([] as any[]);
 const validatorsData = ref([] as any);
@@ -64,18 +65,100 @@ function loadAvatars() {
   );
 }
 
+function pickRpcList() {
+  const list = (chainStore.current?.endpoints?.rpc || []).filter((x) => x?.address);
+  // Prefer Shazoes RPC first (CORS + dump_consensus_state allowed)
+  list.sort((a, b) => {
+    const as = /shazoes/i.test(a.address || '') || /shazoes/i.test(a.provider || '') ? 0 : 1;
+    const bs = /shazoes/i.test(b.address || '') || /shazoes/i.test(b.provider || '') ? 0 : 1;
+    return as - bs;
+  });
+  return list;
+}
+
+function setRpcFromList(preferAddress?: string) {
+  rpcList.value = pickRpcList();
+  if (rpcList.value.length === 0) {
+    rpc.value = '';
+    return false;
+  }
+  if (preferAddress) {
+    const hit = rpcList.value.find((x) => x.address === preferAddress || preferAddress.startsWith(x.address));
+    if (hit) {
+      rpc.value = hit.address.replace(/\/$/, '') + '/consensus_state';
+      return true;
+    }
+  }
+  rpc.value = rpcList.value[0].address.replace(/\/$/, '') + '/consensus_state';
+  return true;
+}
+
+async function startMonitor() {
+  if (started || loading) return;
+  if (!setRpcFromList()) {
+    httpstatus.value = 0;
+    httpStatusText.value = 'No RPC endpoint configured for this chain';
+    return;
+  }
+  started = true;
+  loading = true;
+  try {
+    try {
+      validatorsData.value = await stakingStore.fetchAcitveValdiators();
+      loadAvatars();
+    } catch (e) {
+      console.warn('validators load failed', e);
+    }
+    await fetchPosition();
+    // If dump_consensus_state blocked (403/etc), try next RPC that supports it
+    if (httpstatus.value !== 200 && rpcList.value.length > 1) {
+      for (const ep of rpcList.value.slice(1)) {
+        rpc.value = ep.address.replace(/\/$/, '') + '/consensus_state';
+        await fetchPosition();
+        if (httpstatus.value === 200) break;
+      }
+    }
+    if (httpstatus.value === 200) {
+      await update();
+      clearTime();
+      timer = setInterval(() => update(), Math.max(1000, Math.round(baseStore.blocktime / 2) || 3000));
+    }
+  } finally {
+    loading = false;
+  }
+}
+
 onMounted(async () => {
-  validatorsData.value = await stakingStore.fetchAcitveValdiators();
-  loadAvatars();
-  rpc.value = rpcList.value[0].address + '/consensus_state';
-  await fetchPosition();
-  update();
-  clearTime();
-  timer = setInterval(() => update(), Math.round(baseStore.blocktime / 2));
+  // Wait for chain config to load (rpc endpoints arrive async via dashboard.initial)
+  if (chainStore.current?.endpoints?.rpc?.length) {
+    await startMonitor();
+  } else {
+    httpstatus.value = 0;
+    httpStatusText.value = 'Loading chain endpoints...';
+    const stop = watch(
+      () => chainStore.current?.endpoints?.rpc,
+      async (v) => {
+        if (v && v.length > 0) {
+          stop();
+          await startMonitor();
+        }
+      },
+      { immediate: true }
+    );
+    // Safety timeout — surface clearer error
+    setTimeout(() => {
+      if (!started && (!rpcList.value || rpcList.value.length === 0)) {
+        httpstatus.value = 0;
+        httpStatusText.value =
+          'Chain not found or no RPC endpoints. Add chains/mainnet/<name>.json and redeploy.';
+      }
+    }, 8000);
+  }
 });
 onUnmounted(() => {
   clearTime();
   loading = false;
+  started = false;
 });
 function clearTime() {
   clearInterval(timer);
@@ -192,45 +275,62 @@ async function onChange() {
   httpstatus.value = 200;
   httpStatusText.value = '';
   roundState.value = {};
+  positions.value = [];
   clearTime();
   try {
     await fetchPosition();
-    update();
-    timer = setInterval(() => update(), Math.round(baseStore.blocktime / 2));
+    if (httpstatus.value === 200) {
+      await update();
+      timer = setInterval(() => update(), Math.max(1000, Math.round(baseStore.blocktime / 2) || 3000));
+    }
   } finally {
     loading = false;
   }
 }
 async function fetchPosition() {
+  if (!rpc.value) {
+    httpstatus.value = 0;
+    httpStatusText.value = 'No RPC selected';
+    return;
+  }
   const dumpurl = rpc.value.replace('consensus_state', 'dump_consensus_state');
   try {
     const response = await fetch(dumpurl);
-    if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
     httpstatus.value = response.status;
-    httpStatusText.value = response.statusText;
+    httpStatusText.value = response.statusText || (response.ok ? 'OK' : `HTTP ${response.status}`);
+    if (!response.ok) {
+      positions.value = [];
+      return;
+    }
     const data = await response.json();
-    positions.value = data.result.round_state.validators.validators;
+    positions.value = data?.result?.round_state?.validators?.validators || [];
+    if (!positions.value.length) {
+      httpstatus.value = 204;
+      httpStatusText.value = 'dump_consensus_state returned empty validators';
+    }
   } catch (error: any) {
     httpstatus.value = error?.status || 500;
-    httpStatusText.value = error?.message || 'Error';
+    httpStatusText.value = error?.message || String(error) || 'Error fetching dump_consensus_state';
+    positions.value = [];
   }
 }
 async function update() {
   updatetime.value = new Date();
-  if (httpstatus.value !== 200) return;
+  if (!rpc.value) return;
   try {
     const data = await fetch(rpc.value);
     httpstatus.value = data.status;
     httpStatusText.value = data.statusText;
+    if (!data.ok) return;
     const res = await data.json();
-    roundState.value = res.result.round_state;
+    roundState.value = res?.result?.round_state || {};
     const raw = String(roundState.value?.['height/round/step'] || '').split('/');
     height.value = raw[0] || '';
     round.value = raw[1] || '';
     step.value = raw[2] || '';
   } catch (err: any) {
     httpstatus.value = 500;
-    httpStatusText.value = err;
+    httpStatusText.value = err?.message || String(err);
   }
 }
 function exportCsv() {
@@ -417,7 +517,7 @@ function exportCsv() {
             <div class="flex items-center gap-1.5">
               <span class="text-xs opacity-70">RPC:</span>
               <select v-model="rpc" class="select select-bordered select-xs w-auto max-w-[220px] min-h-0 h-7 text-xs" @change="onChange">
-                <option v-for="(item, index) in rpcList" :key="index" :value="item?.address + '/consensus_state'">
+                <option v-for="(item, index) in rpcList" :key="index" :value="(item?.address || '').replace(/\/$/, '') + '/consensus_state'">
                   {{ item?.provider || item?.address }}
                 </option>
               </select>
@@ -427,8 +527,10 @@ function exportCsv() {
       </div>
 
       <div class="p-3">
-        <div v-if="rows.length === 0" class="text-center text-sm opacity-60 py-8">
-          {{ httpstatus === 200 ? 'Waiting for consensus data...' : `RPC error: ${httpstatus} ${httpStatusText}` }}
+        <div v-if="rows.length === 0" class="text-center text-sm py-8">
+          <span v-if="httpstatus === 200" class="opacity-60">Waiting for consensus data...</span>
+          <span v-else-if="httpstatus === 0" class="opacity-70">{{ httpStatusText || 'Loading...' }}</span>
+          <span v-else class="text-error">RPC error {{ httpstatus }}: {{ httpStatusText }}</span>
         </div>
 
         <div v-else class="grid grid-cols-1 lg:grid-cols-2 gap-x-2 gap-y-0">
