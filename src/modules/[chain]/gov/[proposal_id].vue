@@ -368,10 +368,24 @@ const pagedOtherVotes = computed(() => {
 });
 
 function goValPage(p: number) {
-  valPage.value = Math.min(Math.max(1, p), valTotalPages.value);
+  const total = valTotalPages.value;
+  valPage.value = Math.min(Math.max(1, Number(p) || 1), total);
+}
+function nextValPage() {
+  if (valPage.value < valTotalPages.value) valPage.value += 1;
+}
+function prevValPage() {
+  if (valPage.value > 1) valPage.value -= 1;
 }
 function goOtherPage(p: number) {
-  otherPage.value = Math.min(Math.max(1, p), otherTotalPages.value);
+  const total = otherTotalPages.value;
+  otherPage.value = Math.min(Math.max(1, Number(p) || 1), total);
+}
+function nextOtherPage() {
+  if (otherPage.value < otherTotalPages.value) otherPage.value += 1;
+}
+function prevOtherPage() {
+  if (otherPage.value > 1) otherPage.value -= 1;
 }
 
 // Reset page when filter/search changes
@@ -888,14 +902,14 @@ onUnmounted(() => stopTallyPoll());
             type="button"
             class="btn btn-xs btn-ghost"
             :disabled="valPage <= 1"
-            @click="goValPage(valPage - 1)"
+            @click.stop.prevent="prevValPage"
           >Prev</button>
           <span class="font-mono tabular">{{ Math.min(valPage, valTotalPages) }} / {{ valTotalPages }}</span>
           <button
             type="button"
             class="btn btn-xs btn-primary"
             :disabled="valPage >= valTotalPages"
-            @click="goValPage(valPage + 1)"
+            @click.stop.prevent="nextValPage"
           >Next</button>
         </div>
       </div>
@@ -967,14 +981,14 @@ onUnmounted(() => stopTallyPoll());
               type="button"
               class="btn btn-xs btn-ghost"
               :disabled="otherPage <= 1"
-              @click="goOtherPage(otherPage - 1)"
+              @click.stop.prevent="prevOtherPage"
             >Prev</button>
             <span class="font-mono tabular">{{ Math.min(otherPage, otherTotalPages) }} / {{ otherTotalPages }}</span>
             <button
               type="button"
               class="btn btn-xs btn-primary"
               :disabled="otherPage >= otherTotalPages"
-              @click="goOtherPage(otherPage + 1)"
+              @click.stop.prevent="nextOtherPage"
             >Next</button>
           </div>
         </div>

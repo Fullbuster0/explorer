@@ -78,12 +78,9 @@ import { Icon } from '@iconify/vue';
         </div>
       </div>
 
-      <div class="sz-footer-bottom mt-6 flex flex-col gap-2 border-t border-base-content/10 pt-4 sm:flex-row sm:items-center sm:justify-between">
+      <div class="sz-footer-bottom mt-6 border-t border-base-content/10 pt-4">
         <div class="text-[12px] text-secondary">
           © {{ new Date().getFullYear() }} Shazoes · Multi-chain Cosmos explorer
-        </div>
-        <div class="text-[11px] font-medium uppercase tracking-[0.14em] text-secondary/80 sm:text-right">
-          Built for validators
         </div>
       </div>
     </div>
