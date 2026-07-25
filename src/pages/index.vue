@@ -58,6 +58,22 @@ const chainStore = useBlockchain();
           {{ $t('pages.slogan') }}
         </p>
 
+        <!-- live network stats -->
+        <div class="flex flex-wrap items-center gap-2.5 pt-1">
+          <div class="sz-stat">
+            <span class="sz-stat-value">{{ dashboard.length }}</span>
+            <span class="sz-stat-label">Networks</span>
+          </div>
+          <div class="sz-stat">
+            <span class="sz-stat-value">{{ featured.length }}</span>
+            <span class="sz-stat-label">Curated</span>
+          </div>
+          <div class="sz-stat">
+            <span class="sz-live-dot"></span>
+            <span class="sz-stat-label">Live</span>
+          </div>
+        </div>
+
         <div class="flex flex-wrap items-center gap-3 pt-1">
           <a
             href="https://services.shazoes.xyz"
@@ -153,11 +169,31 @@ const chainStore = useBlockchain();
   flex-shrink: 0;
 }
 .sz-hero-title {
-  letter-spacing: -0.03em;
-  background: linear-gradient(90deg, #ffffff 0%, #c7e0ff 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  letter-spacing: -0.035em;
+  color: #f8fafc;
+}
+.sz-stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.4rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(255, 255, 255, 0.04);
+}
+.sz-stat-value {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #e2e8f0;
+  letter-spacing: -0.02em;
+}
+.sz-stat-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: #94a3b8;
 }
 .sz-search:focus-within {
   border-color: color-mix(in srgb, hsl(var(--p)) 45%, transparent);

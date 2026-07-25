@@ -22,34 +22,55 @@ const isPositive = controlledComputed(
 </script>
 
 <template>
-  <div class="bg-base-100 shadow rounded p-4">
-    <div class="flex items-center justify-center">
-      <div v-if="props.icon" class="relative w-9 h-9 rounded overflow-hidden flex items-center justify-center">
-        <Icon :class="[`text-${props?.color}`]" :icon="props.icon" size="32" />
-        <div class="absolute top-0 left-0 bottom-0 right-0 opacity-20" :class="[`bg-${props?.color}`]"></div>
+  <div class="sz-metric group">
+    <div class="flex items-start justify-between gap-2">
+      <div class="min-w-0">
+        <div class="sz-metric-label">{{ props.title }}</div>
+        <div class="sz-metric-value truncate">{{ props.stats || '—' }}</div>
+        <div v-if="props.subtitle" class="sz-metric-sub truncate">{{ props.subtitle }}</div>
       </div>
-
-      <div
-        v-if="props.change"
-        :class="isPositive ? 'text-success' : 'text-error'"
-        class="flex items-center text-sm font-semibold"
-      >
-        <span>{{ isPositive ? `+${props.change}` : props.change }}%</span>
-        <Icon :icon="isPositive ? 'mdi-chevron-up' : 'mdi-chevron-down'" />
-      </div>
-    </div>
-
-    <div class="">
-      <h6 class="text-lg text-center font-semibold mt-2 mb-1">
-        {{ props.stats || '-' }}
-      </h6>
-      <p class="text-sm text-center">
-        {{ props.title }}
-      </p>
-
-      <div v-if="props.subtitle" size="x-small" class="font-semibold">
-        <span class="truncate">{{ props.subtitle }}</span>
+      <div class="flex flex-col items-end gap-1.5 shrink-0">
+        <span class="sz-metric-icon" :class="`sz-metric-icon--${props.color}`">
+          <Icon :icon="props.icon" />
+        </span>
+        <span
+          v-if="props.change"
+          class="sz-chip font-mono"
+          :class="isPositive ? 'sz-chip--ok' : 'sz-chip--bad'"
+        >
+          {{ isPositive ? `+${props.change}` : props.change }}%
+        </span>
       </div>
     </div>
   </div>
 </template>
+
+<style scoped>
+.sz-metric-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  font-size: 18px;
+  background: var(--sz-accent-soft);
+  color: var(--sz-accent);
+  transition: transform 0.18s ease;
+}
+.group:hover .sz-metric-icon {
+  transform: translateY(-2px) scale(1.05);
+}
+.sz-metric-icon--error {
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+}
+.sz-metric-icon--success {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+}
+.sz-metric-icon--warning {
+  background: rgba(245, 158, 11, 0.14);
+  color: #f59e0b;
+}
+</style>

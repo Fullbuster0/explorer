@@ -39,8 +39,6 @@ onMounted(() => {
   store.loadDashboard();
   walletStore.loadMyAsset();
   paramStore.handleAbciInfo();
-  // if(!(coinInfo.value && coinInfo.value.name)) {
-  // }
 });
 const ticker = computed(() => store.coinInfo.tickers[store.tickerIndex]);
 
@@ -126,279 +124,173 @@ const amount = computed({
 </script>
 
 <template>
-  <div>
-    <div v-if="coinInfo && coinInfo.name" class="bg-base-100 rounded shadow">
-      <div class="grid grid-cols-2 md:grid-cols-3 p-4">
-        <div class="col-span-2 md:col-span-1">
-          <div class="text-xl font-semibold text-main">
-            {{ coinInfo.name }} (<span class="uppercase">{{ coinInfo.symbol }}</span
-            >)
-          </div>
-          <div class="text-xs mt-2">
-            {{ $t('index.rank') }}:
-            <div
-              class="badge text-xs badge-error bg-[#fcebea] dark:bg-[#41384d] text-red-400"
-            >
-              #{{ coinInfo.market_cap_rank }}
+  <div class="space-y-4">
+    <!-- ===== Chain hero ===== -->
+    <section v-if="coinInfo && coinInfo.name" class="sz-chain-hero relative overflow-hidden rounded-2xl">
+      <div class="relative z-10 p-5 sm:p-6">
+        <div class="flex flex-wrap items-start justify-between gap-4">
+          <div class="min-w-0">
+            <div class="flex flex-wrap items-center gap-2.5">
+              <h1 class="sz-hero-chain">{{ coinInfo.name }}</h1>
+              <span class="sz-chip sz-chip--info font-mono uppercase">{{ coinInfo.symbol }}</span>
+              <span class="sz-chip font-mono">Rank #{{ coinInfo.market_cap_rank }}</span>
             </div>
-          </div>
-
-          <div class="my-4 flex flex-wrap items-center">
-            <a
-              v-for="(item, index) of comLinks"
-              :key="index"
-              :href="item.href"
-              class="link link-primary px-2 py-1 rounded-sm no-underline hover:text-primary hover:bg-gray-100 dark:hover:bg-slate-800 flex items-center"
-            >
-              <Icon :icon="item?.icon" />
-              <span class="ml-1 text-sm uppercase">{{ item?.name }}</span>
-            </a>
-          </div>
-
-          <div>
-            <div class="dropdown dropdown-hover w-full">
-              <label>
-                <div
-                  class="bg-gray-100 dark:bg-[#384059] flex items-center justify-between px-4 py-2 cursor-pointer rounded"
-                >
-                  <div>
-                    <div
-                      class="font-semibold text-xl text-[#666] dark:text-white"
-                    >
-                      {{ ticker?.market?.name || '' }}
-                    </div>
-                    <div class="text-info text-sm">
-                      {{ shortName(ticker?.base, ticker?.coin_id) }}/{{
-                        shortName(ticker?.target, ticker?.target_coin_id)
-                      }}
-                    </div>
-                  </div>
-
-                  <div class="text-right">
-                    <div
-                      class="text-xl font-semibold text-[#666] dark:text-white"
-                    >
-                      ${{ ticker?.converted_last?.usd }}
-                    </div>
-                    <div class="text-sm" :class="store.priceColor">{{ store.priceChange }}%</div>
-                  </div>
-                </div>
-              </label>
-              <div class="dropdown-content pt-1">
-                <div class="h-64 overflow-auto w-full shadow rounded">
-                  <ul class="menu w-full bg-gray-100 rounded dark:bg-[#384059]">
-                    <li
-                      v-for="(item, index) in store.coinInfo.tickers"
-                      :key="index"
-                      @click="store.selectTicker(index)"
-                    >
-                      <div
-                        class="flex items-center justify-between hover:bg-base-100"
-                      >
-                        <div class="flex-1">
-                          <div
-                            class="text-main text-sm"
-                            :class="trustColor(item.trust_score)"
-                          >
-                            {{ item?.market?.name }}
-                          </div>
-                          <div class="text-sm text-gray-500 dark:text-gray-400">
-                            {{ shortName(item?.base, item?.coin_id) }}/{{
-                              shortName(item?.target, item?.target_coin_id)
-                            }}
-                          </div>
-                        </div>
-
-                        <div class="text-base text-main">${{ item?.converted_last?.usd }}</div>
-                      </div>
-                    </li>
-                  </ul>
-                </div>
-              </div>
+            <div class="mt-2.5 flex flex-wrap items-baseline gap-2.5">
+              <span class="sz-hero-price">${{ ticker?.converted_last?.usd }}</span>
+              <span class="text-sm font-semibold font-mono" :class="store.priceColor">{{ store.priceChange }}%</span>
             </div>
-
-            <div class="flex">
-              <label class="btn btn-primary !px-1 my-5 mr-2" for="calculator">
-                <svg
-                  class="w-8 h-8"
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="#ffffff"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <g id="SVGRepo_bgCarrier" stroke-width="0"></g>
-                  <g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g>
-                  <g id="SVGRepo_iconCarrier">
-                    <rect x="4" y="2" width="16" height="20" rx="2"></rect>
-                    <line x1="8" x2="16" y1="6" y2="6"></line>
-                    <line x1="16" x2="16" y1="14" y2="18"></line>
-                    <path d="M16 10h.01"></path>
-                    <path d="M12 10h.01"></path>
-                    <path d="M8 10h.01"></path>
-                    <path d="M12 14h.01"></path>
-                    <path d="M8 14h.01"></path>
-                    <path d="M12 18h.01"></path>
-                    <path d="M8 18h.01"></path>
-                  </g>
-                </svg>
-              </label>
-              <!-- Put this part before </body> tag -->
-              <input type="checkbox" id="calculator" class="modal-toggle" />
-              <div class="modal">
-                <div class="modal-box">
-                  <h3 class="text-lg font-bold">
-                    {{ $t('index.price_calculator') }}
-                  </h3>
-                  <div class="flex flex-col w-full mt-5">
-                    <div
-                      class="grid h-20 flex-grow card rounded-box place-items-center"
-                    >
-                      <div class="join w-full">
-                        <label class="join-item btn">
-                          <span class="uppercase">{{ coinInfo.symbol }}</span>
-                        </label>
-                        <input
-                          type="number"
-                          v-model="qty"
-                          min="0"
-                          placeholder="Input a number"
-                          class="input grow input-bordered join-item"
-                        />
-                      </div>
-                    </div>
-                    <div class="divider">=</div>
-                    <div
-                      class="grid h-20 flex-grow card rounded-box place-items-center"
-                    >
-                      <div class="join w-full">
-                        <label class="join-item btn">
-                          <span>USD</span>
-                        </label>
-                        <input
-                          type="number"
-                          v-model="amount"
-                          min="0"
-                          placeholder="Input amount"
-                          class="join-item grow input input-bordered"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <label class="modal-backdrop" for="calculator">{{
-                  $t('index.close')
-                }}</label>
-              </div>
+            <div class="mt-3.5 flex flex-wrap items-center gap-1.5">
               <a
-                class="my-5 !text-white btn grow"
-                :class="{ '!btn-success': store.trustColor === 'green', '!btn-warning': store.trustColor === 'yellow' }"
-                :href="tickerUrl(ticker.trade_url)"
+                v-for="(item, index) of comLinks"
+                :key="index"
+                :href="item.href"
                 target="_blank"
+                rel="noopener"
+                class="sz-hero-link"
               >
-                {{ $t('index.buy') }} {{ coinInfo.symbol || '' }}
+                <Icon :icon="item?.icon" />
+                <span>{{ item?.name }}</span>
               </a>
             </div>
           </div>
+          <div class="flex items-center gap-2">
+            <label class="btn btn-sm btn-outline" for="calculator">
+              <Icon icon="mdi-calculator" class="text-base" />
+              <span class="hidden sm:inline">{{ $t('index.price_calculator') }}</span>
+            </label>
+            <a
+              class="btn btn-sm btn-primary text-white"
+              :class="{ '!btn-success': store.trustColor === 'green', '!btn-warning': store.trustColor === 'yellow' }"
+              :href="tickerUrl(ticker.trade_url)"
+              target="_blank"
+            >
+              {{ $t('index.buy') }} {{ coinInfo.symbol || '' }}
+            </a>
+          </div>
         </div>
+      </div>
 
-        <div class="col-span-2">
-          <PriceMarketChart />
+      <!-- calculator modal -->
+      <input type="checkbox" id="calculator" class="modal-toggle" />
+      <div class="modal">
+        <div class="modal-box">
+          <h3 class="text-lg font-bold">{{ $t('index.price_calculator') }}</h3>
+          <div class="flex flex-col w-full mt-5">
+            <div class="grid h-20 flex-grow card rounded-box place-items-center">
+              <div class="join w-full">
+                <label class="join-item btn"><span class="uppercase">{{ coinInfo.symbol }}</span></label>
+                <input type="number" v-model="qty" min="0" placeholder="Input a number" class="input grow input-bordered join-item" />
+              </div>
+            </div>
+            <div class="divider">=</div>
+            <div class="grid h-20 flex-grow card rounded-box place-items-center">
+              <div class="join w-full">
+                <label class="join-item btn"><span>USD</span></label>
+                <input type="number" v-model="amount" min="0" placeholder="Input amount" class="join-item grow input input-bordered" />
+              </div>
+            </div>
+          </div>
         </div>
+        <label class="modal-backdrop" for="calculator">{{ $t('index.close') }}</label>
       </div>
-      <div class="h-[1px] w-full bg-gray-100 dark:bg-[#384059]"></div>
-      <div class="max-h-[250px] overflow-auto p-4 text-sm">
-        <MdEditor
-          :model-value="coinInfo.description?.en"
-          previewOnly
-        ></MdEditor>
-      </div>
-      <div class="mx-4 flex flex-wrap items-center">
-        <div
-          v-for="tag in coinInfo.categories"
-          class="mr-2 mb-4 text-xs bg-gray-100 dark:bg-[#384059] px-3 rounded-full py-1"
-        >
-          {{ tag }}
-        </div>
-      </div>
+    </section>
+
+    <!-- ===== Network vitals ===== -->
+    <div class="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+      <CardStatisticsVertical v-for="(item, key) in store.stats" :key="key" v-bind="item" />
     </div>
 
-    <div class="grid grid-cols-1 gap-4 md:!grid-cols-3 lg:!grid-cols-6 mt-4">
-      <div v-for="(item, key) in store.stats" :key="key">
-        <CardStatisticsVertical v-bind="item" />
+    <!-- ===== Market ===== -->
+    <section v-if="coinInfo && coinInfo.name" class="sz-section">
+      <div class="sz-section-head">
+        <div class="min-w-0">
+          <div class="sz-section-kicker">Market</div>
+          <div class="sz-section-title truncate">
+            {{ ticker?.market?.name || '' }} ·
+            {{ shortName(ticker?.base, ticker?.coin_id) }}/{{ shortName(ticker?.target, ticker?.target_coin_id) }}
+          </div>
+        </div>
       </div>
-    </div>
+      <div class="p-4">
+        <PriceMarketChart />
+      </div>
+      <div v-if="coinInfo.description?.en" class="max-h-[220px] overflow-auto border-t border-base-content/10 px-4 py-3 text-sm">
+        <MdEditor :model-value="coinInfo.description?.en" previewOnly />
+      </div>
+      <div v-if="coinInfo.categories?.length" class="flex flex-wrap gap-2 border-t border-base-content/10 px-4 py-3">
+        <span v-for="tag in coinInfo.categories" :key="tag" class="sz-chip">{{ tag }}</span>
+      </div>
+    </section>
 
-    <div
-      v-if="blockchain.supportModule('governance')"
-      class="bg-base-100 rounded mt-4 shadow"
-    >
-      <div class="px-4 pt-4 pb-2 text-lg font-semibold text-main">
-        {{ $t('index.active_proposals') }}
+    <!-- ===== Active proposals ===== -->
+    <section v-if="blockchain.supportModule('governance')" class="sz-section">
+      <div class="sz-section-head">
+        <div>
+          <div class="sz-section-kicker">Governance</div>
+          <div class="sz-section-title">{{ $t('index.active_proposals') }}</div>
+        </div>
       </div>
       <Loading v-if="isProposalsLoading" :bordered="false" />
       <template v-else>
-        <div class="px-4 pb-4">
+        <div class="px-4 pb-4 pt-2">
           <ProposalListItem :proposals="store?.proposals" />
         </div>
-        <div
-          class="pb-8 text-center"
-          v-if="store.proposals?.proposals?.length === 0"
-        >
+        <div class="pb-8 text-center" v-if="store.proposals?.proposals?.length === 0">
           {{ $t('index.no_active_proposals') }}
         </div>
       </template>
-    </div>
+    </section>
 
-    <div class="bg-base-100 rounded mt-4 shadow">
-      <div class="flex justify-between px-4 pt-4 pb-2 text-lg font-semibold text-main">
-        <span class="truncate">{{ walletStore.currentAddress || 'Not Connected' }}</span>
+    <!-- ===== Wallet ===== -->
+    <section class="sz-section">
+      <div class="sz-section-head">
+        <div class="min-w-0">
+          <div class="sz-section-kicker">Wallet</div>
+          <div class="sz-section-title truncate font-mono !text-sm">
+            {{ walletStore.currentAddress || 'Not Connected' }}
+          </div>
+        </div>
         <RouterLink
           v-if="walletStore.currentAddress"
-          class="float-right text-sm cursor-pointert link link-primary no-underline font-medium"
+          class="shrink-0 text-sm font-medium link link-primary no-underline"
           :to="`/${chain}/account/${walletStore.currentAddress}`"
-          >{{ $t('index.more') }}</RouterLink
         >
+          {{ $t('index.more') }}
+        </RouterLink>
       </div>
-      <div
-        class="grid grid-cols-1 md:!grid-cols-4 auto-cols-auto gap-4 px-4 pb-6"
-      >
-        <div class="bg-gray-100 dark:bg-[#373f59] rounded-sm px-4 py-3">
-          <div class="text-sm mb-1">{{ $t('account.balance') }}</div>
-          <div class="text-lg font-semibold text-main">
+
+      <div class="grid grid-cols-2 gap-3 px-4 py-4 md:grid-cols-4">
+        <div class="sz-wallet-cell">
+          <div class="sz-metric-label">{{ $t('account.balance') }}</div>
+          <div class="mt-1 truncate font-mono text-lg font-semibold text-main">
             {{ format.formatToken(walletStore.balanceOfStakingToken) }}
           </div>
           <div class="text-sm" :class="color">${{ format.tokenValue(walletStore.balanceOfStakingToken) }}</div>
         </div>
-        <div class="bg-gray-100 dark:bg-[#373f59] rounded-sm px-4 py-3">
-          <div class="text-sm mb-1">{{ $t('module.staking') }}</div>
-          <div class="text-lg font-semibold text-main">
+        <div class="sz-wallet-cell">
+          <div class="sz-metric-label">{{ $t('module.staking') }}</div>
+          <div class="mt-1 truncate font-mono text-lg font-semibold text-main">
             {{ format.formatToken(walletStore.stakingAmount) }}
           </div>
           <div class="text-sm" :class="color">${{ format.tokenValue(walletStore.stakingAmount) }}</div>
         </div>
-        <div class="bg-gray-100 dark:bg-[#373f59] rounded-sm px-4 py-3">
-          <div class="text-sm mb-1">{{ $t('index.reward') }}</div>
-          <div class="text-lg font-semibold text-main">
+        <div class="sz-wallet-cell">
+          <div class="sz-metric-label">{{ $t('index.reward') }}</div>
+          <div class="mt-1 truncate font-mono text-lg font-semibold text-main">
             {{ format.formatToken(walletStore.rewardAmount) }}
           </div>
           <div class="text-sm" :class="color">${{ format.tokenValue(walletStore.rewardAmount) }}</div>
         </div>
-        <div class="bg-gray-100 dark:bg-[#373f59] rounded-sm px-4 py-3">
-          <div class="text-sm mb-1">{{ $t('index.unbonding') }}</div>
-          <div class="text-lg font-semibold text-main">
+        <div class="sz-wallet-cell">
+          <div class="sz-metric-label">{{ $t('index.unbonding') }}</div>
+          <div class="mt-1 truncate font-mono text-lg font-semibold text-main">
             {{ format.formatToken(walletStore.unbondingAmount) }}
           </div>
           <div class="text-sm" :class="color">${{ format.tokenValue(walletStore.unbondingAmount) }}</div>
         </div>
       </div>
 
-      <div
-        v-if="walletStore.delegations.length > 0"
-        class="px-4 pb-4 overflow-auto"
-      >
+      <div v-if="walletStore.delegations.length > 0" class="overflow-auto px-4 pb-4">
         <table class="table table-compact w-full table-zebra">
           <thead>
             <tr>
@@ -433,18 +325,14 @@ const amount = computed({
                   <label
                     for="delegate"
                     class="btn !btn-xs !btn-primary btn-ghost rounded-sm mr-2"
-                    @click="
-                      dialog.open('delegate', { validator_address: item.delegation.validator_address }, updateState)
-                    "
+                    @click="dialog.open('delegate', { validator_address: item.delegation.validator_address }, updateState)"
                   >
                     {{ $t('account.btn_delegate') }}
                   </label>
                   <label
                     for="withdraw"
                     class="btn !btn-xs !btn-primary btn-ghost rounded-sm"
-                    @click="
-                      dialog.open('withdraw', { validator_address: item.delegation.validator_address }, updateState)
-                    "
+                    @click="dialog.open('withdraw', { validator_address: item.delegation.validator_address }, updateState)"
                   >
                     {{ $t('index.btn_withdraw_reward') }}
                   </label>
@@ -455,20 +343,17 @@ const amount = computed({
         </table>
       </div>
 
-      <div class="grid grid-cols-3 gap-4 px-4 pb-6 mt-4">
+      <div class="grid grid-cols-3 gap-3 px-4 pb-5">
         <label for="PingTokenConvert" class="btn btn-primary text-white">{{ $t('index.btn_swap') }}</label>
-        <label for="send" class="btn !bg-yes !border-yes text-white" @click="dialog.open('send', {}, updateState)">{{
-          $t('account.btn_send')
-        }}</label>
-        <label
-          for="delegate"
-          class="btn !bg-info !border-info text-white"
-          @click="dialog.open('delegate', {}, updateState)"
-          >{{ $t('account.btn_delegate') }}</label
-        >
-        <RouterLink to="/wallet/receive" class="btn !bg-info !border-info text-white hidden">{{
-          $t('index.receive')
-        }}</RouterLink>
+        <label for="send" class="btn !bg-yes !border-yes text-white" @click="dialog.open('send', {}, updateState)">
+          {{ $t('account.btn_send') }}
+        </label>
+        <label for="delegate" class="btn !bg-info !border-info text-white" @click="dialog.open('delegate', {}, updateState)">
+          {{ $t('account.btn_delegate') }}
+        </label>
+        <RouterLink to="/wallet/receive" class="btn !bg-info !border-info text-white hidden">
+          {{ $t('index.receive') }}
+        </RouterLink>
       </div>
       <Teleport to="body">
         <ping-token-convert
@@ -477,32 +362,82 @@ const amount = computed({
           :hd-path="walletStore?.connectedWallet?.hdPath"
         ></ping-token-convert>
       </Teleport>
-    </div>
+    </section>
 
-    <div class="bg-base-100 rounded mt-4">
-      <div class="px-4 pt-4 pb-2 text-lg font-semibold text-main">
-        {{ $t('index.app_versions') }}
+    <!-- ===== Node ===== -->
+    <section class="sz-section">
+      <div class="sz-section-head">
+        <div>
+          <div class="sz-section-kicker">Node</div>
+          <div class="sz-section-title">{{ $t('index.app_versions') }}</div>
+        </div>
       </div>
-      <!-- Application Version -->
       <Loading v-if="isAppVersionLoading" :bordered="false" />
-      <ArrayObjectElement
-        v-else
-        :value="paramStore.appVersion?.items"
-        :thead="false"
-      />
-      <div class="h-4"></div>
-    </div>
+      <ArrayObjectElement v-else :value="paramStore.appVersion?.items" :thead="false" />
+      <div class="h-3"></div>
+    </section>
 
-    <div v-if="!store.coingeckoId" class="bg-base-100 rounded mt-4">
-      <div class="px-4 pt-4 pb-2 text-lg font-semibold text-main">
-        {{ $t('index.node_info') }}
+    <section v-if="!store.coingeckoId" class="sz-section">
+      <div class="sz-section-head">
+        <div>
+          <div class="sz-section-kicker">Node</div>
+          <div class="sz-section-title">{{ $t('index.node_info') }}</div>
+        </div>
       </div>
       <Loading v-if="isNodeVersionLoading" :bordered="false" />
       <ArrayObjectElement v-else :value="paramStore.nodeVersion?.items" :thead="false" />
-      <div class="h-4"></div>
-    </div>
+      <div class="h-3"></div>
+    </section>
   </div>
 </template>
+
+<style scoped>
+.sz-chain-hero {
+  background:
+    radial-gradient(900px 220px at 85% -20%, color-mix(in srgb, hsl(var(--p)) 16%, transparent), transparent 60%),
+    linear-gradient(135deg, color-mix(in srgb, hsl(var(--p)) 7%, hsl(var(--b1))), hsl(var(--b1)));
+  border: 1px solid var(--sz-border);
+}
+.sz-hero-chain {
+  font-size: 1.65rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--text-main);
+  line-height: 1.1;
+}
+.sz-hero-price {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-main);
+}
+.sz-hero-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid var(--sz-border);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  transition: all 0.15s ease;
+}
+.sz-hero-link:hover {
+  color: hsl(var(--p));
+  border-color: color-mix(in srgb, hsl(var(--p)) 45%, var(--sz-border));
+  background: color-mix(in srgb, hsl(var(--p)) 7%, transparent);
+}
+.sz-wallet-cell {
+  background: color-mix(in srgb, hsl(var(--b2)) 65%, transparent);
+  border: 1px solid var(--sz-border);
+  border-radius: 12px;
+  padding: 0.8rem 0.9rem;
+}
+</style>
 
 <route>
   {

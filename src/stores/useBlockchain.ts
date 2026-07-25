@@ -52,41 +52,92 @@ export const useBlockchain = defineStore('blockchain', {
       return this.current && this.current.providerChain;
     },
     computedChainMenu() {
-      let currNavItem: VerticalNavItems = [];
       const router = useRouter();
       const routes = router?.getRoutes() || [];
+      const items: VerticalNavItems = [];
+
       if (this.current && routes) {
         if (this.current?.themeColor) {
           const { color } = hexToRgb(this.current?.themeColor);
           const { h, s, l } = rgbToHsl(color);
-          const themeColor = h + ' ' + s + '% ' + l + '%';
-          document.body.style.setProperty('--p', `${themeColor}`);
-          // document.body.style.setProperty('--p', `${this.current?.themeColor}`);
+          document.body.style.setProperty('--p', `${h} ${s}% ${l}%`);
         } else {
           document.body.style.setProperty('--p', '214 100% 40%');
         }
-        currNavItem = [
+
+        // Module icon map (distinct from generic chevron-right ping-pub look)
+        const iconMap: Record<string, string> = {
+          dashboard: 'mdi-view-dashboard-outline',
+          blocks: 'mdi-cube-outline',
+          tx: 'mdi-swap-horizontal',
+          validator: 'mdi-shield-account-outline',
+          uptime: 'mdi-heart-pulse',
+          account: 'mdi-wallet-outline',
+          staking: 'mdi-lock-outline',
+          governance: 'mdi-vote-outline',
+          ibc: 'mdi-transit-connection-variant',
+          cosmwasm: 'mdi-code-braces',
+          parameters: 'mdi-cog-outline',
+          consensus: 'mdi-radar',
+          nft: 'mdi-image-outline',
+        };
+
+        // Section grouping — signature of Fluxen / GnoLens style explorers
+        const groups: { heading: string; keys: string[] }[] = [
           {
-            title: this.current?.prettyName || this.chainName || '',
-            icon: { image: this.current.logo, size: '22' },
-            i18n: false,
-            badgeContent: this.isConsumerChain ? 'Consumer' : undefined,
-            badgeClass: 'bg-error',
-            children: routes
-              .filter((x) => x.meta.i18n) // defined menu name
-              .filter((x) => !this.current?.features || this.current.features.includes(String(x.meta.i18n))) // filter none-custom module
-              .map((x) => ({
-                title: `module.${x.meta.i18n}`,
-                to: { path: x.path.replace(':chain', this.chainName) },
-                icon: { icon: 'mdi-chevron-right', size: '22' },
-                i18n: true,
-                order: Number(x.meta.order || 100),
-              }))
-              .sort((a, b) => a.order - b.order),
+            heading: 'Explorer',
+            keys: ['dashboard', 'blocks', 'tx', 'validator', 'uptime', 'account'],
+          },
+          {
+            heading: 'Staking & Governance',
+            keys: ['staking', 'governance'],
+          },
+          {
+            heading: 'Advanced',
+            keys: ['ibc', 'cosmwasm', 'parameters', 'consensus', 'nft'],
           },
         ];
+
+        const available = routes
+          .filter((x) => x.meta.i18n)
+          .filter(
+            (x) =>
+              !this.current?.features ||
+              this.current.features.includes(String(x.meta.i18n))
+          )
+          .map((x) => ({
+            key: String(x.meta.i18n),
+            title: `module.${x.meta.i18n}`,
+            to: { path: x.path.replace(':chain', this.chainName) },
+            icon: {
+              icon: iconMap[String(x.meta.i18n)] || 'mdi-chevron-right',
+              size: '20',
+            },
+            i18n: true,
+            order: Number(x.meta.order || 100),
+          }));
+
+        const used = new Set<string>();
+        for (const g of groups) {
+          const children = g.keys
+            .map((k) => available.find((a) => a.key === k))
+            .filter(Boolean) as any[];
+          if (children.length === 0) continue;
+          items.push({ heading: g.heading } as NavSectionTitle);
+          children.forEach((c) => {
+            used.add(c.key);
+            items.push(c as NavLink);
+          });
+        }
+        // Any leftover modules
+        const rest = available.filter((a) => !used.has(a.key)).sort((a, b) => a.order - b.order);
+        if (rest.length) {
+          items.push({ heading: 'More' } as NavSectionTitle);
+          rest.forEach((c) => items.push(c as NavLink));
+        }
       }
-      // compute favorite menu
+
+      // Favorites
       const favNavItems: VerticalNavItems = [];
       Object.keys(this.dashboard.favoriteMap).forEach((name) => {
         const ch = this.dashboard.chains[name];
@@ -99,27 +150,27 @@ export const useBlockchain = defineStore('blockchain', {
         }
       });
 
-      // combine all together
-      return [
-        ...currNavItem,
-        { heading: 'Ecosystem' } as NavSectionTitle,
-        {
+      items.push({ heading: 'Ecosystem' } as NavSectionTitle);
+      if (favNavItems.length) {
+        items.push({
           title: 'Favorite',
           children: favNavItems,
           badgeContent: favNavItems.length,
           badgeClass: 'bg-primary',
           i18n: true,
           icon: { icon: 'mdi-star', size: '22' },
-        } as NavGroup,
-        {
-          title: 'All Blockchains',
-          to: { path: '/' },
-          badgeContent: this.dashboard.length,
-          badgeClass: 'bg-primary',
-          i18n: true,
-          icon: { icon: 'mdi-grid', size: '22' },
-        } as NavLink,
-      ];
+        } as NavGroup);
+      }
+      items.push({
+        title: 'All Blockchains',
+        to: { path: '/' },
+        badgeContent: this.dashboard.length,
+        badgeClass: 'bg-primary',
+        i18n: true,
+        icon: { icon: 'mdi-grid', size: '22' },
+      } as NavLink);
+
+      return items;
     },
   },
   actions: {
