@@ -5,9 +5,9 @@ import { Icon } from '@iconify/vue';
 <template>
   <footer class="sz-footer mt-10 mb-4 overflow-hidden rounded-2xl border border-base-content/10">
     <div class="sz-footer-inner px-5 py-6 sm:px-7 sm:py-7">
-      <div class="grid gap-7 sm:grid-cols-2 lg:grid-cols-12 lg:gap-8">
+      <div class="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
         <!-- brand -->
-        <div class="lg:col-span-5">
+        <div class="min-w-0">
           <div class="flex items-center gap-3">
             <span class="sz-footer-mark">
               <img src="@/assets/logo.png" alt="Shazoes" class="h-7 w-7 object-contain" />
@@ -19,80 +19,60 @@ import { Icon } from '@iconify/vue';
               </div>
             </div>
           </div>
-          <p class="mt-3 max-w-sm text-[13px] leading-relaxed text-secondary">
+          <p class="mt-3 max-w-md text-[13px] leading-relaxed text-secondary">
             Clean multi-chain explorer for Cosmos networks — validators, governance, blocks, and wallets in one place.
           </p>
         </div>
 
-        <!-- links -->
-        <div class="lg:col-span-3">
-          <div class="sz-footer-label">Product</div>
-          <ul class="mt-2.5 space-y-2 text-[13px]">
-            <li>
-              <RouterLink to="/" class="sz-footer-link">All chains</RouterLink>
-            </li>
-            <li>
-              <a href="https://services.shazoes.xyz" target="_blank" rel="noopener noreferrer" class="sz-footer-link">
-                Services
-              </a>
-            </li>
-            <li>
-              <RouterLink to="/wallet/suggest" class="sz-footer-link">Wallet Helper</RouterLink>
-            </li>
-          </ul>
-        </div>
-
-        <div class="lg:col-span-4">
-          <div class="sz-footer-label">Connect</div>
-          <div class="mt-2.5 flex flex-wrap items-center gap-2">
-            <a
-              href="https://x.com/shazoes"
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="X (Twitter)"
-              title="X (Twitter)"
-              class="sz-social"
-            >
-              <Icon icon="mdi:twitter" />
-            </a>
-            <a
-              href="https://t.me/shazoes"
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="Telegram"
-              title="Telegram"
-              class="sz-social"
-            >
-              <Icon icon="mdi:telegram" />
-            </a>
-            <a
-              href="http://discordapp.com/users/906483432811561000"
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="Discord"
-              title="Discord"
-              class="sz-social"
-            >
-              <Icon icon="mdi:discord" />
-            </a>
-            <a
-              href="mailto:hello@shazoes.xyz"
-              aria-label="Email"
-              title="Email"
-              class="sz-social"
-            >
-              <Icon icon="mdi:email-outline" />
-            </a>
-            <a
-              href="https://services.shazoes.xyz"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="inline-flex items-center gap-1.5 rounded-lg border border-primary/25 bg-primary/10 px-3 py-1.5 text-[12px] font-semibold text-primary transition hover:bg-primary/15"
-            >
-              <Icon icon="mdi:server" class="text-sm" />
-              Services
-            </a>
-          </div>
+        <!-- connect -->
+        <div class="flex flex-wrap items-center gap-2 sm:justify-end">
+          <a
+            href="https://x.com/shazoes"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="X (Twitter)"
+            title="X (Twitter)"
+            class="sz-social"
+          >
+            <Icon icon="mdi:twitter" />
+          </a>
+          <a
+            href="https://t.me/shazoes"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Telegram"
+            title="Telegram"
+            class="sz-social"
+          >
+            <Icon icon="mdi:telegram" />
+          </a>
+          <a
+            href="http://discordapp.com/users/906483432811561000"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Discord"
+            title="Discord"
+            class="sz-social"
+          >
+            <Icon icon="mdi:discord" />
+          </a>
+          <a
+            href="mailto:hello@shazoes.xyz"
+            aria-label="Email"
+            title="Email"
+            class="sz-social"
+          >
+            <Icon icon="mdi:email-outline" />
+          </a>
+          <a
+            href="https://services.shazoes.xyz"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="inline-flex items-center gap-1.5 rounded-lg border border-primary/25 bg-primary/10 px-3 py-1.5 text-[12px] font-semibold text-primary transition hover:bg-primary/15"
+          >
+            <Icon icon="mdi:server" class="text-sm" />
+            Services
+          </a>
         </div>
       </div>
 
@@ -126,19 +106,5 @@ import { Icon } from '@iconify/vue';
   box-shadow: 0 6px 16px -8px rgba(0, 95, 204, 0.45);
   overflow: hidden;
   padding: 5px;
-}
-.sz-footer-label {
-  font-size: 10.5px;
-  font-weight: 700;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--text-secondary, #94a3b8);
-}
-.sz-footer-link {
-  color: var(--text-secondary, #94a3b8);
-  transition: color 0.15s ease;
-}
-.sz-footer-link:hover {
-  color: hsl(var(--p));
 }
 </style>
