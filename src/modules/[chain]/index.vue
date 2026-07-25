@@ -413,7 +413,7 @@ const amount = computed({
               <td>
                 <RouterLink
                   class="link link-primary no-underline"
-                  :to="`/${chain}/staking/${item?.delegation?.validator_address}`"
+                  :to="`/${chain}/validator/${item?.delegation?.validator_address}`"
                 >
                   {{ format.validatorFromBech32(item?.delegation?.validator_address) }}
                 </RouterLink>

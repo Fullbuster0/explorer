@@ -425,7 +425,7 @@ loadAvatars();
 <route>
   {
     meta: {
-      i18n: 'staking',
+      i18n: 'validator',
       order: 3
     }
   }

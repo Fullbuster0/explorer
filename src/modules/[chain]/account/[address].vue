@@ -307,7 +307,7 @@ function mapAmount(events: { type: string; attributes: { key: string; value: str
             </tr>
             <tr v-for="(v, index) in delegations" :key="index">
               <td class="text-caption text-primary py-3">
-                <RouterLink :to="`/${chain}/staking/${v.delegation.validator_address}`">{{
+                <RouterLink :to="`/${chain}/validator/${v.delegation.validator_address}`">{{
                   format.validatorFromBech32(v.delegation.validator_address) || v.delegation.validator_address
                 }}</RouterLink>
               </td>
@@ -389,7 +389,7 @@ function mapAmount(events: { type: string; attributes: { key: string; value: str
           <tbody class="text-sm" v-for="(v, index) in unbonding" :key="index">
             <tr>
               <td class="text-caption text-primary py-3 bg-slate-200" colspan="10">
-                <RouterLink :to="`/${chain}/staking/${v.validator_address}`">{{ v.validator_address }}</RouterLink>
+                <RouterLink :to="`/${chain}/validator/${v.validator_address}`">{{ v.validator_address }}</RouterLink>
               </td>
             </tr>
             <tr v-for="entry in v.entries">

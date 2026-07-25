@@ -19,7 +19,8 @@
     "add_to_favorite": "加入收藏夹",
     "all_blockchains": "全部区块链",
     "sponsors": "赞助商",
-    "links": "链接"
+    "links": "链接",
+    "validator": "验证人"
   },
   "pages": {
     "title": "Shazoes Explorer",

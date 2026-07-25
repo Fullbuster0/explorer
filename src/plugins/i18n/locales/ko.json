@@ -20,7 +20,8 @@
     "add_to_favorite": "즐겨찾기에 추가",
     "all_blockchains": "모든 블록체인",
     "sponsors": "스폰서",
-    "links": "링크"
+    "links": "링크",
+    "validator": "검증인"
   },
   "pages": {
     "title": "Shazoes Explorer",
