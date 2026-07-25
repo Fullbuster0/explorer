@@ -52,27 +52,43 @@ function showPubkey(v: any) {
 }
 </script>
 <template>
-  <div class="overflow-x-auto">
-    <table class="table table-compact">
-      <thead>
-        <tr>
-          <td>{{ $t('account.type') }}</td>
-          <td>{{ $t('account.address') }}</td>
-          <td>{{ $t('account.acc_num') }}</td>
-          <td>{{ $t('account.sequence') }}</td>
-          <td>{{ $t('account.pub_key') }}</td>
-        </tr>
-      </thead>
-      <tr v-for="acc in accounts">
-        <td>{{ showType(acc['@type']) }}</td>
-        <td>
-          <RouterLink :to="`/${chain}/account/${showAddress(acc)}`">{{ showAddress(acc) }}</RouterLink>
-        </td>
-        <td>{{ showAccountNumber(acc) }}</td>
-        <td>{{ showSequence(acc) }}</td>
-        <td>{{ showPubkey(acc) }}</td>
-      </tr>
-    </table>
-    <PaginationBar :limit="pageRequest.limit" :total="pageResponse.total" :callback="pageload" />
+  <div>
+    <div class="sz-page-head">
+      <div>
+        <div class="sz-section-kicker">Chain</div>
+        <h1 class="sz-page-title">{{ $t('module.account') }}</h1>
+        <div class="sz-page-sub">All registered accounts on this network</div>
+      </div>
+    </div>
+
+    <div class="sz-section overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="sz-table">
+          <thead>
+            <tr>
+              <th>{{ $t('account.type') }}</th>
+              <th>{{ $t('account.address') }}</th>
+              <th class="text-right">{{ $t('account.acc_num') }}</th>
+              <th class="text-right">{{ $t('account.sequence') }}</th>
+              <th>{{ $t('account.pub_key') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="acc in accounts" :key="showAddress(acc)">
+              <td><span class="sz-msg">{{ showType(acc['@type']) }}</span></td>
+              <td>
+                <RouterLink class="sz-hash link link-hover text-primary" :to="`/${chain}/account/${showAddress(acc)}`">
+                  {{ showAddress(acc) }}
+                </RouterLink>
+              </td>
+              <td class="text-right font-mono text-xs">{{ showAccountNumber(acc) }}</td>
+              <td class="text-right font-mono text-xs">{{ showSequence(acc) }}</td>
+              <td class="font-mono text-xs truncate max-w-[220px]">{{ showPubkey(acc) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <PaginationBar :limit="pageRequest.limit" :total="pageResponse.total" :callback="pageload" />
+    </div>
   </div>
 </template>

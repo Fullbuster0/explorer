@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" width="600" height="600">
+  <defs>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="3" stdDeviation="6" flood-color="#0d1b4a" flood-opacity="0.15"/>
+    </filter>
+  </defs>
+
+  <!-- White background -->
+  <rect width="600" height="600" fill="#ffffff"/>
+
+  <!-- Thin circle behind S (r=195, stroke 2.5, opacity 0.6, centered at 300,300) -->
+  <circle cx="300" cy="300" r="195"
+          fill="none"
+          stroke="#90a4ae"
+          stroke-width="2.5"
+          opacity="0.6"/>
+
+  <!-- ===== STYLIZED LETTER "S" (centered via translate) ===== -->
+  <g transform="translate(300 300) translate(-250 -270)">
+    <g filter="url(#shadow)">
+      <!-- Top arc — solid dark blue -->
+      <path d="M 360 100
+               C 365 55, 245 45, 180 85
+               C 110 130, 110 220, 195 245
+               C 230 253, 258 250, 275 265"
+            fill="none"
+            stroke="#0d1b4a"
+            stroke-width="50"
+            stroke-linecap="round"
+            stroke-linejoin="round"/>
+
+      <!-- Bottom arc — solid bright light blue -->
+      <path d="M 225 245
+               C 252 250, 270 255, 290 275
+               C 360 315, 375 415, 295 440
+               C 215 465, 135 430, 140 370"
+            fill="none"
+            stroke="#2196f3"
+            stroke-width="50"
+            stroke-linecap="round"
+            stroke-linejoin="round"/>
+
+      <!-- Eye-dot top — r=6 light blue -->
+      <circle cx="360" cy="100" r="6" fill="#2196f3"/>
+
+      <!-- Eye-dot bottom — r=6 dark blue -->
+      <circle cx="140" cy="370" r="6" fill="#0d1b4a"/>
+    </g>
+  </g>
+</svg>

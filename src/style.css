@@ -114,6 +114,34 @@ html[data-theme='dark'] .sz-card {
   font-size: 11.5px;
   color: var(--text-secondary);
 }
+.sz-metric-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  font-size: 18px;
+  flex-shrink: 0;
+  background: var(--sz-accent-soft);
+  color: var(--sz-accent);
+  transition: transform 0.18s ease;
+}
+.sz-metric:hover .sz-metric-icon {
+  transform: translateY(-2px) scale(1.05);
+}
+.sz-metric-icon--error {
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+}
+.sz-metric-icon--success {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+}
+.sz-metric-icon--warning {
+  background: rgba(245, 158, 11, 0.14);
+  color: #f59e0b;
+}
 
 /* section chrome */
 .sz-section {
@@ -201,6 +229,161 @@ html[data-theme='dark'] .sz-card {
 /* selection */
 ::selection {
   background: color-mix(in srgb, hsl(var(--p)) 30%, transparent);
+}
+
+/* ---- page chrome (module pages) ---- */
+.sz-page-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+.sz-page-title {
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--text-main);
+  line-height: 1.15;
+}
+.sz-page-sub {
+  margin-top: 0.25rem;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+}
+
+/* ---- tabs (segmented, not daisyui boxed) ---- */
+.sz-tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 12px;
+  background: color-mix(in srgb, hsl(var(--bc)) 7%, transparent);
+  border: 1px solid var(--sz-border);
+}
+.sz-tab {
+  padding: 0.42rem 0.95rem;
+  border-radius: 9px;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.16s ease;
+  border: none;
+  background: transparent;
+}
+.sz-tab:hover {
+  color: var(--text-main);
+}
+.sz-tab--active {
+  background: hsl(var(--b1));
+  color: hsl(var(--p));
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12), 0 0 0 1px color-mix(in srgb, hsl(var(--p)) 22%, transparent);
+  font-weight: 700;
+}
+
+/* ---- data table ---- */
+.sz-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+.sz-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: color-mix(in srgb, hsl(var(--b2)) 85%, transparent);
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-secondary);
+  padding: 0.7rem 0.9rem;
+  border-bottom: 1px solid var(--sz-border);
+  white-space: nowrap;
+}
+.sz-table tbody td {
+  padding: 0.62rem 0.9rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--sz-border) 55%, transparent);
+  font-size: 13px;
+  vertical-align: middle;
+}
+.sz-table tbody tr {
+  transition: background-color 0.14s ease;
+}
+.sz-table tbody tr:hover {
+  background: color-mix(in srgb, hsl(var(--p)) 5%, transparent);
+}
+.sz-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* hash / address mono styling */
+.sz-hash {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 12px;
+  letter-spacing: -0.01em;
+}
+
+/* block card */
+.sz-block-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 0.6rem;
+  background: hsl(var(--b1));
+  border: 1px solid var(--sz-border);
+  border-radius: 14px;
+  padding: 0.9rem 1rem;
+  overflow: hidden;
+  transition: border-color 0.16s ease, transform 0.16s ease, box-shadow 0.16s ease;
+}
+.sz-block-card::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: linear-gradient(180deg, hsl(var(--p)), transparent);
+  opacity: 0;
+  transition: opacity 0.16s ease;
+}
+.sz-block-card:hover {
+  border-color: color-mix(in srgb, hsl(var(--p)) 42%, var(--sz-border));
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px -16px var(--sz-glow);
+}
+.sz-block-card:hover::after {
+  opacity: 1;
+}
+.sz-block-height {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-main);
+}
+
+/* message type badge */
+.sz-msg {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.14rem 0.5rem;
+  border-radius: 6px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  background: color-mix(in srgb, hsl(var(--p)) 10%, transparent);
+  color: hsl(var(--p));
+  border: 1px solid color-mix(in srgb, hsl(var(--p)) 18%, transparent);
+  white-space: nowrap;
 }
 
 /* scrollbar (webkit) */
