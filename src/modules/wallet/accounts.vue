@@ -224,7 +224,7 @@ async function loadBalances(chainName: string, endpoint: string, address: string
         <div class="flex justify-self-center">
           <div class="mx-2 p-2">
             <svg
-              :fill="chainStore.current?.themeColor || '#666CFF'"
+              :fill="chainStore.current?.themeColor || '#005fcc'"
               height="28px"
               width="28px"
               version="1.1"
