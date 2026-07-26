@@ -138,33 +138,67 @@ function commitLevel(n: number, max: number): 0 | 1 | 2 | 3 | 4 {
   return 1;
 }
 
-function dayTitle(weekUnix: number, dayIdx: number, n: number): string {
-  try {
-    const d = new Date((weekUnix + dayIdx * 86400) * 1000);
-    const label = d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
-    return `${n} commit${n === 1 ? '' : 's'} · ${label}`;
-  } catch {
-    return `${n} commits`;
-  }
+/** GitHub stats week = Sunday 00:00 UTC; days[0]=Sun … days[6]=Sat */
+function dayDate(weekUnix: number, dayIdx: number): Date {
+  return new Date((weekUnix + dayIdx * 86400) * 1000);
 }
 
-const heatmapCells = computed(() => {
+function formatHeatmapDate(d: Date): string {
+  return d.toLocaleDateString(undefined, {
+    weekday: 'short',
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
+function cellTip(n: number, d: Date): string {
+  const when = formatHeatmapDate(d);
+  if (!n) return `No contributions on ${when}`;
+  return `${n} contribution${n === 1 ? '' : 's'} on ${when}`;
+}
+
+// Mon / Wed / Fri labels (rows 1, 3, 5) — GitHub style; empty rows keep spacing
+const heatmapDayLabels = ['', 'Mon', '', 'Wed', '', 'Fri', ''] as const;
+
+const heatmapModel = computed(() => {
   const weeks = githubCard.value.weeks || [];
   const max = githubCard.value.maxDayCommits || 0;
-  const cells: { level: 0 | 1 | 2 | 3 | 4; title: string; key: string }[] = [];
-  for (const w of weeks) {
+  const cells: {
+    level: 0 | 1 | 2 | 3 | 4;
+    tip: string;
+    key: string;
+    count: number;
+  }[] = [];
+  const months: string[] = [];
+  let prevMonth = '';
+
+  for (let wi = 0; wi < weeks.length; wi++) {
+    const w = weeks[wi];
+    const weekStart = dayDate(w.week, 0);
+    const month = weekStart.toLocaleDateString(undefined, { month: 'short' });
+    months.push(month !== prevMonth ? month : '');
+    prevMonth = month;
+
     const days = w.days?.length === 7 ? w.days : [0, 0, 0, 0, 0, 0, 0];
     for (let i = 0; i < 7; i++) {
-      const n = days[i] || 0;
+      const n = Number(days[i]) || 0;
+      const d = dayDate(w.week, i);
       cells.push({
         level: commitLevel(n, max),
-        title: dayTitle(w.week, i, n),
+        tip: cellTip(n, d),
         key: `${w.week}-${i}`,
+        count: n,
       });
     }
   }
-  return cells;
+
+  return { cells, months, weekCount: weeks.length };
 });
+
+const heatmapCells = computed(() => heatmapModel.value.cells);
+const heatmapMonths = computed(() => heatmapModel.value.months);
+const heatmapWeekCount = computed(() => heatmapModel.value.weekCount);
 
 const chainLogo = computed(() => blockchain.logo || blockchain.current?.logo || '');
 const chainTitle = computed(() => {
@@ -447,12 +481,12 @@ const amount = computed({
           <a v-if="githubCard.htmlUrl" :href="githubCard.htmlUrl" class="link link-primary ml-1" target="_blank" rel="noopener">Open on GitHub</a>
         </div>
         <template v-else>
-          <!-- contribution heatmap (nodes.guru green boxes) -->
+          <!-- contribution heatmap (nodes.guru / GitHub style) -->
           <div v-if="heatmapCells.length" class="sz-gh-heatmap px-4 pt-3">
             <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
               <div class="text-xs text-secondary">
                 <span class="font-mono font-semibold text-main">{{ githubCard.totalCommitsYear.toLocaleString() }}</span>
-                commits in the last year
+                contributions in the last year
               </div>
               <div class="sz-gh-legend" aria-hidden="true">
                 <span>Less</span>
@@ -465,14 +499,47 @@ const amount = computed({
               </div>
             </div>
             <div class="sz-gh-heatmap-scroll">
-              <div class="sz-gh-heatmap-grid" role="img" :aria-label="`${githubCard.totalCommitsYear} commits last year`">
-                <span
-                  v-for="cell in heatmapCells"
-                  :key="cell.key"
-                  class="sz-gh-cell"
-                  :data-level="cell.level"
-                  :title="cell.title"
-                ></span>
+              <div
+                class="sz-gh-heatmap-wrap"
+                role="img"
+                :aria-label="`${githubCard.totalCommitsYear} contributions last year`"
+              >
+                <!-- spacer under day-labels column -->
+                <div class="sz-gh-months-spacer" aria-hidden="true"></div>
+                <!-- month labels aligned to weeks -->
+                <div
+                  class="sz-gh-months"
+                  :style="{ gridTemplateColumns: `repeat(${heatmapWeekCount}, 11px)` }"
+                >
+                  <span
+                    v-for="(m, i) in heatmapMonths"
+                    :key="`m-${i}`"
+                    class="sz-gh-month"
+                  >{{ m }}</span>
+                </div>
+                <!-- day-of-week labels (Sun…Sat rows) -->
+                <div class="sz-gh-days" aria-hidden="true">
+                  <span
+                    v-for="(label, i) in heatmapDayLabels"
+                    :key="`d-${i}`"
+                    class="sz-gh-day"
+                  >{{ label }}</span>
+                </div>
+                <!-- 52×7 cells, column-major (week = column) -->
+                <div
+                  class="sz-gh-heatmap-grid"
+                  :style="{ gridTemplateColumns: `repeat(${heatmapWeekCount}, 11px)` }"
+                >
+                  <span
+                    v-for="cell in heatmapCells"
+                    :key="cell.key"
+                    class="sz-gh-cell"
+                    :data-level="cell.level"
+                    :data-tip="cell.tip"
+                    :aria-label="cell.tip"
+                    tabindex="0"
+                  ></span>
+                </div>
               </div>
             </div>
           </div>
@@ -784,18 +851,106 @@ const amount = computed({
   color: var(--text-main);
   letter-spacing: -0.02em;
 }
-/* heatmap */
+/* heatmap — GitHub / nodes.guru layout */
 .sz-gh-heatmap-scroll {
   overflow-x: auto;
-  padding-bottom: 4px;
+  overflow-y: visible;
+  /* room for hover tip above top cells (overflow-x creates a scrollport) */
+  padding-top: 36px;
+  margin-top: -20px;
+  padding-bottom: 10px;
+}
+.sz-gh-heatmap-wrap {
+  display: grid;
+  grid-template-columns: 28px max-content;
+  grid-template-rows: 16px auto;
+  column-gap: 6px;
+  row-gap: 4px;
+  width: max-content;
+  padding-top: 2px;
+}
+.sz-gh-months-spacer { grid-column: 1; grid-row: 1; }
+.sz-gh-months {
+  grid-column: 2;
+  grid-row: 1;
+  display: grid;
+  gap: 3px;
+  font-size: 10px;
+  line-height: 14px;
+  color: var(--text-secondary);
+  user-select: none;
+}
+.sz-gh-month {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: clip;
+}
+.sz-gh-days {
+  grid-column: 1;
+  grid-row: 2;
+  display: grid;
+  grid-template-rows: repeat(7, 11px);
+  gap: 3px;
+  font-size: 9px;
+  line-height: 11px;
+  color: var(--text-secondary);
+  text-align: right;
+  user-select: none;
+}
+.sz-gh-day {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 2px;
 }
 .sz-gh-heatmap-grid {
+  grid-column: 2;
+  grid-row: 2;
   display: grid;
   grid-template-rows: repeat(7, 11px);
   grid-auto-flow: column;
-  grid-auto-columns: 11px;
   gap: 3px;
   width: max-content;
+}
+/* custom hover tip — native title is too weak / delayed */
+.sz-gh-cell {
+  position: relative;
+  cursor: default;
+  outline: none;
+}
+.sz-gh-cell:hover,
+.sz-gh-cell:focus-visible {
+  outline: 1px solid color-mix(in srgb, hsl(var(--bc)) 55%, transparent);
+  outline-offset: 1px;
+  z-index: 2;
+}
+.sz-gh-cell[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  transform: translateX(-50%) translateY(2px);
+  padding: 5px 8px;
+  border-radius: 6px;
+  background: color-mix(in srgb, hsl(var(--b1)) 92%, #000);
+  border: 1px solid var(--sz-border);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
+  color: var(--text-main);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.25;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.12s ease, transform 0.12s ease, visibility 0.12s;
+  z-index: 30;
+}
+.sz-gh-cell[data-tip]:hover::after,
+.sz-gh-cell[data-tip]:focus-visible::after {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
 }
 .sz-gh-legend {
   display: inline-flex;
