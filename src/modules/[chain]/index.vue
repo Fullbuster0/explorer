@@ -374,8 +374,12 @@ const amount = computed({
       </template>
     </section>
 
+    <!-- ===== Desktop multi-col body (mobile stays stacked) ===== -->
+    <div class="sz-dash-body">
+    <!-- Row 1: Tokenomics + Market -->
+    <div class="sz-dash-row" :class="{ 'sz-dash-row--single': !hasMarket }">
     <!-- ===== Tokenomics (nodes.guru-style) ===== -->
-    <section class="sz-section">
+    <section class="sz-section sz-dash-tokenomics">
       <div class="sz-section-head">
         <div>
           <div class="sz-section-kicker">Economics</div>
@@ -436,7 +440,7 @@ const amount = computed({
     </section>
 
     <!-- ===== Market (clean nodes.guru-style chart) ===== -->
-    <section v-if="hasMarket" class="sz-section">
+    <section v-if="hasMarket" class="sz-section sz-dash-market">
       <div class="sz-section-head">
         <div class="min-w-0">
           <div class="sz-section-kicker">Market</div>
@@ -452,7 +456,9 @@ const amount = computed({
         <PriceMarketChart />
       </div>
     </section>
+    </div><!-- /sz-dash-row Tokenomics+Market -->
 
+    <!-- GitHub: full width (heatmap needs the room) -->
       <section
         v-if="githubCard.fullName || githubCard.loading"
         class="sz-section sz-github-activity"
@@ -602,8 +608,10 @@ const amount = computed({
         </template>
       </section>
 
+    <!-- Row 2: Governance + Wallet side-by-side on desktop -->
+    <div class="sz-dash-row sz-dash-row--bottom">
     <!-- ===== Active proposals ===== -->
-    <section v-if="blockchain.supportModule('governance')" class="sz-section">
+    <section v-if="blockchain.supportModule('governance')" class="sz-section sz-dash-gov">
       <div class="sz-section-head">
         <div>
           <div class="sz-section-kicker">Governance</div>
@@ -622,7 +630,7 @@ const amount = computed({
     </section>
 
     <!-- ===== Wallet ===== -->
-    <section class="sz-section">
+    <section class="sz-section sz-dash-wallet">
       <div class="sz-section-head">
         <div class="min-w-0">
           <div class="sz-section-kicker">Wallet</div>
@@ -743,11 +751,57 @@ const amount = computed({
         ></ping-token-convert>
       </Teleport>
     </section>
+    </div><!-- /sz-dash-row Governance+Wallet -->
+    </div><!-- /sz-dash-body -->
 
   </div>
 </template>
 
 <style scoped>
+/* Desktop multi-column dashboard body (hero stays full-width outside) */
+.sz-dash-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.sz-dash-row {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+/* ≥1024px: Tokenomics + Market side-by-side */
+@media (min-width: 1024px) {
+  .sz-dash-row:not(.sz-dash-row--single) {
+    display: grid;
+    grid-template-columns: 1fr 1.15fr;
+    gap: 1rem;
+    align-items: stretch;
+  }
+  .sz-dash-row--bottom {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr;
+    gap: 1rem;
+    align-items: stretch;
+  }
+  .sz-dash-row > .sz-section {
+    min-width: 0;
+    height: 100%;
+  }
+  /* denser metric grid inside tokenomics when side-by-side */
+  .sz-dash-tokenomics .grid.lg\:grid-cols-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+/* ≥1280px: slightly more room for market chart */
+@media (min-width: 1280px) {
+  .sz-dash-row:not(.sz-dash-row--single) {
+    grid-template-columns: 1fr 1.25fr;
+  }
+  .sz-dash-row--bottom {
+    grid-template-columns: 1.35fr 1fr;
+  }
+}
+
 .sz-chain-hero {
   background:
     radial-gradient(900px 220px at 85% -20%, color-mix(in srgb, hsl(var(--p)) 16%, transparent), transparent 60%),

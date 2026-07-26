@@ -266,13 +266,18 @@ export const useIndexModule = defineStore('module-index', {
     initCoingecko() {
       this.tickerIndex = 0;
       const [firstAsset] = this.blockchain?.assets || [];
-      if (firstAsset && firstAsset.coingecko_id) {
-        this.coingecko.getCoinInfo(firstAsset.coingecko_id).then((x) => {
+      // Prefer asset coingecko_id; fall back to top-level chain.coingecko
+      const cgId =
+        firstAsset?.coingecko_id ||
+        // @ts-ignore
+        this.blockchain?.coingecko ||
+        '';
+      if (cgId) {
+        this.coingecko.getCoinInfo(cgId).then((x) => {
           this.coinInfo = x;
-          // this.coinInfo.tickers.sort((a, b) => a.converted_last.usd - b.converted_last.usd)
           this.loadGithubActivity();
         });
-        this.coingecko.getMarketChart(this.days, firstAsset.coingecko_id).then((x) => {
+        this.coingecko.getMarketChart(this.days, cgId).then((x) => {
           this.marketData = x;
         });
       }

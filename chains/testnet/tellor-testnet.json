@@ -33,7 +33,7 @@
       "base": "loya",
       "symbol": "LOYA",
       "exponent": "6",
-      "coingecko_id": "",
+      "coingecko_id": "tellor",
       "logo": "/logos/tellor.png"
     }
   ],
