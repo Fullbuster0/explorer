@@ -348,8 +348,15 @@ export class CosmosRestClient extends BaseRestClient<RequestRegistry> {
       connection_id,
     });
   }
-  async getIBCChannels() {
-    return this.request(this.registry.ibc_core_channel_channels, {});
+  async getIBCChannels(page?: PageRequest) {
+    if (!page) page = new PageRequest();
+    const query = `?${page.toQueryString()}`;
+    return this.request(this.registry.ibc_core_channel_channels, {}, query);
+  }
+  async getIBCClientStates(page?: PageRequest) {
+    if (!page) page = new PageRequest();
+    const query = `?${page.toQueryString()}`;
+    return this.request(this.registry.ibc_core_client_client_states, {}, query);
   }
   async getIBCChannelAcknowledgements(channel_id: string, port_id: string) {
     return this.request(this.registry.ibc_core_channel_channels_acknowledgements, { channel_id, port_id });

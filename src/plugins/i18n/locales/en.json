@@ -156,7 +156,7 @@
     "votes": "Votes"
   },
   "ibc": {
-    "title": "IBC Connections",
+    "title": "Relayers",
     "title_2": "IBC Client",
     "registry": "Registry",
     "connection_id": "Connection Id",
@@ -186,7 +186,24 @@
     "messages": "Messages",
     "time": "Time",
     "btn_out": "Out",
-    "btn_in": "In"
+    "btn_in": "In",
+    "summary": "IBC connections grouped by remote chain",
+    "chains": "Chains",
+    "open_connections": "Open connections",
+    "open_channels": "Open channels",
+    "well_known": "Well-known",
+    "opened": "Opened",
+    "connections": "Connections",
+    "primary_connection": "Primary connection",
+    "search_placeholder": "Search chain, chain-id, connection…",
+    "filter_all": "All",
+    "filter_open": "Open",
+    "filter_known": "Well-known",
+    "loading": "Loading IBC connections…",
+    "error_prefix": "Failed to load",
+    "empty": "No IBC connections found on this chain.",
+    "no_match": "No chains match your filters.",
+    "retry": "Retry"
   },
   "staking": {
     "inflation": "Inflation",
