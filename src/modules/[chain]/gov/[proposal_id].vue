@@ -48,8 +48,45 @@ const voteFilters = [
 /** Client-side page sizes: keep tables short on mobile/desktop. */
 const VAL_PAGE_SIZE = 20;
 const OTHER_PAGE_SIZE = 10;
+/** Max numbered page buttons, always including the last page (e.g. 1 2 3 4 …99). */
+const PAGE_SLOT_MAX = 5;
 const valPage = ref(1);
 const otherPage = ref(1);
+
+// ---- validator logos (keybase, cached in localStorage) — same as validators/blocks ----
+const avatars = ref<Record<string, string>>(JSON.parse(localStorage.getItem('avatars') || '{}'));
+
+function logo(identity?: string) {
+  if (!identity || !avatars.value[identity]) return '';
+  const url = avatars.value[identity] || '';
+  return url.startsWith('http') ? url : `https://s3.amazonaws.com/keybase_processed_uploads/${url}`;
+}
+
+function fetchAvatar(identity: string) {
+  return new Promise<void>((resolve) => {
+    stakingStore
+      .keybase(identity)
+      .then((d: any) => {
+        if (Array.isArray(d.them) && d.them.length > 0) {
+          const uri = String(d.them[0]?.pictures?.primary?.url).replace(
+            'https://s3.amazonaws.com/keybase_processed_uploads/',
+            ''
+          );
+          avatars.value[identity] = uri;
+        }
+        resolve();
+      })
+      .catch(() => resolve());
+  });
+}
+
+function loadAvatars(identities: string[]) {
+  const ids = identities.filter((id) => id && !avatars.value[id]);
+  if (!ids.length) return;
+  Promise.all(ids.map((id) => fetchAvatar(id))).then(() =>
+    localStorage.setItem('avatars', JSON.stringify(avatars.value))
+  );
+}
 
 let tallyTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -137,6 +174,71 @@ function shortAddr(addr?: string): string {
   if (!addr) return '—';
   if (addr.length <= 16) return addr;
   return `${addr.slice(0, 10)}…${addr.slice(-6)}`;
+}
+
+function shortTx(hash?: string): string {
+  if (!hash) return '—';
+  const h = String(hash);
+  if (h.length <= 14) return h;
+  return `${h.slice(0, 8)}…${h.slice(-6)}`;
+}
+
+function voteTimeLabel(ts?: string): string {
+  if (!ts) return '—';
+  // Prefer relative "from" when formatter available; fall back to short date.
+  try {
+    const rel = format.toDay(ts, 'from');
+    if (rel) return rel;
+  } catch {
+    /* ignore */
+  }
+  try {
+    const d = new Date(ts);
+    if (!Number.isNaN(d.getTime())) {
+      return d.toISOString().replace('T', ' ').replace(/:\d{2}\.\d+Z$/, ' UTC').replace(/Z$/, ' UTC');
+    }
+  } catch {
+    /* ignore */
+  }
+  return ts;
+}
+
+/**
+ * Compact page list: at most PAGE_SLOT_MAX numbers, always includes last page.
+ * Examples (current=1, total=99): 1 2 3 4 … 99
+ *          (current=50): 1 … 49 50 51 … 99  → still max 5 numbers so: 1 … 49 50 … 99
+ *          (current=98): 1 … 96 97 98 99
+ */
+function pageItems(current: number, total: number): Array<{ type: 'page' | 'ellipsis'; page?: number }> {
+  const t = Math.max(1, total | 0);
+  const c = Math.min(Math.max(1, current | 0), t);
+  if (t <= PAGE_SLOT_MAX) {
+    return Array.from({ length: t }, (_, i) => ({ type: 'page' as const, page: i + 1 }));
+  }
+  // Always show first + last. Fill remaining (PAGE_SLOT_MAX - 2) around current.
+  const slots = PAGE_SLOT_MAX - 2; // middle numeric slots
+  let start = Math.max(2, c - Math.floor((slots - 1) / 2));
+  let end = start + slots - 1;
+  if (end > t - 1) {
+    end = t - 1;
+    start = Math.max(2, end - slots + 1);
+  }
+  const items: Array<{ type: 'page' | 'ellipsis'; page?: number }> = [{ type: 'page', page: 1 }];
+  if (start > 2) items.push({ type: 'ellipsis' });
+  for (let p = start; p <= end; p++) items.push({ type: 'page', page: p });
+  if (end < t - 1) items.push({ type: 'ellipsis' });
+  items.push({ type: 'page', page: t });
+  // Deduplicate accidental overlap (e.g. start==1)
+  const seen = new Set<number>();
+  const out: typeof items = [];
+  for (const it of items) {
+    if (it.type === 'page') {
+      if (!it.page || seen.has(it.page)) continue;
+      seen.add(it.page);
+    }
+    out.push(it);
+  }
+  return out;
 }
 
 const proposalTitle = computed(() => {
@@ -239,6 +341,7 @@ const valHexMap = computed(() => {
 type ValVoteRow = {
   operator_address: string;
   moniker: string;
+  identity: string;
   vp: number;
   vpPct: number;
   vpLabel: string;
@@ -246,6 +349,8 @@ type ValVoteRow = {
   voted: boolean;
   chipClass: string;
   optionLabel: string;
+  txhash: string;
+  timestamp: string;
 };
 
 /** Empty votes on a closed proposal = pruned LCD index, NOT "nobody voted". */
@@ -299,6 +404,7 @@ const validatorRows = computed((): ValVoteRow[] => {
     rows.push({
       operator_address: v.operator_address,
       moniker: v.description?.moniker || v.operator_address,
+      identity: v.description?.identity || '',
       vp,
       vpPct,
       vpLabel: format.percent(vpPct),
@@ -306,6 +412,8 @@ const validatorRows = computed((): ValVoteRow[] => {
       voted,
       chipClass,
       optionLabel: label,
+      txhash: vote?.txhash || '',
+      timestamp: vote?.timestamp || '',
     });
   }
   rows.sort((a, b) => b.vp - a.vp);
@@ -321,6 +429,8 @@ const otherVotes = computed(() => {
     .map((vote) => ({
       voter: vote.voter,
       option: primaryOption(vote),
+      txhash: vote.txhash || '',
+      timestamp: vote.timestamp || '',
     }));
 });
 
@@ -387,6 +497,33 @@ function nextOtherPage() {
 function prevOtherPage() {
   if (otherPage.value > 1) otherPage.value -= 1;
 }
+
+const valPageItems = computed(() =>
+  pageItems(Math.min(valPage.value, valTotalPages.value), valTotalPages.value)
+);
+const otherPageItems = computed(() =>
+  pageItems(Math.min(otherPage.value, otherTotalPages.value), otherTotalPages.value)
+);
+
+// Prefetch logos for visible validator page + full set identities once
+watch(
+  pagedValidatorRows,
+  (rows) => {
+    loadAvatars(rows.map((r) => r.identity).filter(Boolean));
+  },
+  { immediate: true }
+);
+watch(
+  () => stakingStore.validators?.length || 0,
+  () => {
+    const ids = (stakingStore.validators || [])
+      .map((v) => v.description?.identity || '')
+      .filter(Boolean)
+      .slice(0, 40);
+    loadAvatars(ids);
+  },
+  { immediate: true }
+);
 
 // Reset page when filter/search changes
 watch([voteFilter, voteSearch], () => {
@@ -887,11 +1024,13 @@ onUnmounted(() => stopTallyPoll());
               <th>Validator</th>
               <th class="text-right">VP %</th>
               <th class="text-center">Vote</th>
+              <th>Tx Hash</th>
+              <th class="text-right">Time</th>
             </tr>
           </thead>
           <tbody>
             <tr v-if="filteredValidatorRows.length === 0">
-              <td colspan="4" class="text-center text-secondary py-8 text-sm">
+              <td colspan="6" class="text-center text-secondary py-8 text-sm">
                 {{
                   votesLoading
                     ? 'Loading votes…'
@@ -906,18 +1045,51 @@ onUnmounted(() => stopTallyPoll());
                 <span class="sz-chip font-mono !text-[10px]">{{ valPageStart + i + 1 }}</span>
               </td>
               <td>
-                <RouterLink
-                  :to="`/${chain}/validator/${row.operator_address}`"
-                  class="text-[13px] font-semibold text-primary no-underline hover:underline truncate block max-w-xs"
-                >
-                  {{ row.moniker }}
-                </RouterLink>
+                <div class="flex items-center gap-2 min-w-0">
+                  <div class="h-7 w-7 shrink-0 overflow-hidden rounded-full bg-base-200 ring-1 ring-base-content/10">
+                    <img
+                      v-if="logo(row.identity)"
+                      :src="logo(row.identity)"
+                      class="h-full w-full object-cover"
+                      alt=""
+                      @error="() => { if (row.identity) fetchAvatar(row.identity).then(() => localStorage.setItem('avatars', JSON.stringify(avatars))); }"
+                    />
+                    <div
+                      v-else
+                      class="flex h-full w-full items-center justify-center text-[10px] font-semibold text-secondary"
+                    >
+                      {{ (row.moniker || '?').slice(0, 1).toUpperCase() }}
+                    </div>
+                  </div>
+                  <RouterLink
+                    :to="`/${chain}/validator/${row.operator_address}`"
+                    class="text-[13px] font-semibold text-primary no-underline hover:underline truncate max-w-[12rem] sm:max-w-xs"
+                  >
+                    {{ row.moniker }}
+                  </RouterLink>
+                </div>
               </td>
               <td class="text-right">
                 <span class="font-mono text-[12.5px] tabular">{{ row.vpLabel }}</span>
               </td>
               <td class="text-center">
                 <span class="sz-chip !text-[10px]" :class="row.chipClass">{{ row.optionLabel }}</span>
+              </td>
+              <td>
+                <RouterLink
+                  v-if="row.txhash"
+                  :to="`/${chain}/tx/${row.txhash}`"
+                  class="sz-hash link link-hover text-primary font-mono text-[11.5px]"
+                  :title="row.txhash"
+                >
+                  {{ shortTx(row.txhash) }}
+                </RouterLink>
+                <span v-else class="text-secondary font-mono text-[11.5px]">—</span>
+              </td>
+              <td class="text-right">
+                <span class="font-mono text-[11.5px] text-secondary whitespace-nowrap" :title="row.timestamp || ''">
+                  {{ voteTimeLabel(row.timestamp) }}
+                </span>
               </td>
             </tr>
           </tbody>
@@ -938,14 +1110,23 @@ onUnmounted(() => stopTallyPoll());
         </template>
         <span v-else-if="votesUnavailable">Vote options unknown (index pruned)</span>
         <span v-else-if="votesLoading">Loading vote records…</span>
-        <div v-if="valTotalPages > 1" class="ml-auto flex items-center gap-2">
+        <div v-if="valTotalPages > 1" class="ml-auto flex items-center gap-1.5">
           <button
             type="button"
             class="btn btn-xs btn-ghost"
             :disabled="valPage <= 1"
             @click.stop.prevent="prevValPage"
           >Prev</button>
-          <span class="font-mono tabular">{{ Math.min(valPage, valTotalPages) }} / {{ valTotalPages }}</span>
+          <template v-for="(it, idx) in valPageItems" :key="'vp-' + idx + '-' + (it.page || 'e')">
+            <span v-if="it.type === 'ellipsis'" class="px-1 font-mono text-secondary select-none">…</span>
+            <button
+              v-else
+              type="button"
+              class="btn btn-xs min-w-[1.75rem] font-mono tabular"
+              :class="Math.min(valPage, valTotalPages) === it.page ? 'btn-primary' : 'btn-ghost'"
+              @click.stop.prevent="goValPage(it.page!)"
+            >{{ it.page }}</button>
+          </template>
           <button
             type="button"
             class="btn btn-xs btn-primary"
@@ -987,6 +1168,8 @@ onUnmounted(() => stopTallyPoll());
             <tr>
               <th>Address</th>
               <th class="text-center">Vote</th>
+              <th>Tx Hash</th>
+              <th class="text-right">Time</th>
             </tr>
           </thead>
           <tbody>
@@ -1004,6 +1187,22 @@ onUnmounted(() => stopTallyPoll());
                   {{ optionLabel(item.option) }}
                 </span>
               </td>
+              <td>
+                <RouterLink
+                  v-if="item.txhash"
+                  :to="`/${chain}/tx/${item.txhash}`"
+                  class="sz-hash link link-hover text-primary font-mono text-[11.5px]"
+                  :title="item.txhash"
+                >
+                  {{ shortTx(item.txhash) }}
+                </RouterLink>
+                <span v-else class="text-secondary font-mono text-[11.5px]">—</span>
+              </td>
+              <td class="text-right">
+                <span class="font-mono text-[11.5px] text-secondary whitespace-nowrap" :title="item.timestamp || ''">
+                  {{ voteTimeLabel(item.timestamp) }}
+                </span>
+              </td>
             </tr>
           </tbody>
         </table>
@@ -1017,14 +1216,23 @@ onUnmounted(() => stopTallyPoll());
             of
             <b class="font-mono text-main">{{ otherVotes.length }}</b>
           </span>
-          <div class="ml-auto flex items-center gap-2">
+          <div class="ml-auto flex items-center gap-1.5">
             <button
               type="button"
               class="btn btn-xs btn-ghost"
               :disabled="otherPage <= 1"
               @click.stop.prevent="prevOtherPage"
             >Prev</button>
-            <span class="font-mono tabular">{{ Math.min(otherPage, otherTotalPages) }} / {{ otherTotalPages }}</span>
+            <template v-for="(it, idx) in otherPageItems" :key="'op-' + idx + '-' + (it.page || 'e')">
+              <span v-if="it.type === 'ellipsis'" class="px-1 font-mono text-secondary select-none">…</span>
+              <button
+                v-else
+                type="button"
+                class="btn btn-xs min-w-[1.75rem] font-mono tabular"
+                :class="Math.min(otherPage, otherTotalPages) === it.page ? 'btn-primary' : 'btn-ghost'"
+                @click.stop.prevent="goOtherPage(it.page!)"
+              >{{ it.page }}</button>
+            </template>
             <button
               type="button"
               class="btn btn-xs btn-primary"

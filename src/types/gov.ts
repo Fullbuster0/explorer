@@ -70,6 +70,10 @@ export interface GovVote {
   voter: string;
   option: string;
   options: { option: string; weight: string }[];
+  /** Present when reconstructed via vote-indexer (MsgVote tx query). */
+  txhash?: string;
+  height?: number | string;
+  timestamp?: string;
 }
 
 export interface PaginatedProposals extends PaginatedResponse {
