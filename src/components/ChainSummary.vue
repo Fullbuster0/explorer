@@ -96,10 +96,9 @@ const addFavor = (e: Event) => {
 <style scoped>
 /* Frosted tile — the animated block field shows through behind it */
 .sz-chain-card {
-  background: color-mix(in srgb, hsl(var(--b1)) 58%, transparent);
+  /* solid-ish card — no per-tile backdrop-filter (N cards × blur = scroll jank) */
+  background: color-mix(in srgb, hsl(var(--b1)) 96%, transparent);
   border-color: var(--sz-border);
-  backdrop-filter: blur(14px) saturate(1.25);
-  -webkit-backdrop-filter: blur(14px) saturate(1.25);
   box-shadow: 0 1px 2px color-mix(in srgb, hsl(var(--bc)) 5%, transparent);
   overflow: hidden;
 }

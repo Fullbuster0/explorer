@@ -142,8 +142,7 @@ const chains = computed(() => {
   padding: 0.25rem;
   border-radius: 0.9rem;
   border: 1px solid var(--sz-border);
-  background: color-mix(in srgb, hsl(var(--b1)) 55%, transparent);
-  backdrop-filter: blur(10px);
+  background: color-mix(in srgb, hsl(var(--b1)) 94%, transparent);
 }
 .sz-net-tab {
   display: inline-flex;

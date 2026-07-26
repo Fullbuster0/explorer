@@ -89,9 +89,8 @@ import { Icon } from '@iconify/vue';
 
 <style scoped>
 .sz-footer {
-  background: color-mix(in srgb, hsl(var(--b1)) 55%, transparent);
-  backdrop-filter: blur(14px) saturate(1.2);
-  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  /* near-opaque — no backdrop blur (scroll paint cost) */
+  background: color-mix(in srgb, hsl(var(--b1)) 94%, transparent);
 }
 .sz-footer-row {
   display: flex;

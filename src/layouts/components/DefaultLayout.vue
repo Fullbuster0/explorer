@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { Icon } from '@iconify/vue';
-import { computed, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 
 // Components
 import newFooter from '@/layouts/components/NavFooter.vue';
@@ -46,6 +46,25 @@ blockchain.$subscribe((m, s) => {
 
 const sidebarShow = ref(false);
 
+// Pause aurora CSS animations while the user is scrolling — biggest paint thrash source.
+const auroraPaused = ref(false);
+let auroraResumeTimer: ReturnType<typeof setTimeout> | null = null;
+function onWindowScroll() {
+  if (!auroraPaused.value) auroraPaused.value = true;
+  if (auroraResumeTimer) clearTimeout(auroraResumeTimer);
+  auroraResumeTimer = setTimeout(() => {
+    auroraPaused.value = false;
+    auroraResumeTimer = null;
+  }, 180);
+}
+onMounted(() => {
+  window.addEventListener('scroll', onWindowScroll, { passive: true });
+});
+onUnmounted(() => {
+  window.removeEventListener('scroll', onWindowScroll);
+  if (auroraResumeTimer) clearTimeout(auroraResumeTimer);
+});
+
 function isNavGroup(nav: VerticalNavItems | any): nav is NavGroup {
   return (<NavGroup>nav).children !== undefined;
 }
@@ -74,28 +93,11 @@ dayjs();
 
 <template>
   <div class="sz-page-shell min-h-screen text-base-content">
-    <!-- Shazoes aurora field — denser, desynced loops (original, not blocks) -->
-    <div class="sz-aurora" aria-hidden="true">
+    <!-- Slim aurora: 3 soft orbs only (was 8 orbs + sparks + rings + beams → scroll jank) -->
+    <div class="sz-aurora" :class="{ 'sz-aurora--paused': auroraPaused }" aria-hidden="true">
       <span class="sz-orb sz-orb-a"></span>
       <span class="sz-orb sz-orb-b"></span>
       <span class="sz-orb sz-orb-c"></span>
-      <span class="sz-orb sz-orb-d"></span>
-      <span class="sz-orb sz-orb-e"></span>
-      <span class="sz-orb sz-orb-f"></span>
-      <span class="sz-orb sz-orb-g"></span>
-      <span class="sz-orb sz-orb-h"></span>
-      <span class="sz-spark sz-spark-1"></span>
-      <span class="sz-spark sz-spark-2"></span>
-      <span class="sz-spark sz-spark-3"></span>
-      <span class="sz-spark sz-spark-4"></span>
-      <span class="sz-spark sz-spark-5"></span>
-      <span class="sz-spark sz-spark-6"></span>
-      <span class="sz-ring sz-ring-1"></span>
-      <span class="sz-ring sz-ring-2"></span>
-      <span class="sz-ring sz-ring-3"></span>
-      <span class="sz-ring sz-ring-4"></span>
-      <span class="sz-beam sz-beam-1"></span>
-      <span class="sz-beam sz-beam-2"></span>
     </div>
     <!-- ===== SIDEBAR ===== -->
     <aside
@@ -306,7 +308,7 @@ dayjs();
     radial-gradient(500px 240px at 100% 100%, rgba(118, 75, 200, 0.12), transparent 50%),
     linear-gradient(180deg, #070b14 0%, #0a1020 55%, #0c1226 100%);
   border-right: 1px solid rgba(148, 163, 184, 0.1);
-  backdrop-filter: blur(8px);
+  /* no backdrop-filter — solid dark surface, zero scroll paint cost */
 }
 .sz-logo-mark {
   display: inline-flex;
@@ -386,20 +388,23 @@ dayjs();
   color: #f8fafc !important;
 }
 
-/* ---- header ---- */
+/* ---- header ---- glass lite (opaque-ish; tiny blur only on desktop) */
 .sz-header {
-  background: color-mix(in srgb, hsl(var(--b1)) 78%, transparent);
+  background: color-mix(in srgb, hsl(var(--b1)) 92%, transparent);
   border: 1px solid var(--sz-border);
-  backdrop-filter: blur(16px) saturate(1.2);
-  -webkit-backdrop-filter: blur(16px) saturate(1.2);
   box-shadow: 0 8px 24px -20px rgba(0, 0, 0, 0.45);
 }
+@media (min-width: 1024px) {
+  .sz-header {
+    background: color-mix(in srgb, hsl(var(--b1)) 86%, transparent);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+}
 
-/* ---- status strip ---- */
+/* ---- status strip ---- solid-ish, no continuous blur */
 .sz-statusbar {
-  background: color-mix(in srgb, hsl(var(--b1)) 72%, transparent);
+  background: color-mix(in srgb, hsl(var(--b1)) 94%, transparent);
   border: 1px solid var(--sz-border);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
 }
 </style>

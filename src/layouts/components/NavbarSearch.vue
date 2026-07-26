@@ -152,8 +152,7 @@ onUnmounted(() => {
   padding: 0 0.85rem;
   border-radius: 999px;
   border: 1px solid var(--sz-border);
-  background: color-mix(in srgb, hsl(var(--b1)) 65%, transparent);
-  backdrop-filter: blur(10px);
+  background: color-mix(in srgb, hsl(var(--b1)) 94%, transparent);
   color: hsl(var(--bc));
   transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
 }
