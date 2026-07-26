@@ -3,14 +3,24 @@ import MdEditor from 'md-editor-v3';
 import PriceMarketChart from '@/components/charts/PriceMarketChart.vue';
 
 import { Icon } from '@iconify/vue';
-import { useBlockchain, useFormatter, useTxDialog, useWalletStore, useStakingStore, useParamStore, useGovStore } from '@/stores';
+import {
+  useBlockchain,
+  useFormatter,
+  useTxDialog,
+  useWalletStore,
+  useStakingStore,
+  useGovStore,
+  useMintStore,
+  useBankStore,
+  useDistributionStore,
+} from '@/stores';
 import { LoadingStatus } from '@/stores/useDashboard';
 import { onMounted, ref, computed } from 'vue';
 import { useIndexModule, colorMap, tickerUrl } from './indexStore';
+import { formatSeconds } from '@/libs/utils';
 
 import CardStatisticsVertical from '@/components/CardStatisticsVertical.vue';
 import ProposalListItem from '@/components/ProposalListItem.vue';
-import ArrayObjectElement from '@/components/dynamic/ArrayObjectElement.vue';
 import Loading from '@/components/Loading.vue';
 
 const props = defineProps(['chain']);
@@ -21,23 +31,28 @@ const walletStore = useWalletStore();
 const format = useFormatter();
 const dialog = useTxDialog();
 const stakingStore = useStakingStore();
-const paramStore = useParamStore();
 const govStore = useGovStore();
+const mintStore = useMintStore();
+const bankStore = useBankStore();
+const distStore = useDistributionStore();
 const coinInfo = computed(() => {
   return store.coinInfo;
 });
-const isAppVersionLoading = computed(
-  () => !Array.isArray(paramStore.appVersion?.items) || paramStore.appVersion.items.length === 0
-);
-const isNodeVersionLoading = computed(
-  () => !Array.isArray(paramStore.nodeVersion?.items) || paramStore.nodeVersion.items.length === 0
-);
 const isProposalsLoading = computed(() => govStore.loading['2'] !== LoadingStatus.Loaded);
 
-onMounted(() => {
+function refreshDashboard() {
   store.loadDashboard();
   walletStore.loadMyAsset();
-  paramStore.handleAbciInfo();
+  // warm tokenomics sources (pool/supply/inflation/tax) after chain switch
+  distStore.fetchParams();
+  stakingStore.fetchPool();
+  stakingStore.fetchParams();
+  mintStore.fetchInflation();
+  bankStore.initial();
+}
+
+onMounted(() => {
+  refreshDashboard();
 });
 const ticker = computed(() => store.coinInfo.tickers[store.tickerIndex]);
 
@@ -45,9 +60,7 @@ const currName = ref('');
 blockchain.$subscribe((m, s) => {
   if (s.chainName !== currName.value) {
     currName.value = s.chainName;
-    store.loadDashboard();
-    walletStore.loadMyAsset();
-    paramStore.handleAbciInfo();
+    refreshDashboard();
   }
 });
 function shortName(name: string, id: string) {
@@ -166,6 +179,49 @@ const chainSymbol = computed(() => {
 });
 const hasMarket = computed(() => !!(coinInfo.value && coinInfo.value.name));
 
+/** nodes.guru-style tokenomics snapshot from live chain stores */
+const tokenomics = computed(() => {
+  const denom =
+    stakingStore.params?.bond_denom ||
+    bankStore.supply?.denom ||
+    blockchain.current?.assets?.[0]?.base ||
+    '';
+  const bondedN = Number(stakingStore.pool?.bonded_tokens || 0);
+  const notBondedN = Number(stakingStore.pool?.not_bonded_tokens || 0);
+  const supplyN = Number(bankStore.supply?.amount || 0);
+  const inflationN = Number(mintStore.inflation || 0);
+  const communityTaxN = Number(distStore.params?.community_tax || 0);
+  const bondedRatio = supplyN > 0 ? bondedN / supplyN : 0;
+  // network APR estimate at 0% commission (same formula as validator page)
+  const apr = bondedRatio > 0 ? ((1 - communityTaxN) * inflationN) / bondedRatio : 0;
+  const bondedPct = Math.max(0, Math.min(100, bondedRatio * 100));
+
+  return {
+    denom,
+    supply: supplyN
+      ? format.formatTokenAmount({ amount: String(supplyN), denom })
+      : '—',
+    bonded: bondedN
+      ? format.formatTokenAmount({ amount: String(bondedN), denom })
+      : '—',
+    notBonded: notBondedN
+      ? format.formatTokenAmount({ amount: String(notBondedN), denom })
+      : '—',
+    bondedRatio: format.percent(bondedRatio),
+    bondedPct,
+    inflation: format.percent(inflationN),
+    apr: format.percent(apr),
+    communityTax: format.percent(communityTaxN),
+    communityPool: format.formatTokens(
+      // @ts-ignore
+      (store.communityPool || []).filter((x: any) => x.denom === denom)
+    ) || '—',
+    unbonding: formatSeconds(stakingStore.params?.unbonding_time) || '—',
+    maxValidators: stakingStore.params?.max_validators || '—',
+  };
+});
+
+
 const quantity = ref(100);
 const qty = computed({
   get: () => {
@@ -200,7 +256,9 @@ const amount = computed({
               <div class="flex flex-wrap items-center gap-2.5">
                 <h1 class="sz-hero-chain">{{ chainTitle }}</h1>
                 <span v-if="chainSymbol" class="sz-chip sz-chip--info font-mono uppercase">{{ chainSymbol }}</span>
-                <span v-if="coinInfo?.market_cap_rank" class="sz-chip font-mono">Rank #{{ coinInfo.market_cap_rank }}</span>
+              </div>
+              <div v-if="coinInfo?.market_cap_rank" class="mt-2">
+                <span class="sz-chip font-mono">Rank #{{ coinInfo.market_cap_rank }}</span>
               </div>
               <div v-if="hasMarket" class="mt-2.5 flex flex-wrap items-baseline gap-2.5">
                 <span class="sz-hero-price">${{ ticker?.converted_last?.usd }}</span>
@@ -271,16 +329,69 @@ const amount = computed({
       <CardStatisticsVertical v-for="(item, key) in store.stats" :key="key" v-bind="item" />
     </div>
 
-    <!-- ===== Bento: Market + GitHub ===== -->
-    <div
-      class="sz-bento"
-      :class="{
-        'sz-bento--dual': hasMarket && (githubCard.fullName || githubCard.loading),
-        'sz-bento--market-only': hasMarket && !(githubCard.fullName || githubCard.loading),
-        'sz-bento--github-only': !hasMarket && (githubCard.fullName || githubCard.loading),
-      }"
-    >
-      <section v-if="hasMarket" class="sz-section sz-bento-market">
+    <!-- ===== Tokenomics (nodes.guru-style) ===== -->
+    <section class="sz-section">
+      <div class="sz-section-head">
+        <div>
+          <div class="sz-section-kicker">Economics</div>
+          <div class="sz-section-title">Tokenomics</div>
+        </div>
+        <div class="sz-chip font-mono">{{ tokenomics.bondedRatio }} bonded</div>
+      </div>
+
+      <div class="px-4 pt-4">
+        <div class="mb-1.5 flex items-center justify-between gap-2 text-xs">
+          <span class="text-secondary font-semibold uppercase tracking-wider">Bonded ratio</span>
+          <span class="font-mono font-semibold text-main">{{ tokenomics.bondedRatio }}</span>
+        </div>
+        <div class="sz-tok-track" aria-hidden="true">
+          <div class="sz-tok-fill" :style="{ width: tokenomics.bondedPct + '%' }"></div>
+        </div>
+        <div class="mt-1.5 flex justify-between text-[11px] text-secondary font-mono">
+          <span>Bonded {{ tokenomics.bonded }}</span>
+          <span>Not bonded {{ tokenomics.notBonded }}</span>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3 p-4 sm:grid-cols-3 lg:grid-cols-4">
+        <div class="sz-wallet-cell">
+          <div class="sz-metric-label">Total supply</div>
+          <div class="mt-1 truncate font-mono text-lg font-semibold text-main">{{ tokenomics.supply }}</div>
+        </div>
+        <div class="sz-wallet-cell">
+          <div class="sz-metric-label">Bonded tokens</div>
+          <div class="mt-1 truncate font-mono text-lg font-semibold text-main">{{ tokenomics.bonded }}</div>
+        </div>
+        <div class="sz-wallet-cell">
+          <div class="sz-metric-label">Inflation</div>
+          <div class="mt-1 truncate font-mono text-lg font-semibold text-main">{{ tokenomics.inflation }}</div>
+        </div>
+        <div class="sz-wallet-cell">
+          <div class="sz-metric-label">Est. APR</div>
+          <div class="mt-1 truncate font-mono text-lg font-semibold text-main">{{ tokenomics.apr }}</div>
+          <div class="mt-0.5 text-[11px] text-secondary">0% commission</div>
+        </div>
+        <div class="sz-wallet-cell">
+          <div class="sz-metric-label">Community pool</div>
+          <div class="mt-1 truncate font-mono text-lg font-semibold text-main">{{ tokenomics.communityPool }}</div>
+        </div>
+        <div class="sz-wallet-cell">
+          <div class="sz-metric-label">Community tax</div>
+          <div class="mt-1 truncate font-mono text-lg font-semibold text-main">{{ tokenomics.communityTax }}</div>
+        </div>
+        <div class="sz-wallet-cell">
+          <div class="sz-metric-label">Unbonding time</div>
+          <div class="mt-1 truncate font-mono text-lg font-semibold text-main">{{ tokenomics.unbonding }}</div>
+        </div>
+        <div class="sz-wallet-cell">
+          <div class="sz-metric-label">Max validators</div>
+          <div class="mt-1 truncate font-mono text-lg font-semibold text-main">{{ tokenomics.maxValidators }}</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Market (full width — chart must stay) ===== -->
+    <section v-if="hasMarket" class="sz-section">
         <div class="sz-section-head">
           <div class="min-w-0">
             <div class="sz-section-kicker">Market</div>
@@ -303,7 +414,7 @@ const amount = computed({
 
       <section
         v-if="githubCard.fullName || githubCard.loading"
-        class="sz-section sz-github-activity sz-bento-github"
+        class="sz-section sz-github-activity"
       >
         <div class="sz-section-head">
           <div class="min-w-0">
@@ -416,7 +527,6 @@ const amount = computed({
           </div>
         </template>
       </section>
-    </div>
 
     <!-- ===== Active proposals ===== -->
     <section v-if="blockchain.supportModule('governance')" class="sz-section">
@@ -560,30 +670,6 @@ const amount = computed({
       </Teleport>
     </section>
 
-    <!-- ===== Node ===== -->
-    <section class="sz-section">
-      <div class="sz-section-head">
-        <div>
-          <div class="sz-section-kicker">Node</div>
-          <div class="sz-section-title">{{ $t('index.app_versions') }}</div>
-        </div>
-      </div>
-      <Loading v-if="isAppVersionLoading" :bordered="false" />
-      <ArrayObjectElement v-else :value="paramStore.appVersion?.items" :thead="false" />
-      <div class="h-3"></div>
-    </section>
-
-    <section v-if="!store.coingeckoId" class="sz-section">
-      <div class="sz-section-head">
-        <div>
-          <div class="sz-section-kicker">Node</div>
-          <div class="sz-section-title">{{ $t('index.node_info') }}</div>
-        </div>
-      </div>
-      <Loading v-if="isNodeVersionLoading" :bordered="false" />
-      <ArrayObjectElement v-else :value="paramStore.nodeVersion?.items" :thead="false" />
-      <div class="h-3"></div>
-    </section>
   </div>
 </template>
 
@@ -662,21 +748,6 @@ const amount = computed({
   color: var(--text-main);
   letter-spacing: -0.02em;
 }
-/* bento: market + github side by side on desktop */
-.sz-bento {
-  display: grid;
-  gap: 1rem;
-  grid-template-columns: 1fr;
-}
-@media (min-width: 1024px) {
-  .sz-bento--dual {
-    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
-    align-items: stretch;
-  }
-}
-.sz-bento > .sz-section {
-  min-width: 0;
-}
 /* heatmap */
 .sz-gh-heatmap-scroll {
   overflow-x: auto;
@@ -696,6 +767,21 @@ const amount = computed({
   gap: 3px;
   font-size: 10px;
   color: var(--text-secondary);
+}
+
+.sz-tok-track {
+  height: 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, hsl(var(--bc)) 10%, transparent);
+  overflow: hidden;
+  border: 1px solid var(--sz-border);
+}
+.sz-tok-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, hsl(var(--p)), color-mix(in srgb, hsl(var(--su)) 70%, hsl(var(--p))));
+  transition: width 0.35s ease;
+  min-width: 0;
 }
 </style>
 
