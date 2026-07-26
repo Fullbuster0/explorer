@@ -130,7 +130,7 @@ function shortState(state?: string) {
       <div class="grid grid-cols-1 items-center gap-4 p-5 md:!grid-cols-[1fr_auto_1fr]">
         <!-- local -->
         <div class="min-w-0 text-center md:!text-left">
-          <div class="sz-section-kicker">This chain</div>
+          <div class="sz-section-kicker">{{ $t('ibc.this_chain') }}</div>
           <div class="mt-1 truncate text-xl font-extrabold tracking-tight text-main">
             {{ localChainId }}
           </div>
@@ -146,14 +146,14 @@ function shortState(state?: string) {
             :class="isOpen ? 'sz-chip--ok' : connLoaded ? 'sz-chip--warn' : 'sz-chip--info'"
           >
             <Icon :icon="isOpen ? 'mdi:transit-connection-variant' : 'mdi:link-off'" />
-            {{ shortState(conn.state) || 'Loading…' }}
+            {{ shortState(conn.state) || $t('ibc.loading') }}
           </span>
           <Icon icon="mdi:swap-horizontal" class="text-2xl text-secondary" />
         </div>
 
         <!-- remote -->
         <div class="min-w-0 text-center md:!text-right">
-          <div class="sz-section-kicker">Counterparty</div>
+          <div class="sz-section-kicker">{{ $t('ibc.counterparty') }}</div>
           <div class="mt-1 truncate text-xl font-extrabold tracking-tight text-main">
             {{ remoteChainId }}
           </div>
@@ -172,7 +172,7 @@ function shortState(state?: string) {
           </div>
         </div>
         <div class="px-4 py-3 text-center">
-          <div class="sz-metric-label">Client type</div>
+          <div class="sz-metric-label">{{ $t('ibc.client_type') }}</div>
           <div class="mt-0.5 truncate text-[12px] font-semibold">
             {{ (clientState.client_state?.['@type'] || '—').split('.').pop() }}
           </div>
@@ -190,7 +190,7 @@ function shortState(state?: string) {
     <div class="sz-section overflow-hidden mb-4">
       <div class="sz-section-head">
         <div>
-          <div class="sz-section-kicker">Light client</div>
+          <div class="sz-section-kicker">{{ $t('ibc.light_client') }}</div>
           <div class="sz-section-title">{{ $t('ibc.title_2') }}</div>
         </div>
         <span v-if="clientState.client_state?.['@type']" class="sz-chip sz-chip--info font-mono !text-[10px]">
@@ -232,13 +232,13 @@ function shortState(state?: string) {
           <div class="flex items-center justify-between py-2">
             <span class="text-[12.5px] text-secondary">{{ $t('ibc.allow_update_after_expiry') }}</span>
             <span class="sz-chip !text-[10px]" :class="clientState.client_state?.allow_update_after_expiry ? 'sz-chip--ok' : 'sz-chip--bad'">
-              {{ clientState.client_state?.allow_update_after_expiry ? 'Yes' : 'No' }}
+              {{ clientState.client_state?.allow_update_after_expiry ? $t('ibc.yes') : $t('ibc.no') }}
             </span>
           </div>
           <div class="flex items-center justify-between py-2">
             <span class="text-[12.5px] text-secondary">{{ $t('ibc.allow_update_after_misbehaviour') }}</span>
             <span class="sz-chip !text-[10px]" :class="clientState.client_state?.allow_update_after_misbehaviour ? 'sz-chip--ok' : 'sz-chip--bad'">
-              {{ clientState.client_state?.allow_update_after_misbehaviour ? 'Yes' : 'No' }}
+              {{ clientState.client_state?.allow_update_after_misbehaviour ? $t('ibc.yes') : $t('ibc.no') }}
             </span>
           </div>
           <div class="flex items-center justify-between gap-3 py-2">
@@ -255,14 +255,14 @@ function shortState(state?: string) {
     <div class="sz-section overflow-hidden mb-4">
       <div class="sz-section-head">
         <div>
-          <div class="sz-section-kicker">Transfer</div>
+          <div class="sz-section-kicker">{{ $t('ibc.transfer') }}</div>
           <div class="sz-section-title">{{ $t('ibc.channels') }}</div>
         </div>
         <span class="sz-chip sz-chip--info font-mono !text-[10px]">{{ openChannels }}/{{ channels.length }} open</span>
       </div>
 
       <Loading v-if="!channelsLoaded" :bordered="false" />
-      <div v-else-if="!channels.length" class="py-10 text-center text-secondary text-sm">No channels on this connection.</div>
+      <div v-else-if="!channels.length" class="py-10 text-center text-secondary text-sm">{{ $t('ibc.no_channels') }}</div>
       <div v-else class="overflow-x-auto">
         <table class="sz-table min-w-[760px]">
           <thead>
@@ -318,9 +318,9 @@ function shortState(state?: string) {
     <div v-if="channel_id" class="sz-section overflow-hidden">
       <div class="sz-section-head">
         <div>
-          <div class="sz-section-kicker">Packets</div>
+          <div class="sz-section-kicker">{{ $t('ibc.packets') }}</div>
           <div class="sz-section-title">
-            {{ direction === 'In' ? 'Incoming' : 'Outgoing' }} · {{ channel_id }} / {{ port_id }}
+            {{ direction === 'In' ? $t('ibc.incoming') : $t('ibc.outgoing') }} · {{ channel_id }} / {{ port_id }}
           </div>
         </div>
       </div>
@@ -356,7 +356,7 @@ function shortState(state?: string) {
               <td class="text-right font-mono text-[11.5px] text-secondary">{{ format.toLocaleDate(resp.timestamp) }}</td>
             </tr>
             <tr v-if="!loading && !(txs?.tx_responses?.length)">
-              <td colspan="4" class="py-8 text-center text-secondary text-sm">No packets found for this channel.</td>
+              <td colspan="4" class="py-8 text-center text-secondary text-sm">{{ $t('ibc.no_packets') }}</td>
             </tr>
           </tbody>
         </table>

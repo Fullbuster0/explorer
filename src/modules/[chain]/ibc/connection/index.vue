@@ -85,7 +85,7 @@ function openRow(row: IbcChainRow) {
     <!-- page head -->
     <div class="sz-page-head">
       <div>
-        <div class="sz-section-kicker">Interchain</div>
+        <div class="sz-section-kicker">{{ $t('ibc.kicker') || 'Interchain' }}</div>
         <h1 class="sz-page-title">{{ $t('ibc.title') }}</h1>
         <div class="sz-page-sub">
           <template v-if="loaded">
@@ -95,18 +95,18 @@ function openRow(row: IbcChainRow) {
             <span class="font-mono">{{ summary.openChannels }}</span
             >/{{ summary.channels }} channels
           </template>
-          <template v-else-if="loading">Loading IBC graph…</template>
-          <template v-else>IBC connections grouped by remote chain</template>
+          <template v-else-if="loading">{{ $t('ibc.loading') }}</template>
+          <template v-else>{{ $t('ibc.summary') }}</template>
         </div>
       </div>
       <div class="sz-tabs">
-        <a class="sz-tab" :class="{ 'sz-tab--active': filter === 'all' }" @click="filter = 'all'">All</a>
-        <a class="sz-tab" :class="{ 'sz-tab--active': filter === 'open' }" @click="filter = 'open'">Open</a>
+        <a class="sz-tab" :class="{ 'sz-tab--active': filter === 'all' }" @click="filter = 'all'">{{ $t('ibc.filter_all') }}</a>
+        <a class="sz-tab" :class="{ 'sz-tab--active': filter === 'open' }" @click="filter = 'open'">{{ $t('ibc.filter_open') }}</a>
         <a
           class="sz-tab"
           :class="{ 'sz-tab--active': filter === 'wellknown' }"
           @click="filter = 'wellknown'"
-          >Well-known</a
+          >{{ $t('ibc.filter_known') }}</a
         >
       </div>
     </div>
@@ -116,10 +116,10 @@ function openRow(row: IbcChainRow) {
       <div class="sz-metric">
         <div class="flex items-start justify-between gap-2">
           <div class="min-w-0">
-            <div class="sz-metric-label">Chains</div>
+            <div class="sz-metric-label">{{ $t('ibc.chains') }}</div>
             <div class="sz-metric-value truncate">{{ summary.chains || '—' }}</div>
             <div class="sz-metric-sub">
-              <span class="font-mono">{{ summary.wellKnownChains || 0 }}</span> well-known
+              <span class="font-mono">{{ summary.wellKnownChains || 0 }}</span> {{ $t('ibc.well_known').toLowerCase() }}
             </div>
           </div>
           <span class="sz-metric-icon"><Icon icon="mdi:link-variant" /></span>
@@ -128,7 +128,7 @@ function openRow(row: IbcChainRow) {
       <div class="sz-metric">
         <div class="flex items-start justify-between gap-2">
           <div class="min-w-0">
-            <div class="sz-metric-label">Open connections</div>
+            <div class="sz-metric-label">{{ $t('ibc.open_connections') }}</div>
             <div class="sz-metric-value truncate">
               <span class="font-mono">{{ summary.openConnections || 0 }}</span
               ><span class="text-secondary text-base font-medium">/{{ summary.connections || 0 }}</span>
@@ -140,7 +140,7 @@ function openRow(row: IbcChainRow) {
       <div class="sz-metric">
         <div class="flex items-start justify-between gap-2">
           <div class="min-w-0">
-            <div class="sz-metric-label">Channels</div>
+            <div class="sz-metric-label">{{ $t('ibc.channels') }}</div>
             <div class="sz-metric-value truncate">
               <span class="font-mono">{{ summary.openChannels || 0 }}</span
               ><span class="text-secondary text-base font-medium">/{{ summary.channels || 0 }}</span>
@@ -153,7 +153,7 @@ function openRow(row: IbcChainRow) {
       <div class="sz-metric">
         <div class="flex items-start justify-between gap-2">
           <div class="min-w-0">
-            <div class="sz-metric-label">Well-known</div>
+            <div class="sz-metric-label">{{ $t('ibc.well_known') }}</div>
             <div class="sz-metric-value truncate">{{ summary.wellKnownChains || 0 }}</div>
             <div class="sz-metric-sub">registry / hosted</div>
           </div>
@@ -169,16 +169,16 @@ function openRow(row: IbcChainRow) {
     >
       <Icon icon="mdi:alert-circle-outline" class="text-lg shrink-0 mt-0.5" />
       <div>
-        <div class="font-semibold">Failed to load IBC data</div>
+        <div class="font-semibold">{{ $t('ibc.error_prefix') }}</div>
         <div class="text-secondary font-mono text-xs mt-0.5 break-all">{{ error }}</div>
-        <button class="btn btn-xs btn-primary mt-2" @click="ibcStore.load(true)">Retry</button>
+        <button class="btn btn-xs btn-primary mt-2" @click="ibcStore.load(true)">{{ $t('ibc.retry') }}</button>
       </div>
     </div>
 
     <!-- table -->
     <div class="sz-section mt-4 overflow-hidden">
       <div class="flex flex-wrap items-center justify-between gap-3 border-b border-base-content/10 px-4 py-3">
-        <div class="sz-section-title text-sm !mb-0">Relayers</div>
+        <div class="sz-section-title text-sm !mb-0">{{ $t('ibc.title') }}</div>
         <div class="relative w-full sm:w-72">
           <Icon
             icon="mdi:magnify"
@@ -195,22 +195,22 @@ function openRow(row: IbcChainRow) {
 
       <div v-if="loading && !loaded" class="flex items-center justify-center gap-2 py-16 text-secondary text-sm">
         <span class="loading loading-spinner loading-sm"></span>
-        Loading connections, channels &amp; clients…
+        {{ $t('ibc.loading') }}
       </div>
 
       <div v-else-if="!filteredRows.length" class="py-14 text-center text-secondary text-sm">
-        {{ loaded ? 'No matching chains' : 'No IBC data yet' }}
+        {{ loaded ? $t('ibc.no_match') : $t('ibc.empty') }}
       </div>
 
       <div v-else class="overflow-x-auto">
         <table class="sz-table min-w-[720px]">
           <thead>
             <tr>
-              <th>Chain</th>
-              <th>Status</th>
-              <th class="text-right">Connections</th>
-              <th class="text-right">Channels</th>
-              <th>Primary connection</th>
+              <th>{{ $t('ibc.chains') }}</th>
+              <th>{{ $t('ibc.state') }}</th>
+              <th class="text-right">{{ $t('ibc.connections') }}</th>
+              <th class="text-right">{{ $t('ibc.channels') }}</th>
+              <th>{{ $t('ibc.primary_connection') }}</th>
             </tr>
           </thead>
           <tbody>
@@ -291,10 +291,10 @@ function openRow(row: IbcChainRow) {
         v-if="loaded"
         class="flex flex-wrap items-center gap-2 border-t border-base-content/10 px-4 py-3 text-[11.5px] text-secondary"
       >
-        <span class="sz-chip sz-chip--ok">Opened all</span>
-        <span class="sz-chip sz-chip--warn">Partial</span>
-        <span class="sz-chip sz-chip--bad">Closed</span>
-        <span class="hidden md:!inline">Volume $ not indexed — connections &amp; channels only.</span>
+        <span class="sz-chip sz-chip--ok">{{ $t('ibc.legend_all') }}</span>
+        <span class="sz-chip sz-chip--warn">{{ $t('ibc.legend_partial') }}</span>
+        <span class="sz-chip sz-chip--bad">{{ $t('ibc.legend_closed') }}</span>
+        <span class="hidden md:!inline">{{ $t('ibc.legend_note') }}</span>
       </div>
     </div>
   </div>
