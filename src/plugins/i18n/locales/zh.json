@@ -145,7 +145,7 @@
     "votes": "投票"
   },
   "ibc": {
-    "title": "IBC 连接",
+    "title": "中继",
     "title_2": "IBC 客户端",
     "registry": "注册表",
     "connection_id": "连接 Id",
@@ -175,7 +175,24 @@
     "messages": "消息",
     "time": "时间",
     "btn_out": "出",
-    "btn_in": "进"
+    "btn_in": "进",
+    "summary": "按目标链分组的 IBC 连接",
+    "chains": "链",
+    "open_connections": "打开的连接",
+    "open_channels": "打开的通道",
+    "well_known": "知名链",
+    "opened": "已打开",
+    "connections": "连接",
+    "primary_connection": "主要连接",
+    "search_placeholder": "搜索链、链 ID、连接…",
+    "filter_all": "全部",
+    "filter_open": "已打开",
+    "filter_known": "知名链",
+    "loading": "正在加载 IBC 连接…",
+    "error_prefix": "加载失败",
+    "empty": "该链上未找到 IBC 连接。",
+    "no_match": "没有链与筛选条件匹配。",
+    "retry": "重试"
   },
   "staking": {
     "inflation": "通胀率",

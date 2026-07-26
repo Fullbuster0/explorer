@@ -154,7 +154,7 @@
     "votes": "Votos"
   },
   "ibc": {
-    "title": "Conexiones IBC",
+    "title": "Relayers",
     "title_2": "Cliente IBC",
     "registry": "Registro",
     "connection_id": "ID de conexión",
@@ -184,7 +184,24 @@
     "messages": "Mensajes",
     "time": "Tiempo",
     "btn_out": "Fuera",
-    "btn_in": "Dentro"
+    "btn_in": "Dentro",
+    "summary": "Conexiones IBC agrupadas por chain remota",
+    "chains": "Chains",
+    "open_connections": "Conexiones abiertas",
+    "open_channels": "Canales abiertos",
+    "well_known": "Well-known",
+    "opened": "Abierto",
+    "connections": "Conexiones",
+    "primary_connection": "Conexión principal",
+    "search_placeholder": "Buscar chain, chain-id, conexión…",
+    "filter_all": "Todas",
+    "filter_open": "Abiertas",
+    "filter_known": "Well-known",
+    "loading": "Cargando conexiones IBC…",
+    "error_prefix": "Error al cargar",
+    "empty": "No hay conexiones IBC en esta chain.",
+    "no_match": "Ninguna chain coincide con los filtros.",
+    "retry": "Reintentar"
   },
   "staking": {
     "inflation": "Inflación",

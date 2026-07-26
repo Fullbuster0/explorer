@@ -143,8 +143,8 @@
     "votes": "Suara"
   },
   "ibc": {
-    "title": "Koneksi IBC",
-    "title_2": "Klien IBC",
+    "title": "Relayer",
+    "title_2": "IBC Client",
     "registry": "Registri",
     "connection_id": "ID Koneksi",
     "btn_apply": "Ajukan",
@@ -173,7 +173,24 @@
     "messages": "Pesan",
     "time": "Waktu",
     "btn_out": "Keluar",
-    "btn_in": "Masuk"
+    "btn_in": "Masuk",
+    "summary": "Koneksi IBC dikelompokkan per chain tujuan",
+    "chains": "Chain",
+    "open_connections": "Koneksi terbuka",
+    "open_channels": "Channel terbuka",
+    "well_known": "Well-known",
+    "opened": "Terbuka",
+    "connections": "Koneksi",
+    "primary_connection": "Koneksi utama",
+    "search_placeholder": "Cari chain, chain-id, koneksi…",
+    "filter_all": "Semua",
+    "filter_open": "Terbuka",
+    "filter_known": "Well-known",
+    "loading": "Memuat koneksi IBC…",
+    "error_prefix": "Gagal memuat",
+    "empty": "Tidak ada koneksi IBC pada chain ini.",
+    "no_match": "Tidak ada chain yang cocok dengan filter.",
+    "retry": "Coba lagi"
   },
   "staking": {
     "inflation": "Inflasi",

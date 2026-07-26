@@ -154,7 +154,7 @@
     "votes": "투표"
   },
   "ibc": {
-    "title": "IBC 연결",
+    "title": "릴레이어",
     "title_2": "IBC 클라이언트",
     "registry": "레지스트리",
     "connection_id": "연결 ID",
@@ -184,7 +184,24 @@
     "messages": "메시지",
     "time": "시간",
     "btn_out": "출력",
-    "btn_in": "입력"
+    "btn_in": "입력",
+    "summary": "원격 체인별로 그룹화된 IBC 연결",
+    "chains": "체인",
+    "open_connections": "열린 연결",
+    "open_channels": "열린 채널",
+    "well_known": "Well-known",
+    "opened": "열림",
+    "connections": "연결",
+    "primary_connection": "주요 연결",
+    "search_placeholder": "체인, 체인 ID, 연결 검색…",
+    "filter_all": "전체",
+    "filter_open": "열림",
+    "filter_known": "Well-known",
+    "loading": "IBC 연결을 불러오는 중…",
+    "error_prefix": "불러오기 실패",
+    "empty": "이 체인에는 IBC 연결이 없습니다.",
+    "no_match": "필터와 일치하는 체인이 없습니다.",
+    "retry": "다시 시도"
   },
   "staking": {
     "inflation": "인플레이션",

@@ -154,7 +154,7 @@
     "votes": "Stimmen"
   },
   "ibc": {
-    "title": "IBC-Verbindungen",
+    "title": "Relayer",
     "title_2": "IBC-Client",
     "registry": "Register",
     "connection_id": "Verbindungs-ID",
@@ -184,7 +184,24 @@
     "messages": "Nachrichten",
     "time": "Zeit",
     "btn_out": "Ausgehend",
-    "btn_in": "Eingehend"
+    "btn_in": "Eingehend",
+    "summary": "IBC-Verbindungen gruppiert nach Ziel-Chain",
+    "chains": "Chains",
+    "open_connections": "Offene Verbindungen",
+    "open_channels": "Offene Kanäle",
+    "well_known": "Well-known",
+    "opened": "Offen",
+    "connections": "Verbindungen",
+    "primary_connection": "Primäre Verbindung",
+    "search_placeholder": "Chain, Chain-ID, Verbindung suchen…",
+    "filter_all": "Alle",
+    "filter_open": "Offen",
+    "filter_known": "Well-known",
+    "loading": "IBC-Verbindungen werden geladen…",
+    "error_prefix": "Ladefehler",
+    "empty": "Keine IBC-Verbindungen auf dieser Chain.",
+    "no_match": "Keine Chains passen zu den Filtern.",
+    "retry": "Wiederholen"
   },
   "staking": {
     "inflation": "Inflation",
