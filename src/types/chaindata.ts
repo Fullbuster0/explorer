@@ -50,6 +50,8 @@ export interface LocalChainConfig {
   rpc: string[] | Endpoint[];
   sdk_version: string;
   registry_name?: string;
+  /** Optional chain codebase repo (used by dashboard GitHub activity card). */
+  github?: string;
   features?: string[];
   keplr_price_step?: {
     low: number;
@@ -119,6 +121,8 @@ export interface ChainConfig {
     grpc?: Endpoint[];
   };
   logo: string;
+  /** Optional GitHub repo URL for dashboard activity card. */
+  github?: string;
   versions: {
     application?: string;
     cosmosSdk?: string;

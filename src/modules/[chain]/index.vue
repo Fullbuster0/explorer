@@ -104,6 +104,19 @@ function trustColor(v: string) {
   return `text-${colorMap(v)}`;
 }
 
+function formatGithubDate(iso: string) {
+  if (!iso) return '';
+  try {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '';
+    return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+  } catch {
+    return '';
+  }
+}
+
+const githubCard = computed(() => store.githubActivity);
+
 const quantity = ref(100);
 const qty = computed({
   get: () => {
@@ -220,6 +233,94 @@ const amount = computed({
       <div v-if="coinInfo.categories?.length" class="flex flex-wrap gap-2 border-t border-base-content/10 px-4 py-3">
         <span v-for="tag in coinInfo.categories" :key="tag" class="sz-chip">{{ tag }}</span>
       </div>
+    </section>
+
+
+    <!-- ===== GitHub activity (nodes.guru-style) ===== -->
+    <section
+      v-if="githubCard.fullName || githubCard.loading"
+      class="sz-section sz-github-activity"
+    >
+      <div class="sz-section-head">
+        <div class="min-w-0">
+          <div class="sz-section-kicker">Development</div>
+          <div class="sz-section-title">GitHub Activity</div>
+        </div>
+        <a
+          v-if="githubCard.htmlUrl"
+          :href="githubCard.htmlUrl"
+          target="_blank"
+          rel="noopener"
+          class="btn btn-sm btn-outline gap-1"
+        >
+          <Icon icon="mdi-github" class="text-base" />
+          <span class="hidden sm:inline font-mono text-xs">{{ githubCard.fullName }}</span>
+          <span class="sm:hidden">Repo</span>
+        </a>
+      </div>
+
+      <div v-if="githubCard.loading" class="px-4 py-6 text-sm text-secondary">Loading repository activity…</div>
+      <div v-else-if="githubCard.error && !githubCard.commits?.length" class="px-4 py-4 text-sm text-secondary">
+        {{ githubCard.error }}
+        <a v-if="githubCard.htmlUrl" :href="githubCard.htmlUrl" class="link link-primary ml-1" target="_blank" rel="noopener">Open on GitHub</a>
+      </div>
+      <template v-else>
+        <div class="grid grid-cols-2 gap-2 px-4 pt-3 sm:grid-cols-4">
+          <div class="sz-gh-stat">
+            <div class="sz-metric-label">Stars</div>
+            <div class="sz-gh-stat-val">{{ githubCard.stars }}</div>
+          </div>
+          <div class="sz-gh-stat">
+            <div class="sz-metric-label">Forks</div>
+            <div class="sz-gh-stat-val">{{ githubCard.forks }}</div>
+          </div>
+          <div class="sz-gh-stat">
+            <div class="sz-metric-label">Open issues</div>
+            <div class="sz-gh-stat-val">{{ githubCard.openIssues }}</div>
+          </div>
+          <div class="sz-gh-stat">
+            <div class="sz-metric-label">Language</div>
+            <div class="sz-gh-stat-val truncate">{{ githubCard.language || '—' }}</div>
+          </div>
+        </div>
+        <p v-if="githubCard.description" class="px-4 pt-3 text-sm text-secondary line-clamp-2">
+          {{ githubCard.description }}
+        </p>
+        <div class="mt-3 border-t border-base-content/10">
+          <div class="flex items-center justify-between px-4 py-2.5">
+            <div class="text-xs font-semibold uppercase tracking-wider text-secondary">Recent commits</div>
+            <div v-if="githubCard.pushedAt" class="font-mono text-[11px] text-secondary">
+              pushed {{ formatGithubDate(githubCard.pushedAt) }}
+            </div>
+          </div>
+          <ul class="divide-y divide-base-content/10">
+            <li
+              v-for="c in githubCard.commits"
+              :key="c.sha"
+              class="px-4 py-2.5 hover:bg-base-content/5 transition-colors"
+            >
+              <a
+                :href="c.htmlUrl || githubCard.htmlUrl"
+                target="_blank"
+                rel="noopener"
+                class="block no-underline"
+              >
+                <div class="flex items-start gap-2">
+                  <span class="mt-0.5 shrink-0 rounded bg-base-content/10 px-1.5 py-0.5 font-mono text-[11px] text-primary">{{ c.sha }}</span>
+                  <div class="min-w-0 flex-1">
+                    <div class="truncate text-sm font-medium text-main">{{ c.message || '—' }}</div>
+                    <div class="mt-0.5 flex flex-wrap gap-x-2 text-[11px] text-secondary">
+                      <span>{{ c.author }}</span>
+                      <span v-if="c.date" class="font-mono">{{ formatGithubDate(c.date) }}</span>
+                    </div>
+                  </div>
+                </div>
+              </a>
+            </li>
+            <li v-if="!githubCard.commits?.length" class="px-4 py-4 text-sm text-secondary">No recent commits</li>
+          </ul>
+        </div>
+      </template>
     </section>
 
     <!-- ===== Active proposals ===== -->
@@ -436,6 +537,20 @@ const amount = computed({
   border: 1px solid var(--sz-border);
   border-radius: 12px;
   padding: 0.8rem 0.9rem;
+}
+.sz-gh-stat {
+  background: color-mix(in srgb, hsl(var(--b2)) 65%, transparent);
+  border: 1px solid var(--sz-border);
+  border-radius: 12px;
+  padding: 0.65rem 0.8rem;
+}
+.sz-gh-stat-val {
+  margin-top: 0.2rem;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-main);
+  letter-spacing: -0.02em;
 }
 </style>
 

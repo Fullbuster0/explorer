@@ -74,6 +74,7 @@ export function convertFromLocal(lc: LocalChainConfig): ChainConfig {
   conf.keplrPriceStep = lc.keplr_price_step;
   conf.themeColor = lc.theme_color;
   conf.faucet = lc.faucet;
+  if (lc.github) conf.github = lc.github;
   return conf;
 }
 

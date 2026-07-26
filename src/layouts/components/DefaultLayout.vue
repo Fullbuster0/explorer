@@ -93,11 +93,28 @@ dayjs();
 
 <template>
   <div class="sz-page-shell min-h-screen text-base-content">
-    <!-- Slim aurora: 3 soft orbs only (was 8 orbs + sparks + rings + beams → scroll jank) -->
+    <!-- Shazoes aurora field — full motion (orbs + sparks + rings + beams); pause on scroll -->
     <div class="sz-aurora" :class="{ 'sz-aurora--paused': auroraPaused }" aria-hidden="true">
       <span class="sz-orb sz-orb-a"></span>
       <span class="sz-orb sz-orb-b"></span>
       <span class="sz-orb sz-orb-c"></span>
+      <span class="sz-orb sz-orb-d"></span>
+      <span class="sz-orb sz-orb-e"></span>
+      <span class="sz-orb sz-orb-f"></span>
+      <span class="sz-orb sz-orb-g"></span>
+      <span class="sz-orb sz-orb-h"></span>
+      <span class="sz-spark sz-spark-1"></span>
+      <span class="sz-spark sz-spark-2"></span>
+      <span class="sz-spark sz-spark-3"></span>
+      <span class="sz-spark sz-spark-4"></span>
+      <span class="sz-spark sz-spark-5"></span>
+      <span class="sz-spark sz-spark-6"></span>
+      <span class="sz-ring sz-ring-1"></span>
+      <span class="sz-ring sz-ring-2"></span>
+      <span class="sz-ring sz-ring-3"></span>
+      <span class="sz-ring sz-ring-4"></span>
+      <span class="sz-beam sz-beam-1"></span>
+      <span class="sz-beam sz-beam-2"></span>
     </div>
     <!-- ===== SIDEBAR ===== -->
     <aside

@@ -79,6 +79,26 @@ export const useIndexModule = defineStore('module-index', {
       },
       communityPool: [] as { amount: string; denom: string }[],
       tally: {} as Record<string, Tally>,
+      githubActivity: {
+        loading: false,
+        error: '' as string,
+        fullName: '' as string,
+        htmlUrl: '' as string,
+        description: '' as string,
+        stars: 0,
+        forks: 0,
+        openIssues: 0,
+        language: '' as string,
+        pushedAt: '' as string,
+        defaultBranch: '' as string,
+        commits: [] as {
+          sha: string;
+          message: string;
+          author: string;
+          date: string;
+          htmlUrl: string;
+        }[],
+      },
     };
   },
   getters: {
@@ -216,6 +236,8 @@ export const useIndexModule = defineStore('module-index', {
     async loadDashboard() {
       this.$reset();
       this.initCoingecko();
+      // kick github early; coingecko may refine repo URL after coinInfo loads
+      this.loadGithubActivity();
       useMintStore().fetchInflation();
       useDistributionStore()
         .fetchCommunityPool()
@@ -242,10 +264,125 @@ export const useIndexModule = defineStore('module-index', {
         this.coingecko.getCoinInfo(firstAsset.coingecko_id).then((x) => {
           this.coinInfo = x;
           // this.coinInfo.tickers.sort((a, b) => a.converted_last.usd - b.converted_last.usd)
+          this.loadGithubActivity();
         });
         this.coingecko.getMarketChart(this.days, firstAsset.coingecko_id).then((x) => {
           this.marketData = x;
         });
+      }
+    },
+
+    parseGithubRepo(url: string): { owner: string; repo: string } | null {
+      if (!url) return null;
+      try {
+        const cleaned = url.trim().replace(/\.git$/i, '').replace(/\/$/, '');
+        const m = cleaned.match(/github\.com[/:]([^/\s]+)[/]([^/\s?#]+)/i);
+        if (!m) return null;
+        return { owner: m[1], repo: m[2] };
+      } catch {
+        return null;
+      }
+    },
+
+    resolveGithubUrl(): string {
+      // 1) CoinGecko repos
+      const fromCg = this.github;
+      if (fromCg) return fromCg;
+      // 2) chain config optional fields
+      const chain: any = this.blockchain || {};
+      const candidates = [
+        chain?.codebase?.git_repo,
+        chain?.git_repo,
+        chain?.github,
+        chain?.links?.github,
+      ].filter(Boolean) as string[];
+      return candidates[0] || '';
+    },
+
+    async loadGithubActivity() {
+      const url = this.resolveGithubUrl();
+      const parsed = this.parseGithubRepo(url);
+      if (!parsed) {
+        // keep empty card hidden when no repo known
+        this.githubActivity.fullName = '';
+        this.githubActivity.error = '';
+        this.githubActivity.loading = false;
+        this.githubActivity.commits = [];
+        return;
+      }
+
+      const cacheKey = `sz-gh-activity:${parsed.owner}/${parsed.repo}`;
+      try {
+        const cached = sessionStorage.getItem(cacheKey);
+        if (cached) {
+          const data = JSON.parse(cached);
+          if (data && data.fullName && Date.now() - (data._ts || 0) < 15 * 60 * 1000) {
+            this.githubActivity = { ...data, loading: false, error: '' };
+            return;
+          }
+        }
+      } catch {
+        /* ignore cache parse */
+      }
+
+      this.githubActivity.loading = true;
+      this.githubActivity.error = '';
+      const headers: Record<string, string> = {
+        Accept: 'application/vnd.github+json',
+      };
+
+      try {
+        const [repoRes, commitsRes] = await Promise.all([
+          fetch(`https://api.github.com/repos/${parsed.owner}/${parsed.repo}`, { headers }),
+          fetch(
+            `https://api.github.com/repos/${parsed.owner}/${parsed.repo}/commits?per_page=6`,
+            { headers }
+          ),
+        ]);
+
+        if (!repoRes.ok) {
+          throw new Error(`GitHub repo ${repoRes.status}`);
+        }
+        const repo = await repoRes.json();
+        let commits: any[] = [];
+        if (commitsRes.ok) {
+          commits = await commitsRes.json();
+        }
+
+        const next = {
+          loading: false,
+          error: '',
+          fullName: repo.full_name || `${parsed.owner}/${parsed.repo}`,
+          htmlUrl: repo.html_url || `https://github.com/${parsed.owner}/${parsed.repo}`,
+          description: repo.description || '',
+          stars: repo.stargazers_count || 0,
+          forks: repo.forks_count || 0,
+          openIssues: repo.open_issues_count || 0,
+          language: repo.language || '',
+          pushedAt: repo.pushed_at || '',
+          defaultBranch: repo.default_branch || 'main',
+          commits: (Array.isArray(commits) ? commits : []).slice(0, 6).map((c: any) => ({
+            sha: (c.sha || '').slice(0, 7),
+            message: String(c.commit?.message || '').split('\n')[0].slice(0, 120),
+            author: c.commit?.author?.name || c.author?.login || 'unknown',
+            date: c.commit?.author?.date || '',
+            htmlUrl: c.html_url || '',
+          })),
+        };
+        this.githubActivity = next as any;
+        try {
+          sessionStorage.setItem(cacheKey, JSON.stringify({ ...next, _ts: Date.now() }));
+        } catch {
+          /* quota */
+        }
+      } catch (e: any) {
+        this.githubActivity.loading = false;
+        this.githubActivity.error = e?.message || 'GitHub unavailable';
+        // still show link if we have a name
+        if (!this.githubActivity.fullName) {
+          this.githubActivity.fullName = `${parsed.owner}/${parsed.repo}`;
+          this.githubActivity.htmlUrl = `https://github.com/${parsed.owner}/${parsed.repo}`;
+        }
       }
     },
     selectTicker(i: number) {

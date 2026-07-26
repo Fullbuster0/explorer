@@ -3,7 +3,7 @@
   "chain_id": "atomone-testnet-1",
   "network_type": "testnet",
   "registry_name": "AtomOne",
-  "coingecko": "",
+  "coingecko": "atomone",
   "api": [
     {
       "address": "https://testnet-atomone-api.konsortech.xyz",
@@ -28,7 +28,7 @@
       "base": "uatone",
       "symbol": "ATONE",
       "exponent": "6",
-      "coingecko_id": "atone",
+      "coingecko_id": "atomone",
       "logo": "/logos/atomone.png"
     }
   ],
@@ -36,5 +36,6 @@
     "ibc-go",
     "ibc-transfer",
     "no-legacy-stdTx"
-  ]
+  ],
+  "github": "https://github.com/atomone-hub/atomone"
 }
