@@ -4,6 +4,7 @@
   "network_type": "mainnet",
   "registry_name": "SEDA",
   "coingecko": "",
+  "github": "https://github.com/sedaprotocol/seda-chain",
   "api": [
     {
       "address": "https://seda-mainnet-api.shazoes.xyz",
@@ -27,7 +28,7 @@
     },
     {
       "address": "https://rest.lavenderfive.com:443/seda",
-      "provider": "Lavender.Five Nodes \ud83d\udc1d"
+      "provider": "Lavender.Five Nodes 🐝"
     },
     {
       "address": "https://seda.ibs.team:443/api",
@@ -39,7 +40,7 @@
     },
     {
       "address": "https://seda_mainnet_api.chain.whenmoonwhenlambo.money",
-      "provider": "\ud83d\ude80 WHEN MOON \ud83c\udf15 WHEN LAMBO \ud83d\udd25"
+      "provider": "🚀 WHEN MOON 🌕 WHEN LAMBO 🔥"
     },
     {
       "address": "https://seda-api.node39.top:443",
@@ -47,7 +48,7 @@
     },
     {
       "address": "https://seda-rest.cosmos-apis.com:443",
-      "provider": "RHINO \ud83e\udd8f"
+      "provider": "RHINO 🦏"
     },
     {
       "address": "https://seda.api.cumulo.org.es",
@@ -59,7 +60,7 @@
     },
     {
       "address": "https://seda-api.stakeandrelax.net",
-      "provider": "Stake&Relax \ud83e\udda5"
+      "provider": "Stake&Relax 🦥"
     },
     {
       "address": "https://rest.cros-nest.com/seda",
@@ -97,7 +98,7 @@
     },
     {
       "address": "https://rpc.lavenderfive.com:443/seda",
-      "provider": "Lavender.Five Nodes \ud83d\udc1d"
+      "provider": "Lavender.Five Nodes 🐝"
     },
     {
       "address": "https://seda.ibs.team:443/rpc",
@@ -109,7 +110,7 @@
     },
     {
       "address": "https://seda_mainnet_rpc.chain.whenmoonwhenlambo.money:443",
-      "provider": "\ud83d\ude80 WHEN MOON \ud83c\udf15 WHEN LAMBO \ud83d\udd25"
+      "provider": "🚀 WHEN MOON 🌕 WHEN LAMBO 🔥"
     },
     {
       "address": "https://seda-rpc.node39.top:443",
@@ -117,7 +118,7 @@
     },
     {
       "address": "https://seda-rpc.cosmos-apis.com:443",
-      "provider": "RHINO \ud83e\udd8f"
+      "provider": "RHINO 🦏"
     },
     {
       "address": "https://seda.rpc.cumulo.org.es",
@@ -129,7 +130,7 @@
     },
     {
       "address": "https://seda-rpc.stakeandrelax.net",
-      "provider": "Stake&Relax \ud83e\udda5"
+      "provider": "Stake&Relax 🦥"
     },
     {
       "address": "https://rpc.cros-nest.com/seda",

@@ -4,6 +4,7 @@
   "network_type": "testnet",
   "registry_name": "Structs",
   "coingecko": "",
+  "github": "https://github.com/playstructs/structsd",
   "api": [
     {
       "address": "https://structs-testnet-api.moonbridge.org",

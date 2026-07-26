@@ -4,6 +4,7 @@
   "network_type": "mainnet",
   "registry_name": "Nillion",
   "coingecko": "",
+  "github": "https://github.com/NillionNetwork/nilchain",
   "api": [
     {
       "address": "https://nillion-mainnet-api.shazoes.xyz",
@@ -29,7 +30,7 @@
     },
     {
       "address": "https://nillion-mainnet-rpc.autostake.com:443",
-      "provider": "AutoStake \ud83d\udee1\ufe0f Slash Protected"
+      "provider": "AutoStake 🛡️ Slash Protected"
     },
     {
       "address": "https://rpc.nillion.validatus.com",

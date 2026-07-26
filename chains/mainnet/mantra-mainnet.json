@@ -4,6 +4,7 @@
   "network_type": "mainnet",
   "registry_name": "MANTRA",
   "coingecko": "",
+  "github": "https://github.com/MANTRA-Chain/mantrachain",
   "api": [
     {
       "address": "https://mantra.api.m.stavr.tech",

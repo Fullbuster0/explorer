@@ -4,6 +4,7 @@
   "network_type": "testnet",
   "registry_name": "Airchain",
   "coingecko": "",
+  "github": "https://github.com/airchains-network/junction",
   "api": [
     {
       "address": "https://airchain-testnet-api.shazoes.xyz",

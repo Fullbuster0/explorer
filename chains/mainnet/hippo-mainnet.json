@@ -4,6 +4,7 @@
   "network_type": "mainnet",
   "registry_name": "Hippo",
   "coingecko": "",
+  "github": "https://github.com/hippo-protocol/hippo-protocol",
   "api": [
     {
       "address": "https://hippo-mainnet-api.shazoes.xyz",

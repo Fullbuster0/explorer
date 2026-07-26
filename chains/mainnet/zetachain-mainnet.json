@@ -4,6 +4,7 @@
   "network_type": "mainnet",
   "registry_name": "ZetaChain",
   "coingecko": "",
+  "github": "https://github.com/zeta-chain/node",
   "api": [
     {
       "address": "https://zetachain-mainnet-api.shazoes.xyz",

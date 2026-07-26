@@ -4,6 +4,7 @@
   "network_type": "mainnet",
   "registry_name": "Union",
   "coingecko": "",
+  "github": "https://github.com/unionlabs/union",
   "api": [
     {
       "address": "https://union-mainnet-api.shazoes.xyz",

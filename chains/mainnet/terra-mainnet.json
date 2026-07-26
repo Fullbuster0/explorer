@@ -4,6 +4,7 @@
   "network_type": "mainnet",
   "registry_name": "Terra",
   "coingecko": "",
+  "github": "https://github.com/terra-money/core",
   "api": [
     {
       "address": "https://terra-mainnet-api.shazoes.xyz",

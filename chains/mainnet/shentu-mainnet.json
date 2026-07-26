@@ -4,6 +4,7 @@
   "network_type": "mainnet",
   "registry_name": "Shentu",
   "coingecko": "certik",
+  "github": "https://github.com/shentufoundation/shentu",
   "api": [
     {
       "address": "https://shentu-mainnet-api.shazoes.xyz",

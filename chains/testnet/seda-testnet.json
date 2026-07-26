@@ -4,6 +4,7 @@
   "network_type": "testnet",
   "registry_name": "SEDA",
   "coingecko": "",
+  "github": "https://github.com/sedaprotocol/seda-chain",
   "api": [
     {
       "address": "https://lcd.testnet.seda.xyz",

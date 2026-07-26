@@ -4,6 +4,7 @@
   "network_type": "testnet",
   "registry_name": "pushchain-testnet",
   "coingecko": "",
+  "github": "https://github.com/pushchain/push-chain-node",
   "api": [
     {
       "address": "https://pushchain-testnet-api.shazoes.xyz",

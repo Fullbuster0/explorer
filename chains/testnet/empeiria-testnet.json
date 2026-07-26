@@ -4,6 +4,7 @@
   "network_type": "testnet",
   "registry_name": "Empeiria",
   "coingecko": "",
+  "github": "https://github.com/empe-io/empe-chains",
   "api": [
     {
       "address": "https://lcd-testnet.empe.io",

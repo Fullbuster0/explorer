@@ -4,6 +4,7 @@
   "network_type": "mainnet",
   "registry_name": "Provenance",
   "coingecko": "",
+  "github": "https://github.com/provenance-io/provenance",
   "api": [
     {
       "address": "https://provenance-mainnet-api.shazoes.xyz",
@@ -27,11 +28,11 @@
     },
     {
       "address": "https://provenance-mainnet-lcd.autostake.com:443",
-      "provider": "AutoStake \ud83d\udee1\ufe0f Slash Protected"
+      "provider": "AutoStake 🛡️ Slash Protected"
     },
     {
       "address": "https://provenance.api.m.stavr.tech",
-      "provider": "\ud83d\udd25STAVR\ud83d\udd25"
+      "provider": "🔥STAVR🔥"
     },
     {
       "address": "https://provenance.ibs.team:443/api",
@@ -39,7 +40,7 @@
     },
     {
       "address": "https://provenance-api.highstakes.ch",
-      "provider": "High Stakes \ud83c\udde8\ud83c\udded"
+      "provider": "High Stakes 🇨🇭"
     },
     {
       "address": "https://provenance-api.panthea.eu",
@@ -47,11 +48,11 @@
     },
     {
       "address": "https://provenance_mainnet_api.chain.whenmoonwhenlambo.money",
-      "provider": "\ud83d\ude80 WHEN MOON \ud83c\udf15 WHEN LAMBO \ud83d\udd25"
+      "provider": "🚀 WHEN MOON 🌕 WHEN LAMBO 🔥"
     },
     {
       "address": "https://api.pio-mainnet-1.provenance.aviaone.com",
-      "provider": "AVIAONE \ud83d\udfe2"
+      "provider": "AVIAONE 🟢"
     },
     {
       "address": "https://provenance.api.pocket.network",

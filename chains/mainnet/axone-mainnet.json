@@ -4,6 +4,7 @@
   "network_type": "mainnet",
   "registry_name": "Axone",
   "coingecko": "",
+  "github": "https://github.com/axone-protocol/axoned",
   "api": [
     {
       "address": "https://axone-mainnet-api.shazoes.xyz",
@@ -27,7 +28,7 @@
     },
     {
       "address": "https://axone-api.highstakes.ch",
-      "provider": "High Stakes \ud83c\udde8\ud83c\udded"
+      "provider": "High Stakes 🇨🇭"
     },
     {
       "address": "https://rest.cros-nest.com:443/axone",
@@ -65,7 +66,7 @@
     },
     {
       "address": "https://axone-rpc.highstakes.ch",
-      "provider": "High Stakes \ud83c\udde8\ud83c\udded"
+      "provider": "High Stakes 🇨🇭"
     },
     {
       "address": "https://rpc.cros-nest.com:443/axone",

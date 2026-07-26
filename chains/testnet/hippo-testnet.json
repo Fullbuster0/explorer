@@ -4,6 +4,7 @@
   "network_type": "testnet",
   "registry_name": "Hippo Protocol",
   "coingecko": "",
+  "github": "https://github.com/hippo-protocol/hippo-protocol",
   "api": [
     {
       "address": "https://hippo-testnet-api.shazoes.xyz",

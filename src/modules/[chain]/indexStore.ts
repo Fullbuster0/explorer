@@ -291,17 +291,22 @@ export const useIndexModule = defineStore('module-index', {
     },
 
     resolveGithubUrl(): string {
-      // 1) CoinGecko repos
-      const fromCg = this.github;
-      if (fromCg) return fromCg;
-      // 2) chain config optional fields
+      // Prefer any candidate that parses to owner/repo.
+      // CoinGecko often returns org-only URLs (e.g. https://github.com/cosmos)
+      // which fail parseGithubRepo — those must NOT block chain-config repos.
       const chain: any = this.blockchain || {};
       const candidates = [
+        this.github, // CoinGecko links.repos_url.github[0]
+        chain?.github,
         chain?.codebase?.git_repo,
         chain?.git_repo,
-        chain?.github,
         chain?.links?.github,
       ].filter(Boolean) as string[];
+
+      for (const c of candidates) {
+        if (this.parseGithubRepo(c)) return c;
+      }
+      // last resort: first raw candidate (may still fail parse → card hidden)
       return candidates[0] || '';
     },
 
