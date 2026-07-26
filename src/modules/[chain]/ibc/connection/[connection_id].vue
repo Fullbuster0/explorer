@@ -6,12 +6,9 @@ import {
   type ClientState,
   type Channel,
   PageRequest,
-  type TxResponse,
   type PaginatedTxs,
 } from '@/types';
-import { computed, onMounted } from 'vue';
-import { ref } from 'vue';
-import { useIBCModule } from '../connStore';
+import { computed, onMounted, ref, watch } from 'vue';
 import PaginationBar from '@/components/PaginationBar.vue';
 import Loading from '@/components/Loading.vue';
 import { Icon } from '@iconify/vue';
@@ -20,16 +17,15 @@ const props = defineProps(['chain', 'connection_id']);
 const chainStore = useBlockchain();
 const baseStore = useBaseStore();
 const format = useFormatter();
-const ibcStore = useIBCModule();
+
 const conn = ref({} as Connection);
 const clientState = ref({} as { client_id: string; client_state: ClientState });
 const channels = ref([] as Channel[]);
 const clientStateLoaded = ref(false);
 const channelsLoaded = ref(false);
+const connLoaded = ref(false);
 
-const connId = computed(() => {
-  return props.connection_id || 0;
-});
+const connId = computed(() => props.connection_id || 0);
 
 const loading = ref(false);
 const txs = ref({} as PaginatedTxs);
@@ -39,38 +35,41 @@ const port_id = ref('');
 const page = ref(new PageRequest());
 page.value.limit = 5;
 
-onMounted(() => {
-  if (connId.value) {
-    chainStore.rpc.getIBCConnectionsById(connId.value).then((x) => {
-      conn.value = x.connection;
-    });
-    chainStore.rpc
-      .getIBCConnectionsClientState(connId.value)
-      .then((x) => {
-        clientState.value = x.identified_client_state;
-      })
-      .finally(() => (clientStateLoaded.value = true));
-    chainStore.rpc
-      .getIBCConnectionsChannels(connId.value)
-      .then((x) => {
-        channels.value = x.channels;
-      })
-      .finally(() => (channelsLoaded.value = true));
-  }
-});
+const localChainId = computed(
+  () => baseStore.latest?.block?.header?.chain_id || chainStore.current?.chainName || props.chain
+);
+const remoteChainId = computed(() => clientState.value.client_state?.chain_id || '—');
+const isOpen = computed(() => (conn.value.state || '').indexOf('_OPEN') > -1);
+const openChannels = computed(() => channels.value.filter((c) => (c.state || '').indexOf('_OPEN') > -1).length);
 
-function loadChannel(channel: string, port: string) {
-  chainStore.rpc.getIBCChannelNextSequence(channel, port).then((x) => {
-    console.log(x);
-  });
+function loadDetail() {
+  if (!connId.value || !chainStore.rpc || !chainStore.endpoint?.address) return;
+  chainStore.rpc
+    .getIBCConnectionsById(connId.value)
+    .then((x) => (conn.value = x.connection))
+    .finally(() => (connLoaded.value = true));
+  chainStore.rpc
+    .getIBCConnectionsClientState(connId.value)
+    .then((x) => (clientState.value = x.identified_client_state))
+    .finally(() => (clientStateLoaded.value = true));
+  chainStore.rpc
+    .getIBCConnectionsChannels(connId.value)
+    .then((x) => (channels.value = x.channels))
+    .finally(() => (channelsLoaded.value = true));
 }
 
-function pageload(pageNum: number) {
-  if (direction.value === 'In') {
-    fetchSendingTxs(channel_id.value, port_id.value, pageNum - 1);
-  } else {
-    fetchSendingTxs(channel_id.value, port_id.value, pageNum - 1);
+onMounted(loadDetail);
+// endpoint may resolve after mount (chain switch / cold load)
+watch(
+  () => [props.connection_id, chainStore.endpoint?.address] as const,
+  ([, addr]) => {
+    if (addr && !connLoaded.value) loadDetail();
   }
+);
+
+function pageload(pageNum: number) {
+  if (direction.value === 'In') fetchReceivingTxs(channel_id.value, port_id.value, pageNum - 1);
+  else fetchSendingTxs(channel_id.value, port_id.value, pageNum - 1);
 }
 
 function fetchSendingTxs(channel: string, port: string, pageNum = 0) {
@@ -86,12 +85,11 @@ function fetchSendingTxs(channel: string, port: string, pageNum = 0) {
       { channel, port },
       page.value
     )
-    .then((res) => {
-      txs.value = res;
-    })
+    .then((res) => (txs.value = res))
     .finally(() => (loading.value = false));
 }
-function fetchRecevingTxs(channel: string, port: string, pageNum = 0) {
+
+function fetchReceivingTxs(channel: string, port: string, pageNum = 0) {
   page.value.setPage(pageNum);
   loading.value = true;
   direction.value = 'In';
@@ -104,267 +102,268 @@ function fetchRecevingTxs(channel: string, port: string, pageNum = 0) {
       { channel, port },
       page.value
     )
-    .then((res) => {
-      txs.value = res;
-    })
+    .then((res) => (txs.value = res))
     .finally(() => (loading.value = false));
 }
 
-function color(v: string) {
-  if (v && v.indexOf('_OPEN') > -1) {
-    return 'success';
-  }
-  return 'warning';
+function channelChip(state: string) {
+  return (state || '').indexOf('_OPEN') > -1 ? 'sz-chip--ok' : 'sz-chip--warn';
+}
+function shortState(state?: string) {
+  return (state || '').replace('STATE_', '').replace(/_/g, ' ');
 }
 </script>
+
 <template>
-  <div class="">
-    <div class="px-4 pt-3 pb-4 bg-base-200 rounded mb-4 shadow">
-      <div class="mx-auto max-w-7xl px-6 lg:!px-8">
-        <dl class="grid grid-cols-1 gap-x-6 text-center lg:!grid-cols-3">
-          <div class="mx-auto flex items-center">
-            <div>
-              <div
-                class="order-first text-3xl font-semibold tracking-tight text-main mb-1"
-              >
-                {{ baseStore.latest?.block?.header?.chain_id }}
-              </div>
-              <div class="text-sm text-gray-500 dark:text-gray-400">
-                {{ conn.client_id }} {{ props.connection_id }}
-              </div>
-            </div>
+  <div>
+    <!-- back link -->
+    <RouterLink
+      :to="`/${chainStore.chainName}/ibc/connection`"
+      class="inline-flex items-center gap-1 text-[12.5px] text-secondary hover:text-primary no-underline mb-3"
+    >
+      <Icon icon="mdi:arrow-left" class="text-base" />
+      {{ $t('ibc.title') }}
+    </RouterLink>
+
+    <!-- HERO: local ↔ remote -->
+    <div class="sz-section overflow-hidden mb-4">
+      <div class="grid grid-cols-1 items-center gap-4 p-5 md:!grid-cols-[1fr_auto_1fr]">
+        <!-- local -->
+        <div class="min-w-0 text-center md:!text-left">
+          <div class="sz-section-kicker">This chain</div>
+          <div class="mt-1 truncate text-xl font-extrabold tracking-tight text-main">
+            {{ localChainId }}
           </div>
-          <div class="mx-auto flex items-center">
-            <div :class="{ 'text-success': conn.state?.indexOf('_OPEN') > -1 }">
-              <span class="text-lg rounded-full">&#x21cc;</span>
-              <div class="text-c">
-                {{ conn.state }}
-              </div>
-            </div>
+          <div class="mt-1 font-mono text-[11.5px] text-secondary">
+            {{ conn.client_id || '—' }} · {{ props.connection_id }}
           </div>
-          <div class="mx-auto">
-            <div
-              class="order-first text-3xl font-semibold tracking-tight text-main mb-2"
-            >
-              {{ clientState.client_state?.chain_id }}
-            </div>
-            <div class="text-sm text-gray-500 dark:text-gray-400">
-              {{ conn.counterparty?.connection_id }} {{ clientState.client_id }}
-            </div>
+        </div>
+
+        <!-- link state -->
+        <div class="flex flex-col items-center gap-1.5">
+          <span
+            class="sz-chip"
+            :class="isOpen ? 'sz-chip--ok' : connLoaded ? 'sz-chip--warn' : 'sz-chip--info'"
+          >
+            <Icon :icon="isOpen ? 'mdi:transit-connection-variant' : 'mdi:link-off'" />
+            {{ shortState(conn.state) || 'Loading…' }}
+          </span>
+          <Icon icon="mdi:swap-horizontal" class="text-2xl text-secondary" />
+        </div>
+
+        <!-- remote -->
+        <div class="min-w-0 text-center md:!text-right">
+          <div class="sz-section-kicker">Counterparty</div>
+          <div class="mt-1 truncate text-xl font-extrabold tracking-tight text-main">
+            {{ remoteChainId }}
           </div>
-        </dl>
+          <div class="mt-1 font-mono text-[11.5px] text-secondary">
+            {{ conn.counterparty?.connection_id || '—' }} · {{ clientState.client_id || '—' }}
+          </div>
+        </div>
+      </div>
+
+      <!-- quick stats strip -->
+      <div class="grid grid-cols-3 border-t border-base-content/10 divide-x divide-base-content/10">
+        <div class="px-4 py-3 text-center">
+          <div class="sz-metric-label">{{ $t('ibc.channels') }}</div>
+          <div class="mt-0.5 font-mono text-lg font-bold">
+            {{ openChannels }}<span class="text-secondary text-sm font-medium">/{{ channels.length }}</span>
+          </div>
+        </div>
+        <div class="px-4 py-3 text-center">
+          <div class="sz-metric-label">Client type</div>
+          <div class="mt-0.5 truncate text-[12px] font-semibold">
+            {{ (clientState.client_state?.['@type'] || '—').split('.').pop() }}
+          </div>
+        </div>
+        <div class="px-4 py-3 text-center">
+          <div class="sz-metric-label">{{ $t('ibc.latest_height') }}</div>
+          <div class="mt-0.5 font-mono text-[13px] font-semibold">
+            {{ clientState.client_state?.latest_height?.revision_height || '—' }}
+          </div>
+        </div>
       </div>
     </div>
 
-    <div class="bg-base-100 px-4 pt-3 pb-4 rounded mb-4 shadow">
-      <h2 class="card-title mb-4 overflow-hidden">
-        {{ $t('ibc.title_2')
-        }}<span class="ml-2 text-sm">{{
-          clientState.client_state?.['@type']
-        }}</span>
-      </h2>
+    <!-- CLIENT / TRUST -->
+    <div class="sz-section overflow-hidden mb-4">
+      <div class="sz-section-head">
+        <div>
+          <div class="sz-section-kicker">Light client</div>
+          <div class="sz-section-title">{{ $t('ibc.title_2') }}</div>
+        </div>
+        <span v-if="clientState.client_state?.['@type']" class="sz-chip sz-chip--info font-mono !text-[10px]">
+          {{ clientState.client_state['@type'].split('.').pop() }}
+        </span>
+      </div>
+
       <Loading v-if="!clientStateLoaded" :bordered="false" />
-      <div v-else class="overflow-x-auto grid grid-cols-1 md:grid-cols-2 gap-4">
-        <table class="table table-sm capitalize">
-          <thead class="bg-base-200">
-            <tr>
-              <td colspan="3">{{ $t('ibc.trust_parameters') }}</td>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td class="w-52">{{ $t('ibc.trust_level') }}:</td>
-              <td>
-                {{ clientState.client_state?.trust_level?.numerator }}/{{
-                  clientState.client_state?.trust_level?.denominator
-                }}
-              </td>
-            </tr>
-            <tr>
-              <td class="w-52">{{ $t('ibc.trusting_period') }}:</td>
-              <td>
-                {{ formatSeconds(clientState.client_state?.trusting_period) }}
-              </td>
-            </tr>
-            <tr>
-              <td class="w-52">{{ $t('ibc.unbonding_period') }}:</td>
-              <td>
-                {{ formatSeconds(clientState.client_state?.unbonding_period) }}
-              </td>
-            </tr>
-            <tr>
-              <td class="w-52">{{ $t('ibc.max_clock_drift') }}:</td>
-              <td>
-                {{ formatSeconds(clientState.client_state?.max_clock_drift) }}
-              </td>
-            </tr>
-            <tr>
-              <td class="w-52">{{ $t('ibc.frozen_height') }}:</td>
-              <td>{{ clientState.client_state?.frozen_height }}</td>
-            </tr>
-            <tr>
-              <td class="w-52">{{ $t('ibc.latest_height') }}:</td>
-              <td>{{ clientState.client_state?.latest_height }}</td>
-            </tr>
-          </tbody>
-        </table>
-        <table class="table table-sm text-sm w-full capitalize">
-          <thead class="bg-base-200">
-            <tr>
-              <td colspan="2">{{ $t('ibc.upgrade_parameters') }}</td>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td colspan="2">
-                <div class="flex justify-between">
-                  <span>{{ $t('ibc.allow_update_after_expiry') }}:</span>
-                  <span>{{
-                    clientState.client_state?.allow_update_after_expiry
-                  }}</span>
-                </div>
-              </td>
-            </tr>
-            <tr>
-              <td colspan="2">
-                <div class="flex justify-between">
-                  <span>{{ $t('ibc.allow_update_after_misbehaviour') }}: </span>
-                  <span>{{
-                    clientState.client_state?.allow_update_after_misbehaviour
-                  }}</span>
-                </div>
-              </td>
-            </tr>
-            <tr>
-              <td class="w-52">{{ $t('ibc.upgrade_path') }}:</td>
-              <td class="text-right">
-                {{ clientState.client_state?.upgrade_path.join(', ') }}
-              </td>
-            </tr>
-          </tbody>
-        </table>
+      <div v-else class="grid grid-cols-1 gap-x-8 gap-y-1 p-4 md:!grid-cols-2">
+        <!-- trust params -->
+        <div class="divide-y divide-base-content/[.06]">
+          <div class="flex items-center justify-between py-2">
+            <span class="text-[12.5px] text-secondary">{{ $t('ibc.trust_level') }}</span>
+            <span class="font-mono text-[12.5px] font-semibold">
+              {{ clientState.client_state?.trust_level?.numerator }}/{{ clientState.client_state?.trust_level?.denominator }}
+            </span>
+          </div>
+          <div class="flex items-center justify-between py-2">
+            <span class="text-[12.5px] text-secondary">{{ $t('ibc.trusting_period') }}</span>
+            <span class="font-mono text-[12.5px] font-semibold">{{ formatSeconds(clientState.client_state?.trusting_period) }}</span>
+          </div>
+          <div class="flex items-center justify-between py-2">
+            <span class="text-[12.5px] text-secondary">{{ $t('ibc.unbonding_period') }}</span>
+            <span class="font-mono text-[12.5px] font-semibold">{{ formatSeconds(clientState.client_state?.unbonding_period) }}</span>
+          </div>
+          <div class="flex items-center justify-between py-2">
+            <span class="text-[12.5px] text-secondary">{{ $t('ibc.max_clock_drift') }}</span>
+            <span class="font-mono text-[12.5px] font-semibold">{{ formatSeconds(clientState.client_state?.max_clock_drift) }}</span>
+          </div>
+        </div>
+        <!-- state / upgrade -->
+        <div class="divide-y divide-base-content/[.06]">
+          <div class="flex items-center justify-between py-2">
+            <span class="text-[12.5px] text-secondary">{{ $t('ibc.frozen_height') }}</span>
+            <span class="font-mono text-[12.5px] font-semibold">
+              {{ clientState.client_state?.frozen_height?.revision_height || '0' }}
+            </span>
+          </div>
+          <div class="flex items-center justify-between py-2">
+            <span class="text-[12.5px] text-secondary">{{ $t('ibc.allow_update_after_expiry') }}</span>
+            <span class="sz-chip !text-[10px]" :class="clientState.client_state?.allow_update_after_expiry ? 'sz-chip--ok' : 'sz-chip--bad'">
+              {{ clientState.client_state?.allow_update_after_expiry ? 'Yes' : 'No' }}
+            </span>
+          </div>
+          <div class="flex items-center justify-between py-2">
+            <span class="text-[12.5px] text-secondary">{{ $t('ibc.allow_update_after_misbehaviour') }}</span>
+            <span class="sz-chip !text-[10px]" :class="clientState.client_state?.allow_update_after_misbehaviour ? 'sz-chip--ok' : 'sz-chip--bad'">
+              {{ clientState.client_state?.allow_update_after_misbehaviour ? 'Yes' : 'No' }}
+            </span>
+          </div>
+          <div class="flex items-center justify-between gap-3 py-2">
+            <span class="text-[12.5px] text-secondary shrink-0">{{ $t('ibc.upgrade_path') }}</span>
+            <span class="font-mono text-[11.5px] font-semibold truncate text-right">
+              {{ (clientState.client_state?.upgrade_path || []).join(', ') || '—' }}
+            </span>
+          </div>
+        </div>
       </div>
     </div>
-    <div class="bg-base-100 px-4 pt-3 pb-4 rounded mb-4 shadow overflow-hidden">
-      <h2 class="card-title">{{ $t('ibc.channels') }}</h2>
+
+    <!-- CHANNELS -->
+    <div class="sz-section overflow-hidden mb-4">
+      <div class="sz-section-head">
+        <div>
+          <div class="sz-section-kicker">Transfer</div>
+          <div class="sz-section-title">{{ $t('ibc.channels') }}</div>
+        </div>
+        <span class="sz-chip sz-chip--info font-mono !text-[10px]">{{ openChannels }}/{{ channels.length }} open</span>
+      </div>
+
       <Loading v-if="!channelsLoaded" :bordered="false" />
-      <div v-else class="overflow-auto">
-        <table class="table w-full mt-4">
+      <div v-else-if="!channels.length" class="py-10 text-center text-secondary text-sm">No channels on this connection.</div>
+      <div v-else class="overflow-x-auto">
+        <table class="sz-table min-w-[760px]">
           <thead>
             <tr>
-              <th>{{ $t('ibc.txs') }}</th>
-              <th style="position: relative; z-index: 2">
-                {{ $t('ibc.channel_id') }}
-              </th>
+              <th>{{ $t('ibc.channel_id') }}</th>
               <th>{{ $t('ibc.port_id') }}</th>
               <th>{{ $t('ibc.state') }}</th>
               <th>{{ $t('ibc.counterparty') }}</th>
-              <th>{{ $t('ibc.hops') }}</th>
-              <th>{{ $t('ibc.version') }}</th>
               <th>{{ $t('ibc.ordering') }}</th>
+              <th class="text-right">{{ $t('ibc.txs') }}</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="v in channels">
+            <tr v-for="v in channels" :key="v.channel_id + v.port_id">
+              <td class="font-mono text-[12.5px] font-semibold">{{ v.channel_id }}</td>
+              <td class="font-mono text-[12px] text-secondary">{{ v.port_id }}</td>
               <td>
-                <div class="flex gap-1">
+                <span class="sz-chip" :class="channelChip(v.state)">{{ shortState(v.state) }}</span>
+              </td>
+              <td class="font-mono text-[11.5px] text-secondary">
+                {{ v.counterparty?.channel_id }}<span class="opacity-50">/{{ v.counterparty?.port_id }}</span>
+              </td>
+              <td class="text-[12px] capitalize">{{ (v.ordering || '').replace('ORDER_', '').toLowerCase() }}</td>
+              <td class="text-right">
+                <div class="inline-flex gap-1.5">
                   <button
-                    class="btn btn-xs"
-                    @click="fetchSendingTxs(v.channel_id, v.port_id)"
+                    class="btn btn-xs rounded-md"
                     :disabled="loading"
+                    @click="fetchSendingTxs(v.channel_id, v.port_id)"
                   >
-                    <span
-                      v-if="loading"
-                      class="loading loading-spinner loading-sm"
-                    ></span>
+                    <span v-if="loading && direction === 'Out' && channel_id === v.channel_id" class="loading loading-spinner loading-xs"></span>
+                    <Icon v-else icon="mdi:arrow-top-right" class="text-sm" />
                     {{ $t('ibc.btn_out') }}
                   </button>
                   <button
-                    class="btn btn-xs"
-                    @click="fetchRecevingTxs(v.channel_id, v.port_id)"
+                    class="btn btn-xs rounded-md"
                     :disabled="loading"
+                    @click="fetchReceivingTxs(v.channel_id, v.port_id)"
                   >
-                    <span
-                      v-if="loading"
-                      class="loading loading-spinner loading-sm"
-                    ></span>
+                    <span v-if="loading && direction === 'In' && channel_id === v.channel_id" class="loading loading-spinner loading-xs"></span>
+                    <Icon v-else icon="mdi:arrow-bottom-left" class="text-sm" />
                     {{ $t('ibc.btn_in') }}
                   </button>
                 </div>
               </td>
-              <td>
-                <a href="#" @click="loadChannel(v.channel_id, v.port_id)">{{
-                  v.channel_id
-                }}</a>
-              </td>
-              <td>{{ v.port_id }}</td>
-              <td>
-                <div
-                  class="text-xs truncate relative py-2 px-4 rounded-full w-fit"
-                  :class="`text-${color(v.state)}`"
-                >
-                  <span
-                    class="inset-x-0 inset-y-0 opacity-10 absolute"
-                    :class="`bg-${color(v.state)}`"
-                  ></span>
-                  {{ v.state }}
-                </div>
-              </td>
-              <td>
-                {{ v.counterparty?.port_id }}/{{ v.counterparty?.channel_id }}
-              </td>
-              <td>{{ v.connection_hops.join(', ') }}</td>
-              <td>{{ v.version }}</td>
-              <td>{{ v.ordering }}</td>
             </tr>
           </tbody>
         </table>
       </div>
     </div>
-    <div v-if="channel_id">
-      <h3 class="card-title capitalize">
-        Transactions ({{ channel_id }} {{ port_id }} {{ direction }})
-      </h3>
-      <table class="table">
-        <thead>
-          <tr>
-            <td>{{ $t('ibc.height') }}</td>
-            <td>{{ $t('ibc.txhash') }}</td>
-            <td>{{ $t('ibc.messages') }}</td>
-            <td>{{ $t('ibc.time') }}</td>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="resp in txs?.tx_responses">
-            <td>{{ resp.height }}</td>
-            <td>
-              <div class="text-xs truncate text-primary dark:invert">
-                <RouterLink
-                  :to="`/${chainStore.chainName}/tx/${resp.txhash}`"
-                  >{{ resp.txhash }}</RouterLink
-                >
-              </div>
-            </td>
-            <td>
-              <div class="flex">
-                {{ format.messages(resp.tx.body.messages) }}
-                <Icon
-                  v-if="resp.code === 0"
-                  icon="mdi-check"
-                  class="text-success text-lg"
-                />
-                <Icon v-else icon="mdi-multiply" class="text-error text-lg" />
-              </div>
-            </td>
-            <td>{{ format.toLocaleDate(resp.timestamp) }}</td>
-          </tr>
-        </tbody>
-      </table>
-      <PaginationBar
-        :limit="page.limit"
-        :total="txs.pagination?.total"
-        :callback="pageload"
-      />
+
+    <!-- CHANNEL TXS -->
+    <div v-if="channel_id" class="sz-section overflow-hidden">
+      <div class="sz-section-head">
+        <div>
+          <div class="sz-section-kicker">Packets</div>
+          <div class="sz-section-title">
+            {{ direction === 'In' ? 'Incoming' : 'Outgoing' }} · {{ channel_id }} / {{ port_id }}
+          </div>
+        </div>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="sz-table min-w-[640px]">
+          <thead>
+            <tr>
+              <th>{{ $t('ibc.height') }}</th>
+              <th>{{ $t('ibc.txhash') }}</th>
+              <th>{{ $t('ibc.messages') }}</th>
+              <th class="text-right">{{ $t('ibc.time') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="resp in txs?.tx_responses" :key="resp.txhash">
+              <td class="font-mono text-[12.5px]">
+                <RouterLink :to="`/${chainStore.chainName}/block/${resp.height}`" class="text-primary no-underline hover:underline">
+                  #{{ resp.height }}
+                </RouterLink>
+              </td>
+              <td class="max-w-[220px] truncate">
+                <RouterLink :to="`/${chainStore.chainName}/tx/${resp.txhash}`" class="font-mono text-[12px] text-primary no-underline hover:underline">
+                  {{ resp.txhash }}
+                </RouterLink>
+              </td>
+              <td>
+                <div class="flex items-center gap-1.5">
+                  <span class="sz-msg">{{ format.messages(resp.tx.body.messages) }}</span>
+                  <Icon v-if="resp.code === 0" icon="mdi:check-circle" class="text-success text-base" />
+                  <Icon v-else icon="mdi:close-circle" class="text-error text-base" />
+                </div>
+              </td>
+              <td class="text-right font-mono text-[11.5px] text-secondary">{{ format.toLocaleDate(resp.timestamp) }}</td>
+            </tr>
+            <tr v-if="!loading && !(txs?.tx_responses?.length)">
+              <td colspan="4" class="py-8 text-center text-secondary text-sm">No packets found for this channel.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="border-t border-base-content/10 px-4 py-2">
+        <PaginationBar :limit="page.limit" :total="txs.pagination?.total" :callback="pageload" />
+      </div>
     </div>
   </div>
 </template>
