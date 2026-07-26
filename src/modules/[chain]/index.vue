@@ -777,7 +777,7 @@ const amount = computed({
     gap: 1rem;
     align-items: stretch;
   }
-  .sz-dash-row--bottom {
+  .sz-dash-row.sz-dash-row--bottom {
     display: grid;
     grid-template-columns: 1.2fr 1fr;
     gap: 1rem;
@@ -797,7 +797,7 @@ const amount = computed({
   .sz-dash-row:not(.sz-dash-row--single) {
     grid-template-columns: 1fr 1.25fr;
   }
-  .sz-dash-row--bottom {
+  .sz-dash-row.sz-dash-row--bottom {
     grid-template-columns: 1.35fr 1fr;
   }
 }
