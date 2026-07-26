@@ -6,6 +6,8 @@ import type { CommissionRate } from '@/types';
 
 const props = defineProps({
   commission: { type: Object as PropType<CommissionRate> },
+  /** When true, drop outer card chrome — used inside merged Commission & Earnings panel. */
+  embedded: { type: Boolean, default: false },
 });
 
 let rate = computed(() => Number(props.commission?.commission_rates.rate || 0) * 100);
@@ -31,7 +33,7 @@ const chartConfig = computed(() => {
 
   return {
     chart: {
-      width: '200px',
+      width: props.embedded ? '180px' : '200px',
       sparkline: { enabled: false },
     },
     colors: [
@@ -69,20 +71,20 @@ const chartConfig = computed(() => {
             show: true,
             name: {
               offsetY: 25,
-              fontSize: '1rem',
+              fontSize: '0.9rem',
               color: secondaryText,
             },
             value: {
               offsetY: -15,
               fontWeight: 500,
-              fontSize: '2.125rem',
+              fontSize: props.embedded ? '1.75rem' : '2.125rem',
               formatter: (value: unknown) => `${rate.value.toFixed(1)}%`,
               color: primaryText,
             },
             total: {
               show: true,
               label: 'Commission Rate',
-              fontSize: '1rem',
+              fontSize: '0.9rem',
               color: secondaryText,
               formatter: () => `${rate.value.toFixed(1)}%`,
             },
@@ -94,7 +96,7 @@ const chartConfig = computed(() => {
       {
         breakpoint: 1709,
         options: {
-          chart: { height: 237 },
+          chart: { height: props.embedded ? 210 : 237 },
         },
       },
     ],
@@ -103,12 +105,17 @@ const chartConfig = computed(() => {
 </script>
 
 <template>
-  <div class="bg-base-100 rounded shadow p-4">
-    <div class="text-lg text-main font-semibold mb-1">Commission Rate</div>
-    <div class="text-sm text-gray-500 dark:text-gray-400">
-      {{ `Updated at ${format.toDay(props.commission?.update_time, 'short')}` }}
+  <div :class="embedded ? 'sz-comm-embedded' : 'bg-base-100 rounded shadow p-4'">
+    <template v-if="!embedded">
+      <div class="text-lg text-main font-semibold mb-1">Commission Rate</div>
+      <div class="text-sm text-gray-500 dark:text-gray-400">
+        {{ `Updated at ${format.toDay(props.commission?.update_time, 'short')}` }}
+      </div>
+    </template>
+    <div v-else class="text-[11px] text-secondary text-center mb-1">
+      Updated {{ format.toDay(props.commission?.update_time, 'short') }}
     </div>
-    <div class="w-80 m-auto">
+    <div :class="embedded ? 'w-full max-w-[17rem] m-auto' : 'w-80 m-auto'">
       <ApexCharts type="donut" :options="chartConfig" :series="series" />
     </div>
     <div>

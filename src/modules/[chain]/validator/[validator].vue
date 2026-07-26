@@ -463,18 +463,34 @@ watch(
                 target="_blank"
                 rel="noopener"
                 class="sz-hero-link"
+                :title="v.description.website"
               >
                 <Icon icon="mdi-web" class="text-base" />
-                {{ $t('staking.website') }}
+                <span class="sz-hero-link-label">{{ $t('staking.website') }}</span>
+                <span class="sz-hero-link-value">{{ v.description.website }}</span>
               </a>
+              <span v-else class="sz-hero-link sz-hero-link--muted" :title="$t('staking.website')">
+                <Icon icon="mdi-web" class="text-base" />
+                <span class="sz-hero-link-label">{{ $t('staking.website') }}</span>
+                <span class="sz-hero-link-value">—</span>
+              </span>
+
               <a
                 v-if="v.description?.security_contact"
                 :href="'mailto:' + v.description.security_contact"
                 class="sz-hero-link"
+                :title="v.description.security_contact"
               >
                 <Icon icon="mdi-email-outline" class="text-base" />
-                {{ $t('staking.contact') }}
+                <span class="sz-hero-link-label">{{ $t('staking.contact') }}</span>
+                <span class="sz-hero-link-value">{{ v.description.security_contact }}</span>
               </a>
+              <span v-else class="sz-hero-link sz-hero-link--muted" :title="$t('staking.contact')">
+                <Icon icon="mdi-email-outline" class="text-base" />
+                <span class="sz-hero-link-label">{{ $t('staking.contact') }}</span>
+                <span class="sz-hero-link-value">—</span>
+              </span>
+
               <span v-if="identity" class="sz-chip font-mono !text-[10px] !font-medium text-secondary">
                 {{ identity }}
               </span>
@@ -562,51 +578,64 @@ watch(
       </div>
     </div>
 
-    <!-- COMMISSION + REWARDS + ADDRESSES -->
-    <div class="grid grid-cols-1 lg:!grid-cols-3 gap-4 mb-4">
-      <CommissionRate :commission="v.commission" />
-
-      <div class="sz-section overflow-hidden flex flex-col">
+    <!-- COMMISSION & EARNINGS (merged) + ADDRESSES -->
+    <div class="grid grid-cols-1 lg:!grid-cols-5 gap-4 mb-4">
+      <div class="sz-section overflow-hidden lg:!col-span-3 flex flex-col">
         <div class="sz-section-head">
           <div>
-            <div class="sz-section-kicker">Earnings</div>
+            <div class="sz-section-kicker">Commission</div>
             <div class="sz-section-title">{{ $t('staking.commissions_&_rewards') }}</div>
           </div>
-        </div>
-        <div class="px-4 py-3 flex-1 flex flex-col gap-3 min-h-0">
-          <div class="overflow-auto flex-1 max-h-48">
-            <div class="text-[11px] font-bold uppercase tracking-wider text-secondary mb-1.5">
-              {{ $t('staking.commissions') }}
-            </div>
-            <div class="flex flex-wrap gap-1.5 mb-3">
-              <span
-                v-for="(i, k) in commission"
-                :key="`c-${k}`"
-                class="badge badge-sm badge-outline font-mono text-[11px]"
-              >{{ format.formatToken2(i) }}</span>
-              <span v-if="!commission?.length" class="text-secondary text-xs">—</span>
-            </div>
-            <div class="text-[11px] font-bold uppercase tracking-wider text-secondary mb-1.5">
-              {{ $t('staking.outstanding') }} {{ $t('account.rewards') }}
-            </div>
-            <div class="flex flex-wrap gap-1.5">
-              <span
-                v-for="(i, k) in rewards"
-                :key="`r-${k}`"
-                class="badge badge-sm badge-outline font-mono text-[11px]"
-              >{{ format.formatToken2(i) }}</span>
-              <span v-if="!rewards?.length" class="text-secondary text-xs">—</span>
-            </div>
+          <div class="text-right hidden sm:!block">
+            <div class="sz-metric-label !tracking-wider">Rate</div>
+            <div class="font-mono text-lg font-bold text-main leading-none">{{ commissionRate }}</div>
+            <div class="text-[11px] text-secondary mt-0.5">max {{ commissionMax }} · Δ {{ commissionChange }}</div>
           </div>
-          <label
-            for="withdraw_commission"
-            class="btn btn-primary btn-sm w-full"
-            @click="dialog.open('withdraw_commission', { validator_address: v.operator_address || validator })"
-          >{{ $t('account.btn_withdraw') }}</label>
+        </div>
+        <div class="grid grid-cols-1 md:!grid-cols-2 gap-0 flex-1 min-h-0">
+          <div class="px-2 pt-1 pb-3 md:!border-r border-base-content/10">
+            <CommissionRate :commission="v.commission" embedded />
+          </div>
+          <div class="px-4 py-3 flex flex-col gap-3 min-h-0">
+            <div class="sm:!hidden">
+              <div class="sz-metric-label mb-0.5">Rate</div>
+              <div class="font-mono text-xl font-bold text-main">{{ commissionRate }}</div>
+              <div class="text-[11px] text-secondary mb-2">max {{ commissionMax }} · Δ {{ commissionChange }}</div>
+            </div>
+            <div class="overflow-auto flex-1 max-h-56">
+              <div class="text-[11px] font-bold uppercase tracking-wider text-secondary mb-1.5">
+                {{ $t('staking.commissions') }}
+              </div>
+              <div class="flex flex-wrap gap-1.5 mb-3">
+                <span
+                  v-for="(i, k) in commission"
+                  :key="`c-${k}`"
+                  class="badge badge-sm badge-outline font-mono text-[11px]"
+                >{{ format.formatToken2(i) }}</span>
+                <span v-if="!commission?.length" class="text-secondary text-xs">—</span>
+              </div>
+              <div class="text-[11px] font-bold uppercase tracking-wider text-secondary mb-1.5">
+                {{ $t('staking.outstanding') }} {{ $t('account.rewards') }}
+              </div>
+              <div class="flex flex-wrap gap-1.5">
+                <span
+                  v-for="(i, k) in rewards"
+                  :key="`r-${k}`"
+                  class="badge badge-sm badge-outline font-mono text-[11px]"
+                >{{ format.formatToken2(i) }}</span>
+                <span v-if="!rewards?.length" class="text-secondary text-xs">—</span>
+              </div>
+            </div>
+            <label
+              for="withdraw_commission"
+              class="btn btn-primary btn-sm w-full mt-auto"
+              @click="dialog.open('withdraw_commission', { validator_address: v.operator_address || validator })"
+            >{{ $t('account.btn_withdraw') }}</label>
+          </div>
         </div>
       </div>
 
-      <div class="sz-section overflow-hidden">
+      <div class="sz-section overflow-hidden lg:!col-span-2">
         <div class="sz-section-head">
           <div>
             <div class="sz-section-kicker">Identity</div>
@@ -1017,6 +1046,7 @@ watch(
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
+  max-width: 100%;
   padding: 0.28rem 0.7rem;
   border-radius: 999px;
   font-size: 12px;
@@ -1031,5 +1061,27 @@ watch(
   color: hsl(var(--p));
   border-color: color-mix(in srgb, hsl(var(--p)) 45%, var(--sz-border));
   background: var(--sz-accent-soft);
+}
+.sz-hero-link--muted {
+  opacity: 0.72;
+  cursor: default;
+}
+.sz-hero-link-label {
+  color: var(--text-secondary);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.sz-hero-link-value {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--text-main);
+  max-width: 14rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sz-hero-link--muted .sz-hero-link-value {
+  color: var(--text-secondary);
 }
 </style>
