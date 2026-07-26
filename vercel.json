@@ -6,7 +6,7 @@
   "rewrites": [
     {
       "source": "/vote-api/:path*",
-      "destination": "http://149.86.227.232:8878/:path*"
+      "destination": "https://discussions-suite-reputation-mono.trycloudflare.com/:path*"
     },
     {
       "source": "/(.*)",
