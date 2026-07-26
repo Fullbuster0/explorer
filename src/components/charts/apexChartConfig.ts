@@ -245,8 +245,12 @@ export const getMarketPriceChartConfig = (theme: string, categories: string[]) =
         },
         formatter: function (value: string) {
           const n = Number(value);
-          const pattern = n >= 1 ? '0,0.[00]' : n > 0.01 ? '0.0[00]' : '0.00[0000]';
-          return numeral(value).format(pattern);
+          // compact for volume ($M/$B); precise for price
+          if (!Number.isFinite(n)) return '';
+          if (Math.abs(n) >= 1000) return numeral(n).format('0.0a').toUpperCase();
+          if (n >= 1) return numeral(n).format('0,0.[00]');
+          if (n > 0.01) return numeral(n).format('0.0[00]');
+          return numeral(n).format('0.00[0000]');
         },
         offsetX: -4,
       },
