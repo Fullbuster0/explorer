@@ -265,7 +265,14 @@
     "consensus_pub_key": "コンセンサス公開鍵",
     "liquid_staking": "流動性ステーキング",
     "liquid_staking_shares": "流動性シェア",
-    "validator_bond_share": "バリデーター担保シェア"
+    "validator_bond_share": "バリデーター担保シェア",
+    "delegators": "デリゲーター",
+    "delegators_sub": "ユニーク口座",
+    "no_description": "このバリデータはまだ説明を設定していません",
+    "activities": "アクティビティ",
+    "power_events": "パワーイベント",
+    "votes": "投票",
+    "no_votes": "このバリデータの投票はまだインデックスされていません。"
   },
   "tx": {
     "title": "概要",

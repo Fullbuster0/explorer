@@ -61,7 +61,9 @@
     "hash": "Hash",
     "messages": "Pesan",
     "time": "Waktu",
-    "error": "Akun tidak ada di dalam rantai"
+    "error": "Akun tidak ada di dalam rantai",
+    "amount": "Jumlah",
+    "delegator": "Delegator"
   },
   "block": {
     "estimated_time": "Estimasi Waktu",
@@ -251,7 +253,14 @@
     "operator_addr": "Alamat Operator",
     "hex_addr": "Alamat Hex",
     "signer_addr": "Alamat Penandatangan",
-    "consensus_pub_key": "Kunci Publik Konsensus"
+    "consensus_pub_key": "Kunci Publik Konsensus",
+    "delegators": "Delegator",
+    "delegators_sub": "akun unik",
+    "no_description": "Validator ini belum mengatur deskripsi",
+    "activities": "Aktivitas",
+    "power_events": "Peristiwa Power",
+    "votes": "Vote",
+    "no_votes": "Belum ada vote terindeks untuk validator ini."
   },
   "tx": {
     "title": "Rangkuman",

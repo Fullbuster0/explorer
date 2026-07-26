@@ -63,7 +63,9 @@
     "hash": "哈希",
     "messages": "消息",
     "time": "时间",
-    "error": "区块链上没有这个账号！"
+    "error": "区块链上没有这个账号！",
+    "amount": "数量",
+    "delegator": "委托人"
   },
   "block": {
     "estimated_time": "预计时间",
@@ -253,7 +255,14 @@
     "operator_addr": "操作员地址",
     "hex_addr": "Hex 地址",
     "signer_addr": "验证人地址",
-    "consensus_pub_key": "验证人公钥"
+    "consensus_pub_key": "验证人公钥",
+    "delegators": "委托人",
+    "delegators_sub": "独立账户",
+    "no_description": "该验证人尚未设置描述",
+    "activities": "活动",
+    "power_events": "投票权事件",
+    "votes": "投票",
+    "no_votes": "该验证人暂无已索引的投票。"
   },
   "tx": {
     "title": "概要",

@@ -265,7 +265,14 @@
     "consensus_pub_key": "합의 공개 키",
     "liquid_staking": "유동 스테이킹",
     "liquid_staking_shares": "유동 지분",
-    "validator_bond_share": "검증인 본딩 지분"
+    "validator_bond_share": "검증인 본딩 지분",
+    "delegators": "위임자",
+    "delegators_sub": "고유 계정",
+    "no_description": "이 검증인은 아직 설명을 설정하지 않았습니다",
+    "activities": "활동",
+    "power_events": "파워 이벤트",
+    "votes": "투표",
+    "no_votes": "이 검증인에 대한 인덱싱된 투표가 아직 없습니다."
   },
   "tx": {
     "title": "요약",

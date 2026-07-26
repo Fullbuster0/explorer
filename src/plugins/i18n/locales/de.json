@@ -265,7 +265,14 @@
     "consensus_pub_key": "Konsens-Public-Key",
     "liquid_staking": "Liquid Staking",
     "liquid_staking_shares": "Liquid Shares",
-    "validator_bond_share": "Validator-Anteil"
+    "validator_bond_share": "Validator-Anteil",
+    "delegators": "Delegatoren",
+    "delegators_sub": "eindeutige Konten",
+    "no_description": "Dieser Validator hat noch keine Beschreibung",
+    "activities": "Aktivitäten",
+    "power_events": "Power-Ereignisse",
+    "votes": "Stimmen",
+    "no_votes": "Noch keine indexierten Stimmen für diesen Validator."
   },
   "tx": {
     "title": "Zusammenfassung",

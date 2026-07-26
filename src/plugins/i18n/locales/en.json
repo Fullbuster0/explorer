@@ -267,7 +267,14 @@
     "consensus_pub_key": "Consensus Public Key",
     "liquid_staking": "Liquid Staking",
     "liquid_staking_shares": "Liquid Shares",
-    "validator_bond_share": "Validator Bonded"
+    "validator_bond_share": "Validator Bonded",
+    "delegators": "Delegators",
+    "delegators_sub": "unique accounts",
+    "no_description": "This validator has not set a description yet",
+    "activities": "Activities",
+    "power_events": "Power Events",
+    "votes": "Votes",
+    "no_votes": "No indexed votes for this validator yet."
   },
   "tx": {
     "title": "Summary",

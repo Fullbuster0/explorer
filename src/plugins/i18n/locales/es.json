@@ -265,7 +265,14 @@
     "consensus_pub_key": "Clave Pública de Consenso",
     "liquid_staking": "Staking Líquido",
     "liquid_staking_shares": "Acciones Líquidas",
-    "validator_bond_share": "Participación de Validador Vinculada"
+    "validator_bond_share": "Participación de Validador Vinculada",
+    "delegators": "Delegadores",
+    "delegators_sub": "cuentas únicas",
+    "no_description": "Este validador aún no ha configurado una descripción",
+    "activities": "Actividades",
+    "power_events": "Eventos de poder",
+    "votes": "Votos",
+    "no_votes": "Aún no hay votos indexados para este validador."
   },
   "tx": {
     "title": "Resumen",
