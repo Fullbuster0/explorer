@@ -4,6 +4,13 @@
   "framework": "vite",
   "installCommand": "yarn install --frozen-lockfile",
   "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
+    {
+      "source": "/vote-api/:path*",
+      "destination": "http://149.86.227.232:8878/:path*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
   ]
 }

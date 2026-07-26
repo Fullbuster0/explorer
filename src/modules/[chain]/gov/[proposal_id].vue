@@ -440,7 +440,48 @@ async function loadParamContext(detail: GovProposal) {
   }
 }
 
+/**
+ * Prefer Shazoes vote-indexer (reconstructs MsgVote from archive tx queries).
+ * FE stays on Vercel; indexer is a separate HTTPS API (CORS *).
+ * Falls back to LCD /gov/.../votes when indexer empty/unreachable.
+ */
+/**
+ * Default: same-origin `/vote-api` (Vercel rewrite → vote-indexer on VPS).
+ * Override with absolute URL via VITE_VOTE_INDEXER_URL if needed.
+ * Empty string "" disables indexer (LCD only).
+ */
+const VOTE_INDEXER_URL = (() => {
+  const raw = import.meta.env.VITE_VOTE_INDEXER_URL;
+  if (raw === '') return '';
+  if (raw == null || raw === undefined) return '/vote-api';
+  return String(raw).replace(/\/$/, '');
+})();
+
+async function fetchIndexerVotes(proposalId: string): Promise<GovVote[] | null> {
+  if (!VOTE_INDEXER_URL) return null;
+  const chainKey = String(props.chain || chainStore.chainName || '');
+  if (!chainKey) return null;
+  try {
+    const url =
+      `${VOTE_INDEXER_URL}/v1/${encodeURIComponent(chainKey)}/proposals/` +
+      `${encodeURIComponent(proposalId)}/votes?limit=10000`;
+    const res = await fetch(url, { headers: { Accept: 'application/json' } });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const votes = (data?.votes || []) as GovVote[];
+    if (!votes.length) return null;
+    return votes;
+  } catch {
+    return null;
+  }
+}
+
 async function fetchAllVotes(proposalId: string): Promise<GovVote[]> {
+  // 1) Indexer first (closed proposals where LCD vote store is pruned)
+  const indexed = await fetchIndexerVotes(proposalId);
+  if (indexed && indexed.length > 0) return indexed;
+
+  // 2) Native LCD pagination
   const all: GovVote[] = [];
   const pr = new PageRequest();
   pr.limit = 100;
