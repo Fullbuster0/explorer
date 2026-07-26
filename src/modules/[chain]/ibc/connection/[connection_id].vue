@@ -11,6 +11,7 @@ import {
 import { computed, onMounted, ref, watch } from 'vue';
 import PaginationBar from '@/components/PaginationBar.vue';
 import Loading from '@/components/Loading.vue';
+import PendingPackets from './PendingPackets.vue';
 import { Icon } from '@iconify/vue';
 
 const props = defineProps(['chain', 'connection_id']);
@@ -41,6 +42,10 @@ const localChainId = computed(
 const remoteChainId = computed(() => clientState.value.client_state?.chain_id || '—');
 const isOpen = computed(() => (conn.value.state || '').indexOf('_OPEN') > -1);
 const openChannels = computed(() => channels.value.filter((c) => (c.state || '').indexOf('_OPEN') > -1).length);
+const localChannelIds = computed(() => channels.value.map((c) => c.channel_id).filter(Boolean) as string[]);
+const counterpartyClientId = computed(
+  () => (conn.value as any)?.counterparty?.client_id || ''
+);
 
 function loadDetail() {
   if (!connId.value || !chainStore.rpc || !chainStore.endpoint?.address) return;
@@ -313,6 +318,15 @@ function shortState(state?: string) {
         </table>
       </div>
     </div>
+
+    <!-- PENDING PACKETS (mempool) -->
+    <PendingPackets
+      :chain="props.chain"
+      :connection-id="String(props.connection_id)"
+      :client-id="conn.client_id"
+      :counterparty-client-id="counterpartyClientId"
+      :channels="localChannelIds"
+    />
 
     <!-- CHANNEL TXS -->
     <div v-if="channel_id" class="sz-section overflow-hidden">

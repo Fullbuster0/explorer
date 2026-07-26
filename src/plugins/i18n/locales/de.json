@@ -217,7 +217,15 @@
     "legend_all": "Alle offen",
     "legend_partial": "Teilweise",
     "legend_closed": "Geschlossen",
-    "legend_note": "Volumen $ nicht indexiert — nur Verbindungen & Kanäle."
+    "legend_note": "Volumen $ nicht indexiert — nur Verbindungen & Kanäle.",
+    "mempool": "Mempool",
+    "pending_packets": "Ausstehende Pakete",
+    "mempool_empty": "Mempool ist leer — keine unbestätigten Transaktionen.",
+    "mempool_no_match": "{total} ausstehende Tx, keine betrifft diese Verbindung.",
+    "mempool_hint": "Live von RPC /unconfirmed_txs, alle 6s aktualisiert.",
+    "msg_type": "Nachricht",
+    "sequence": "Sequenz",
+    "relayer": "Relayer / Signierer"
   },
   "staking": {
     "inflation": "Inflation",

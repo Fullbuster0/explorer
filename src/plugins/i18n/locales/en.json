@@ -219,7 +219,15 @@
     "legend_all": "Opened all",
     "legend_partial": "Partial",
     "legend_closed": "Closed",
-    "legend_note": "Volume $ not indexed — connections & channels only."
+    "legend_note": "Volume $ not indexed — connections & channels only.",
+    "mempool": "Mempool",
+    "pending_packets": "Pending packets",
+    "mempool_empty": "Mempool is empty — no unconfirmed transactions.",
+    "mempool_no_match": "{total} pending tx, none touch this connection.",
+    "mempool_hint": "Live from RPC /unconfirmed_txs, refreshed every 6s.",
+    "msg_type": "Message",
+    "sequence": "Sequence",
+    "relayer": "Relayer / signer"
   },
   "staking": {
     "inflation": "Inflation",

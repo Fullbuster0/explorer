@@ -208,7 +208,15 @@
     "legend_all": "全部打开",
     "legend_partial": "部分",
     "legend_closed": "已关闭",
-    "legend_note": "未索引交易量 $ — 仅显示连接和通道。"
+    "legend_note": "未索引交易量 $ — 仅显示连接和通道。",
+    "mempool": "内存池",
+    "pending_packets": "待处理数据包",
+    "mempool_empty": "内存池为空 — 没有未确认交易。",
+    "mempool_no_match": "{total} 笔待处理交易，均与此连接无关。",
+    "mempool_hint": "来自 RPC /unconfirmed_txs 实时数据，每 6 秒刷新。",
+    "msg_type": "消息",
+    "sequence": "序列号",
+    "relayer": "中继者 / 签名者"
   },
   "staking": {
     "inflation": "通胀率",

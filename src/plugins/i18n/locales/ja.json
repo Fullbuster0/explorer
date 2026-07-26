@@ -217,7 +217,15 @@
     "legend_all": "すべてオープン",
     "legend_partial": "一部",
     "legend_closed": "クローズ",
-    "legend_note": "取引量 $ は未インデックス — 接続とチャネルのみ。"
+    "legend_note": "取引量 $ は未インデックス — 接続とチャネルのみ。",
+    "mempool": "メンプール",
+    "pending_packets": "保留中パケット",
+    "mempool_empty": "メンプールは空です — 未確認トランザクションはありません。",
+    "mempool_no_match": "{total} 件の保留中 tx、この接続に関係するものはありません。",
+    "mempool_hint": "RPC /unconfirmed_txs のライブデータ、6秒ごとに更新。",
+    "msg_type": "メッセージ",
+    "sequence": "シーケンス",
+    "relayer": "リレイヤー / 署名者"
   },
   "staking": {
     "inflation": "インフレーション",

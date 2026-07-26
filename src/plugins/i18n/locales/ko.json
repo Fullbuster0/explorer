@@ -217,7 +217,15 @@
     "legend_all": "모두 열림",
     "legend_partial": "부분",
     "legend_closed": "닫힘",
-    "legend_note": "거래량 $ 미인덱싱 — 연결 및 채널만 표시."
+    "legend_note": "거래량 $ 미인덱싱 — 연결 및 채널만 표시.",
+    "mempool": "멤풀",
+    "pending_packets": "대기 중 패킷",
+    "mempool_empty": "멤풀이 비어 있음 — 미확인 트랜잭션 없음.",
+    "mempool_no_match": "{total}개의 대기 tx, 이 연결과 관련된 것 없음.",
+    "mempool_hint": "RPC /unconfirmed_txs 실시간 데이터, 6초마다 갱신.",
+    "msg_type": "메시지",
+    "sequence": "시퀀스",
+    "relayer": "릴레이어 / 서명자"
   },
   "staking": {
     "inflation": "인플레이션",
