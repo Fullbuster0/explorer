@@ -389,7 +389,7 @@ const amount = computed({
       <div class="sz-section-head">
         <div class="min-w-0">
           <div class="sz-section-kicker">Market</div>
-          <div class="sz-section-title truncate">
+          <div class="sz-section-title truncate uppercase tracking-wide">
             {{ chainSymbol || shortName(ticker?.base, ticker?.coin_id) }} price
           </div>
         </div>
