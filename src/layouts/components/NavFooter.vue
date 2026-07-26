@@ -78,7 +78,7 @@ import { Icon } from '@iconify/vue';
         </div>
       </div>
 
-      <div class="sz-footer-bottom mt-6 border-t border-base-content/10 pt-4">
+      <div class="sz-footer-bottom mt-6 border-t border-base-content/10 pt-4 text-center">
         <div class="text-[12px] text-secondary">
           © {{ new Date().getFullYear() }} Shazoes · Multi-chain Cosmos explorer
         </div>

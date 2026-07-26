@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { useBaseStore, useBlockchain, useFormatter } from '@/stores';
 import DynamicComponent from '@/components/dynamic/DynamicComponent.vue';
-import { computed, ref } from '@vue/reactivity';
+import { computed, ref, watch } from 'vue';
 import type { Tx, TxResponse } from '@/types';
 
 import { JsonViewer } from 'vue3-json-viewer';
@@ -19,9 +19,47 @@ const tx = ref(
     tx_response: TxResponse;
   }
 );
-if (props.hash) {
-  blockchain.rpc.getTx(props.hash).then((x) => (tx.value = x));
+const loading = ref(false);
+const error = ref('');
+const sourceHint = ref('');
+
+async function loadTx(hash?: string) {
+  const h = (hash || '').trim();
+  if (!h) return;
+  loading.value = true;
+  error.value = '';
+  sourceHint.value = '';
+  try {
+    // Wait briefly for REST endpoint if chain just mounted
+    if (!blockchain.endpoint?.address) {
+      for (let i = 0; i < 20 && !blockchain.endpoint?.address; i++) {
+        await new Promise((r) => setTimeout(r, 150));
+      }
+    }
+    // Archive-aware: active REST first, then archive / non-pruned list
+    const res = await blockchain.fetchTx(h);
+    if (res && res.tx_response) {
+      tx.value = res as any;
+    } else {
+      tx.value = {} as any;
+      error.value = 'Transaction not found on active or archive REST endpoints.';
+    }
+  } catch (e: any) {
+    tx.value = {} as any;
+    error.value = e?.message || String(e);
+  } finally {
+    loading.value = false;
+  }
 }
+
+watch(
+  () => [props.hash, blockchain.endpoint?.address] as const,
+  ([h]) => {
+    if (h) loadTx(h);
+  },
+  { immediate: true }
+);
+
 const messages = computed(() => {
   return (
     tx.value.tx?.body?.messages.map((x) => {
@@ -42,6 +80,18 @@ const messages = computed(() => {
       }}</RouterLink>
       <RouterLink class="tab text-gray-400 uppercase" :to="`/${chain}/tx/?tab=search`">Search</RouterLink>
       <a class="tab text-gray-400 uppercase tab-active">Transaction</a>
+    </div>
+
+    <div v-if="loading" class="bg-base-100 px-4 py-6 rounded shadow mb-4 text-sm opacity-70">
+      Loading transaction… (trying active REST, then archive)
+    </div>
+
+    <div v-else-if="error && !tx.tx_response" class="bg-base-100 px-4 py-4 rounded shadow mb-4 text-sm">
+      <b class="text-error">Not found</b>
+      <div class="mt-1 opacity-80">{{ error }}</div>
+      <div class="mt-2 text-xs opacity-60">
+        Hash: <span class="font-mono">{{ hash }}</span>
+      </div>
     </div>
 
     <div v-if="tx.tx_response" class="bg-base-100 px-4 pt-3 pb-4 rounded shadow mb-4">
@@ -108,7 +158,7 @@ const messages = computed(() => {
 
     <div v-if="tx.tx_response" class="bg-base-100 px-4 pt-3 pb-4 rounded shadow mb-4">
       <h2 class="card-title truncate mb-2">{{ $t('account.messages') }}: ({{ messages.length }})</h2>
-      <div v-for="(msg, i) in messages">
+      <div v-for="(msg, i) in messages" :key="i">
         <div class="border border-slate-400 rounded-md mt-4">
           <DynamicComponent :value="msg" />
         </div>

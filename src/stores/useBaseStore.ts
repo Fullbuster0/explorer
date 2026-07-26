@@ -149,12 +149,19 @@ export const useBaseStore = defineStore('baseStore', {
     },
     async fetchBlock(height?: number | string) {
       try {
-        const block = await this.blockchain.rpc.getBaseBlockAt(String(height));
-        this.connected = true;
-        return block;
+        // Active REST first; on miss (pruned height) walk archive/non-pruned list.
+        // fetchHistoricalBlock does NOT permanently switch the live endpoint.
+        const block =
+          (await this.blockchain.fetchHistoricalBlock(String(height))) ||
+          (await this.blockchain.rpc.getBaseBlockAt(String(height)));
+        if (block && (block as any).block?.header?.height) {
+          this.connected = true;
+          return block as Block;
+        }
       } catch (error) {
-        console.error('Error fetching latest block:', error);
+        console.error('Error fetching block:', error);
         this.connected = false;
+        // Liveness fallback only — archive walk already tried above.
         this.blockchain.fallbackEndpoint();
       }
       return {} as Block;

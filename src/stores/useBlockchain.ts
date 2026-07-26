@@ -207,6 +207,123 @@ export const useBlockchain = defineStore('blockchain', {
       return this.current?.endpoints?.rest || [];
     },
 
+    // Historical REST order: archive / non-pruned first, then rest of the list.
+    // Used only for one-shot historical lookups (tx hash, old block) — does NOT
+    // permanently switch the live endpoint (archives can lag on tip data).
+    historicalRestOrder(preferCurrent = true): Endpoint[] {
+      const all = this.restEndpoints();
+      if (!all.length) return [];
+      const current = (this.endpoint?.address || '').replace(/\/$/, '');
+      const score = (ep: Endpoint) => {
+        const blob = `${ep.address || ''} ${ep.provider || ''}`.toLowerCase();
+        let s = 0;
+        if (blob.includes('archive')) s += 100;
+        if (blob.includes('full') || blob.includes('history')) s += 40;
+        if (blob.includes('allinbits') || blob.includes('citizenweb3')) s += 20;
+        if (preferCurrent && (ep.address || '').replace(/\/$/, '') === current) s -= 5;
+        return s;
+      };
+      // Stable sort: higher score first, keep relative order for ties.
+      return all
+        .map((ep, i) => ({ ep, i, s: score(ep) }))
+        .sort((a, b) => b.s - a.s || a.i - b.i)
+        .map((x) => x.ep);
+    },
+
+    /**
+     * Fetch a tx by hash with archive/non-pruned REST fallback.
+     * 1) try active endpoint
+     * 2) on miss/404/pruned error, walk REST list archive-first
+     * Never permanently switches the live endpoint.
+     */
+    async fetchTx(hash: string): Promise<{ tx: any; tx_response: any } | null> {
+      const clean = (hash || '').trim();
+      if (!clean) return null;
+
+      const tryOne = async (base: string) => {
+        const client = CosmosRestClient.newStrategy(base, this.current);
+        const res = await client.getTx(clean);
+        // Some LCD return 200 with empty body on pruned history — treat as miss.
+        if (res && (res as any).tx_response && (res as any).tx_response.txhash) return res;
+        if (res && (res as any).tx && (res as any).tx_response) return res;
+        return null;
+      };
+
+      // 1) active endpoint first (fast path for recent txs)
+      const active = this.endpoint?.address;
+      if (active && this.rpc) {
+        try {
+          const hit = await tryOne(active);
+          if (hit) return hit as any;
+        } catch (e: any) {
+          // fall through — pruned / 404 / network
+          console.info(`[explorer] tx miss on active REST (${active}): ${e?.message || e}`);
+        }
+      }
+
+      // 2) walk remaining REST, archive-first
+      const seen = new Set<string>();
+      if (active) seen.add(active.replace(/\/$/, ''));
+      for (const ep of this.historicalRestOrder(false)) {
+        const addr = (ep.address || '').replace(/\/$/, '');
+        if (!addr || seen.has(addr)) continue;
+        seen.add(addr);
+        try {
+          const hit = await tryOne(addr);
+          if (hit) {
+            console.info(`[explorer] tx found via historical REST: ${addr} (${ep.provider || 'unknown'})`);
+            return hit as any;
+          }
+        } catch (e: any) {
+          // keep walking
+        }
+      }
+      return null;
+    },
+
+    /**
+     * Fetch a block by height with archive REST fallback (same policy as fetchTx).
+     */
+    async fetchHistoricalBlock(height: string | number): Promise<any | null> {
+      const h = String(height);
+      if (!h) return null;
+
+      const tryOne = async (base: string) => {
+        const client = CosmosRestClient.newStrategy(base, this.current);
+        const res = await client.getBaseBlockAt(h);
+        if (res && (res as any).block?.header?.height) return res;
+        return null;
+      };
+
+      const active = this.endpoint?.address;
+      if (active && this.rpc) {
+        try {
+          const hit = await tryOne(active);
+          if (hit) return hit;
+        } catch (e: any) {
+          console.info(`[explorer] block ${h} miss on active REST (${active}): ${e?.message || e}`);
+        }
+      }
+
+      const seen = new Set<string>();
+      if (active) seen.add(active.replace(/\/$/, ''));
+      for (const ep of this.historicalRestOrder(false)) {
+        const addr = (ep.address || '').replace(/\/$/, '');
+        if (!addr || seen.has(addr)) continue;
+        seen.add(addr);
+        try {
+          const hit = await tryOne(addr);
+          if (hit) {
+            console.info(`[explorer] block ${h} found via historical REST: ${addr}`);
+            return hit;
+          }
+        } catch (e: any) {
+          // keep walking
+        }
+      }
+      return null;
+    },
+
     // Lightweight liveness probe for a REST/LCD endpoint.
     async healthCheck(address: string, timeoutMs = 6000): Promise<boolean> {
       try {
