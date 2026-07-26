@@ -310,6 +310,8 @@
     "btn_swap": "스왑",
     "receive": "수신",
     "app_versions": "애플리케이션 버전",
-    "node_info": "노드 정보"
+    "node_info": "노드 정보",
+    "read_more": "더 보기",
+    "show_less": "접기"
   }
 }

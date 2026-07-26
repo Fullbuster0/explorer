@@ -310,6 +310,8 @@
     "btn_swap": "Intercambiar",
     "receive": "Recibir",
     "app_versions": "Versiones de Aplicación",
-    "node_info": "Información del Nodo"
+    "node_info": "Información del Nodo",
+    "read_more": "Leer más",
+    "show_less": "Mostrar menos"
   }
 }

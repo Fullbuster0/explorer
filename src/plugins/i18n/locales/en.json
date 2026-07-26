@@ -312,6 +312,8 @@
     "btn_swap": "Swap",
     "receive": "Receive",
     "app_versions": "Application Versions",
-    "node_info": "Node Information"
+    "node_info": "Node Information",
+    "read_more": "Read more",
+    "show_less": "Show less"
   }
 }

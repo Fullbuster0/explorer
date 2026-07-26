@@ -310,6 +310,8 @@
     "btn_swap": "Tauschen",
     "receive": "Empfangen",
     "app_versions": "Anwendungsversionen",
-    "node_info": "Knoteninformationen"
+    "node_info": "Knoteninformationen",
+    "read_more": "Mehr lesen",
+    "show_less": "Weniger anzeigen"
   }
 }

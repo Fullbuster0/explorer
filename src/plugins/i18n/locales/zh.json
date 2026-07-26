@@ -298,6 +298,8 @@
     "btn_swap": "Swap",
     "receive": "Receive",
     "app_versions": "应用版本",
-    "node_info": "节点信息"
+    "node_info": "节点信息",
+    "read_more": "展开更多",
+    "show_less": "收起"
   }
 }

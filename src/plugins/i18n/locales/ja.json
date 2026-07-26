@@ -310,6 +310,8 @@
     "btn_swap": "スワップ",
     "receive": "受け取る",
     "app_versions": "アプリケーションバージョン",
-    "node_info": "ノード情報"
+    "node_info": "ノード情報",
+    "read_more": "もっと見る",
+    "show_less": "閉じる"
   }
 }

@@ -296,6 +296,8 @@
     "btn_swap": "Tukar",
     "receive": "Terima",
     "app_versions": "Versi Aplikasi",
-    "node_info": "Informasi Node"
+    "node_info": "Informasi Node",
+    "read_more": "Selengkapnya",
+    "show_less": "Tampilkan lebih sedikit"
   }
 }

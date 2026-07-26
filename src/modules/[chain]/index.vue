@@ -222,6 +222,7 @@ const tokenomics = computed(() => {
 
 
 const quantity = ref(100);
+const aboutExpanded = ref(false);
 const qty = computed({
   get: () => {
     return parseFloat(quantity.value.toFixed(6));
@@ -276,6 +277,22 @@ const amount = computed({
                   <span>{{ item?.name }}</span>
                 </a>
               </div>
+              <!-- chain description (moved from Market card) -->
+              <div
+                v-if="coinInfo.description?.en"
+                class="sz-hero-about mt-4 max-w-3xl text-sm leading-relaxed text-secondary"
+                :class="{ 'sz-hero-about--clamped': !aboutExpanded }"
+              >
+                <MdEditor :model-value="coinInfo.description?.en" previewOnly />
+              </div>
+              <button
+                v-if="coinInfo.description?.en"
+                class="sz-hero-about-toggle mt-1.5 text-xs font-semibold text-primary"
+                type="button"
+                @click="aboutExpanded = !aboutExpanded"
+              >
+                {{ aboutExpanded ? $t('index.show_less') : $t('index.read_more') }}
+              </button>
             </div>
           </div>
           <div v-if="hasMarket" class="flex items-center gap-2">
@@ -399,12 +416,6 @@ const amount = computed({
       </div>
       <div class="px-2 pb-2 pt-1 sm:px-3">
         <PriceMarketChart />
-      </div>
-      <div
-        v-if="coinInfo.description?.en"
-        class="max-h-[180px] overflow-auto border-t border-base-content/10 px-4 py-3 text-sm text-secondary"
-      >
-        <MdEditor :model-value="coinInfo.description?.en" previewOnly />
       </div>
     </section>
 
@@ -705,6 +716,35 @@ const amount = computed({
   letter-spacing: -0.02em;
   color: var(--text-main);
 }
+.sz-hero-about {
+  color: var(--text-secondary);
+}
+.sz-hero-about :deep(.md-editor-preview-wrapper),
+.sz-hero-about :deep(.md-editor-preview) {
+  background: transparent !important;
+  padding: 0 !important;
+  font-size: 0.875rem !important;
+  line-height: 1.55 !important;
+  color: inherit !important;
+}
+.sz-hero-about :deep(a) { color: hsl(var(--p)); text-decoration: none; }
+.sz-hero-about :deep(a:hover) { text-decoration: underline; }
+.sz-hero-about :deep(p) { margin: 0 0 0.55rem; }
+.sz-hero-about :deep(p:last-child) { margin-bottom: 0; }
+.sz-hero-about--clamped {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.sz-hero-about-toggle {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  letter-spacing: 0.02em;
+}
+.sz-hero-about-toggle:hover { text-decoration: underline; }
 .sz-hero-link {
   display: inline-flex;
   align-items: center;
