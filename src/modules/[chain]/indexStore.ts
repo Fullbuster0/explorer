@@ -91,6 +91,12 @@ export const useIndexModule = defineStore('module-index', {
         language: '' as string,
         pushedAt: '' as string,
         defaultBranch: '' as string,
+        watchers: 0,
+        sizeKb: 0,
+        /** 52 weeks × 7 days (Sun→Sat), commit counts — nodes.guru style boxes */
+        weeks: [] as { week: number; days: number[] }[],
+        totalCommitsYear: 0,
+        maxDayCommits: 0,
         commits: [] as {
           sha: string;
           message: string;
@@ -308,10 +314,14 @@ export const useIndexModule = defineStore('module-index', {
         this.githubActivity.error = '';
         this.githubActivity.loading = false;
         this.githubActivity.commits = [];
+        this.githubActivity.weeks = [];
+        this.githubActivity.totalCommitsYear = 0;
+        this.githubActivity.maxDayCommits = 0;
         return;
       }
 
-      const cacheKey = `sz-gh-activity:${parsed.owner}/${parsed.repo}`;
+      // v2 cache: includes contribution weeks heatmap
+      const cacheKey = `sz-gh-activity-v2:${parsed.owner}/${parsed.repo}`;
       try {
         const cached = sessionStorage.getItem(cacheKey);
         if (cached) {
@@ -330,14 +340,13 @@ export const useIndexModule = defineStore('module-index', {
       const headers: Record<string, string> = {
         Accept: 'application/vnd.github+json',
       };
+      const base = `https://api.github.com/repos/${parsed.owner}/${parsed.repo}`;
 
       try {
-        const [repoRes, commitsRes] = await Promise.all([
-          fetch(`https://api.github.com/repos/${parsed.owner}/${parsed.repo}`, { headers }),
-          fetch(
-            `https://api.github.com/repos/${parsed.owner}/${parsed.repo}/commits?per_page=6`,
-            { headers }
-          ),
+        const [repoRes, commitsRes, activityRes] = await Promise.all([
+          fetch(base, { headers }),
+          fetch(`${base}/commits?per_page=8`, { headers }),
+          fetch(`${base}/stats/commit_activity`, { headers }),
         ]);
 
         if (!repoRes.ok) {
@@ -347,6 +356,28 @@ export const useIndexModule = defineStore('module-index', {
         let commits: any[] = [];
         if (commitsRes.ok) {
           commits = await commitsRes.json();
+        }
+
+        // commit_activity may 202 while GitHub computes; treat as empty, not fatal
+        let weeks: { week: number; days: number[] }[] = [];
+        let totalCommitsYear = 0;
+        let maxDayCommits = 0;
+        if (activityRes.ok) {
+          const raw = await activityRes.json();
+          if (Array.isArray(raw)) {
+            weeks = raw.map((w: any) => ({
+              week: Number(w.week) || 0,
+              days: Array.isArray(w.days)
+                ? w.days.map((d: any) => Number(d) || 0)
+                : [0, 0, 0, 0, 0, 0, 0],
+            }));
+            for (const w of weeks) {
+              totalCommitsYear += w.days.reduce((a, b) => a + b, 0);
+              for (const d of w.days) {
+                if (d > maxDayCommits) maxDayCommits = d;
+              }
+            }
+          }
         }
 
         const next = {
@@ -361,7 +392,12 @@ export const useIndexModule = defineStore('module-index', {
           language: repo.language || '',
           pushedAt: repo.pushed_at || '',
           defaultBranch: repo.default_branch || 'main',
-          commits: (Array.isArray(commits) ? commits : []).slice(0, 6).map((c: any) => ({
+          watchers: repo.subscribers_count || repo.watchers_count || 0,
+          sizeKb: repo.size || 0,
+          weeks,
+          totalCommitsYear,
+          maxDayCommits,
+          commits: (Array.isArray(commits) ? commits : []).slice(0, 8).map((c: any) => ({
             sha: (c.sha || '').slice(0, 7),
             message: String(c.commit?.message || '').split('\n')[0].slice(0, 120),
             author: c.commit?.author?.name || c.author?.login || 'unknown',

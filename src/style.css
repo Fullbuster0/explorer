@@ -745,3 +745,27 @@ html[data-theme='dark'] .sz-card {
   opacity: 0;
   transform: translateY(-calc(15%));
 }
+
+/* GitHub contribution heatmap (nodes.guru green boxes) — chain dashboard */
+.sz-gh-cell {
+  width: 11px;
+  height: 11px;
+  border-radius: 2px;
+  display: inline-block;
+  background: color-mix(in srgb, hsl(var(--b2)) 80%, #161b22);
+  box-sizing: border-box;
+}
+.sz-gh-cell[data-level="1"] { background: #0e4429; }
+.sz-gh-cell[data-level="2"] { background: #006d32; }
+.sz-gh-cell[data-level="3"] { background: #26a641; }
+.sz-gh-cell[data-level="4"] { background: #39d353; }
+html:not(.dark):not([data-theme='dark']) .sz-gh-cell[data-level="1"] { background: #9be9a8; }
+html:not(.dark):not([data-theme='dark']) .sz-gh-cell[data-level="2"] { background: #40c463; }
+html:not(.dark):not([data-theme='dark']) .sz-gh-cell[data-level="3"] { background: #30a14e; }
+html:not(.dark):not([data-theme='dark']) .sz-gh-cell[data-level="4"] { background: #216e39; }
+
+/* frosted section surfaces so aurora shows through */
+.sz-section.sz-glass,
+.sz-bento .sz-section {
+  background: color-mix(in srgb, hsl(var(--b1)) 72%, transparent);
+}

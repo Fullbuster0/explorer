@@ -5,9 +5,8 @@ import PriceMarketChart from '@/components/charts/PriceMarketChart.vue';
 import { Icon } from '@iconify/vue';
 import { useBlockchain, useFormatter, useTxDialog, useWalletStore, useStakingStore, useParamStore, useGovStore } from '@/stores';
 import { LoadingStatus } from '@/stores/useDashboard';
-import { onMounted, ref } from 'vue';
+import { onMounted, ref, computed } from 'vue';
 import { useIndexModule, colorMap, tickerUrl } from './indexStore';
-import { computed } from '@vue/reactivity';
 
 import CardStatisticsVertical from '@/components/CardStatisticsVertical.vue';
 import ProposalListItem from '@/components/ProposalListItem.vue';
@@ -77,7 +76,7 @@ const comLinks = computed(() => {
       icon: 'mdi-github',
       href: store.github,
     },
-  ];
+  ].filter((x) => !!x.href);
 });
 
 // wallet box
@@ -117,6 +116,56 @@ function formatGithubDate(iso: string) {
 
 const githubCard = computed(() => store.githubActivity);
 
+function commitLevel(n: number, max: number): 0 | 1 | 2 | 3 | 4 {
+  if (!n) return 0;
+  if (!max || max <= 1) return 1;
+  const r = n / max;
+  if (r > 0.75) return 4;
+  if (r > 0.5) return 3;
+  if (r > 0.25) return 2;
+  return 1;
+}
+
+function dayTitle(weekUnix: number, dayIdx: number, n: number): string {
+  try {
+    const d = new Date((weekUnix + dayIdx * 86400) * 1000);
+    const label = d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+    return `${n} commit${n === 1 ? '' : 's'} · ${label}`;
+  } catch {
+    return `${n} commits`;
+  }
+}
+
+const heatmapCells = computed(() => {
+  const weeks = githubCard.value.weeks || [];
+  const max = githubCard.value.maxDayCommits || 0;
+  const cells: { level: 0 | 1 | 2 | 3 | 4; title: string; key: string }[] = [];
+  for (const w of weeks) {
+    const days = w.days?.length === 7 ? w.days : [0, 0, 0, 0, 0, 0, 0];
+    for (let i = 0; i < 7; i++) {
+      const n = days[i] || 0;
+      cells.push({
+        level: commitLevel(n, max),
+        title: dayTitle(w.week, i, n),
+        key: `${w.week}-${i}`,
+      });
+    }
+  }
+  return cells;
+});
+
+const chainLogo = computed(() => blockchain.logo || blockchain.current?.logo || '');
+const chainTitle = computed(() => {
+  if (coinInfo.value?.name) return coinInfo.value.name;
+  return blockchain.current?.prettyName || blockchain.current?.chainName || props.chain || '';
+});
+const chainSymbol = computed(() => {
+  if (coinInfo.value?.symbol) return coinInfo.value.symbol;
+  const [a] = blockchain.current?.assets || [];
+  return a?.symbol || '';
+});
+const hasMarket = computed(() => !!(coinInfo.value && coinInfo.value.name));
+
 const quantity = ref(100);
 const qty = computed({
   get: () => {
@@ -128,10 +177,11 @@ const qty = computed({
 });
 const amount = computed({
   get: () => {
-    return quantity.value * ticker.value.converted_last.usd || 0;
+    return quantity.value * (ticker.value?.converted_last?.usd || 0) || 0;
   },
   set: (val) => {
-    quantity.value = val / ticker.value.converted_last.usd || 0;
+    const p = ticker.value?.converted_last?.usd || 0;
+    quantity.value = p ? val / p : 0;
   },
 });
 </script>
@@ -139,73 +189,81 @@ const amount = computed({
 <template>
   <div class="space-y-4">
     <!-- ===== Chain hero ===== -->
-    <section v-if="coinInfo && coinInfo.name" class="sz-chain-hero relative overflow-hidden rounded-2xl">
+    <section class="sz-chain-hero relative overflow-hidden rounded-2xl">
       <div class="relative z-10 p-5 sm:p-6">
         <div class="flex flex-wrap items-start justify-between gap-4">
-          <div class="min-w-0">
-            <div class="flex flex-wrap items-center gap-2.5">
-              <h1 class="sz-hero-chain">{{ coinInfo.name }}</h1>
-              <span class="sz-chip sz-chip--info font-mono uppercase">{{ coinInfo.symbol }}</span>
-              <span class="sz-chip font-mono">Rank #{{ coinInfo.market_cap_rank }}</span>
+          <div class="min-w-0 flex items-start gap-3.5">
+            <div v-if="chainLogo" class="sz-hero-logo shrink-0">
+              <img :src="chainLogo" :alt="chainTitle" width="48" height="48" />
             </div>
-            <div class="mt-2.5 flex flex-wrap items-baseline gap-2.5">
-              <span class="sz-hero-price">${{ ticker?.converted_last?.usd }}</span>
-              <span class="text-sm font-semibold font-mono" :class="store.priceColor">{{ store.priceChange }}%</span>
-            </div>
-            <div class="mt-3.5 flex flex-wrap items-center gap-1.5">
-              <a
-                v-for="(item, index) of comLinks"
-                :key="index"
-                :href="item.href"
-                target="_blank"
-                rel="noopener"
-                class="sz-hero-link"
-              >
-                <Icon :icon="item?.icon" />
-                <span>{{ item?.name }}</span>
-              </a>
+            <div class="min-w-0">
+              <div class="flex flex-wrap items-center gap-2.5">
+                <h1 class="sz-hero-chain">{{ chainTitle }}</h1>
+                <span v-if="chainSymbol" class="sz-chip sz-chip--info font-mono uppercase">{{ chainSymbol }}</span>
+                <span v-if="coinInfo?.market_cap_rank" class="sz-chip font-mono">Rank #{{ coinInfo.market_cap_rank }}</span>
+              </div>
+              <div v-if="hasMarket" class="mt-2.5 flex flex-wrap items-baseline gap-2.5">
+                <span class="sz-hero-price">${{ ticker?.converted_last?.usd }}</span>
+                <span class="text-sm font-semibold font-mono" :class="store.priceColor">{{ store.priceChange }}%</span>
+              </div>
+              <div class="mt-3.5 flex flex-wrap items-center gap-1.5">
+                <a
+                  v-for="(item, index) of comLinks"
+                  :key="index"
+                  :href="item.href"
+                  target="_blank"
+                  rel="noopener"
+                  class="sz-hero-link"
+                >
+                  <Icon :icon="item?.icon" />
+                  <span>{{ item?.name }}</span>
+                </a>
+              </div>
             </div>
           </div>
-          <div class="flex items-center gap-2">
+          <div v-if="hasMarket" class="flex items-center gap-2">
             <label class="btn btn-sm btn-outline" for="calculator">
               <Icon icon="mdi-calculator" class="text-base" />
               <span class="hidden sm:inline">{{ $t('index.price_calculator') }}</span>
             </label>
             <a
+              v-if="ticker?.trade_url"
               class="btn btn-sm btn-primary text-white"
               :class="{ '!btn-success': store.trustColor === 'green', '!btn-warning': store.trustColor === 'yellow' }"
               :href="tickerUrl(ticker.trade_url)"
               target="_blank"
             >
-              {{ $t('index.buy') }} {{ coinInfo.symbol || '' }}
+              {{ $t('index.buy') }} {{ chainSymbol || '' }}
             </a>
           </div>
         </div>
       </div>
 
       <!-- calculator modal -->
-      <input type="checkbox" id="calculator" class="modal-toggle" />
-      <div class="modal">
-        <div class="modal-box">
-          <h3 class="text-lg font-bold">{{ $t('index.price_calculator') }}</h3>
-          <div class="flex flex-col w-full mt-5">
-            <div class="grid h-20 flex-grow card rounded-box place-items-center">
-              <div class="join w-full">
-                <label class="join-item btn"><span class="uppercase">{{ coinInfo.symbol }}</span></label>
-                <input type="number" v-model="qty" min="0" placeholder="Input a number" class="input grow input-bordered join-item" />
+      <template v-if="hasMarket">
+        <input type="checkbox" id="calculator" class="modal-toggle" />
+        <div class="modal">
+          <div class="modal-box">
+            <h3 class="text-lg font-bold">{{ $t('index.price_calculator') }}</h3>
+            <div class="flex flex-col w-full mt-5">
+              <div class="grid h-20 flex-grow card rounded-box place-items-center">
+                <div class="join w-full">
+                  <label class="join-item btn"><span class="uppercase">{{ chainSymbol }}</span></label>
+                  <input type="number" v-model="qty" min="0" placeholder="Input a number" class="input grow input-bordered join-item" />
+                </div>
               </div>
-            </div>
-            <div class="divider">=</div>
-            <div class="grid h-20 flex-grow card rounded-box place-items-center">
-              <div class="join w-full">
-                <label class="join-item btn"><span>USD</span></label>
-                <input type="number" v-model="amount" min="0" placeholder="Input amount" class="join-item grow input input-bordered" />
+              <div class="divider">=</div>
+              <div class="grid h-20 flex-grow card rounded-box place-items-center">
+                <div class="join w-full">
+                  <label class="join-item btn"><span>USD</span></label>
+                  <input type="number" v-model="amount" min="0" placeholder="Input amount" class="join-item grow input input-bordered" />
+                </div>
               </div>
             </div>
           </div>
+          <label class="modal-backdrop" for="calculator">{{ $t('index.close') }}</label>
         </div>
-        <label class="modal-backdrop" for="calculator">{{ $t('index.close') }}</label>
-      </div>
+      </template>
     </section>
 
     <!-- ===== Network vitals ===== -->
@@ -213,115 +271,152 @@ const amount = computed({
       <CardStatisticsVertical v-for="(item, key) in store.stats" :key="key" v-bind="item" />
     </div>
 
-    <!-- ===== Market ===== -->
-    <section v-if="coinInfo && coinInfo.name" class="sz-section">
-      <div class="sz-section-head">
-        <div class="min-w-0">
-          <div class="sz-section-kicker">Market</div>
-          <div class="sz-section-title truncate">
-            {{ ticker?.market?.name || '' }} ·
-            {{ shortName(ticker?.base, ticker?.coin_id) }}/{{ shortName(ticker?.target, ticker?.target_coin_id) }}
-          </div>
-        </div>
-      </div>
-      <div class="p-4">
-        <PriceMarketChart />
-      </div>
-      <div v-if="coinInfo.description?.en" class="max-h-[220px] overflow-auto border-t border-base-content/10 px-4 py-3 text-sm">
-        <MdEditor :model-value="coinInfo.description?.en" previewOnly />
-      </div>
-      <div v-if="coinInfo.categories?.length" class="flex flex-wrap gap-2 border-t border-base-content/10 px-4 py-3">
-        <span v-for="tag in coinInfo.categories" :key="tag" class="sz-chip">{{ tag }}</span>
-      </div>
-    </section>
-
-
-    <!-- ===== GitHub activity (nodes.guru-style) ===== -->
-    <section
-      v-if="githubCard.fullName || githubCard.loading"
-      class="sz-section sz-github-activity"
+    <!-- ===== Bento: Market + GitHub ===== -->
+    <div
+      class="sz-bento"
+      :class="{
+        'sz-bento--dual': hasMarket && (githubCard.fullName || githubCard.loading),
+        'sz-bento--market-only': hasMarket && !(githubCard.fullName || githubCard.loading),
+        'sz-bento--github-only': !hasMarket && (githubCard.fullName || githubCard.loading),
+      }"
     >
-      <div class="sz-section-head">
-        <div class="min-w-0">
-          <div class="sz-section-kicker">Development</div>
-          <div class="sz-section-title">GitHub Activity</div>
-        </div>
-        <a
-          v-if="githubCard.htmlUrl"
-          :href="githubCard.htmlUrl"
-          target="_blank"
-          rel="noopener"
-          class="btn btn-sm btn-outline gap-1"
-        >
-          <Icon icon="mdi-github" class="text-base" />
-          <span class="hidden sm:inline font-mono text-xs">{{ githubCard.fullName }}</span>
-          <span class="sm:hidden">Repo</span>
-        </a>
-      </div>
-
-      <div v-if="githubCard.loading" class="px-4 py-6 text-sm text-secondary">Loading repository activity…</div>
-      <div v-else-if="githubCard.error && !githubCard.commits?.length" class="px-4 py-4 text-sm text-secondary">
-        {{ githubCard.error }}
-        <a v-if="githubCard.htmlUrl" :href="githubCard.htmlUrl" class="link link-primary ml-1" target="_blank" rel="noopener">Open on GitHub</a>
-      </div>
-      <template v-else>
-        <div class="grid grid-cols-2 gap-2 px-4 pt-3 sm:grid-cols-4">
-          <div class="sz-gh-stat">
-            <div class="sz-metric-label">Stars</div>
-            <div class="sz-gh-stat-val">{{ githubCard.stars }}</div>
-          </div>
-          <div class="sz-gh-stat">
-            <div class="sz-metric-label">Forks</div>
-            <div class="sz-gh-stat-val">{{ githubCard.forks }}</div>
-          </div>
-          <div class="sz-gh-stat">
-            <div class="sz-metric-label">Open issues</div>
-            <div class="sz-gh-stat-val">{{ githubCard.openIssues }}</div>
-          </div>
-          <div class="sz-gh-stat">
-            <div class="sz-metric-label">Language</div>
-            <div class="sz-gh-stat-val truncate">{{ githubCard.language || '—' }}</div>
-          </div>
-        </div>
-        <p v-if="githubCard.description" class="px-4 pt-3 text-sm text-secondary line-clamp-2">
-          {{ githubCard.description }}
-        </p>
-        <div class="mt-3 border-t border-base-content/10">
-          <div class="flex items-center justify-between px-4 py-2.5">
-            <div class="text-xs font-semibold uppercase tracking-wider text-secondary">Recent commits</div>
-            <div v-if="githubCard.pushedAt" class="font-mono text-[11px] text-secondary">
-              pushed {{ formatGithubDate(githubCard.pushedAt) }}
+      <section v-if="hasMarket" class="sz-section sz-bento-market">
+        <div class="sz-section-head">
+          <div class="min-w-0">
+            <div class="sz-section-kicker">Market</div>
+            <div class="sz-section-title truncate">
+              {{ ticker?.market?.name || '' }} ·
+              {{ shortName(ticker?.base, ticker?.coin_id) }}/{{ shortName(ticker?.target, ticker?.target_coin_id) }}
             </div>
           </div>
-          <ul class="divide-y divide-base-content/10">
-            <li
-              v-for="c in githubCard.commits"
-              :key="c.sha"
-              class="px-4 py-2.5 hover:bg-base-content/5 transition-colors"
-            >
-              <a
-                :href="c.htmlUrl || githubCard.htmlUrl"
-                target="_blank"
-                rel="noopener"
-                class="block no-underline"
+        </div>
+        <div class="p-4">
+          <PriceMarketChart />
+        </div>
+        <div v-if="coinInfo.description?.en" class="max-h-[220px] overflow-auto border-t border-base-content/10 px-4 py-3 text-sm">
+          <MdEditor :model-value="coinInfo.description?.en" previewOnly />
+        </div>
+        <div v-if="coinInfo.categories?.length" class="flex flex-wrap gap-2 border-t border-base-content/10 px-4 py-3">
+          <span v-for="tag in coinInfo.categories" :key="tag" class="sz-chip">{{ tag }}</span>
+        </div>
+      </section>
+
+      <section
+        v-if="githubCard.fullName || githubCard.loading"
+        class="sz-section sz-github-activity sz-bento-github"
+      >
+        <div class="sz-section-head">
+          <div class="min-w-0">
+            <div class="sz-section-kicker">Development</div>
+            <div class="sz-section-title">GitHub Activity</div>
+          </div>
+          <a
+            v-if="githubCard.htmlUrl"
+            :href="githubCard.htmlUrl"
+            target="_blank"
+            rel="noopener"
+            class="btn btn-sm btn-outline gap-1"
+          >
+            <Icon icon="mdi-github" class="text-base" />
+            <span class="hidden sm:inline font-mono text-xs">{{ githubCard.fullName }}</span>
+            <span class="sm:hidden">Repo</span>
+          </a>
+        </div>
+
+        <div v-if="githubCard.loading" class="px-4 py-6 text-sm text-secondary">Loading repository activity…</div>
+        <div v-else-if="githubCard.error && !githubCard.commits?.length" class="px-4 py-4 text-sm text-secondary">
+          {{ githubCard.error }}
+          <a v-if="githubCard.htmlUrl" :href="githubCard.htmlUrl" class="link link-primary ml-1" target="_blank" rel="noopener">Open on GitHub</a>
+        </div>
+        <template v-else>
+          <!-- contribution heatmap (nodes.guru green boxes) -->
+          <div v-if="heatmapCells.length" class="sz-gh-heatmap px-4 pt-3">
+            <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
+              <div class="text-xs text-secondary">
+                <span class="font-mono font-semibold text-main">{{ githubCard.totalCommitsYear.toLocaleString() }}</span>
+                commits in the last year
+              </div>
+              <div class="sz-gh-legend" aria-hidden="true">
+                <span>Less</span>
+                <span class="sz-gh-cell" data-level="0"></span>
+                <span class="sz-gh-cell" data-level="1"></span>
+                <span class="sz-gh-cell" data-level="2"></span>
+                <span class="sz-gh-cell" data-level="3"></span>
+                <span class="sz-gh-cell" data-level="4"></span>
+                <span>More</span>
+              </div>
+            </div>
+            <div class="sz-gh-heatmap-scroll">
+              <div class="sz-gh-heatmap-grid" role="img" :aria-label="`${githubCard.totalCommitsYear} commits last year`">
+                <span
+                  v-for="cell in heatmapCells"
+                  :key="cell.key"
+                  class="sz-gh-cell"
+                  :data-level="cell.level"
+                  :title="cell.title"
+                ></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2 px-4 pt-3 sm:grid-cols-4">
+            <div class="sz-gh-stat">
+              <div class="sz-metric-label">Stars</div>
+              <div class="sz-gh-stat-val">{{ githubCard.stars }}</div>
+            </div>
+            <div class="sz-gh-stat">
+              <div class="sz-metric-label">Forks</div>
+              <div class="sz-gh-stat-val">{{ githubCard.forks }}</div>
+            </div>
+            <div class="sz-gh-stat">
+              <div class="sz-metric-label">Open issues</div>
+              <div class="sz-gh-stat-val">{{ githubCard.openIssues }}</div>
+            </div>
+            <div class="sz-gh-stat">
+              <div class="sz-metric-label">Language</div>
+              <div class="sz-gh-stat-val truncate">{{ githubCard.language || '—' }}</div>
+            </div>
+          </div>
+          <p v-if="githubCard.description" class="px-4 pt-3 text-sm text-secondary line-clamp-2">
+            {{ githubCard.description }}
+          </p>
+          <div class="mt-3 border-t border-base-content/10">
+            <div class="flex items-center justify-between px-4 py-2.5">
+              <div class="text-xs font-semibold uppercase tracking-wider text-secondary">Recent commits</div>
+              <div v-if="githubCard.pushedAt" class="font-mono text-[11px] text-secondary">
+                pushed {{ formatGithubDate(githubCard.pushedAt) }}
+              </div>
+            </div>
+            <ul class="divide-y divide-base-content/10">
+              <li
+                v-for="c in githubCard.commits"
+                :key="c.sha"
+                class="px-4 py-2.5 hover:bg-base-content/5 transition-colors"
               >
-                <div class="flex items-start gap-2">
-                  <span class="mt-0.5 shrink-0 rounded bg-base-content/10 px-1.5 py-0.5 font-mono text-[11px] text-primary">{{ c.sha }}</span>
-                  <div class="min-w-0 flex-1">
-                    <div class="truncate text-sm font-medium text-main">{{ c.message || '—' }}</div>
-                    <div class="mt-0.5 flex flex-wrap gap-x-2 text-[11px] text-secondary">
-                      <span>{{ c.author }}</span>
-                      <span v-if="c.date" class="font-mono">{{ formatGithubDate(c.date) }}</span>
+                <a
+                  :href="c.htmlUrl || githubCard.htmlUrl"
+                  target="_blank"
+                  rel="noopener"
+                  class="block no-underline"
+                >
+                  <div class="flex items-start gap-2">
+                    <span class="mt-0.5 shrink-0 rounded bg-base-content/10 px-1.5 py-0.5 font-mono text-[11px] text-primary">{{ c.sha }}</span>
+                    <div class="min-w-0 flex-1">
+                      <div class="truncate text-sm font-medium text-main">{{ c.message || '—' }}</div>
+                      <div class="mt-0.5 flex flex-wrap gap-x-2 text-[11px] text-secondary">
+                        <span>{{ c.author }}</span>
+                        <span v-if="c.date" class="font-mono">{{ formatGithubDate(c.date) }}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </a>
-            </li>
-            <li v-if="!githubCard.commits?.length" class="px-4 py-4 text-sm text-secondary">No recent commits</li>
-          </ul>
-        </div>
-      </template>
-    </section>
+                </a>
+              </li>
+              <li v-if="!githubCard.commits?.length" class="px-4 py-4 text-sm text-secondary">No recent commits</li>
+            </ul>
+          </div>
+        </template>
+      </section>
+    </div>
 
     <!-- ===== Active proposals ===== -->
     <section v-if="blockchain.supportModule('governance')" class="sz-section">
@@ -499,6 +594,21 @@ const amount = computed({
     linear-gradient(135deg, color-mix(in srgb, hsl(var(--p)) 7%, hsl(var(--b1))), hsl(var(--b1)));
   border: 1px solid var(--sz-border);
 }
+.sz-hero-logo {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid var(--sz-border);
+  overflow: hidden;
+}
+.sz-hero-logo img {
+  width: 38px;
+  height: 38px;
+  object-fit: contain;
+}
 .sz-hero-chain {
   font-size: 1.65rem;
   font-weight: 800;
@@ -551,6 +661,41 @@ const amount = computed({
   font-weight: 700;
   color: var(--text-main);
   letter-spacing: -0.02em;
+}
+/* bento: market + github side by side on desktop */
+.sz-bento {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 1fr;
+}
+@media (min-width: 1024px) {
+  .sz-bento--dual {
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+    align-items: stretch;
+  }
+}
+.sz-bento > .sz-section {
+  min-width: 0;
+}
+/* heatmap */
+.sz-gh-heatmap-scroll {
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+.sz-gh-heatmap-grid {
+  display: grid;
+  grid-template-rows: repeat(7, 11px);
+  grid-auto-flow: column;
+  grid-auto-columns: 11px;
+  gap: 3px;
+  width: max-content;
+}
+.sz-gh-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  color: var(--text-secondary);
 }
 </style>
 
