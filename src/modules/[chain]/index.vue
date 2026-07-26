@@ -19,7 +19,6 @@ import { onMounted, ref, computed } from 'vue';
 import { useIndexModule, colorMap, tickerUrl } from './indexStore';
 import { formatSeconds } from '@/libs/utils';
 
-import CardStatisticsVertical from '@/components/CardStatisticsVertical.vue';
 import ProposalListItem from '@/components/ProposalListItem.vue';
 import Loading from '@/components/Loading.vue';
 
@@ -324,11 +323,6 @@ const amount = computed({
       </template>
     </section>
 
-    <!-- ===== Network vitals ===== -->
-    <div class="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-      <CardStatisticsVertical v-for="(item, key) in store.stats" :key="key" v-bind="item" />
-    </div>
-
     <!-- ===== Tokenomics (nodes.guru-style) ===== -->
     <section class="sz-section">
       <div class="sz-section-head">
@@ -390,27 +384,29 @@ const amount = computed({
       </div>
     </section>
 
-    <!-- ===== Market (full width — chart must stay) ===== -->
+    <!-- ===== Market (clean nodes.guru-style chart) ===== -->
     <section v-if="hasMarket" class="sz-section">
-        <div class="sz-section-head">
-          <div class="min-w-0">
-            <div class="sz-section-kicker">Market</div>
-            <div class="sz-section-title truncate">
-              {{ ticker?.market?.name || '' }} ·
-              {{ shortName(ticker?.base, ticker?.coin_id) }}/{{ shortName(ticker?.target, ticker?.target_coin_id) }}
-            </div>
+      <div class="sz-section-head">
+        <div class="min-w-0">
+          <div class="sz-section-kicker">Market</div>
+          <div class="sz-section-title truncate">
+            {{ chainSymbol || shortName(ticker?.base, ticker?.coin_id) }} price
           </div>
         </div>
-        <div class="p-4">
-          <PriceMarketChart />
+        <div v-if="ticker?.market?.name" class="sz-chip truncate max-w-[12rem]">
+          {{ ticker.market.name }}
         </div>
-        <div v-if="coinInfo.description?.en" class="max-h-[220px] overflow-auto border-t border-base-content/10 px-4 py-3 text-sm">
-          <MdEditor :model-value="coinInfo.description?.en" previewOnly />
-        </div>
-        <div v-if="coinInfo.categories?.length" class="flex flex-wrap gap-2 border-t border-base-content/10 px-4 py-3">
-          <span v-for="tag in coinInfo.categories" :key="tag" class="sz-chip">{{ tag }}</span>
-        </div>
-      </section>
+      </div>
+      <div class="px-2 pb-2 pt-1 sm:px-3">
+        <PriceMarketChart />
+      </div>
+      <div
+        v-if="coinInfo.description?.en"
+        class="max-h-[180px] overflow-auto border-t border-base-content/10 px-4 py-3 text-sm text-secondary"
+      >
+        <MdEditor :model-value="coinInfo.description?.en" previewOnly />
+      </div>
+    </section>
 
       <section
         v-if="githubCard.fullName || githubCard.loading"

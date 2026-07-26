@@ -182,9 +182,11 @@ export const colorVariables = (theme: string) => {
     themePrimaryTextColor: 'rgba(234,234,255,0.87)',
   };
 };
-/// Price Chart config
+/// Price Chart config — clean nodes.guru-like area (minimal chrome)
 export const getMarketPriceChartConfig = (theme: string, categories: string[]) => {
-  const { themeSecondaryTextColor, themeBorderColor, themeDisabledTextColor } = colorVariables(theme);
+  const { themeBorderColor, themeDisabledTextColor } = colorVariables(theme);
+  const primary = themeColors(theme).colors.primary;
+  const isDark = theme !== 'light';
 
   return {
     chart: {
@@ -192,63 +194,88 @@ export const getMarketPriceChartConfig = (theme: string, categories: string[]) =
       width: '100%',
       parentHeightOffset: 0,
       toolbar: { show: false },
+      zoom: { enabled: false },
+      selection: { enabled: false },
+      animations: { enabled: true, speed: 400 },
+      fontFamily: 'inherit',
+      background: 'transparent',
     },
     tooltip: {
-      theme: 'dark',
+      theme: isDark ? 'dark' : 'light',
       shared: false,
+      x: { format: 'dd MMM yyyy HH:mm' },
+      style: { fontSize: '12px' },
+      marker: { show: true },
     },
     dataLabels: { enabled: false },
     stroke: {
-      // show: false,
       curve: 'smooth',
-      width: 1.5,
+      width: 2,
+      lineCap: 'round',
     },
-    legend: {
-      position: 'top',
-      horizontalAlign: 'left',
-
-      labels: { colors: themeSecondaryTextColor },
-      markers: {
-        offsetY: 1,
-        offsetX: -3,
-      },
-      itemMargin: {
-        vertical: 3,
-        horizontal: 10,
-      },
+    legend: { show: false },
+    markers: {
+      size: 0,
+      hover: { size: 4, sizeOffset: 2 },
     },
-
-    colors: [themeColors(theme).colors.primary],
+    colors: [primary],
     fill: {
-      opacity: 0.5,
       type: 'gradient',
+      gradient: {
+        shadeIntensity: 1,
+        opacityFrom: isDark ? 0.38 : 0.28,
+        opacityTo: 0.02,
+        stops: [0, 90, 100],
+      },
     },
     grid: {
       show: true,
       borderColor: themeBorderColor,
-      xaxis: {
-        lines: { show: true },
-      },
+      strokeDashArray: 3,
+      padding: { left: 8, right: 8, top: 0, bottom: 0 },
+      xaxis: { lines: { show: false } },
+      yaxis: { lines: { show: true } },
     },
     yaxis: {
+      tickAmount: 4,
       labels: {
-        style: { colors: themeDisabledTextColor },
+        style: {
+          colors: themeDisabledTextColor,
+          fontSize: '11px',
+        },
         formatter: function (value: string) {
-          const pattern = Number(value) > 0.01 ? '0.0[0]a' : '0.00[000]';
+          const n = Number(value);
+          const pattern = n >= 1 ? '0,0.[00]' : n > 0.01 ? '0.0[00]' : '0.00[0000]';
           return numeral(value).format(pattern);
         },
+        offsetX: -4,
       },
     },
     xaxis: {
       type: 'datetime',
       axisBorder: { show: false },
-
-      axisTicks: { color: themeBorderColor },
+      axisTicks: { show: false },
+      tooltip: { enabled: false },
       crosshairs: {
-        stroke: { color: themeBorderColor },
+        show: true,
+        stroke: {
+          color: themeBorderColor,
+          width: 1,
+          dashArray: 3,
+        },
       },
       labels: {
-        style: { colors: themeDisabledTextColor },
+        style: {
+          colors: themeDisabledTextColor,
+          fontSize: '11px',
+        },
+        datetimeUTC: false,
+        datetimeFormatter: {
+          year: 'yyyy',
+          month: "MMM 'yy",
+          day: 'dd MMM',
+          hour: 'HH:mm',
+        },
       },
       categories,
     },
