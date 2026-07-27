@@ -62,33 +62,46 @@ const activityTab = ref<ActivityTab>('power');
 enum EventType {
   Delegate = 'delegate',
   Unbond = 'unbond',
-  RedelegateIn = 'redelegate.in',
-  RedelegateOut = 'redelegate.out',
+  /**
+   * Redelegate folds two queries into one list:
+   *   - destination_validator = this validator (incoming, +)
+   *   - source_validator      = this validator (outgoing, −)
+   * LCD ignores OR semantics for tx search so we fetch both sides
+   * and merge, deriving the sign per-row from which side matched.
+   */
+  Redelegate = 'redelegate',
 }
 const selectedEventType = ref<EventType>(EventType.Delegate);
 
-/** query=event for each power-event kind. Operator address is appended at request time. */
-const eventTypeQuery: Record<EventType, string> = {
-  [EventType.Delegate]: "query=delegate.validator='{validator}'",
-  [EventType.Unbond]: "query=unbond.validator='{validator}'",
-  [EventType.RedelegateIn]: "query=redelegate.destination_validator='{validator}'",
-  [EventType.RedelegateOut]: "query=redelegate.source_validator='{validator}'",
+/** query=event template per kind. Operator address is appended at request time. */
+const eventTypeQuery: Record<EventType, string[]> = {
+  [EventType.Delegate]: ["query=delegate.validator='{validator}'"],
+  [EventType.Unbond]: ["query=unbond.validator='{validator}'"],
+  [EventType.Redelegate]: [
+    "query=redelegate.destination_validator='{validator}'",
+    "query=redelegate.source_validator='{validator}'",
+  ],
 };
 
 /** Sign for the +/- indicator on the amount cell. */
 const eventSign: Record<EventType, 1 | -1> = {
   [EventType.Delegate]: 1,
   [EventType.Unbond]: -1,
-  [EventType.RedelegateIn]: 1,
-  [EventType.RedelegateOut]: -1,
+  [EventType.Redelegate]: 1,
 };
 
-/** Event type to read attributes from, when redelegate.in/out share event name 'redelegate'. */
+/** Event type to read attributes from. Redelegate in/out both share event name 'redelegate'. */
 const eventTypeAttrKey: Record<EventType, string> = {
   [EventType.Delegate]: 'delegate',
   [EventType.Unbond]: 'unbond',
-  [EventType.RedelegateIn]: 'redelegate',
-  [EventType.RedelegateOut]: 'redelegate',
+  [EventType.Redelegate]: 'redelegate',
+};
+
+/** For multi-query kinds (redelegate): which row is from which side. */
+const rowSignFromKey: Record<EventType, (key: string) => 1 | -1> = {
+  [EventType.Delegate]: () => 1,
+  [EventType.Unbond]: () => -1,
+  [EventType.Redelegate]: (k) => (k === 'destination_validator' ? 1 : -1),
 };
 
 // Votes from indexer
@@ -278,17 +291,45 @@ function loadPowerEvents(p: number, type: EventType) {
   selectedEventType.value = type;
   powerPage.setPage(p);
   powerPage.setPageSize(10);
-  const tmpl = eventTypeQuery[type];
-  // Substitute operator address into the query template, then escape quotes for the URL.
-  const q = tmpl.replace('{validator}', validator);
-  blockchain.rpc
-    .getTxs(`?${q}`, { validator }, powerPage)
-    .then((res) => {
-      events.value = res;
-    })
-    .catch(() => {
-      events.value = {} as PaginatedTxs;
-    });
+  const queries = eventTypeQuery[type].map((t) => t.replace('{validator}', validator));
+
+  if (queries.length === 1) {
+    blockchain.rpc
+      .getTxs(`?${queries[0]}`, { validator }, powerPage)
+      .then((res) => {
+        events.value = res;
+      })
+      .catch(() => {
+        events.value = {} as PaginatedTxs;
+      });
+    return;
+  }
+
+  // Multi-query kind (redelegate): fetch both sides in parallel, tag each row with
+  // the side it matched so the template can derive +/− per row.
+  Promise.all(
+    queries.map((q) =>
+      blockchain.rpc
+        .getTxs(`?${q}`, { validator }, powerPage)
+        .then((res) => res)
+        .catch(() => ({ tx_responses: [], pagination: null, total: '0' } as PaginatedTxs))
+    )
+  ).then(([inRes, outRes]) => {
+    const inRows = (inRes.tx_responses || []).map((r: any) => ({ ...r, _side: 'destination_validator' }));
+    const outRows = (outRes.tx_responses || []).map((r: any) => ({ ...r, _side: 'source_validator' }));
+    const merged = [...inRows, ...outRows].sort(
+      (a: any, b: any) => Number(b.height) - Number(a.height)
+    );
+    const total = String(
+      Number(inRes.pagination?.total || inRes.total || 0) +
+        Number(outRes.pagination?.total || outRes.total || 0)
+    );
+    events.value = {
+      tx_responses: merged,
+      pagination: { total, next_key: null },
+      total,
+    } as PaginatedTxs;
+  });
 }
 
 function pagePowerEvents(p: number) {
@@ -385,6 +426,19 @@ function shortAddr(addr?: string): string {
 function voteTimeLabel(ts?: string): string {
   if (!ts) return '—';
   return format.toDay(ts, 'from');
+}
+
+/**
+ * Per-row +/- sign.
+ * - Single-query kinds (delegate, unbond): all rows share the kind's sign.
+ * - Redelegate: derive from the _side tag attached by loadPowerEvents.
+ */
+function rowSign(item: any): 1 | -1 {
+  const kind = selectedEventType.value;
+  if (kind === EventType.Redelegate) {
+    return item?._side === 'destination_validator' ? 1 : -1;
+  }
+  return eventSign[kind];
 }
 
 function mapEvents(evts: { type: string; attributes: { key: string; value: string }[] }[]) {
@@ -908,15 +962,9 @@ watch(
             <button
               type="button"
               class="sz-tab !py-1 !px-3 !text-[12px]"
-              :class="{ 'sz-tab--active': selectedEventType === EventType.RedelegateIn }"
-              @click="loadPowerEvents(1, EventType.RedelegateIn)"
-            >{{ $t('account.btn_redelegate') }} In</button>
-            <button
-              type="button"
-              class="sz-tab !py-1 !px-3 !text-[12px]"
-              :class="{ 'sz-tab--active': selectedEventType === EventType.RedelegateOut }"
-              @click="loadPowerEvents(1, EventType.RedelegateOut)"
-            >{{ $t('account.btn_redelegate') }} Out</button>
+              :class="{ 'sz-tab--active': selectedEventType === EventType.Redelegate }"
+              @click="loadPowerEvents(1, EventType.Redelegate)"
+            >{{ $t('account.btn_redelegate') }}</button>
           </div>
         </div>
         <div class="overflow-x-auto">
@@ -947,12 +995,12 @@ watch(
                   <div
                     class="flex items-center gap-1.5 font-mono text-[12.5px]"
                     :class="{
-                      'text-success': eventSign[selectedEventType] === 1,
-                      'text-error': eventSign[selectedEventType] === -1,
+                      'text-success': rowSign(item) === 1,
+                      'text-error': rowSign(item) === -1,
                     }"
                   >
                     <RouterLink :to="`/${chain}/tx/${item.txhash}`" class="link link-hover">
-                      {{ eventSign[selectedEventType] === 1 ? '+' : '−' }}
+                      {{ rowSign(item) === 1 ? '+' : '−' }}
                       {{ mapEvents(item.events) }}
                     </RouterLink>
                     <Icon v-if="item.code === 0" icon="mdi-check" class="text-yes text-sm" />
