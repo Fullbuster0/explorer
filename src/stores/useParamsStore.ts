@@ -1,6 +1,11 @@
 import { defineStore } from 'pinia';
 import { useBlockchain } from './useBlockchain';
 import { percent, formatNumber, formatTokenAmount } from '@/libs/utils';
+
+/**
+ * Staking params payload — extended for atomone which adds
+ * `key_rotation_fee` (a Coin, not on vanilla cosmos-sdk 0.45).
+ */
 export interface stakingItem {
   unbonding_time: string;
   max_validators: number;
@@ -8,7 +13,22 @@ export interface stakingItem {
   historical_entries: number;
   bond_denom: string;
   min_commission_rate: string;
-  min_self_delegation: string;
+  max_commission_rate?: string;
+  min_self_delegation?: string;
+  key_rotation_fee?: { denom: string; amount: string };
+}
+
+/**
+ * Grouped param card — `{title, items, subGroups?}` so the UI can render
+ * one module as several semantic pills (e.g. Gov = Voting + Deposit + Tally)
+ * instead of one flat dump that loses context.
+ */
+export interface ParamCard {
+  title: string;
+  module: string;
+  items: Array<{ subtitle: string; value: any; kind?: string }>;
+  subGroups?: Array<{ title: string; items: Array<{ subtitle: string; value: any; kind?: string }> }>;
+  description?: string;
 }
 
 export const useParamStore = defineStore('paramstore', {
@@ -18,59 +38,25 @@ export const useParamStore = defineStore('paramstore', {
       title: '',
       class: 'border-primary',
       items: [
-        {
-          subtitle: 'height',
-          icon: 'BoxIcon',
-          color: 'light-success',
-          value: '-',
-        },
-        {
-          subtitle: 'bonded_and_supply',
-          icon: 'DollarSignIcon',
-          color: 'light-danger',
-          value: '-',
-        },
-        {
-          subtitle: 'bonded_ratio',
-          icon: 'PercentIcon',
-          color: 'light-warning',
-          value: '-',
-        },
-        {
-          subtitle: 'inflation',
-          icon: 'TrendingUpIcon',
-          color: 'light-primary',
-          value: '-',
-        },
+        { subtitle: 'height', icon: 'BoxIcon', color: 'light-success', value: '-' },
+        { subtitle: 'bonded_and_supply', icon: 'DollarSignIcon', color: 'light-danger', value: '-' },
+        { subtitle: 'bonded_ratio', icon: 'PercentIcon', color: 'light-warning', value: '-' },
+        { subtitle: 'inflation', icon: 'TrendingUpIcon', color: 'light-primary', value: '-' },
       ],
     },
-    mint: {
-      title: 'Mint Parameters',
-      items: [] as Array<any>,
-    },
-    staking: {
-      title: 'Staking Parameters',
-      items: [] as Array<any>,
-    },
-    distribution: {
-      title: 'Distribution Parameters',
-      items: [] as Array<any>,
-    },
-    slashing: {
-      title: 'Slashing Parameters',
-      items: [] as Array<any>,
-    },
-    gov: {
-      title: 'Governance Parameters',
-      items: [] as Array<any>,
-    },
-    appVersion: {
-      title: 'Application Version',
-      items: {},
-    },
-    nodeVersion: {
-      title: 'Node Information',
-      items: {},
+    mint: { title: 'Mint Parameters', module: 'mint', items: [] as any[] } as ParamCard,
+    staking: { title: 'Staking Parameters', module: 'staking', items: [] as any[] } as ParamCard,
+    distribution: { title: 'Distribution Parameters', module: 'distribution', items: [] as any[] } as ParamCard,
+    slashing: { title: 'Slashing Parameters', module: 'slashing', items: [] as any[] } as ParamCard,
+    gov: { title: 'Governance Parameters', module: 'gov', items: [] as any[], subGroups: [] as any[] } as ParamCard,
+    appVersion: { title: 'Application Version', items: {} as any },
+    nodeVersion: { title: 'Node Information', items: {} as any },
+    /** True if the module isn't present on this chain (mint on atomone
+     *  returns "not implemented", tally returns unknown proto). Lets the
+     *  page hide the card instead of showing a broken empty state. */
+    modulesHidden: {
+      mint: false,
+      gov_tally: false,
     },
   }),
   getters: {
@@ -81,7 +67,7 @@ export const useParamStore = defineStore('paramstore', {
   actions: {
     initial() {
       this.handleBaseBlockLatest();
-      // this.handleMintParam()
+      this.handleMintParam();
       this.handleStakingParams();
       this.handleSlashingParams();
       this.handleDistributionParams();
@@ -94,25 +80,38 @@ export const useParamStore = defineStore('paramstore', {
         const height = this.chain.items.findIndex((x) => x.subtitle === 'height');
         this.chain.title = `Chain ID: ${res.block.header.chain_id}`;
         this.chain.items[height].value = res.block.header.height;
-        // if (timeIn(res.block.header.time, 3, 'm')) {
-        //   this.syncing = true
-        // } else {
-        //   this.syncing = false
-        // }
-        // this.latestTime = toDay(res.block.header.time, 'long')
         this.latestTime = res.block.header.time;
       } catch (error) {
         console.warn(error);
       }
     },
+
+    /**
+     * Staking — split into "General" + "Bond" sub-groups because the
+     * `key_rotation_fee` Coin object (atomone-specific) doesn't sit well
+     * alongside raw integers like `max_validators`.
+     */
     async handleStakingParams() {
       const res = await this.getStakingParams();
-      const bond_denom = res?.params.bond_denom;
-      this.staking.items = Object.entries(res.params)
-        .map(([key, value]) => ({ subtitle: key, value: value }))
-        .filter((item: any) => {
-          if (!['min_commission_rate', 'min_self_delegation'].includes(item.subtitle)) return item;
-        });
+      if (!res?.params) return;
+      const p = res.params;
+      const bond_denom = p.bond_denom;
+      const generalItems: any[] = [];
+      const bondItems: any[] = [];
+      // Group + tag so the UI knows how to render each value.
+      const tag = (k: string, v: any, kind?: string) => ({ subtitle: k, value: v, kind });
+      generalItems.push(tag('unbonding_time', p.unbonding_time, 'duration'));
+      generalItems.push(tag('max_validators', p.max_validators, 'integer'));
+      generalItems.push(tag('max_entries', p.max_entries, 'integer'));
+      generalItems.push(tag('historical_entries', p.historical_entries, 'integer'));
+      bondItems.push(tag('bond_denom', bond_denom, 'denom'));
+      if (p.min_commission_rate !== undefined) bondItems.push(tag('min_commission_rate', p.min_commission_rate, 'percent'));
+      if (p.max_commission_rate !== undefined) bondItems.push(tag('max_commission_rate', p.max_commission_rate, 'percent'));
+      if (p.min_self_delegation) bondItems.push(tag('min_self_delegation', p.min_self_delegation, 'coin'));
+      if (p.key_rotation_fee) bondItems.push(tag('key_rotation_fee', p.key_rotation_fee, 'coin'));
+      this.staking.items = generalItems;
+      this.staking.subGroups = [{ title: 'Bond config', items: bondItems }];
+
       Promise.all([this.getStakingPool(), this.getBankTotal(bond_denom)]).then((resArr) => {
         const pool = resArr[0]?.pool;
         const amount = resArr[1]?.amount?.amount;
@@ -127,61 +126,171 @@ export const useParamStore = defineStore('paramstore', {
         this.chain.items[bondedRatio].value = `${percent(Number(pool.bonded_tokens) / Number(amount))}%`;
       });
     },
+
+    /**
+     * Mint — many chains (atomone included) disable this module. We probe
+     * and gracefully mark the card as hidden so the UI can drop it
+     * entirely instead of rendering an empty section.
+     */
     async handleMintParam() {
       const excludes = this.blockchain.current?.excludes;
-      if (excludes && excludes.indexOf('mint') > -1) {
-        return;
+      if (excludes && excludes.indexOf('mint') > -1) return;
+      try {
+        const res = await this.getMintParam();
+        if (!res?.params) {
+          this.modulesHidden.mint = true;
+          return;
+        }
+        const p = res.params;
+        const items: any[] = [];
+        if (p.mint_denom) items.push({ subtitle: 'mint_denom', value: p.mint_denom, kind: 'denom' });
+        if (p.inflation_rate_change !== undefined) items.push({ subtitle: 'inflation_rate_change', value: p.inflation_rate_change, kind: 'percent' });
+        if (p.inflation_max !== undefined) items.push({ subtitle: 'inflation_max', value: p.inflation_max, kind: 'percent' });
+        if (p.inflation_min !== undefined) items.push({ subtitle: 'inflation_min', value: p.inflation_min, kind: 'percent' });
+        if (p.goal_bonded !== undefined) items.push({ subtitle: 'goal_bonded', value: p.goal_bonded, kind: 'percent' });
+        if (p.blocks_per_year !== undefined) items.push({ subtitle: 'blocks_per_year', value: p.blocks_per_year, kind: 'integer' });
+        this.mint.items = items;
+      } catch (e: any) {
+        // atomone returns 'not implemented' — mark hidden.
+        this.modulesHidden.mint = true;
       }
-      // this.getMintingInflation().then(res => {
-      //     const chainIndex = this.chain.items.findIndex(x => x.subtitle === 'inflation')
-      //     this.chain.items[chainIndex].value = `${percent(res)}%`
-      // })
-      const res = await this.getMintParam();
     },
+
+    /**
+     * Slashing — split into "Windows" (block windows + jail duration) and
+     * "Penalties" (slash fractions). Lets the reader see at a glance what
+     * the punishment regime looks like.
+     */
     async handleSlashingParams() {
       const res = await this.getSlashingParams();
-      this.slashing.items = Object.entries(res.params).map(([key, value]) => ({
-        subtitle: key,
-        value: value,
-      }));
+      if (!res?.params) return;
+      const p = res.params;
+      const tag = (k: string, v: any, kind?: string) => ({ subtitle: k, value: v, kind });
+      const windows = [
+        tag('signed_blocks_window', p.signed_blocks_window, 'integer'),
+        tag('min_signed_per_window', p.min_signed_per_window, 'percent'),
+        tag('downtime_jail_duration', p.downtime_jail_duration, 'duration'),
+      ];
+      const penalties = [
+        tag('slash_fraction_double_sign', p.slash_fraction_double_sign, 'percent'),
+        tag('slash_fraction_downtime', p.slash_fraction_downtime, 'percent'),
+      ];
+      // Keep any future fields visible too.
+      const known = new Set([
+        'signed_blocks_window', 'min_signed_per_window', 'downtime_jail_duration',
+        'slash_fraction_double_sign', 'slash_fraction_downtime',
+      ]);
+      Object.entries(p).forEach(([k, v]) => {
+        if (!known.has(k)) windows.push(tag(k, v, typeof v === 'number' ? 'integer' : undefined));
+      });
+      this.slashing.items = windows;
+      this.slashing.subGroups = [{ title: 'Slash fractions', items: penalties }];
     },
+
+    /**
+     * Distribution — atomone adds `nakamoto_bonus` (an object, not in
+     * vanilla SDK). Render it as its own sub-card so the boolean + nested
+     * coefs are legible instead of one flattened key/value dump.
+     */
     async handleDistributionParams() {
       const res = await this.getDistributionParams();
-      this.distribution.items = Object.entries(res.params).map(([key, value]) => ({ subtitle: key, value: value }));
+      if (!res?.params) return;
+      const p = res.params;
+      const tag = (k: string, v: any, kind?: string) => ({ subtitle: k, value: v, kind });
+      const general: any[] = [];
+      if (p.community_tax !== undefined) general.push(tag('community_tax', p.community_tax, 'percent'));
+      if (p.withdraw_addr_enabled !== undefined) general.push(tag('withdraw_addr_enabled', p.withdraw_addr_enabled, 'boolean'));
+      if (p.base_proposer_reward !== undefined) general.push(tag('base_proposer_reward', p.base_proposer_reward, 'percent'));
+      if (p.bonus_proposer_reward !== undefined) general.push(tag('bonus_proposer_reward', p.bonus_proposer_reward, 'percent'));
+      // Keep unknown flat fields too (future-proof).
+      const known = new Set([
+        'community_tax', 'withdraw_addr_enabled', 'base_proposer_reward', 'bonus_proposer_reward', 'nakamoto_bonus',
+      ]);
+      Object.entries(p).forEach(([k, v]) => {
+        if (!known.has(k)) general.push(tag(k, v));
+      });
+      this.distribution.items = general;
+      // nakamoto_bonus is atomone-specific and structured — render as a sub-card.
+      if (p.nakamoto_bonus) {
+        const nb = p.nakamoto_bonus;
+        const nbItems: any[] = [];
+        if (nb.enabled !== undefined) nbItems.push(tag('enabled', nb.enabled, 'boolean'));
+        if (nb.step !== undefined) nbItems.push(tag('step', nb.step, 'percent'));
+        if (nb.period_epoch_identifier) nbItems.push(tag('period_epoch_identifier', nb.period_epoch_identifier));
+        if (nb.minimum_coefficient !== undefined) nbItems.push(tag('minimum_coefficient', nb.minimum_coefficient, 'percent'));
+        if (nb.maximum_coefficient !== undefined) nbItems.push(tag('maximum_coefficient', nb.maximum_coefficient, 'percent'));
+        // Surface anything new atomone adds in a future upgrade.
+        const knownNb = new Set(['enabled', 'step', 'period_epoch_identifier', 'minimum_coefficient', 'maximum_coefficient']);
+        Object.entries(nb).forEach(([k, v]) => {
+          if (!knownNb.has(k)) nbItems.push(tag(k, v));
+        });
+        this.distribution.subGroups = [{ title: 'Nakamoto bonus', items: nbItems }];
+      }
     },
+
+    /**
+     * Gov — the three sub-params (voting / deposit / tally) live on
+     * separate endpoints and aren't semantically one blob. Split them
+     * so the page can render 3 pills instead of one mashed list. Atomone
+     * returns 'unknown params type: tally' on the tally endpoint — hide
+     * that sub-group if so.
+     */
     async handleGovernanceParams() {
       const excludes = this.blockchain.current?.excludes;
-      if (excludes && excludes.indexOf('governance') > -1) {
-        return;
+      if (excludes && excludes.indexOf('governance') > -1) return;
+      const subGroups: { title: string; items: any[] }[] = [];
+      const tag = (k: string, v: any, kind?: string) => ({ subtitle: k, value: v, kind });
+      // Voting
+      try {
+        const r = await this.getGovParamsVoting();
+        const vp = r?.voting_params || {};
+        const items: any[] = [];
+        if (vp.voting_period) items.push(tag('voting_period', vp.voting_period, 'duration'));
+        if (items.length) subGroups.push({ title: 'Voting', items });
+      } catch (e) { /* keep empty */ }
+      // Deposit
+      try {
+        const r = await this.getGovParamsDeposit();
+        const dp = r?.deposit_params || {};
+        const items: any[] = [];
+        if (dp.min_deposit) items.push(tag('min_deposit', dp.min_deposit, 'coinlist'));
+        if (dp.max_deposit_period) items.push(tag('max_deposit_period', dp.max_deposit_period, 'duration'));
+        if (items.length) subGroups.push({ title: 'Deposit', items });
+      } catch (e) { /* keep empty */ }
+      // Tally — many chains (atomone) return unknown proto. Hide if so.
+      try {
+        const r = await this.getGovParamsTally();
+        const tp = r?.tally_params || {};
+        const items: any[] = [];
+        if (tp.quorum !== undefined) items.push(tag('quorum', tp.quorum, 'percent'));
+        if (tp.threshold !== undefined) items.push(tag('threshold', tp.threshold, 'percent'));
+        if (tp.veto_threshold !== undefined) items.push(tag('veto_threshold', tp.veto_threshold, 'percent'));
+        if (items.length) subGroups.push({ title: 'Tally', items });
+        else this.modulesHidden.gov_tally = true;
+      } catch (e) {
+        this.modulesHidden.gov_tally = true;
       }
-      const resArr = await Promise.all([
-        this.getGovParamsVoting(),
-        this.getGovParamsDeposit(),
-        this.getGovParamsTally(),
-      ]);
-      const govParams = {
-        ...resArr[0]?.voting_params,
-        ...resArr[1]?.deposit_params,
-        ...resArr[2]?.tally_params,
-      };
-      this.gov.items = Object.entries(govParams).map(([key, value]) => ({
-        subtitle: key,
-        value: value,
-      }));
+      // Don't keep an empty top-level `items` — render via subGroups only.
+      this.gov.items = [];
+      this.gov.subGroups = subGroups;
     },
     async handleAbciInfo() {
-      const res = await this.fetchAbciInfo();
-
-      localStorage.setItem(`sdk_version_${this.blockchain.chainName}`, res.application_version?.cosmos_sdk_version);
-
-      this.appVersion.items = Object.entries(res.application_version).map(([key, value]) => ({
-        subtitle: key,
-        value: value,
-      }));
-      this.nodeVersion.items = Object.entries(res.default_node_info).map(([key, value]) => ({
-        subtitle: key,
-        value: value,
-      }));
+      try {
+        const res = await this.fetchAbciInfo();
+        if (!res) return;
+        localStorage.setItem(`sdk_version_${this.blockchain.chainName}`, res.application_version?.cosmos_sdk_version);
+        // ArrayObjectElement wants an Array<{key,value}> — keep that shape.
+        this.appVersion.items = Object.entries(res.application_version || {}).map(([key, value]) => ({
+          subtitle: key,
+          value: value,
+        }));
+        this.nodeVersion.items = Object.entries(res.default_node_info || {}).map(([key, value]) => ({
+          subtitle: key,
+          value: value,
+        }));
+      } catch (e) {
+        console.warn(e);
+      }
     },
     async getBaseTendermintBlockLatest() {
       return await this.blockchain.rpc?.getBaseBlockLatest();
