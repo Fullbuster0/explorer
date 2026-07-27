@@ -288,12 +288,8 @@ export class CosmosRestClient extends BaseRestClient<RequestRegistry> {
     if (limit) page.setPageSize(limit);
 
     const encodedSender = encodeURIComponent(sender);
-    let query = `?events=message.sender='${encodedSender}'&pagination.limit=${page.limit}&pagination.offset=${
-      page.offset || 0
-    }`;
-    if (semver.gte(this.version.replaceAll('v', ''), '0.50.0')) {
-      query = `?query=message.sender='${encodedSender}'&order_by=ORDER_BY_DESC&pagination.limit=${page.limit}&pagination.offset=${page.offset || 0}`;
-    }
+    // query= works across all SDK versions; events= is rejected by modern binaries.
+    const query = `?query=message.sender='${encodedSender}'&order_by=ORDER_BY_DESC&pagination.limit=${page.limit}&pagination.offset=${page.offset || 0}`;
     return this.request(this.registry.tx_txs, {}, query);
   }
   // query ibc sending msgs
