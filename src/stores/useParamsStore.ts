@@ -279,19 +279,15 @@ export const useParamStore = defineStore('paramstore', {
         const res = await this.fetchAbciInfo();
         if (!res) return;
         localStorage.setItem(`sdk_version_${this.blockchain.chainName}`, res.application_version?.cosmos_sdk_version);
-        // Build deps are an array of {path, version, sum} — flatten those
-        // too so each row in the UI is a key/value pair.
+        // build_deps can be 200+ entries of internal Go module paths — not
+        // interesting to readers. Surface the count only.
         const flatAppVersion: Array<{ subtitle: string; value: any }> = [];
         Object.entries(res.application_version || {}).forEach(([key, value]) => {
-          if (key === 'build_deps' && Array.isArray(value)) {
-            value.forEach((dep: any, idx: number) => {
-              flatAppVersion.push({ subtitle: `build_deps.${idx}.path`, value: dep.path });
-              if (dep.version) flatAppVersion.push({ subtitle: `build_deps.${idx}.version`, value: dep.version });
-              if (dep.sum) flatAppVersion.push({ subtitle: `build_deps.${idx}.sum`, value: dep.sum });
-            });
-          } else {
-            flatAppVersion.push({ subtitle: key, value });
+          if (key === 'build_deps') {
+            flatAppVersion.push({ subtitle: 'build_deps_count', value: Array.isArray(value) ? value.length : 0 });
+            return;
           }
+          flatAppVersion.push({ subtitle: key, value });
         });
         this.appVersion.items = flatAppVersion;
         // Node info: protocol_version is nested, other is an object, version
