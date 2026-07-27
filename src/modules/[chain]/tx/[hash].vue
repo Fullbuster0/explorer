@@ -1,21 +1,19 @@
 <script lang="ts" setup>
-import { useBaseStore, useBlockchain, useFormatter } from '@/stores';
+import { useBlockchain, useFormatter } from '@/stores';
 import DynamicComponent from '@/components/dynamic/DynamicComponent.vue';
 import { computed, ref, watch } from 'vue';
 import type { Tx, TxResponse } from '@/types';
 import { Icon } from '@iconify/vue';
 
-import { JsonViewer } from 'vue3-json-viewer';
-import 'vue3-json-viewer/dist/index.css';
-
 const props = defineProps(['hash', 'chain']);
 
 const blockchain = useBlockchain();
-const baseStore = useBaseStore();
 const format = useFormatter();
 
 type Tab = 'overview' | 'messages' | 'events' | 'json';
 const tab = ref<Tab>('overview');
+const openRaw = ref(false);
+const openFull = ref(false);
 
 const tx = ref(
   {} as {
@@ -104,12 +102,6 @@ const eventGroups = computed(() => {
   return out;
 });
 
-const shortHash = (h?: string) => {
-  if (!h) return '—';
-  if (h.length <= 16) return h;
-  return `${h.slice(0, 8)}…${h.slice(-6)}`;
-};
-
 const copyText = ref(0);
 const copyMsg = computed(() =>
   copyText.value === 2
@@ -128,6 +120,19 @@ async function doCopy(text?: string) {
     setTimeout(() => (copyText.value = 0), 1100);
   }
 }
+
+/** Pretty-print helper — Indonode style raw <pre> JSON */
+function pretty(obj: unknown): string {
+  try {
+    return JSON.stringify(obj ?? {}, null, 2);
+  } catch {
+    return String(obj ?? '');
+  }
+}
+
+const rawTxJson = computed(() => pretty(tx.value.tx));
+const fullTxJson = computed(() => pretty(tx.value.tx_response));
+const rawType = computed(() => String((tx.value.tx as any)?.['@type'] || '/cosmos.tx.v1beta1.Tx'));
 </script>
 <template>
   <div class="sz-tx-detail">
@@ -396,25 +401,48 @@ async function doCopy(text?: string) {
         </div>
       </section>
 
-      <!-- JSON -->
-      <section v-else class="sz-section mb-4 overflow-hidden">
-        <div class="sz-section-head">
-          <div>
-            <div class="sz-section-kicker">Raw</div>
-            <div class="sz-section-title">JSON</div>
-          </div>
-          <button class="sz-chip sz-chip--info cursor-pointer !text-[10.5px]" @click="doCopy(JSON.stringify(tx, null, 2))">
-            <Icon icon="mdi:content-copy" class="mr-1" /> copy
+      <!-- JSON (Indonode-style: Raw + Full collapsible) -->
+      <section v-else class="space-y-3 mb-4">
+        <!-- Raw Transaction Data -->
+        <div class="sz-json-card" :class="{ 'is-open': openRaw }">
+          <button class="sz-json-head" @click="openRaw = !openRaw">
+            <span class="sz-json-head-left">
+              <Icon icon="mdi-code-json" class="sz-json-head-icon" />
+              <span class="sz-json-head-title">Raw Transaction Data (JSON)</span>
+              <span class="sz-chip sz-chip--info font-mono !text-[9.5px] !px-1.5">{{ (rawTxJson.length / 1024).toFixed(1) }} KB</span>
+            </span>
+            <Icon icon="mdi-chevron-down" class="sz-json-chevron" :class="{ 'rotate-180': openRaw }" />
           </button>
+          <div class="sz-json-body" v-show="openRaw">
+            <div class="sz-json-body-head">
+              <span class="text-[10.5px] text-secondary font-mono">tx · @type {{ rawType }}</span>
+              <button class="sz-chip sz-chip--info cursor-pointer !text-[10px]" @click.stop="doCopy(rawTxJson)">
+                <Icon icon="mdi:content-copy" class="mr-1" /> copy
+              </button>
+            </div>
+            <pre class="sz-json-pre">{{ rawTxJson }}</pre>
+          </div>
         </div>
-        <div class="sz-json-scroll">
-          <JsonViewer
-            :value="tx"
-            :theme="baseStore.theme"
-            copyable
-            sort
-            :expand-depth="3"
-          />
+
+        <!-- Full Transaction Response -->
+        <div class="sz-json-card" :class="{ 'is-open': openFull }">
+          <button class="sz-json-head" @click="openFull = !openFull">
+            <span class="sz-json-head-left">
+              <Icon icon="mdi-file-document-outline" class="sz-json-head-icon" />
+              <span class="sz-json-head-title">Full Transaction Response (JSON)</span>
+              <span class="sz-chip sz-chip--info font-mono !text-[9.5px] !px-1.5">{{ (fullTxJson.length / 1024).toFixed(1) }} KB</span>
+            </span>
+            <Icon icon="mdi-chevron-down" class="sz-json-chevron" :class="{ 'rotate-180': openFull }" />
+          </button>
+          <div class="sz-json-body" v-show="openFull">
+            <div class="sz-json-body-head">
+              <span class="text-[10.5px] text-secondary font-mono">tx_response · code {{ tx.tx_response.code }} · {{ events.length }} events</span>
+              <button class="sz-chip sz-chip--info cursor-pointer !text-[10px]" @click.stop="doCopy(fullTxJson)">
+                <Icon icon="mdi:content-copy" class="mr-1" /> copy
+              </button>
+            </div>
+            <pre class="sz-json-pre">{{ fullTxJson }}</pre>
+          </div>
         </div>
       </section>
     </template>
@@ -480,48 +508,79 @@ async function doCopy(text?: string) {
   line-height: 1.55;
 }
 
-/* JSON tab: scroll area, font, theme sync */
-.sz-json-scroll {
-  padding: 0.5rem 0.75rem 1rem;
-  max-height: 70vh;
-  overflow: auto;
-  background: var(--sz-accent-soft);
+/* Indonode-style Raw / Full JSON accordion */
+.sz-json-card {
+  border: 1px solid var(--sz-border);
+  border-radius: 14px;
+  background: var(--sz-surface, hsl(var(--b1)));
+  overflow: hidden;
+}
+.sz-json-head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.9rem 1.05rem;
+  text-align: left;
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  transition: background 0.15s ease;
+}
+.sz-json-head:hover {
+  background: color-mix(in srgb, var(--sz-accent-soft) 70%, transparent);
+}
+.sz-json-head-left {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+.sz-json-head-icon {
+  font-size: 1.15rem;
+  opacity: 0.75;
+  flex-shrink: 0;
+}
+.sz-json-head-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.sz-json-chevron {
+  font-size: 1.25rem;
+  opacity: 0.55;
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+.sz-json-body {
   border-top: 1px solid var(--sz-border);
+  padding: 0.75rem 1rem 1rem;
+  background: color-mix(in srgb, var(--sz-accent-soft) 55%, transparent);
 }
-.sz-json-scroll :deep(.jv-container) {
-  border-radius: 10px !important;
-  font-size: 12.5px !important;
-  line-height: 1.5 !important;
-  white-space: pre-wrap !important;
-  padding: 1.1rem 1.2rem !important;
-  background: transparent !important;
-  border: 1px solid var(--sz-border) !important;
-  max-height: none !important;
-  overflow: visible !important;
-  box-shadow: none !important;
+.sz-json-body-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.55rem;
 }
-.sz-json-scroll :deep(.jv-container.jv-dark) {
-  color: #c8d3e6;
-}
-.sz-json-scroll :deep(.jv-container.jv-light) {
-  color: #2b3340;
-}
-.sz-json-scroll :deep(.jv-code) {
-  padding: 0 !important;
-  max-height: none !important;
-  overflow: visible !important;
-}
-.sz-json-scroll :deep(.jv-node) {
-  margin-left: 0 !important;
-  display: block !important;
-  padding: 1px 0 !important;
-}
-.sz-json-scroll :deep(.jv-node .jv-node) {
-  margin-left: 18px !important;
-}
-.sz-json-scroll :deep(.jv-button) {
-  padding: 2px 6px !important;
-  font-size: 10px !important;
-  border-radius: 6px !important;
+.sz-json-pre {
+  margin: 0;
+  padding: 0.95rem 1.05rem;
+  border-radius: 10px;
+  border: 1px solid var(--sz-border);
+  background: color-mix(in srgb, hsl(var(--b1)) 88%, #000 12%);
+  color: inherit;
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11.5px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-x: auto;
+  max-height: 24rem; /* ~ max-h-96 like Indonode */
+  overflow-y: auto;
 }
 </style>
