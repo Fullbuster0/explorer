@@ -2,6 +2,17 @@
   "chain_name": "union-mainnet",
   "chain_id": "union-1",
   "network_type": "mainnet",
+  "features": [
+    "dashboard",
+    "governance",
+    "blocks",
+    "tx",
+    "validator",
+    "uptime",
+    "consensus",
+    "ibc",
+    "parameters"
+  ],
   "registry_name": "Union",
   "coingecko": "",
   "github": "https://github.com/unionlabs/union",

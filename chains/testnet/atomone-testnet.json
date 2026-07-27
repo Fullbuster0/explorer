@@ -2,6 +2,17 @@
   "chain_name": "atomone-testnet",
   "chain_id": "atomone-testnet-1",
   "network_type": "testnet",
+  "features": [
+    "dashboard",
+    "governance",
+    "blocks",
+    "tx",
+    "validator",
+    "uptime",
+    "consensus",
+    "ibc",
+    "parameters"
+  ],
   "registry_name": "AtomOne",
   "coingecko": "atomone",
   "api": [

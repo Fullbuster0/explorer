@@ -2,6 +2,17 @@
   "chain_name": "axone-mainnet",
   "chain_id": "axone-1",
   "network_type": "mainnet",
+  "features": [
+    "dashboard",
+    "governance",
+    "blocks",
+    "tx",
+    "validator",
+    "uptime",
+    "consensus",
+    "ibc",
+    "parameters"
+  ],
   "registry_name": "Axone",
   "coingecko": "",
   "github": "https://github.com/axone-protocol/axoned",

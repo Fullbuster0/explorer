@@ -2,6 +2,17 @@
   "chain_name": "tellor-mainnet",
   "chain_id": "tellor-1",
   "network_type": "mainnet",
+  "features": [
+    "dashboard",
+    "governance",
+    "blocks",
+    "tx",
+    "validator",
+    "uptime",
+    "consensus",
+    "ibc",
+    "parameters"
+  ],
   "registry_name": "Tellor",
   "coingecko": "",
   "github": "https://github.com/tellor-io/layer",

@@ -2,6 +2,17 @@
   "chain_name": "tellor-testnet",
   "chain_id": "layertest-5",
   "network_type": "testnet",
+  "features": [
+    "dashboard",
+    "governance",
+    "blocks",
+    "tx",
+    "validator",
+    "uptime",
+    "consensus",
+    "ibc",
+    "parameters"
+  ],
   "registry_name": "Tellor",
   "coingecko": "",
   "github": "https://github.com/tellor-io/layer",

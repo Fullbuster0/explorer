@@ -2,6 +2,17 @@
   "chain_name": "hippo-mainnet",
   "chain_id": "hippo-protocol-1",
   "network_type": "mainnet",
+  "features": [
+    "dashboard",
+    "governance",
+    "blocks",
+    "tx",
+    "validator",
+    "uptime",
+    "consensus",
+    "ibc",
+    "parameters"
+  ],
   "registry_name": "Hippo",
   "coingecko": "",
   "github": "https://github.com/hippo-protocol/hippo-protocol",

@@ -2,6 +2,17 @@
   "chain_name": "terra-mainnet",
   "chain_id": "phoenix-1",
   "network_type": "mainnet",
+  "features": [
+    "dashboard",
+    "governance",
+    "blocks",
+    "tx",
+    "validator",
+    "uptime",
+    "consensus",
+    "ibc",
+    "parameters"
+  ],
   "registry_name": "Terra",
   "coingecko": "",
   "github": "https://github.com/terra-money/core",

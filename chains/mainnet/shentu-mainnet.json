@@ -2,6 +2,17 @@
   "chain_name": "shentu-mainnet",
   "chain_id": "shentu-2.2",
   "network_type": "mainnet",
+  "features": [
+    "dashboard",
+    "governance",
+    "blocks",
+    "tx",
+    "validator",
+    "uptime",
+    "consensus",
+    "ibc",
+    "parameters"
+  ],
   "registry_name": "Shentu",
   "coingecko": "certik",
   "github": "https://github.com/shentufoundation/shentu",

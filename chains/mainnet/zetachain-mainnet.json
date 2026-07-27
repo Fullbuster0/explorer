@@ -2,6 +2,17 @@
   "chain_name": "zetachain-mainnet",
   "chain_id": "zetachain_7000-1",
   "network_type": "mainnet",
+  "features": [
+    "dashboard",
+    "governance",
+    "blocks",
+    "tx",
+    "validator",
+    "uptime",
+    "consensus",
+    "ibc",
+    "parameters"
+  ],
   "registry_name": "ZetaChain",
   "coingecko": "",
   "github": "https://github.com/zeta-chain/node",

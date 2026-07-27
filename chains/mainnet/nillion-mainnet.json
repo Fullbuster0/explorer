@@ -2,6 +2,17 @@
   "chain_name": "nillion-mainnet",
   "chain_id": "nillion-1",
   "network_type": "mainnet",
+  "features": [
+    "dashboard",
+    "governance",
+    "blocks",
+    "tx",
+    "validator",
+    "uptime",
+    "consensus",
+    "ibc",
+    "parameters"
+  ],
   "registry_name": "Nillion",
   "coingecko": "",
   "github": "https://github.com/NillionNetwork/nilchain",

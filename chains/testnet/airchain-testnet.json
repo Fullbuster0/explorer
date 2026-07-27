@@ -2,6 +2,17 @@
   "chain_name": "airchain-testnet",
   "chain_id": "varanasi-1",
   "network_type": "testnet",
+  "features": [
+    "dashboard",
+    "governance",
+    "blocks",
+    "tx",
+    "validator",
+    "uptime",
+    "consensus",
+    "ibc",
+    "parameters"
+  ],
   "registry_name": "Airchain",
   "coingecko": "",
   "github": "https://github.com/airchains-network/junction",

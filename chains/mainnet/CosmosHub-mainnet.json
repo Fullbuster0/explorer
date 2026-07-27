@@ -2,6 +2,17 @@
   "chain_name": "CosmosHub-mainnet",
   "chain_id": "cosmoshub-4",
   "network_type": "mainnet",
+  "features": [
+    "dashboard",
+    "governance",
+    "blocks",
+    "tx",
+    "validator",
+    "uptime",
+    "consensus",
+    "ibc",
+    "parameters"
+  ],
   "registry_name": "Cosmos Hub",
   "coingecko": "",
   "github": "https://github.com/cosmos/gaia",
