@@ -10,7 +10,6 @@ import { PageRequest } from '@/types';
 import type { AuthAccount, Delegation, TxResponse, DelegatorRewards, UnbondingResponses } from '@/types';
 import type { Coin } from '@cosmjs/amino';
 import Countdown from '@/components/Countdown.vue';
-import { fromBase64 } from '@cosmjs/encoding';
 
 const props = defineProps(['address', 'chain']);
 
@@ -20,11 +19,9 @@ const format = useFormatter();
 const account = ref({} as AuthAccount);
 const txs = ref([] as TxResponse[]);
 const txsTotal = ref(0);
-const receivedTotal = ref(0);
 const delegations = ref([] as Delegation[]);
 const rewards = ref({} as DelegatorRewards);
 const balances = ref([] as Coin[]);
-const recentReceived = ref([] as TxResponse[]);
 const unbonding = ref([] as UnbondingResponses[]);
 const unbondingTotal = ref(0);
 
@@ -36,10 +33,6 @@ const txHistoryOffset = computed(
   () => (txHistoryPage.value - 1) * HISTORY_PAGE_SIZE
 );
 const txHistoryLimit = ref(HISTORY_PAGE_SIZE);
-const rxHistoryPage = ref(1);
-const rxHistoryOffset = computed(
-  () => (rxHistoryPage.value - 1) * HISTORY_PAGE_SIZE
-);
 const lastTxHistory = computed(() =>
   Number(localStorage.getItem(`sz_lastacctx_${props.address}`) || 0)
 );
@@ -57,7 +50,7 @@ async function loadTxHistory() {
   try {
     const page = new PageRequest();
     page.setPageSize(txHistoryLimit.value);
-    page.offset = String(txHistoryOffset.value);
+    page.offset = txHistoryOffset.value;
     const res = await blockchain.fetchAccountTxs(props.address, page, txHistoryLimit.value);
     if (res) {
       txs.value = res.tx_responses || [];
@@ -151,47 +144,72 @@ function loadAccount(address: string) {
       y.entries.forEach((z) => (unbondingTotal.value += Number(z.balance)))
     );
   });
-  // coin_received is best handled via the same archive-first path so the
-  // inbox shows the same depth as activity. Build the raw query URL exactly
-  // like client.ts expects (events= → query= rewrite happens inside).
-  loadReceived(address, 5);
 }
 
-async function loadReceived(address: string, limit: number) {
-  // Use raw fetchData to bypass localStorage-cached RPC strategy; we want
-  // archive-first failover regardless of the user's chosen endpoint.
-  const EPs = blockchain.historicalRestOrder(false);
-  const seen = new Set<string>();
-  for (const ep of EPs) {
-    const base = (ep.address || '').replace(/\/$/, '');
-    if (!base || seen.has(base)) continue;
-    seen.add(base);
-    const url = `${base}/cosmos/tx/v1beta1/txs?query=coin_received.receiver='${encodeURIComponent(
-      address
-    )}'&order_by=ORDER_BY_DESC&pagination.limit=${limit}&pagination.count_total=true`;
-    try {
-      const res = await fetch(url);
-      if (!res.ok) continue;
-      const data = (await res.json()) as any;
-      if (Array.isArray(data.tx_responses)) {
-        recentReceived.value = data.tx_responses;
-        receivedTotal.value = Number(data.pagination?.total ?? data.total ?? 0);
-        return;
-      }
-    } catch {
-      // try next
+/** Classify a tx as inbound (this address receives funds) or outbound
+ *  (this address is the signer/sender), based on the events emitted by the
+ *  tx.  Inspired by Nodes Guru's two-color pill in the tx list: a single
+ *  glance tells you whether the account moved money in or out.
+ *
+ *  - 'in'   : this address appears as coin_received.receiver and not as
+ *             message signer / transfer.sender
+ *  - 'out'  : this address is the signer (auth_info.signer_infos) OR
+ *             appears as coin_spent.spender / transfer.sender
+ *  - 'self' : appears on both sides (self-transfer, redelegation, etc.)
+ *  - '—'    : neither — e.g. governance vote where no coins move
+ */
+type TxDirection = 'in' | 'out' | 'self' | 'none';
+
+function eventHasAddress(
+  events: { type: string; attributes: { key: string; value: string }[] }[] | undefined,
+  type: string,
+  key: string,
+  addr: string
+): boolean {
+  if (!events) return false;
+  for (const ev of events) {
+    if (ev.type !== type) continue;
+    for (const a of ev.attributes) {
+      if (a.key !== key) continue;
+      if (a.value === addr) return true;
     }
   }
-  recentReceived.value = [];
-  receivedTotal.value = 0;
+  return false;
 }
 
-function mapAmount(events: { type: string; attributes: { key: string; value: string }[] }[]) {
-  if (!events) return [];
-  return events
-    .find((x) => x.type === 'coin_received')
-    ?.attributes.filter((x) => x.key === 'YW1vdW50' || x.key === `amount`)
-    .map((x) => (x.key === 'amount' ? x.value : String.fromCharCode(...fromBase64(x.value))));
+function txDirection(txResp: any): TxDirection {
+  const events = txResp?.events;
+  if (!events) return 'none';
+  // bank.MsgSend: events.transfer.{sender,recipient}
+  const isSender = eventHasAddress(events, 'transfer', 'sender', props.address);
+  const isRecipient = eventHasAddress(events, 'transfer', 'recipient', props.address);
+  // Fee / generic spend: events.coin_spent.spender / events.coin_received.receiver
+  const isSpender = eventHasAddress(events, 'coin_spent', 'spender', props.address);
+  const isCoinReceiver = eventHasAddress(events, 'coin_received', 'receiver', props.address);
+  // Some chains (and older cosmos-sdk) emit message.sender per msg
+  const isMsgSender = eventHasAddress(events, 'message', 'sender', props.address);
+
+  const sendsOut = isSender || isSpender || isMsgSender;
+  const receivesIn = isRecipient || isCoinReceiver;
+
+  if (sendsOut && receivesIn) return 'self';
+  if (receivesIn) return 'in';
+  if (sendsOut) return 'out';
+  return 'none';
+}
+
+/** UI-friendly metadata for the direction pill (Nodes-Guru style). */
+function directionMeta(dir: TxDirection) {
+  switch (dir) {
+    case 'in':
+      return { label: 'IN', glyph: '↓', tone: 'in' as const };
+    case 'out':
+      return { label: 'OUT', glyph: '↑', tone: 'out' as const };
+    case 'self':
+      return { label: 'SELF', glyph: '↻', tone: 'self' as const };
+    default:
+      return { label: '—', glyph: '·', tone: 'none' as const };
+  }
 }
 
 // --- presentation helpers ---
@@ -265,7 +283,7 @@ function findTokenAmount(
 }
 </script>
 <template>
-  <div v-if="account && (account['@type'] || account.type || Object.keys(account).length)" class="sz-account-page">
+  <div v-if="account && (account['@type'] || Object.keys(account).length)" class="sz-account-page">
     <!-- ====== HERO ====== -->
     <section class="sz-section sz-acc-hero mb-4 overflow-hidden">
       <!-- blueprint grid background (signature Shazoes motif) -->
@@ -573,15 +591,16 @@ function findTokenAmount(
         <table class="sz-table sz-acc-table">
           <thead>
             <tr>
-              <th style="width: 18%">{{ $t('account.height') }}</th>
-              <th style="width: 24%">{{ $t('account.hash') }}</th>
+              <th style="width: 14%">{{ $t('account.height') }}</th>
+              <th style="width: 22%">{{ $t('account.hash') }}</th>
               <th>{{ $t('account.messages') }}</th>
+              <th style="width: 10%">Direction</th>
               <th style="width: 18%" class="text-right">{{ $t('account.time') }}</th>
             </tr>
           </thead>
           <tbody>
             <tr v-if="txsLoading && !txs.length">
-              <td colspan="4" class="sz-acc-empty">
+              <td colspan="5" class="sz-acc-empty">
                 <div class="flex items-center justify-center gap-3">
                   <div class="sz-acc-loading-spinner" />
                   <span class="sz-acc-loading-text">Fetching history from archive…</span>
@@ -589,7 +608,7 @@ function findTokenAmount(
               </td>
             </tr>
             <tr v-else-if="!txs.length">
-              <td colspan="4" class="sz-acc-empty">{{ $t('account.no_transactions') }}</td>
+              <td colspan="5" class="sz-acc-empty">{{ $t('account.no_transactions') }}</td>
             </tr>
             <tr v-for="(v, index) in txs" :key="v.txhash || index">
               <td class="sz-acc-num">
@@ -610,6 +629,21 @@ function findTokenAmount(
                   <span v-else class="sz-status sz-status--fail" :title="`Failed ${v.code}`"><span class="sz-status-glyph">✕</span>{{ v.code }}</span>
                 </div>
               </td>
+              <td>
+                <span
+                  v-if="directionMeta(txDirection(v)).tone !== 'none'"
+                  class="sz-acc-direction"
+                  :data-tone="directionMeta(txDirection(v)).tone"
+                  :title="`Direction: ${directionMeta(txDirection(v)).label}`"
+                >
+                  <span class="sz-acc-direction-glyph">{{ directionMeta(txDirection(v)).glyph }}</span>
+                  {{ directionMeta(txDirection(v)).label }}
+                </span>
+                <span v-else class="sz-acc-direction sz-acc-direction--none" title="No fund movement for this address">
+                  <span class="sz-acc-direction-glyph">·</span>
+                  —
+                </span>
+              </td>
               <td class="text-right sz-acc-time">
                 <div class="sz-acc-time-rel">{{ format.toDay(v.timestamp, 'from') }}</div>
                 <div class="sz-acc-time-abs">{{ format.toLocaleDate(v.timestamp) }}</div>
@@ -626,52 +660,6 @@ function findTokenAmount(
           :disabled="txHistoryPage * txHistoryLimit >= txsTotal"
           @click="setTxHistoryPage(txHistoryPage + 1)"
         >Next →</button>
-      </div>
-    </section>
-
-    <!-- ====== RECEIVED ====== -->
-    <section class="sz-section sz-glass overflow-hidden mb-4">
-      <div class="sz-section-head">
-        <div>
-          <div class="sz-section-kicker">Inbox</div>
-          <div class="sz-section-title">{{ $t('account.received') }} ({{ recentReceived.length }})</div>
-        </div>
-      </div>
-      <div class="overflow-x-auto">
-        <table class="sz-table sz-acc-table">
-          <thead>
-            <tr>
-              <th style="width: 18%">{{ $t('account.height') }}</th>
-              <th style="width: 24%">{{ $t('account.hash') }}</th>
-              <th>{{ $t('account.amount') }}</th>
-              <th style="width: 18%" class="text-right">{{ $t('account.time') }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-if="!recentReceived.length">
-              <td colspan="4" class="sz-acc-empty">{{ $t('account.no_transactions') }}</td>
-            </tr>
-            <tr v-for="(v, index) in recentReceived" :key="v.txhash || index">
-              <td class="sz-acc-num">
-                <RouterLink :to="`/${chain}/block/${v.height}`" class="sz-acc-link">#{{ v.height }}</RouterLink>
-              </td>
-              <td class="truncate" style="max-width: 220px">
-                <RouterLink :to="`/${chain}/tx/${v.txhash}`" class="sz-acc-link sz-acc-hash">{{ v.txhash.slice(0, 10) }}…{{ v.txhash.slice(-8) }}</RouterLink>
-              </td>
-              <td>
-                <div class="sz-acc-msg-row">
-                  <span v-for="(amt, ai) in mapAmount(v.events)?.slice(0, 2) || []" :key="ai" class="sz-msg-pill" data-module="bank">
-                    ↘ {{ amt }}
-                  </span>
-                </div>
-              </td>
-              <td class="text-right sz-acc-time">
-                <div class="sz-acc-time-rel">{{ format.toDay(v.timestamp, 'from') }}</div>
-                <div class="sz-acc-time-abs">{{ format.toLocaleDate(v.timestamp) }}</div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
       </div>
     </section>
 
@@ -1169,6 +1157,61 @@ function findTokenAmount(
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
 }
 .sz-acc-archive-badge svg { opacity: 0.9; }
+
+/* ============ DIRECTION PILL (Nodes-Guru-style IN/OUT) ============ */
+/* Single column that folds both sent and received txs into one stream.
+   Three tones — in (funds arrived), out (funds left), self (round-trip) —
+   plus a neutral dash for messages that don't move coins (votes, etc.). */
+.sz-acc-direction {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.32rem;
+  padding: 0.18rem 0.55rem 0.18rem 0.45rem;
+  border-radius: 999px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  border: 1px solid transparent;
+  white-space: nowrap;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.sz-acc-direction-glyph {
+  font-size: 12px;
+  line-height: 1;
+  font-weight: 700;
+  transform: translateY(-0.5px);
+}
+/* IN — funds arrived */
+.sz-acc-direction[data-tone='in'] {
+  color: #0fbf6a;
+  background: color-mix(in srgb, #16d97e 14%, transparent);
+  border-color: color-mix(in srgb, #16d97e 42%, transparent);
+}
+.sz-acc-direction[data-tone='in'] .sz-acc-direction-glyph { color: #16d97e; }
+/* OUT — funds left */
+.sz-acc-direction[data-tone='out'] {
+  color: #ff7a59;
+  background: color-mix(in srgb, #ff7a59 12%, transparent);
+  border-color: color-mix(in srgb, #ff7a59 40%, transparent);
+}
+.sz-acc-direction[data-tone='out'] .sz-acc-direction-glyph { color: #ff7a59; }
+/* SELF — both sides (redelegate, self-send, etc.) */
+.sz-acc-direction[data-tone='self'] {
+  color: #b892ff;
+  background: color-mix(in srgb, #b892ff 12%, transparent);
+  border-color: color-mix(in srgb, #b892ff 40%, transparent);
+}
+.sz-acc-direction[data-tone='self'] .sz-acc-direction-glyph { color: #b892ff; }
+/* NONE — no fund movement (governance, etc.) */
+.sz-acc-direction--none {
+  color: var(--text-secondary);
+  background: transparent;
+  border-color: color-mix(in srgb, hsl(var(--bc)) 10%, transparent);
+  font-weight: 600;
+  opacity: 0.6;
+}
 
 .sz-acc-section-meta {
   margin-left: 0.5rem;
