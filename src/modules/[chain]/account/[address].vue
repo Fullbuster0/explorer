@@ -1,10 +1,8 @@
 <script lang="ts" setup>
 import { useBlockchain, useFormatter, useStakingStore } from '@/stores';
-import DynamicComponent from '@/components/dynamic/DynamicComponent.vue';
 import DonutChart from '@/components/charts/DonutChart.vue';
 import { computed, ref } from '@vue/reactivity';
-import { onMounted, watch } from 'vue';
-import { Icon } from '@iconify/vue';
+import { onMounted } from 'vue';
 
 import { PageRequest } from '@/types';
 import type { AuthAccount, Delegation, TxResponse, DelegatorRewards, UnbondingResponses } from '@/types';
@@ -17,8 +15,6 @@ const blockchain = useBlockchain();
 const stakingStore = useStakingStore();
 const format = useFormatter();
 const account = ref({} as AuthAccount);
-const txs = ref([] as TxResponse[]);
-const txsTotal = ref(0);
 const delegations = ref([] as Delegation[]);
 const rewards = ref({} as DelegatorRewards);
 const balances = ref([] as Coin[]);
@@ -26,38 +22,36 @@ const unbonding = ref([] as UnbondingResponses[]);
 const unbondingTotal = ref(0);
 
 // archive-backed pagination state for tx history tables
+// Note: chain LCD endpoints (cosmos.directory, AllinBits, ITRocket) all
+// IGNORE pagination.limit and pagination.offset — they always return up to
+// the indexer's full set. So we fetch once, then slice client-side.
 const HISTORY_PAGE_SIZE = 10;
-const HISTORY_PAGES_SHOWN = 1;
 const txHistoryPage = ref(1);
-const txHistoryOffset = computed(
-  () => (txHistoryPage.value - 1) * HISTORY_PAGE_SIZE
-);
 const txHistoryLimit = ref(HISTORY_PAGE_SIZE);
-const lastTxHistory = computed(() =>
-  Number(localStorage.getItem(`sz_lastacctx_${props.address}`) || 0)
-);
-const archiveInUse = ref(false);
 const txsLoading = ref(false);
 
-watch(txHistoryPage, () => loadTxHistory());
-watch(txHistoryLimit, () => {
-  txHistoryPage.value = 1;
-  loadTxHistory();
+// The full fetched list (server may return more than `txHistoryLimit`).
+const allTxs = ref([] as TxResponse[]);
+
+// Client-side slice — the rows actually rendered.
+const txs = computed(() => {
+  const start = (txHistoryPage.value - 1) * txHistoryLimit.value;
+  return allTxs.value.slice(start, start + txHistoryLimit.value);
 });
+
+// What we display as the total count = all fetched (since server ignores
+// limit/offset). Falls back to 0 while loading.
+const txsTotal = computed(() => allTxs.value.length);
 
 async function loadTxHistory() {
   txsLoading.value = true;
   try {
     const page = new PageRequest();
-    page.setPageSize(txHistoryLimit.value);
-    page.offset = txHistoryOffset.value;
-    const res = await blockchain.fetchAccountTxs(props.address, page, txHistoryLimit.value);
+    page.setPageSize(100); // ask generously — server caps internally
+    page.offset = 0;
+    const res = await blockchain.fetchAccountTxs(props.address, page, 100);
     if (res) {
-      txs.value = res.tx_responses || [];
-      txsTotal.value = Number(
-        (res as any).pagination?.total ?? (res as any).total ?? 0
-      );
-      archiveInUse.value = true;
+      allTxs.value = res.tx_responses || [];
     }
   } finally {
     txsLoading.value = false;
@@ -65,16 +59,19 @@ async function loadTxHistory() {
 }
 
 function setTxHistoryPage(page: number) {
-  const max = Math.max(1, Math.ceil(txsTotal.value / txHistoryLimit.value));
+  const max = Math.max(1, Math.ceil(allTxs.value.length / txHistoryLimit.value));
   txHistoryPage.value = Math.min(Math.max(1, page), max);
 }
 
 function setTxHistorySize(size: number) {
   txHistoryLimit.value = size;
+  // Reset to first page so user sees the new slice from the top.
+  txHistoryPage.value = 1;
 }
 
 onMounted(() => {
   loadAccount(props.address);
+  loadTxHistory();
 });
 
 // total raw token amounts per category (used for donut + share bars)
@@ -122,17 +119,8 @@ const totalValue = computed(() => {
 
 function loadAccount(address: string) {
   blockchain.rpc.getAuthAccount(address).then((x) => (account.value = x.account));
-  // Tx history is fetched through fetchAccountTxs (archive-first) so users
-  // actually see their full activity even when the live endpoint indexer
-  // returns nothing.
-  blockchain.fetchAccountTxs(address).then((x) => {
-    if (!x) return;
-    txs.value = x.tx_responses || [];
-    txsTotal.value = Number(
-      (x as any).pagination?.total ?? (x as any).total ?? 0
-    );
-    archiveInUse.value = true;
-  });
+  // Tx history is loaded separately by loadTxHistory() (called below) so
+  // the chain LCD's limit/offset can be honored (or sliced client-side).
   blockchain.rpc.getDistributionDelegatorRewards(address).then((x) => (rewards.value = x));
   blockchain.rpc.getStakingDelegations(address).then(
     (x) => (delegations.value = x.delegation_responses)
@@ -334,7 +322,7 @@ function findTokenAmount(
           <div class="sz-section-kicker mb-1">Total Value</div>
           <div class="sz-acc-value-num">${{ totalValue }}</div>
           <div class="sz-acc-value-sub" v-if="totalAmount > 0">
-            {{ totalAmount.toLocaleString(undefined, { maximumFractionDigits: 2 }) }} {{ stakingStore.params.bond_denom }} · across {{ labels.length }} categories
+            {{ totalAmount.toLocaleString(undefined, { maximumFractionDigits: 2 }) }} {{ stakingStore.params.bond_denom }} · total portfolio
           </div>
         </div>
 
@@ -348,94 +336,7 @@ function findTokenAmount(
       </div>
     </section>
 
-    <!-- ====== PORTFOLIO METRIC STRIP ====== -->
-    <section class="sz-acc-mb-4">
-      <div class="sz-acc-metrics">
-        <div class="sz-metric sz-acc-metric sz-acc-metric--available">
-          <div class="sz-metric-icon sz-acc-metric-icon" :data-tone="'available'">
-            <Icon icon="mdi:wallet-outline" />
-          </div>
-          <div class="flex-1 min-w-0">
-            <div class="sz-metric-label">Available</div>
-            <div class="sz-metric-value">
-              {{ format.formatToken({ amount: findTokenAmount(balances, stakingStore.params.bond_denom), denom: stakingStore.params.bond_denom }, false, '0,0.[00]') }}
-            </div>
-            <div class="sz-acc-share" v-if="totalAmount > 0">
-              <span class="sz-acc-share-fill" :data-tone="'available'" :style="{ width: ((totalsRaw.available / totalAmount) * 100).toFixed(1) + '%' }"></span>
-              <span class="sz-acc-share-text">{{ ((totalsRaw.available / totalAmount) * 100).toFixed(1) }}%</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="sz-metric sz-acc-metric sz-acc-metric--delegated">
-          <div class="sz-metric-icon sz-acc-metric-icon" :data-tone="'delegated'">
-            <Icon icon="mdi:account-multiple-check-outline" />
-          </div>
-          <div class="flex-1 min-w-0">
-            <div class="sz-metric-label">Delegated</div>
-            <div class="sz-metric-value">
-              {{
-                format.formatToken(
-                  {
-                    amount: String(delegations.reduce((s, x) => s + Number(x.balance?.amount || 0), 0)),
-                    denom: stakingStore.params.bond_denom,
-                  },
-                  false,
-                  '0,0.[00]'
-                )
-              }}
-            </div>
-            <div class="sz-acc-share" v-if="totalAmount > 0">
-              <span class="sz-acc-share-fill" :data-tone="'delegated'" :style="{ width: ((totalsRaw.delegated / totalAmount) * 100).toFixed(1) + '%' }"></span>
-              <span class="sz-acc-share-text">{{ ((totalsRaw.delegated / totalAmount) * 100).toFixed(1) }}%</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="sz-metric sz-acc-metric sz-acc-metric--rewards">
-          <div class="sz-metric-icon sz-acc-metric-icon" :data-tone="'rewards'">
-            <Icon icon="mdi:gift-outline" />
-          </div>
-          <div class="flex-1 min-w-0">
-            <div class="sz-metric-label">Rewards</div>
-            <div class="sz-metric-value">
-              {{
-                format.formatToken(
-                  {
-                    amount: findTokenAmount(rewards.total, stakingStore.params.bond_denom),
-                    denom: stakingStore.params.bond_denom,
-                  },
-                  false,
-                  '0,0.[000000]'
-                )
-              }}
-            </div>
-            <div class="sz-acc-share" v-if="totalAmount > 0">
-              <span class="sz-acc-share-fill" :data-tone="'rewards'" :style="{ width: ((totalsRaw.rewards / totalAmount) * 100).toFixed(1) + '%' }"></span>
-              <span class="sz-acc-share-text">{{ ((totalsRaw.rewards / totalAmount) * 100).toFixed(1) }}%</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="sz-metric sz-acc-metric sz-acc-metric--unbonding">
-          <div class="sz-metric-icon sz-acc-metric-icon" :data-tone="'unbonding'">
-            <Icon icon="mdi:clock-outline" />
-          </div>
-          <div class="flex-1 min-w-0">
-            <div class="sz-metric-label">Unbonding</div>
-            <div class="sz-metric-value">
-              {{ format.formatToken({ amount: String(unbondingTotal), denom: stakingStore.params.bond_denom }, false, '0,0.[00]') }}
-            </div>
-            <div class="sz-acc-share" v-if="totalAmount > 0">
-              <span class="sz-acc-share-fill" :data-tone="'unbonding'" :style="{ width: ((totalsRaw.unbonding / totalAmount) * 100).toFixed(1) + '%' }"></span>
-              <span class="sz-acc-share-text">{{ ((totalsRaw.unbonding / totalAmount) * 100).toFixed(1) }}%</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ====== PORTFOLIO COMPOSITION ====== -->
+    <!-- ====== PORTFOLIO COMPOSITION (includes Available/Delegated/Rewards/Unbonding) ====== -->
     <section class="sz-section sz-glass overflow-hidden mb-4">
       <div class="sz-section-head">
         <div>
@@ -561,12 +462,8 @@ function findTokenAmount(
     <section class="sz-section sz-glass overflow-hidden mb-4" :class="{ 'sz-acc-loading': txsLoading && !txs.length }">
       <div class="sz-section-head">
         <div>
-          <div class="sz-section-kicker flex items-center gap-2">
+          <div class="sz-section-kicker">
             Activity
-            <span class="sz-acc-archive-badge" v-if="archiveInUse" title="History served from archive / indexed endpoint">
-              <svg viewBox="0 0 16 16" width="11" height="11" fill="currentColor"><path d="M2 3a1 1 0 011-1h6.5a1 1 0 01.8.4l1.6 2.2a1 1 0 01.1 1V13a1 1 0 01-1 1H3a1 1 0 01-1-1V3zM4 5v1h6V5H4zm0 3v1h8V8H4zm0 3v1h5v-1H4z"/></svg>
-              archive
-            </span>
           </div>
           <div class="sz-section-title">
             {{ $t('account.transactions') }} ({{ txsTotal ? format.formatNumber(txsTotal, '0,0') : txs.length }})
@@ -652,29 +549,19 @@ function findTokenAmount(
           </tbody>
         </table>
       </div>
-      <div class="sz-acc-pager" v-if="txsTotal > txHistoryLimit">
+      <div class="sz-acc-pager" v-if="allTxs.length > txHistoryLimit">
         <button class="sz-acc-pager-btn" :disabled="txHistoryPage === 1" @click="setTxHistoryPage(txHistoryPage - 1)">← Prev</button>
-        <span class="sz-acc-pager-info">Page {{ txHistoryPage }} / {{ Math.max(1, Math.ceil(txsTotal / txHistoryLimit)) }}</span>
+        <span class="sz-acc-pager-info">Page {{ txHistoryPage }} / {{ Math.max(1, Math.ceil(allTxs.length / txHistoryLimit)) }}</span>
         <button
           class="sz-acc-pager-btn"
-          :disabled="txHistoryPage * txHistoryLimit >= txsTotal"
+          :disabled="txHistoryPage * txHistoryLimit >= allTxs.length"
           @click="setTxHistoryPage(txHistoryPage + 1)"
         >Next →</button>
       </div>
     </section>
 
-    <!-- ====== RAW ACCOUNT ====== -->
-    <section class="sz-section sz-glass overflow-hidden mb-4">
-      <div class="sz-section-head">
-        <div>
-          <div class="sz-section-kicker">On-chain</div>
-          <div class="sz-section-title">{{ $t('account.acc') }}</div>
-        </div>
-      </div>
-      <div class="p-4">
-        <DynamicComponent :value="account" />
-      </div>
-    </section>
+    <!-- (On-chain card removed — not needed on a details page) -->
+
   </div>
   <div v-else>
     <div class="sz-section sz-glass p-6 text-center">
