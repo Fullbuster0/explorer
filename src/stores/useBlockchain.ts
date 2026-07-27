@@ -324,6 +324,76 @@ export const useBlockchain = defineStore('blockchain', {
       return null;
     },
 
+    /**
+     * Fetch power-event txs with archive-first fallback.
+     *
+     * Order:
+     *   1) archive / history-heavy endpoints (historicalRestOrder, preferCurrent=false)
+     *   2) active endpoint (fast path, may be pruned)
+     *   3) remaining REST endpoints in config order
+     *
+     * Returns the first response whose total > 0, or the last response if all
+     * endpoints return zero (chain genuinely has no events of that kind).
+     * Never permanently switches the live endpoint.
+     */
+    async fetchPowerEventsTxs(
+      query: string,
+      params: Record<string, any>,
+      page?: PageRequest
+    ): Promise<PaginatedTxs | null> {
+      const tryOne = async (base: string): Promise<PaginatedTxs | null> => {
+        const client = CosmosRestClient.newStrategy(base, this.current);
+        try {
+          const res = await client.getTxs(query, params, page);
+          if (res && (res as any).tx_responses) return res as PaginatedTxs;
+        } catch (e: any) {
+          // pruned / 500 / network — keep walking
+        }
+        return null;
+      };
+
+      const total = (r: PaginatedTxs | null): number => {
+        if (!r) return -1;
+        const t = (r as any).pagination?.total ?? (r as any).total;
+        return Number(t || 0);
+      };
+
+      // 1) archive-first walk
+      const seen = new Set<string>();
+      for (const ep of this.historicalRestOrder(false)) {
+        const addr = (ep.address || '').replace(/\/$/, '');
+        if (!addr || seen.has(addr)) continue;
+        seen.add(addr);
+        const res = await tryOne(addr);
+        if (res && total(res) > 0) {
+          console.info(`[explorer] power-events via archive REST: ${addr} (${ep.provider || 'unknown'}) total=${total(res)}`);
+          return res;
+        }
+      }
+
+      // 2) active endpoint (may be pruned but fast)
+      const active = this.endpoint?.address;
+      if (active && this.rpc) {
+        const addr = active.replace(/\/$/, '');
+        if (!seen.has(addr)) {
+          seen.add(addr);
+          const res = await tryOne(addr);
+          if (res) return res;
+        }
+      }
+
+      // 3) remaining endpoints in config order
+      for (const ep of this.restEndpoints()) {
+        const addr = (ep.address || '').replace(/\/$/, '');
+        if (!addr || seen.has(addr)) continue;
+        seen.add(addr);
+        const res = await tryOne(addr);
+        if (res) return res;
+      }
+
+      return null;
+    },
+
     // Lightweight liveness probe for a REST/LCD endpoint.
     async healthCheck(address: string, timeoutMs = 6000): Promise<boolean> {
       try {

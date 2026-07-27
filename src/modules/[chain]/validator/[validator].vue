@@ -291,45 +291,66 @@ function loadPowerEvents(p: number, type: EventType) {
   selectedEventType.value = type;
   powerPage.setPage(p);
   powerPage.setPageSize(10);
-  const queries = eventTypeQuery[type].map((t) => t.replace('{validator}', validator));
 
-  if (queries.length === 1) {
-    blockchain.rpc
-      .getTxs(`?${queries[0]}`, { validator }, powerPage)
-      .then((res) => {
-        events.value = res;
-      })
-      .catch(() => {
-        events.value = {} as PaginatedTxs;
-      });
+  if (type === EventType.Redelegate) {
+    fetchRedelegateCombined(p);
     return;
   }
 
-  // Multi-query kind (redelegate): fetch both sides in parallel, tag each row with
-  // the side it matched so the template can derive +/− per row.
-  Promise.all(
-    queries.map((q) =>
-      blockchain.rpc
-        .getTxs(`?${q}`, { validator }, powerPage)
-        .then((res) => res)
-        .catch(() => ({ tx_responses: [], pagination: null, total: '0' } as PaginatedTxs))
-    )
-  ).then(([inRes, outRes]) => {
-    const inRows = (inRes.tx_responses || []).map((r: any) => ({ ...r, _side: 'destination_validator' }));
-    const outRows = (outRes.tx_responses || []).map((r: any) => ({ ...r, _side: 'source_validator' }));
-    const merged = [...inRows, ...outRows].sort(
-      (a: any, b: any) => Number(b.height) - Number(a.height)
-    );
-    const total = String(
-      Number(inRes.pagination?.total || inRes.total || 0) +
-        Number(outRes.pagination?.total || outRes.total || 0)
-    );
-    events.value = {
-      tx_responses: merged,
-      pagination: { total, next_key: null },
-      total,
-    } as PaginatedTxs;
-  });
+  const tmpl = eventTypeQuery[type][0];
+  const q = tmpl.replace('{validator}', validator);
+  blockchain.rpc
+    .fetchPowerEventsTxs(`?${q}`, { validator }, powerPage)
+    .then((res) => {
+      events.value = res || ({} as PaginatedTxs);
+    })
+    .catch(() => {
+      events.value = {} as PaginatedTxs;
+    });
+}
+
+/**
+ * Redelegate tab = "in" (destination) + "out" (source) merged.
+ * Each side uses archive-first fallback, then merged + sorted + tagged.
+ */
+async function fetchRedelegateCombined(p: number) {
+  powerPage.setPage(p);
+  powerPage.setPageSize(10);
+
+  const [inQ, outQ] = eventTypeQuery[EventType.Redelegate].map((t) =>
+    `?${t.replace('{validator}', validator)}`
+  );
+
+  // Run both archive-first walks in parallel; tag rows by which side matched.
+  const [inRes, outRes] = await Promise.all([
+    blockchain.rpc.fetchPowerEventsTxs(inQ, { validator }, powerPage),
+    blockchain.rpc.fetchPowerEventsTxs(outQ, { validator }, powerPage),
+  ]);
+
+  const inRows = ((inRes as any)?.tx_responses || []).map((r: any) => ({
+    ...r,
+    _side: 'destination_validator',
+  }));
+  const outRows = ((outRes as any)?.tx_responses || []).map((r: any) => ({
+    ...r,
+    _side: 'source_validator',
+  }));
+
+  // Merge: redelegate.in + redelegate.out going to this validator. Sort by height desc.
+  const merged = [...inRows, ...outRows].sort(
+    (a: any, b: any) => Number(b.height || 0) - Number(a.height || 0)
+  );
+
+  const total = String(
+    Number((inRes as any)?.pagination?.total ?? (inRes as any)?.total ?? 0) +
+      Number((outRes as any)?.pagination?.total ?? (outRes as any)?.total ?? 0)
+  );
+
+  events.value = {
+    tx_responses: merged,
+    pagination: { total, next_key: null },
+    total,
+  } as PaginatedTxs;
 }
 
 function pagePowerEvents(p: number) {
