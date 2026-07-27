@@ -299,9 +299,9 @@ function loadPowerEvents(p: number, type: EventType) {
 
   const tmpl = eventTypeQuery[type][0];
   const q = tmpl.replace('{validator}', validator);
-  blockchain.rpc
+  blockchain
     .fetchPowerEventsTxs(`?${q}`, { validator }, powerPage)
-    .then((res) => {
+    .then((res: any) => {
       events.value = res || ({} as PaginatedTxs);
     })
     .catch(() => {
@@ -323,8 +323,8 @@ async function fetchRedelegateCombined(p: number) {
 
   // Run both archive-first walks in parallel; tag rows by which side matched.
   const [inRes, outRes] = await Promise.all([
-    blockchain.rpc.fetchPowerEventsTxs(inQ, { validator }, powerPage),
-    blockchain.rpc.fetchPowerEventsTxs(outQ, { validator }, powerPage),
+    blockchain.fetchPowerEventsTxs(inQ, { validator }, powerPage),
+    blockchain.fetchPowerEventsTxs(outQ, { validator }, powerPage),
   ]);
 
   const inRows = ((inRes as any)?.tx_responses || []).map((r: any) => ({
