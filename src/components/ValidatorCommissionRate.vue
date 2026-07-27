@@ -56,7 +56,7 @@ onMounted(() => {
         <div class="sz-comm-rate">
           {{ rate.toFixed(1) }}<span class="sz-comm-pct">%</span>
         </div>
-        <div class="sz-comm-of">of staking rewards</div>
+        <div class="sz-comm-of">of rewards</div>
       </div>
       <div class="sz-comm-updated" :title="`Last commission update ${props.commission?.update_time || ''}`">
         <span class="sz-comm-pulse"></span>
@@ -93,7 +93,16 @@ onMounted(() => {
         <div class="sz-comm-stat-value">±{{ change.toFixed(1) }}%</div>
       </div>
       <div class="sz-comm-stat">
-        <div class="sz-comm-stat-label"><i class="dot dot-head"></i>Headroom</div>
+        <div class="sz-comm-stat-label">
+          <i class="dot dot-head"></i>Headroom
+          <span class="sz-comm-tip" tabindex="0">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="9"></circle>
+              <path d="M12 8h.01M12 12v4.5"></path>
+            </svg>
+            <span class="sz-comm-tip-text">Room left to raise commission — <em>ceiling − rate</em>. Small headroom = commission is near its cap, unlikely to climb.</span>
+          </span>
+        </div>
         <div class="sz-comm-stat-value sz-comm-ok">{{ headroom.toFixed(1) }}%</div>
       </div>
     </div>
@@ -291,4 +300,62 @@ onMounted(() => {
 .dot-rate { background: linear-gradient(90deg, #005fcc, #38bdf8); }
 .dot-band { background: rgba(245, 158, 11, 0.75); }
 .dot-head { background: color-mix(in srgb, hsl(var(--bc)) 25%, transparent); }
+
+/* headroom tooltip — inverted chip, extends left so it never clips the card */
+.sz-comm-tip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  margin-left: 2px;
+  color: var(--text-secondary);
+  cursor: help;
+  outline: none;
+  transition: color 0.16s ease;
+}
+.sz-comm-tip:hover,
+.sz-comm-tip:focus-visible { color: var(--sz-accent); }
+.sz-comm-tip svg { display: block; }
+.sz-comm-tip-text {
+  position: absolute;
+  bottom: calc(100% + 9px);
+  right: -6px;
+  width: max-content;
+  max-width: 230px;
+  padding: 8px 11px;
+  border-radius: 9px;
+  background: color-mix(in srgb, hsl(var(--bc)) 90%, hsl(var(--b1)));
+  color: hsl(var(--b1));
+  font-family: 'DM Sans', sans-serif;
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  line-height: 1.5;
+  text-transform: none;
+  text-align: left;
+  box-shadow: 0 10px 28px -10px rgba(2, 6, 23, 0.5);
+  opacity: 0;
+  transform: translateY(5px);
+  pointer-events: none;
+  transition: opacity 0.16s ease, transform 0.16s ease;
+  z-index: 30;
+}
+.sz-comm-tip-text em {
+  font-style: normal;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-weight: 700;
+  color: var(--sz-success);
+}
+.sz-comm-tip-text::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  right: 10px;
+  border: 5px solid transparent;
+  border-top-color: color-mix(in srgb, hsl(var(--bc)) 90%, hsl(var(--b1)));
+}
+.sz-comm-tip:hover .sz-comm-tip-text,
+.sz-comm-tip:focus-visible .sz-comm-tip-text {
+  opacity: 1;
+  transform: translateY(0);
+}
 </style>
