@@ -508,10 +508,14 @@ export const useBlockchain = defineStore('blockchain', {
      *     Every endpoint IGNORES `pagination.limit` and `pagination.offset` —
      *     they always return the first ≤100 of the indexed set.
      *
-     *   - We therefore walk all archive endpoints in scoring order, collect
-     *     both query results from each, and return the deduplicated union
-     *     sorted by height DESC. The richest endpoint wins on overlap; the
-     *     weak ones fill gaps.
+     *   - We walk ONLY the curated `archiveEndpoints()` list (typically
+     *     4 mirrors per chain). We do NOT touch the live `restEndpoints()`
+     *     list — those are the user's live balance/delegation sources and
+     *     may be pruned or slow, plus iterating 33 of them per page load
+     *     was the cause of the infinite-loading bug.
+     *
+     *   - Stop walking as soon as the merged set hits SERVER_CAP (100). Every
+     *     archive caps at 100 rows anyway, so further archives can't add.
      *
      *   - Pagination stays client-side (the slice logic in the page). Server
      *     `count_total` is unreliable — we expose `txs_total` as the actual
@@ -555,32 +559,33 @@ export const useBlockchain = defineStore('blockchain', {
         );
       };
 
-      // Walk ALL archive endpoints — union grows monotonically (dedupe'd),
-      // so first-return is wrong here. We keep going until we exhaust the
-      // list OR every endpoint returns nothing new.
+      // Walk ONLY the curated archive endpoints. Walking the full 33-entry
+      // `restEndpoints()` list was the previous bug — every page load fired
+      // ~74 HTTP requests (~37 endpoints × sender+receiver) and waited for
+      // all of them, even after we'd already saturated the indexed result
+      // set on the first archive. We only need the few archive mirrors here.
       const merged = new Map<string, TxResponse>();
       let bestTotal = 0;
       const seenEndpoints = new Set<string>();
 
+      // Hard cap mirrors the server-side reality: every atomone LCD ignores
+      // `pagination.limit` and caps at ~100 rows. No endpoint exposes more.
+      // (Verified 2026-07-27 against PublicNode/AllinBits/cosmos.directory.)
+      const SERVER_CAP = 100;
+
       const collect = async (addr: string) => {
         const cleaned = addr.replace(/\/$/, '');
         if (!cleaned || seenEndpoints.has(cleaned)) return;
+        // We've already saturated the indexed result. Stop walking.
+        if (merged.size >= SERVER_CAP) return;
         seenEndpoints.add(cleaned);
         const rows = await tryBoth(cleaned);
         if (!rows) return;
         for (const r of rows) if (r.txhash) merged.set(r.txhash, r);
-        // If this endpoint reports a `total`, prefer the largest value
-        // we ever saw as the headline count.
       };
 
-      for (const ep of this.historicalRestOrder(false)) {
-        await collect(ep.address);
-      }
-
-      const active = this.endpoint?.address;
-      if (active) await collect(active);
-
-      for (const ep of this.restEndpoints()) {
+      for (const ep of this.archiveEndpoints()) {
+        if (merged.size >= SERVER_CAP) break;
         await collect(ep.address);
       }
 
