@@ -27,6 +27,8 @@ export const useBlockchain = defineStore('blockchain', {
       connErr: '',
       fallbackInProgress: false,
       lastFallbackAt: 0,
+      // Declared in state so watchers (validator page power-events) react to it.
+      rpc: undefined as CosmosRestClient | undefined,
     };
   },
   getters: {
