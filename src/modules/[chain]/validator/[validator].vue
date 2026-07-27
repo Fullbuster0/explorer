@@ -69,10 +69,10 @@ const selectedEventType = ref<EventType>(EventType.Delegate);
 
 /** query=event for each power-event kind. Operator address is appended at request time. */
 const eventTypeQuery: Record<EventType, string> = {
-  [EventType.Delegate]: 'query=delegate.validator={validator}',
-  [EventType.Unbond]: 'query=unbond.validator={validator}',
-  [EventType.RedelegateIn]: 'query=redelegate.destination_validator={validator}',
-  [EventType.RedelegateOut]: 'query=redelegate.source_validator={validator}',
+  [EventType.Delegate]: "query=delegate.validator='{validator}'",
+  [EventType.Unbond]: "query=unbond.validator='{validator}'",
+  [EventType.RedelegateIn]: "query=redelegate.destination_validator='{validator}'",
+  [EventType.RedelegateOut]: "query=redelegate.source_validator='{validator}'",
 };
 
 /** Sign for the +/- indicator on the amount cell. */
