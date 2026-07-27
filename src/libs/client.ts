@@ -283,8 +283,9 @@ export class CosmosRestClient extends BaseRestClient<RequestRegistry> {
     return this.request(this.registry.base_tendermint_validatorsets_latest, {}, query);
   }
   // tx
-  async getTxsBySender(sender: string, page?: PageRequest) {
+  async getTxsBySender(sender: string, page?: PageRequest, limit?: number) {
     if (!page) page = new PageRequest();
+    if (limit) page.setPageSize(limit);
 
     const encodedSender = encodeURIComponent(sender);
     let query = `?events=message.sender='${encodedSender}'&pagination.limit=${page.limit}&pagination.offset=${
@@ -299,8 +300,9 @@ export class CosmosRestClient extends BaseRestClient<RequestRegistry> {
   // ?&pagination.reverse=true&events=send_packet.packet_src_channel='${channel}'&events=send_packet.packet_src_port='${port}'
   // query ibc receiving msgs
   // ?&pagination.reverse=true&events=recv_packet.packet_dst_channel='${channel}'&events=recv_packet.packet_dst_port='${port}'
-  async getTxs(query: string, params: any, page?: PageRequest) {
+  async getTxs(query: string, params: any, page?: PageRequest, limit?: number) {
     if (!page) page = new PageRequest();
+    if (limit) page.setPageSize(limit);
     // Cosmos SDK tx search: query= param works across versions; events= is legacy.
     // Always emit query= so endpoints running newer binaries still work.
     const q = query.replaceAll('events=', 'query=');

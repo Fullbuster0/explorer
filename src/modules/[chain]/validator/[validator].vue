@@ -124,6 +124,9 @@ const page = new PageRequest();
 const powerPage = new PageRequest();
 const delPage = new PageRequest();
 
+/** Max rows shown in Power Events / Transactions tabs (scroll, no pagination). */
+const ACTIVITY_LIMIT = 20;
+
 addresses.value.account = operatorAddressToAccount(validator);
 
 // self bond
@@ -131,10 +134,9 @@ staking.fetchValidatorDelegation(validator, addresses.value.account).then((x) =>
   if (x) selfBonded.value = x.delegation_response;
 });
 
-// account txs
-blockchain.rpc.getTxsBySender(addresses.value.account).then((x) => {
-  txs.value = x;
-});
+// account txs — first 20 only; user can scroll to load more via IntersectionObserver
+txs.value = { tx_responses: [] } as PaginatedTxs;
+loadAccountTxs();
 
 const apr = computed(() => {
   const rate = Number(v.value.commission?.commission_rates.rate || 0);
@@ -287,20 +289,17 @@ function pageload(p: number) {
   }
 }
 
-function loadPowerEvents(p: number, type: EventType) {
+function loadPowerEvents(_p: number, type: EventType) {
   selectedEventType.value = type;
-  powerPage.setPage(p);
-  powerPage.setPageSize(10);
-
   if (type === EventType.Redelegate) {
-    fetchRedelegateCombined(p);
+    fetchRedelegateCombined();
     return;
   }
 
   const tmpl = eventTypeQuery[type][0];
   const q = tmpl.replace('{validator}', validator);
   blockchain
-    .fetchPowerEventsTxs(`?${q}`, { validator }, powerPage)
+    .fetchPowerEventsTxs(`?${q}`, { validator }, powerPage, ACTIVITY_LIMIT)
     .then((res: any) => {
       events.value = res || ({} as PaginatedTxs);
     })
@@ -313,18 +312,15 @@ function loadPowerEvents(p: number, type: EventType) {
  * Redelegate tab = "in" (destination) + "out" (source) merged.
  * Each side uses archive-first fallback, then merged + sorted + tagged.
  */
-async function fetchRedelegateCombined(p: number) {
-  powerPage.setPage(p);
-  powerPage.setPageSize(10);
-
+async function fetchRedelegateCombined() {
   const [inQ, outQ] = eventTypeQuery[EventType.Redelegate].map((t) =>
     `?${t.replace('{validator}', validator)}`
   );
 
   // Run both archive-first walks in parallel; tag rows by which side matched.
   const [inRes, outRes] = await Promise.all([
-    blockchain.fetchPowerEventsTxs(inQ, { validator }, powerPage),
-    blockchain.fetchPowerEventsTxs(outQ, { validator }, powerPage),
+    blockchain.fetchPowerEventsTxs(inQ, { validator }, powerPage, ACTIVITY_LIMIT),
+    blockchain.fetchPowerEventsTxs(outQ, { validator }, powerPage, ACTIVITY_LIMIT),
   ]);
 
   const inRows = ((inRes as any)?.tx_responses || []).map((r: any) => ({
@@ -353,9 +349,70 @@ async function fetchRedelegateCombined(p: number) {
   } as PaginatedTxs;
 }
 
-function pagePowerEvents(p: number) {
-  loadPowerEvents(p, selectedEventType.value);
+function pagePowerEvents(_p: number) {
+  // Power Events uses scroll, not pagination. Ignored.
 }
+
+// ─── Account Transactions (scroll, first 20) ──────────────────────────────
+const txsLoading = ref(false);
+const txsHasMore = ref(false);
+let txsPage = 1;
+
+function loadAccountTxs() {
+  txsLoading.value = true;
+  blockchain.rpc
+    .getTxsBySender(addresses.value.account, undefined, ACTIVITY_LIMIT)
+    .then((x: any) => {
+      txs.value = x || ({ tx_responses: [] } as PaginatedTxs);
+      txsPage = 1;
+      txsHasMore.value = (x?.tx_responses?.length || 0) >= ACTIVITY_LIMIT;
+    })
+    .catch(() => {
+      txs.value = { tx_responses: [] } as PaginatedTxs;
+      txsHasMore.value = false;
+    })
+    .finally(() => {
+      txsLoading.value = false;
+    });
+}
+
+function loadMoreAccountTxs() {
+  if (!txsHasMore.value || txsLoading.value) return;
+  txsLoading.value = true;
+  txsPage += 1;
+  blockchain.rpc
+    .getTxsBySender(addresses.value.account, new PageRequest(txsPage, ACTIVITY_LIMIT), ACTIVITY_LIMIT)
+    .then((x: any) => {
+      const rows = x?.tx_responses || [];
+      txs.value = {
+        ...txs.value,
+        tx_responses: [...(txs.value?.tx_responses || []), ...rows],
+      } as PaginatedTxs;
+      txsHasMore.value = rows.length >= ACTIVITY_LIMIT;
+    })
+    .catch(() => {
+      txsHasMore.value = false;
+    })
+    .finally(() => {
+      txsLoading.value = false;
+    });
+}
+
+// IntersectionObserver sentinel for "load more on scroll"
+const txsSentinel = ref<HTMLElement | null>(null);
+let txsObserver: IntersectionObserver | null = null;
+onMounted(() => {
+  txsObserver = new IntersectionObserver(
+    (entries) => {
+      if (entries.some((e) => e.isIntersecting)) loadMoreAccountTxs();
+    },
+    { rootMargin: '200px' }
+  );
+  if (txsSentinel.value) txsObserver.observe(txsSentinel.value);
+});
+onUnmounted(() => {
+  txsObserver?.disconnect();
+});
 
 /** Prefer same-origin /vote-api (Vercel rewrite). Override via VITE_VOTE_INDEXER_URL. */
 const VOTE_INDEXER_URL = (() => {
@@ -1039,12 +1096,14 @@ watch(
             </tbody>
           </table>
         </div>
-        <div class="px-2">
-          <PaginationBar
-            :total="events.pagination?.total"
-            :limit="powerPage.limit"
-            :callback="pagePowerEvents"
-          />
+        <div class="px-4 py-2.5 border-t border-base-content/10 flex flex-wrap items-center gap-3 text-[11.5px] text-secondary">
+          <span>
+            Showing the latest
+            <b class="font-mono text-main">{{ events.tx_responses?.length || 0 }}</b>
+            of
+            <b class="font-mono text-main">{{ events.pagination?.total || events.total || 0 }}</b>
+            <span>events (scroll for older history in TX pages)</span>
+          </span>
         </div>
       </div>
 
@@ -1165,6 +1224,21 @@ watch(
               </tr>
             </tbody>
           </table>
+        </div>
+        <div ref="txsSentinel" class="px-4 py-2.5 border-t border-base-content/10 flex items-center justify-between text-[11.5px] text-secondary">
+          <span>
+            Showing the latest
+            <b class="font-mono text-main">{{ txs.tx_responses?.length || 0 }}</b>
+            tx
+          </span>
+          <span v-if="txsLoading" class="flex items-center gap-1.5">
+            <span class="loading loading-spinner loading-xs"></span>
+            Loading…
+          </span>
+          <span v-else-if="!txsHasMore && (txs.tx_responses?.length || 0) > 0" class="opacity-70">
+            End of list
+          </span>
+          <span v-else class="opacity-70">Scroll for more</span>
         </div>
       </div>
     </section>

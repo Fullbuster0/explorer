@@ -339,12 +339,13 @@ export const useBlockchain = defineStore('blockchain', {
     async fetchPowerEventsTxs(
       query: string,
       params: Record<string, any>,
-      page?: PageRequest
+      page?: PageRequest,
+      limit?: number
     ): Promise<PaginatedTxs | null> {
       const tryOne = async (base: string): Promise<PaginatedTxs | null> => {
         const client = CosmosRestClient.newStrategy(base, this.current);
         try {
-          const res = await client.getTxs(query, params, page);
+          const res = await client.getTxs(query, params, page, limit);
           if (res && (res as any).tx_responses) return res as PaginatedTxs;
         } catch (e: any) {
           // pruned / 500 / network — keep walking
