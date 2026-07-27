@@ -81,7 +81,6 @@ export const useBlockchain = defineStore('blockchain', {
           staking: 'mdi-lock-outline',
           governance: 'mdi-vote-outline',
           ibc: 'mdi-transit-connection-variant',
-          cosmwasm: 'mdi-code-braces',
           parameters: 'mdi-cog-outline',
           consensus: 'mdi-radar',
           nft: 'mdi-image-outline',
@@ -95,7 +94,7 @@ export const useBlockchain = defineStore('blockchain', {
           },
           {
             heading: 'Advanced',
-            keys: ['consensus', 'ibc', 'cosmwasm', 'parameters', 'nft'],
+            keys: ['consensus', 'ibc', 'parameters', 'nft'],
           },
         ];
 
