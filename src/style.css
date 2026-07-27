@@ -558,6 +558,315 @@ html[data-theme='dark'] .sz-card {
   background: color-mix(in srgb, hsl(var(--p)) 30%, transparent);
 }
 
+/* ============================================================
+   GOV LIST — proposal cards (NOT ping-pub table).
+   Reads as a clean stack of proposal cards with status accent,
+   tally bar inside the card, and metadata row.
+   GLOBAL (not scoped) — reused in gov/index.vue + detail page.
+   ============================================================ */
+.sz-gov-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.sz-gov-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  padding: 1rem 1.1rem;
+  background: hsl(var(--b1));
+  border: 1px solid var(--sz-border);
+  border-radius: 14px;
+  transition: border-color 0.16s ease, transform 0.16s ease, box-shadow 0.16s ease;
+  overflow: hidden;
+}
+/* left status accent — coloured per status */
+.sz-gov-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: hsl(var(--bc) / 0.25);
+  transition: background 0.16s ease;
+}
+.sz-gov-card:hover {
+  border-color: color-mix(in srgb, hsl(var(--p)) 38%, var(--sz-border));
+  transform: translateY(-1px);
+  box-shadow: 0 10px 28px -16px var(--sz-glow);
+}
+/* status-driven accent + tint */
+.sz-gov-card[data-status='voting']::before  { background: linear-gradient(180deg, #3fb6ff, rgba(63,182,255,0.2)); }
+.sz-gov-card[data-status='passed']::before  { background: linear-gradient(180deg, #16d97e, rgba(22,217,126,0.2)); }
+.sz-gov-card[data-status='rejected']::before { background: linear-gradient(180deg, #ff5d5d, rgba(255,93,93,0.2)); }
+.sz-gov-card[data-status='failed']::before  { background: linear-gradient(180deg, #f59e0b, rgba(245,158,11,0.2)); }
+
+.sz-gov-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  min-width: 0;
+}
+.sz-gov-body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.sz-gov-title-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  min-width: 0;
+}
+.sz-gov-id {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  letter-spacing: -0.01em;
+  flex-shrink: 0;
+}
+.sz-gov-title {
+  font-size: 14.5px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--text-main);
+  line-height: 1.32;
+  /* clamp to 2 lines */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-width: 0;
+}
+.sz-gov-title:hover {
+  color: hsl(var(--p));
+}
+.sz-gov-sub {
+  margin-top: 0.15rem;
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  /* clamp to 2 lines */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.sz-gov-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.85rem;
+  font-size: 11.5px;
+  color: var(--text-secondary);
+}
+.sz-gov-meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.sz-gov-meta-label {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--text-secondary) 85%, transparent);
+}
+.sz-gov-meta-value {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11.5px;
+  color: var(--text-main);
+  font-weight: 600;
+}
+.sz-gov-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.18rem 0.55rem;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border: 1px solid transparent;
+  flex-shrink: 0;
+}
+.sz-gov-status::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: currentColor;
+  box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 22%, transparent);
+}
+.sz-gov-status[data-tone='voting']  { background: rgba(63,182,255,0.12);  color: #3fb6ff; border-color: rgba(63,182,255,0.28); }
+.sz-gov-status[data-tone='passed']  { background: rgba(22,217,126,0.12);  color: #10b981; border-color: rgba(22,217,126,0.28); }
+.sz-gov-status[data-tone='rejected'] { background: rgba(255,93,93,0.12); color: #ef4444; border-color: rgba(255,93,93,0.28); }
+.sz-gov-status[data-tone='failed']  { background: rgba(245,158,11,0.14); color: #f59e0b; border-color: rgba(245,158,11,0.28); }
+.sz-gov-status[data-tone='deposit'] { background: rgba(184,146,255,0.14); color: #b892ff; border-color: rgba(184,146,255,0.28); }
+
+.sz-gov-type-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.14rem 0.5rem;
+  border-radius: 6px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  background: color-mix(in srgb, hsl(var(--p)) 8%, transparent);
+  color: hsl(var(--p));
+  border: 1px solid color-mix(in srgb, hsl(var(--p)) 20%, transparent);
+}
+.sz-gov-expedited {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.14rem 0.45rem;
+  border-radius: 6px;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  background: linear-gradient(120deg, rgba(245,158,11,0.18), rgba(239,68,68,0.16));
+  color: #b45309;
+  border: 1px solid rgba(245,158,11,0.3);
+}
+
+/* tally bar — uses the same colour palette as ProposalProcess but
+   rendered in a thinner, more refined treatment suitable for cards. */
+.sz-gov-tally {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+}
+.sz-gov-tally-bar {
+  flex: 1 1 auto;
+  height: 8px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: color-mix(in srgb, hsl(var(--bc)) 8%, transparent);
+  display: flex;
+}
+.sz-gov-tally-seg {
+  height: 100%;
+  transition: width 0.3s ease;
+}
+.sz-gov-tally-seg[data-seg='yes']    { background: #16d97e; }
+.sz-gov-tally-seg[data-seg='no']     { background: #ff5d5d; }
+.sz-gov-tally-seg[data-seg='veto']   { background: #b91c1c; }
+.sz-gov-tally-seg[data-seg='abstain'] { background: color-mix(in srgb, hsl(var(--bc)) 30%, transparent); }
+.sz-gov-tally-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.85rem;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+.sz-gov-tally-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.32rem;
+}
+.sz-gov-tally-swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.sz-gov-tally-swatch[data-seg='yes']    { background: #16d97e; }
+.sz-gov-tally-swatch[data-seg='no']     { background: #ff5d5d; }
+.sz-gov-tally-swatch[data-seg='veto']   { background: #b91c1c; }
+.sz-gov-tally-swatch[data-seg='abstain'] { background: color-mix(in srgb, hsl(var(--bc)) 35%, transparent); }
+
+.sz-gov-time {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.sz-gov-time--live { color: #3fb6ff; }
+
+.sz-gov-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.4rem;
+  flex-shrink: 0;
+  min-width: 110px;
+}
+.sz-gov-side-meta {
+  font-size: 10.5px;
+  color: var(--text-secondary);
+  text-align: right;
+  line-height: 1.35;
+}
+.sz-gov-side-meta strong {
+  display: block;
+  color: var(--text-main);
+  font-weight: 700;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11.5px;
+}
+
+/* empty / loading state for the list */
+.sz-gov-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 3rem 1.2rem;
+  text-align: center;
+  background: hsl(var(--b1));
+  border: 1px dashed var(--sz-border);
+  border-radius: 14px;
+}
+.sz-gov-empty-icon {
+  font-size: 2.1rem;
+  line-height: 1;
+  color: color-mix(in srgb, hsl(var(--p)) 60%, transparent);
+  opacity: 0.7;
+}
+.sz-gov-empty-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+.sz-gov-empty-sub {
+  font-size: 12px;
+  color: var(--text-secondary);
+  max-width: 360px;
+}
+
+/* responsive — collapse the right meta block under the body on mobile */
+@media (max-width: 640px) {
+  .sz-gov-row { flex-direction: column; gap: 0.5rem; }
+  .sz-gov-side {
+    width: 100%;
+    align-items: flex-start;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+    min-width: 0;
+  }
+  .sz-gov-side-meta { text-align: left; }
+  .sz-gov-tally { flex-direction: column; align-items: stretch; gap: 0.45rem; }
+  .sz-gov-tally-legend { justify-content: flex-start; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sz-gov-card,
+  .sz-gov-card::before,
+  .sz-gov-tally-seg { transition: none !important; }
+}
+
 /* ---- page chrome (module pages) ---- */
 .sz-page-head {
   display: flex;

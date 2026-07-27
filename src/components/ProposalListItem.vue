@@ -1,11 +1,10 @@
 <script lang="ts" setup>
-import { useBlockchain, useFormatter, useStakingStore, useTxDialog } from '@/stores';
+import { useBlockchain, useFormatter, useStakingStore } from '@/stores';
 import { select } from '@/components/dynamic/index';
-import type { PaginatedProposals } from '@/types';
-import ProposalProcess from './ProposalProcess.vue';
+import type { PaginatedProposals, GovProposal } from '@/types';
 import type { PropType } from 'vue';
 import { computed, ref } from 'vue';
-const dialog = useTxDialog();
+
 defineProps({
   proposals: { type: Object as PropType<PaginatedProposals> },
 });
@@ -13,203 +12,138 @@ defineProps({
 const format = useFormatter();
 const staking = useStakingStore();
 const chain = useBlockchain();
-function showType(v: string) {
-  if (v) {
-    return v.substring(v.lastIndexOf('.') + 1);
+
+const total = computed(() => staking.pool?.bonded_tokens);
+
+function showType(v?: string) {
+  if (!v) return '';
+  return v.substring(v.lastIndexOf('.') + 1).replace('Msg', '').replace('Proposal', '');
+}
+
+/** Map SDK proposal status → short label + tone slug for styling. */
+function statusOf(status?: string): { label: string; tone: string } {
+  switch (status) {
+    case 'PROPOSAL_STATUS_VOTING_PERIOD':
+      return { label: 'Voting', tone: 'voting' };
+    case 'PROPOSAL_STATUS_PASSED':
+      return { label: 'Passed', tone: 'passed' };
+    case 'PROPOSAL_STATUS_REJECTED':
+      return { label: 'Rejected', tone: 'rejected' };
+    case 'PROPOSAL_STATUS_FAILED':
+      return { label: 'Failed', tone: 'failed' };
+    case 'PROPOSAL_STATUS_DEPOSIT_PERIOD':
+      return { label: 'Deposit', tone: 'deposit' };
+    default:
+      return { label: status ? status.replace('PROPOSAL_STATUS_', '') : '—', tone: 'failed' };
   }
-  return v;
 }
 
-const statusMap: Record<string, string> = {
-  PROPOSAL_STATUS_VOTING_PERIOD: 'VOTING',
-  PROPOSAL_STATUS_PASSED: 'PASSED',
-  PROPOSAL_STATUS_REJECTED: 'REJECTED',
-};
-const voterStatusMap: Record<string, string> = {
-  VOTE_OPTION_NO_WITH_VETO: '',
-  VOTE_OPTION_YES: 'success',
-  VOTE_OPTION_NO: 'error',
-  VOTE_OPTION_ABSTAIN: 'warning',
-};
-
-const proposalInfo = ref();
-
-function metaItem(metadata: string | undefined): { title: string; summary: string } {
-  return metadata ? JSON.parse(metadata) : {};
+/** Tally percentages (of bonded supply) for the in-card bar. */
+function tallySegs(item: GovProposal) {
+  const t = item.final_tally_result;
+  return {
+    yes: format.calculatePercent(t?.yes, total.value),
+    no: format.calculatePercent(t?.no, total.value),
+    veto: format.calculatePercent(t?.no_with_veto, total.value),
+    abstain: format.calculatePercent(t?.abstain, total.value),
+  };
 }
+
+function proposalTitle(item: GovProposal): string {
+  return item.title || item.content?.title || metaItem(item.metadata)?.title || `Proposal #${item.proposal_id}`;
+}
+
+function proposalSummary(item: GovProposal): string {
+  return item.summary || item.content?.description || metaItem(item.metadata)?.summary || '';
+}
+
+function metaItem(metadata?: string): { title?: string; summary?: string } {
+  if (!metadata) return {};
+  try {
+    return JSON.parse(metadata);
+  } catch {
+    return {};
+  }
+}
+
+const proposalInfo = ref<GovProposal>();
 </script>
+
 <template>
-  <div class="bg-white dark:bg-[#28334e] rounded text-sm">
-    <table class="table-compact w-full table-fixed hidden lg:!table">
-      <tbody>
-        <tr v-for="(item, index) in proposals?.proposals" :key="index">
-          <td class="px-4 w-20">
-            <label
-              for="proposal-detail-modal"
-              class="text-main text-base hover:text-indigo-400 cursor-pointer"
-              @click="proposalInfo = item"
-            >
-              #{{ item?.proposal_id }}</label
-            >
-          </td>
-          <td class="w-full">
-            <div>
-              <RouterLink
-                :to="`/${chain.chainName}/gov/${item?.proposal_id}`"
-                class="text-main text-base mb-1 block hover:text-indigo-400 truncate"
-              >
-                {{
-                  item.title
-                }} {{ item.content?.title  }}
-              </RouterLink>
-              <div
-                v-if="item.content"
-                class="bg-[#f6f2ff] text-[#9c6cff] dark:bg-gray-600 dark:text-gray-300 inline-block rounded-full px-2 py-[1px] text-xs mb-1"
-              >
-                {{ showType(item.content['@type']) }}
-              </div>
-            </div>
-          </td>
-          <td class="w-60">
-            <ProposalProcess :pool="staking.pool" :tally="item.final_tally_result"></ProposalProcess>
-          </td>
-          <td class="w-36">
-            <div class="pl-4">
-              <div
-                class="flex items-center"
-                :class="
-                  statusMap?.[item?.status] === 'PASSED'
-                    ? 'text-yes'
-                    : statusMap?.[item?.status] === 'REJECTED'
-                    ? 'text-no'
-                    : 'text-info'
-                "
-              >
-                <div
-                  class="w-1 h-1 rounded-full mr-2"
-                  :class="
-                    statusMap?.[item?.status] === 'PASSED'
-                      ? 'bg-yes'
-                      : statusMap?.[item?.status] === 'REJECTED'
-                      ? 'bg-no'
-                      : 'bg-info'
-                  "
-                ></div>
-                <div class="text-xs">
-                  {{ statusMap?.[item?.status] || item?.status }}
-                </div>
-              </div>
-              <div
-                class="truncate col-span-2 md:!col-span-1 text-xs text-gray-500 dark:text-gray-400 text-right md:!flex md:!justify-start"
+  <div class="sz-gov-list">
+    <RouterLink
+      v-for="(item, index) in proposals?.proposals"
+      :key="item.proposal_id || index"
+      :to="`/${chain.chainName}/gov/${item.proposal_id}`"
+      class="sz-gov-card"
+      :data-status="statusOf(item.status).tone"
+    >
+      <div class="sz-gov-row">
+        <div class="sz-gov-body">
+          <div class="sz-gov-title-row">
+            <span class="sz-gov-id">#{{ item.proposal_id }}</span>
+            <span class="sz-gov-title">{{ proposalTitle(item) }}</span>
+          </div>
+
+          <div class="sz-gov-meta" style="margin-top: 0.4rem">
+            <span v-if="item.content?.['@type']" class="sz-gov-type-pill">{{ showType(item.content['@type']) }}</span>
+            <span v-if="item.is_expedited" class="sz-gov-expedited">Expedited</span>
+            <span class="sz-gov-meta-item">
+              <span class="sz-gov-meta-label">Submitted</span>
+              <span class="sz-gov-meta-value">{{ format.toDay(item.submit_time, 'from') }}</span>
+            </span>
+            <span class="sz-gov-meta-item">
+              <span class="sz-gov-meta-label">Voting ends</span>
+              <span
+                class="sz-gov-meta-value"
+                :class="{ 'sz-gov-time--live': statusOf(item.status).tone === 'voting' }"
               >
                 {{ format.toDay(item.voting_end_time, 'from') }}
-              </div>
-            </div>
-          </td>
-
-          <td v-if="statusMap?.[item?.status] === 'VOTING'" class="w-40">
-            <div class="">
-              <label
-                for="vote"
-                class="btn btn-xs btn-primary rounded-sm"
-                @click="
-                  dialog.open('vote', {
-                    proposal_id: item?.proposal_id,
-                  })
-                "
-              >
-                <span v-if="item?.voterStatus !== 'VOTE_OPTION_NO_WITH_VETO'">{{
-                  item?.voterStatus?.replace('VOTE_OPTION_', '')
-                }}</span>
-
-                <span v-else>Vote</span>
-              </label>
-            </div>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-
-    <div class="lg:!hidden">
-      <div v-for="(item, index) in proposals?.proposals" :key="index" class="px-4 py-4">
-        <div class="text-main text-base mb-1 flex justify-between hover:text-indigo-400">
-          <RouterLink :to="`/${chain.chainName}/gov/${item?.proposal_id}`" class="flex-1 w-0 truncate mr-4">{{
-            item?.content?.title || item?.title || metaItem(item?.metadata)?.title
-          }}</RouterLink>
-          <label
-            for="proposal-detail-modal"
-            class="text-main text-base hover:text-indigo-400 cursor-pointer"
-            @click="proposalInfo = item"
-          >
-            #{{ item?.proposal_id }}</label
-          >
-        </div>
-
-        <div class="grid grid-cols-4 mt-2 mb-2">
-          <div class="col-span-2">
-            <div
-              v-if="item.content"
-              class="bg-[#f6f2ff] text-[#9c6cff] dark:bg-gray-600 dark:text-gray-300 inline-block rounded-full px-2 py-[1px] text-xs mb-1"
-            >
-              {{ showType(item.content['@type']) }}
-            </div>
+              </span>
+            </span>
           </div>
 
-          <div class="truncate text-xs text-gray-500 dark:text-gray-400 flex items-center justify-end">
-            {{ format.toDay(item.voting_end_time, 'from') }}
-          </div>
+          <p v-if="proposalSummary(item)" class="sz-gov-sub">{{ proposalSummary(item) }}</p>
         </div>
 
-        <div>
-          <ProposalProcess :pool="staking.pool" :tally="item.final_tally_result"></ProposalProcess>
-        </div>
-
-        <div class="mt-4" v-if="statusMap?.[item?.status] === 'VOTING'">
-          <div class="flex justify-between">
-            <div
-              class="flex items-center"
-              :class="
-                statusMap?.[item?.status] === 'PASSED'
-                  ? 'text-yes'
-                  : statusMap?.[item?.status] === 'REJECTED'
-                  ? 'text-no'
-                  : 'text-info'
-              "
-            >
-              <div
-                class="w-1 h-1 rounded-full mr-2"
-                :class="
-                  statusMap?.[item?.status] === 'PASSED'
-                    ? 'bg-yes'
-                    : statusMap?.[item?.status] === 'REJECTED'
-                    ? 'bg-no'
-                    : 'bg-info'
-                "
-              ></div>
-              <div class="text-xs flex items-center">
-                {{ statusMap?.[item?.status] || item?.status }}
-              </div>
-            </div>
-            <label
-              for="vote"
-              class="btn btn-xs btn-primary rounded-sm"
-              @click="
-                dialog.open('vote', {
-                  proposal_id: item?.proposal_id,
-                })
-              "
-            >
-              <span v-if="item?.voterStatus !== 'VOTE_OPTION_NO_WITH_VETO'">{{
-                item?.voterStatus?.replace('VOTE_OPTION_', '')
-              }}</span>
-
-              <span v-else>Vote</span></label
-            >
+        <div class="sz-gov-side">
+          <span class="sz-gov-status" :data-tone="statusOf(item.status).tone">
+            {{ statusOf(item.status).label }}
+          </span>
+          <div class="sz-gov-side-meta">
+            <strong>{{ format.toDay(item.voting_end_time, 'from') }}</strong>
+            {{ statusOf(item.status).tone === 'voting' ? 'remaining' : 'closed' }}
           </div>
         </div>
       </div>
+
+      <!-- tally bar -->
+      <div class="sz-gov-tally">
+        <div class="sz-gov-tally-bar">
+          <div class="sz-gov-tally-seg" data-seg="yes" :style="{ width: tallySegs(item).yes }"></div>
+          <div class="sz-gov-tally-seg" data-seg="no" :style="{ width: tallySegs(item).no }"></div>
+          <div class="sz-gov-tally-seg" data-seg="veto" :style="{ width: tallySegs(item).veto }"></div>
+          <div class="sz-gov-tally-seg" data-seg="abstain" :style="{ width: tallySegs(item).abstain }"></div>
+        </div>
+        <div class="sz-gov-tally-legend">
+          <span class="sz-gov-tally-legend-item"><span class="sz-gov-tally-swatch" data-seg="yes"></span>{{ tallySegs(item).yes }}</span>
+          <span class="sz-gov-tally-legend-item"><span class="sz-gov-tally-swatch" data-seg="no"></span>{{ tallySegs(item).no }}</span>
+          <span class="sz-gov-tally-legend-item"><span class="sz-gov-tally-swatch" data-seg="veto"></span>{{ tallySegs(item).veto }}</span>
+          <span class="sz-gov-tally-legend-item"><span class="sz-gov-tally-swatch" data-seg="abstain"></span>{{ tallySegs(item).abstain }}</span>
+        </div>
+      </div>
+    </RouterLink>
+
+    <!-- empty / loading state -->
+    <div v-if="!proposals?.proposals?.length" class="sz-gov-empty">
+      <div class="sz-gov-empty-icon">◇</div>
+      <div class="sz-gov-empty-title">No proposals in this state</div>
+      <div class="sz-gov-empty-sub">
+        Nothing here right now — switch tabs above to browse voting, passed, or rejected proposals.
+      </div>
     </div>
 
+    <!-- description modal (kept from original) -->
     <input type="checkbox" id="proposal-detail-modal" class="modal-toggle" />
     <label for="proposal-detail-modal" class="modal">
       <label class="modal-box !w-11/12 !max-w-5xl" for="">
