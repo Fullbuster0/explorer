@@ -620,18 +620,21 @@ onMounted(() => {
   // Wait for rpc readiness: onMounted can fire before chain endpoint is set.
   if (blockchain.rpc) {
     loadAllDelegations();
+    loadPowerEvents(1, EventType.Delegate);
   }
-  pagePowerEvents(1);
   // Prefetch votes in background so Activities → Votes is instant
   loadVotes(1);
 });
 
-// Retry delegations once REST client is ready
+// Retry delegations + power events once REST client is ready
 watch(
   () => blockchain.rpc,
   (rpc) => {
     if (rpc && !allDelegations.value.length && !delegationsLoading.value) {
       loadAllDelegations();
+    }
+    if (rpc && !events.value?.tx_responses?.length) {
+      loadPowerEvents(1, selectedEventType.value || EventType.Delegate);
     }
   }
 );
