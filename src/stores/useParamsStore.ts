@@ -49,8 +49,8 @@ export const useParamStore = defineStore('paramstore', {
     distribution: { title: 'Distribution Parameters', module: 'distribution', items: [] as any[] } as ParamCard,
     slashing: { title: 'Slashing Parameters', module: 'slashing', items: [] as any[] } as ParamCard,
     gov: { title: 'Governance Parameters', module: 'gov', items: [] as any[], subGroups: [] as any[] } as ParamCard,
-    appVersion: { title: 'Application Version', items: {} as any },
-    nodeVersion: { title: 'Node Information', items: {} as any },
+    appVersion: { title: 'Application Version', items: [] as any[] },
+    nodeVersion: { title: 'Node Information', items: [] as any[] },
     /** True if the module isn't present on this chain (mint on atomone
      *  returns "not implemented", tally returns unknown proto). Lets the
      *  page hide the card instead of showing a broken empty state. */
@@ -279,15 +279,40 @@ export const useParamStore = defineStore('paramstore', {
         const res = await this.fetchAbciInfo();
         if (!res) return;
         localStorage.setItem(`sdk_version_${this.blockchain.chainName}`, res.application_version?.cosmos_sdk_version);
-        // ArrayObjectElement wants an Array<{key,value}> — keep that shape.
-        this.appVersion.items = Object.entries(res.application_version || {}).map(([key, value]) => ({
-          subtitle: key,
-          value: value,
-        }));
-        this.nodeVersion.items = Object.entries(res.default_node_info || {}).map(([key, value]) => ({
-          subtitle: key,
-          value: value,
-        }));
+        // Build deps are an array of {path, version, sum} — flatten those
+        // too so each row in the UI is a key/value pair.
+        const flatAppVersion: Array<{ subtitle: string; value: any }> = [];
+        Object.entries(res.application_version || {}).forEach(([key, value]) => {
+          if (key === 'build_deps' && Array.isArray(value)) {
+            value.forEach((dep: any, idx: number) => {
+              flatAppVersion.push({ subtitle: `build_deps.${idx}.path`, value: dep.path });
+              if (dep.version) flatAppVersion.push({ subtitle: `build_deps.${idx}.version`, value: dep.version });
+              if (dep.sum) flatAppVersion.push({ subtitle: `build_deps.${idx}.sum`, value: dep.sum });
+            });
+          } else {
+            flatAppVersion.push({ subtitle: key, value });
+          }
+        });
+        this.appVersion.items = flatAppVersion;
+        // Node info: protocol_version is nested, other is an object, version
+        // fields can be big strings. Flatten everything to key/value rows.
+        const flatNodeVersion: Array<{ subtitle: string; value: any }> = [];
+        const ni = res.default_node_info || {};
+        if (ni.protocol_version) {
+          flatNodeVersion.push({ subtitle: 'protocol_version.p2p', value: ni.protocol_version.p2p });
+          flatNodeVersion.push({ subtitle: 'protocol_version.block', value: ni.protocol_version.block });
+          flatNodeVersion.push({ subtitle: 'protocol_version.app', value: ni.protocol_version.app });
+        }
+        if (ni.network) flatNodeVersion.push({ subtitle: 'network', value: ni.network });
+        if (ni.moniker) flatNodeVersion.push({ subtitle: 'moniker', value: ni.moniker });
+        if (ni.version) flatNodeVersion.push({ subtitle: 'version', value: ni.version });
+        if (ni.default_node_id) flatNodeVersion.push({ subtitle: 'default_node_id', value: ni.default_node_id });
+        if (ni.listen_addr) flatNodeVersion.push({ subtitle: 'listen_addr', value: ni.listen_addr });
+        if (ni.channels) flatNodeVersion.push({ subtitle: 'channels', value: ni.channels });
+        if (ni.other && typeof ni.other === 'object') {
+          Object.entries(ni.other).forEach(([k, v]) => flatNodeVersion.push({ subtitle: `other.${k}`, value: v }));
+        }
+        this.nodeVersion.items = flatNodeVersion;
       } catch (e) {
         console.warn(e);
       }

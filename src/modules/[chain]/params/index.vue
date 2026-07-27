@@ -74,8 +74,12 @@ const themeColor = computed(
  *  etc. The original code dumped this as ArrayObjectElement which treated
  *  a nested object as a single row. We render it as ParamCard instead. */
 const appVersionRows = computed(() => {
-  const v = store.appVersion?.items || [];
-  return (v as any[]).map((row: any) => ({
+  // Guard: items can be an object on chains where handleAbciInfo fails.
+  // Wrap into Array.from to keep .map working in the page even if the
+  // store hasn't been hit yet.
+  const v = store.appVersion?.items;
+  if (!Array.isArray(v)) return [];
+  return v.map((row: any) => ({
     subtitle: row.subtitle,
     value: row.value,
   }));
@@ -83,8 +87,9 @@ const appVersionRows = computed(() => {
 
 /** Node Information — same flattening. */
 const nodeVersionRows = computed(() => {
-  const v = store.nodeVersion?.items || [];
-  return (v as any[]).map((row: any) => ({
+  const v = store.nodeVersion?.items;
+  if (!Array.isArray(v)) return [];
+  return v.map((row: any) => ({
     subtitle: row.subtitle,
     value: row.value,
   }));
