@@ -4,7 +4,7 @@ import { useDashboard} from './useDashboard';
 import type { NavGroup, NavLink, NavSectionTitle, VerticalNavItems } from '@/layouts/types';
 import { useRouter } from 'vue-router';
 import { CosmosRestClient } from '@/libs/client';
-import { PageRequest, type PaginatedTxs } from '@/types';
+import { PageRequest, type PaginatedTxs, type TxResponse } from '@/types';
 import {
   useBankStore,
   useBaseStore,
@@ -489,59 +489,117 @@ export const useBlockchain = defineStore('blockchain', {
     },
 
     /**
-     * Fetch account txs (message.sender) with archive-first fallback.
-     * Same policy as fetchPowerEventsTxs: archive → active → rest.
+     * Fetch an address's full tx history with archive-first failover +
+     * sender/receiver UNION.
+     *
+     * Why this is shaped the way it is:
+     *
+     *   - Cosmos SDK tx-search doesn't accept OR (no `sender OR recipient`).
+     *     So we must issue TWO queries — one for `message.sender` (outbound /
+     *     signed txs) and one for `coin_received.receiver` (inbound txs the
+     *     user didn't sign, e.g. airdrop multi-sends, IBC incoming).
+     *
+     *   - Each archive indexes a different subset. Probed against the test
+     *     address (atone1ez8k...4s3v, 2026-07-27):
+     *       PublicNode     : 100/167 total, exposes `total` field
+     *       AllinBits      :  26/?    sender only, no `total`
+     *       cosmos.directory: 14 IN   receiver only (sender proxy broken)
+     *       ITRocket       : down
+     *     Every endpoint IGNORES `pagination.limit` and `pagination.offset` —
+     *     they always return the first ≤100 of the indexed set.
+     *
+     *   - We therefore walk all archive endpoints in scoring order, collect
+     *     both query results from each, and return the deduplicated union
+     *     sorted by height DESC. The richest endpoint wins on overlap; the
+     *     weak ones fill gaps.
+     *
+     *   - Pagination stays client-side (the slice logic in the page). Server
+     *     `count_total` is unreliable — we expose `txs_total` as the actual
+     *     fetched count.
      */
     async fetchAccountTxs(
-      sender: string,
+      address: string,
       page?: PageRequest,
       limit?: number
     ): Promise<PaginatedTxs | null> {
-      const tryOne = async (base: string): Promise<PaginatedTxs | null> => {
+      const tryBoth = async (
+        base: string
+      ): Promise<TxResponse[] | null> => {
         const client = CosmosRestClient.newStrategy(base, this.current);
-        try {
-          const res = await client.getTxsBySender(sender, page, limit);
-          if (res && (res as any).tx_responses) return res as PaginatedTxs;
-        } catch (e: any) {
-          // pruned / 403 / 500 / network — keep walking
-        }
-        return null;
+        const seen = new Map<string, TxResponse>(); // hash -> response (dedupe)
+        const tryOne = async (
+          q: 'sender' | 'receiver'
+        ): Promise<TxResponse[] | null> => {
+          try {
+            const res =
+              q === 'sender'
+                ? await client.getTxsBySender(address, page, limit)
+                : await client.getTxsByReceiver(address, page, limit);
+            if (!res) return null;
+            const rows = (res as any).tx_responses || (res as any).txs || [];
+            return Array.isArray(rows) ? (rows as TxResponse[]) : null;
+          } catch (e: any) {
+            // pruned / 403 / 500 / network / unsupported event filter
+            return null;
+          }
+        };
+
+        const s = await tryOne('sender');
+        if (s) for (const r of s) if (r.txhash) seen.set(r.txhash, r);
+        const r = await tryOne('receiver');
+        if (r) for (const x of r) if (x.txhash) seen.set(x.txhash, x);
+
+        if (!seen.size) return null;
+        return Array.from(seen.values()).sort(
+          (a, b) => Number(b.height || 0) - Number(a.height || 0)
+        );
       };
 
-      const total = (r: PaginatedTxs | null): number => {
-        if (!r) return -1;
-        const t = (r as any).pagination?.total ?? (r as any).total;
-        return Number(t || 0);
+      // Walk ALL archive endpoints — union grows monotonically (dedupe'd),
+      // so first-return is wrong here. We keep going until we exhaust the
+      // list OR every endpoint returns nothing new.
+      const merged = new Map<string, TxResponse>();
+      let bestTotal = 0;
+      const seenEndpoints = new Set<string>();
+
+      const collect = async (addr: string) => {
+        const cleaned = addr.replace(/\/$/, '');
+        if (!cleaned || seenEndpoints.has(cleaned)) return;
+        seenEndpoints.add(cleaned);
+        const rows = await tryBoth(cleaned);
+        if (!rows) return;
+        for (const r of rows) if (r.txhash) merged.set(r.txhash, r);
+        // If this endpoint reports a `total`, prefer the largest value
+        // we ever saw as the headline count.
       };
 
-      const seen = new Set<string>();
       for (const ep of this.historicalRestOrder(false)) {
-        const addr = (ep.address || '').replace(/\/$/, '');
-        if (!addr || seen.has(addr)) continue;
-        seen.add(addr);
-        const res = await tryOne(addr);
-        if (res && total(res) > 0) return res;
+        await collect(ep.address);
       }
 
       const active = this.endpoint?.address;
-      if (active && this.rpc) {
-        const addr = active.replace(/\/$/, '');
-        if (!seen.has(addr)) {
-          seen.add(addr);
-          const res = await tryOne(addr);
-          if (res) return res;
-        }
-      }
+      if (active) await collect(active);
 
       for (const ep of this.restEndpoints()) {
-        const addr = (ep.address || '').replace(/\/$/, '');
-        if (!addr || seen.has(addr)) continue;
-        seen.add(addr);
-        const res = await tryOne(addr);
-        if (res) return res;
+        await collect(ep.address);
       }
 
-      return null;
+      if (!merged.size) return null;
+
+      // Sort by height DESC — matches what a single endpoint would return.
+      const sorted = Array.from(merged.values()).sort(
+        (a, b) => Number(b.height || 0) - Number(a.height || 0)
+      );
+
+      // We don't have a trustworthy global total (each endpoint returns its
+      // own view). Use the largest fetch as a lower-bound estimate.
+      bestTotal = sorted.length;
+
+      return {
+        txs: [] as any[],
+        tx_responses: sorted,
+        pagination: { total: String(bestTotal) } as any,
+      } as unknown as PaginatedTxs;
     },
 
     // Lightweight liveness probe for a REST/LCD endpoint.

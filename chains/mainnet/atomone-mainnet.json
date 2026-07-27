@@ -140,16 +140,20 @@
   ],
   "archived_api": [
     {
+      "address": "https://atomone-rest.publicnode.com",
+      "provider": "PublicNode (Archive)"
+    },
+    {
       "address": "https://atomone-api.allinbits.com",
       "provider": "AllinBits (Archive)"
     },
     {
-      "address": "https://atomone-mainnet-api.itrocket.net",
-      "provider": "ITRocket (Archive)"
-    },
-    {
       "address": "https://rest.cosmos.directory/atomone",
       "provider": "cosmos.directory (Archive)"
+    },
+    {
+      "address": "https://atomone-mainnet-archive-api.itrocket.net",
+      "provider": "ITRocket (Archive)"
     }
   ],
   "rpc": [

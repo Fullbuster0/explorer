@@ -286,11 +286,21 @@ export class CosmosRestClient extends BaseRestClient<RequestRegistry> {
   async getTxsBySender(sender: string, page?: PageRequest, limit?: number) {
     if (!page) page = new PageRequest();
     if (limit) page.setPageSize(limit);
-
-    const encodedSender = encodeURIComponent(sender);
-    // query= works across all SDK versions; events= is rejected by modern binaries.
-    const query = `?query=message.sender='${encodedSender}'&order_by=ORDER_BY_DESC&pagination.limit=${page.limit}&pagination.offset=${page.offset || 0}`;
-    return this.request(this.registry.tx_txs, {}, query);
+    return this.getTxs(`?query=message.sender='${sender}'`, {}, page, limit);
+  }
+  // Fetch by coin_received.receiver — captures IN txs the user didn't sign
+  // (airdrop multi-sends, IBC incoming transfers, etc.). Indexed only by some
+  // endpoints (e.g. cosmos.directory, PublicNode) — AllinBits rejects the
+  // event filter. The store walks all archives and unions both queries.
+  async getTxsByReceiver(receiver: string, page?: PageRequest, limit?: number) {
+    if (!page) page = new PageRequest();
+    if (limit) page.setPageSize(limit);
+    return this.getTxs(
+      `?query=coin_received.receiver='${receiver}'`,
+      {},
+      page,
+      limit
+    );
   }
   // query ibc sending msgs
   // ?&pagination.reverse=true&events=send_packet.packet_src_channel='${channel}'&events=send_packet.packet_src_port='${port}'
