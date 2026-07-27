@@ -191,6 +191,9 @@ const loadAvatar = (id: string) => {
  *  LCD page order is unstable across pages, so we cannot rely on per-page sort. */
 const allDelegations = ref<any[]>([]);
 async function loadAllDelegations() {
+  if (!blockchain.rpc || !validator) return;
+  // already loading or already have data — skip
+  if (delegationsLoading.value) return;
   allDelegations.value = [];
   delegationsLoading.value = true;
   try {
@@ -204,7 +207,7 @@ async function loadAllDelegations() {
       pr.setPage(page);
       let res: any = null;
       try {
-        res = await blockchain.rpc?.getStakingValidatorsDelegations(validator, pr);
+        res = await blockchain.rpc.getStakingValidatorsDelegations(validator, pr);
       } catch {
         break;
       }
@@ -448,11 +451,24 @@ onMounted(() => {
   });
 
   // Delegators — fetch all and sort globally desc.
-  loadAllDelegations();
+  // Wait for rpc readiness: onMounted can fire before chain endpoint is set.
+  if (blockchain.rpc) {
+    loadAllDelegations();
+  }
   pagePowerEvents(1);
   // Prefetch votes in background so Activities → Votes is instant
   loadVotes(1);
 });
+
+// Retry delegations once REST client is ready
+watch(
+  () => blockchain.rpc,
+  (rpc) => {
+    if (rpc && !allDelegations.value.length && !delegationsLoading.value) {
+      loadAllDelegations();
+    }
+  }
+);
 
 watch(
   () => props.validator,
