@@ -1167,12 +1167,13 @@ html:not(.dark):not([data-theme='dark']) .sz-gh-cell[data-level="4"] { backgroun
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
   gap: 0.65rem 0.85rem;
-  padding: 0.25rem 0 0.5rem;
+  padding: 0.35rem 1rem 0.85rem;
 }
 @media (max-width: 480px) {
   .sz-params-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 0.5rem;
+    padding: 0.3rem 0.75rem 0.7rem;
   }
 }
 

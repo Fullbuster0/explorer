@@ -126,7 +126,7 @@ const appVersionInfo = computed(() => {
       <div v-if="chainLoading" class="p-3">
         <Loading :bordered="false" />
       </div>
-      <div v-else class="sz-params-grid" style="padding: 0.25rem 0 0.5rem;">
+      <div v-else class="sz-params-grid">
         <div
           v-for="(it, i) in heroItems"
           :key="i"
@@ -176,7 +176,7 @@ const appVersionInfo = computed(() => {
       <div v-if="abciLoading" class="p-3">
         <Loading :bordered="false" />
       </div>
-      <div v-else class="sz-params-grid" style="padding: 0.25rem 0 0.5rem;">
+      <div v-else class="sz-params-grid">
         <div
           v-for="(it, i) in appVersionInfo.block"
           :key="'app-block-' + i"
