@@ -135,6 +135,26 @@ function prettyKey(k: string) {
   return k.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+/** Sub-group icon — a single glyph makes each section scannable at a
+ *  glance. Helps the reader orient on mobile where the dense list can
+ *  feel monotonous. */
+const sgIcons: Record<string, { glyph: string; key: string }> = {
+  'Voting':         { glyph: '🗳', key: 'vote' },
+  'Deposit':        { glyph: '💎', key: 'deposit' },
+  'Tally':          { glyph: '📊', key: 'tally' },
+  'Bond config':    { glyph: '🔗', key: 'bond' },
+  'Nakamoto bonus': { glyph: '⭐', key: 'bonus' },
+  'Slash fractions':{ glyph: '⚡', key: 'slash' },
+  'Penalties':      { glyph: '⚡', key: 'slash' },
+  'Windows':        { glyph: '⏱', key: 'windows' },
+};
+function sgIcon(title: string): string {
+  return sgIcons[title]?.glyph || '·';
+}
+function sgIconKey(title: string): string {
+  return sgIcons[title]?.key || 'default';
+}
+
 /** Group tag tones for the section header. */
 const moduleTone = computed(() => {
   switch (props.card?.module) {
@@ -198,6 +218,9 @@ const moduleTone = computed(() => {
           class="sz-params-subgroup"
         >
           <div class="sz-params-subgroup-head">
+            <span class="sz-params-subgroup-icon" :data-icon="sgIconKey(sg.title)">
+              {{ sgIcon(sg.title) }}
+            </span>
             <span class="sz-params-subgroup-title">{{ sg.title }}</span>
           </div>
           <div class="sz-params-grid">
@@ -268,6 +291,18 @@ const moduleTone = computed(() => {
   grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
   gap: 0.65rem 0.85rem;
 }
+@media (max-width: 480px) {
+  /* Mobile: 2-col on small phones for tighter info density. The
+     single-col stack looked "acak" — too much vertical whitespace
+     between tiny cells. */
+  .sz-params-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+  .sz-params-cell--wide {
+    grid-column: 1 / -1;
+  }
+}
 .sz-params-cell {
   display: flex;
   flex-direction: column;
@@ -277,10 +312,21 @@ const moduleTone = computed(() => {
   background: color-mix(in srgb, hsl(var(--bc)) 3%, transparent);
   border: 1px solid var(--sz-border);
   transition: background 0.15s ease, border-color 0.15s ease;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .sz-params-cell:hover {
   background: color-mix(in srgb, hsl(var(--p)) 4%, transparent);
   border-color: color-mix(in srgb, hsl(var(--p)) 22%, var(--sz-border));
+}
+@media (max-width: 480px) {
+  .sz-params-cell {
+    padding: 0.5rem 0.6rem;
+    border-radius: 8px;
+  }
+  .sz-params-val {
+    font-size: 13px;
+  }
 }
 .sz-params-cell--wide {
   grid-column: 1 / -1;
@@ -333,22 +379,47 @@ const moduleTone = computed(() => {
 .sz-params-subgroups {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.85rem;
   padding-top: 0.25rem;
 }
 .sz-params-subgroup {
-  border-left: 2px solid color-mix(in srgb, hsl(var(--p)) 25%, transparent);
-  padding-left: 0.85rem;
+  border-left: 2px solid color-mix(in srgb, hsl(var(--p)) 28%, transparent);
+  padding: 0.45rem 0 0.5rem 0.9rem;
+  border-radius: 0 8px 8px 0;
+  background: color-mix(in srgb, hsl(var(--p)) 3%, transparent);
 }
 .sz-params-subgroup-head {
   margin-bottom: 0.55rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 .sz-params-subgroup-title {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: color-mix(in srgb, hsl(var(--p)) 70%, hsl(var(--bc)));
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  color: color-mix(in srgb, hsl(var(--p)) 60%, hsl(var(--bc)));
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
+.sz-params-subgroup-icon {
+  width: 18px;
+  height: 18px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  line-height: 1;
+  background: color-mix(in srgb, hsl(var(--p)) 12%, transparent);
+  border: 1px solid color-mix(in srgb, hsl(var(--p)) 28%, transparent);
+  flex-shrink: 0;
+}
+.sz-params-subgroup-icon[data-icon='vote']    { color: #b892ff; }
+.sz-params-subgroup-icon[data-icon='deposit'] { color: #ffd166; }
+.sz-params-subgroup-icon[data-icon='tally']   { color: #3fb6ff; }
+.sz-params-subgroup-icon[data-icon='bond']    { color: #3fb6ff; }
+.sz-params-subgroup-icon[data-icon='bonus']   { color: #16d97e; }
+.sz-params-subgroup-icon[data-icon='slash']   { color: #ff7a59; }
+.sz-params-subgroup-icon[data-icon='windows'] { color: #ff7a59; }
 </style>

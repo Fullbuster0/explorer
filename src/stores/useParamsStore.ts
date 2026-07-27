@@ -94,7 +94,9 @@ export const useParamStore = defineStore('paramstore', {
     async handleStakingParams() {
       const res = await this.getStakingParams();
       if (!res?.params) return;
-      const p = res.params;
+      // Cast `any` — atomone-specific fields (max_commission_rate, key_rotation_fee)
+      // aren't on the vanilla SDK response shape so TS rejects them otherwise.
+      const p = res.params as any;
       const bond_denom = p.bond_denom;
       const generalItems: any[] = [];
       const bondItems: any[] = [];
@@ -141,7 +143,9 @@ export const useParamStore = defineStore('paramstore', {
           this.modulesHidden.mint = true;
           return;
         }
-        const p = res.params;
+        // Cast `any` — vanilla SDK returns only {mint_denom, blocks_per_year};
+        // atomone adds inflation_rate_change/max/min/goal_bonded.
+        const p = res.params as any;
         const items: any[] = [];
         if (p.mint_denom) items.push({ subtitle: 'mint_denom', value: p.mint_denom, kind: 'denom' });
         if (p.inflation_rate_change !== undefined) items.push({ subtitle: 'inflation_rate_change', value: p.inflation_rate_change, kind: 'percent' });
@@ -177,7 +181,7 @@ export const useParamStore = defineStore('paramstore', {
     async handleSlashingParams() {
       const res = await this.getSlashingParams();
       if (!res?.params) return;
-      const p = res.params;
+      const p = res.params as any;
       const tag = (k: string, v: any, kind?: string) => ({ subtitle: k, value: v, kind });
       const windows = [
         tag('signed_blocks_window', p.signed_blocks_window, 'integer'),
@@ -208,7 +212,7 @@ export const useParamStore = defineStore('paramstore', {
     async handleDistributionParams() {
       const res = await this.getDistributionParams();
       if (!res?.params) return;
-      const p = res.params;
+      const p = res.params as any;
       const tag = (k: string, v: any, kind?: string) => ({ subtitle: k, value: v, kind });
       const general: any[] = [];
       if (p.community_tax !== undefined) general.push(tag('community_tax', p.community_tax, 'percent'));
@@ -256,7 +260,7 @@ export const useParamStore = defineStore('paramstore', {
       // Voting
       try {
         const r = await this.getGovParamsVoting();
-        const vp = r?.voting_params || {};
+        const vp = (r as any)?.voting_params || {};
         const items: any[] = [];
         if (vp.voting_period) items.push(tag('voting_period', vp.voting_period, 'duration'));
         if (items.length) subGroups.push({ title: 'Voting', items });
@@ -264,7 +268,7 @@ export const useParamStore = defineStore('paramstore', {
       // Deposit
       try {
         const r = await this.getGovParamsDeposit();
-        const dp = r?.deposit_params || {};
+        const dp = (r as any)?.deposit_params || {};
         const items: any[] = [];
         if (dp.min_deposit) items.push(tag('min_deposit', dp.min_deposit, 'coinlist'));
         if (dp.max_deposit_period) items.push(tag('max_deposit_period', dp.max_deposit_period, 'duration'));
@@ -273,7 +277,7 @@ export const useParamStore = defineStore('paramstore', {
       // Tally — many chains (atomone) return unknown proto. Hide if so.
       try {
         const r = await this.getGovParamsTally();
-        const tp = r?.tally_params || {};
+        const tp = (r as any)?.tally_params || {};
         const items: any[] = [];
         if (tp.quorum !== undefined) items.push(tag('quorum', tp.quorum, 'percent'));
         if (tp.threshold !== undefined) items.push(tag('threshold', tp.threshold, 'percent'));
