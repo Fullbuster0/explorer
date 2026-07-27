@@ -656,7 +656,7 @@ const amount = computed({
           <div class="text-sm" :class="color">${{ format.tokenValue(walletStore.balanceOfStakingToken) }}</div>
         </div>
         <div class="sz-wallet-cell">
-          <div class="sz-metric-label">{{ $t('module.staking') }}</div>
+          <div class="sz-metric-label">{{ $t('account.delegations') }}</div>
           <div class="mt-1 truncate font-mono text-lg font-semibold text-main">
             {{ format.formatToken(walletStore.stakingAmount) }}
           </div>

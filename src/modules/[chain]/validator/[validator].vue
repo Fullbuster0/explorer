@@ -211,6 +211,16 @@ function pageload(p: number) {
     });
 }
 
+/** Current page of delegations, largest amount first. */
+const sortedDelegations = computed(() => {
+  const list = [...(delegations.value?.delegation_responses || [])];
+  return list.sort((a: any, b: any) => {
+    const aa = Number(a?.balance?.amount || 0);
+    const bb = Number(b?.balance?.amount || 0);
+    return bb - aa;
+  });
+});
+
 function loadPowerEvents(p: number, type: EventType) {
   selectedEventType.value = type;
   powerPage.setPage(p);
@@ -703,13 +713,13 @@ watch(
         </div>
       </div>
     </div>
-    <!-- STAKING / DELEGATORS -->
+    <!-- DELEGATIONS / DELEGATORS -->
     <section class="sz-section mb-4 overflow-hidden">
       <div class="sz-section-head">
         <div>
-          <div class="sz-section-kicker">Staking</div>
+          <div class="sz-section-kicker">{{ $t('account.delegations') }}</div>
           <div class="sz-section-title">
-            {{ $t('account.delegations') }}
+            {{ $t('staking.delegators') }}
             <span class="font-mono text-secondary font-medium text-sm ml-2">
               {{ delegatorTotal > 0 ? delegatorTotal.toLocaleString() : (delegations.delegation_responses?.length || 0) }}
             </span>
@@ -727,16 +737,16 @@ watch(
             </tr>
           </thead>
           <tbody>
-            <tr v-if="delegationsLoading && !delegations.delegation_responses?.length">
+            <tr v-if="delegationsLoading && !sortedDelegations.length">
               <td colspan="4" class="text-center text-secondary py-8 text-sm">Loading delegators…</td>
             </tr>
-            <tr v-else-if="!delegations.delegation_responses?.length">
+            <tr v-else-if="!sortedDelegations.length">
               <td colspan="4" class="text-center text-secondary py-8 text-sm">
                 {{ $t('account.no_delegations') || 'No delegations found.' }}
               </td>
             </tr>
             <tr
-              v-for="(row, i) in delegations.delegation_responses"
+              v-for="(row, i) in sortedDelegations"
               :key="row.delegation?.delegator_address + '-' + i"
             >
               <td>
