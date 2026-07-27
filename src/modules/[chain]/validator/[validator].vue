@@ -636,7 +636,8 @@ watch(
     if (rpc && !events.value?.tx_responses?.length) {
       loadPowerEvents(1, selectedEventType.value || EventType.Delegate);
     }
-  }
+  },
+  { immediate: true }
 );
 
 watch(
