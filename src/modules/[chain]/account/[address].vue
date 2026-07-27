@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { useBlockchain, useFormatter, useStakingStore, useTxDialog } from '@/stores';
+import { useBlockchain, useFormatter, useStakingStore } from '@/stores';
 import DynamicComponent from '@/components/dynamic/DynamicComponent.vue';
 import DonutChart from '@/components/charts/DonutChart.vue';
 import { computed, ref } from '@vue/reactivity';
@@ -16,7 +16,6 @@ const props = defineProps(['address', 'chain']);
 
 const blockchain = useBlockchain();
 const stakingStore = useStakingStore();
-const dialog = useTxDialog();
 const format = useFormatter();
 const account = ref({} as AuthAccount);
 const txs = ref([] as TxResponse[]);
@@ -187,10 +186,6 @@ async function loadReceived(address: string, limit: number) {
   receivedTotal.value = 0;
 }
 
-function updateEvent() {
-  loadAccount(props.address);
-}
-
 function mapAmount(events: { type: string; attributes: { key: string; value: string }[] }[]) {
   if (!events) return [];
   return events
@@ -325,20 +320,12 @@ function findTokenAmount(
           </div>
         </div>
 
-        <!-- actions -->
+        <!-- read-only badge — explorer is observer only -->
         <div class="sz-acc-actions">
-          <button class="sz-acc-action sz-acc-action--primary" @click="dialog.open('send', {}, updateEvent)">
-            <Icon icon="mdi:arrow-up-bold-circle-outline" />
-            {{ $t('account.btn_send') }}
-          </button>
-          <button class="sz-acc-action" @click="dialog.open('transfer', { chain_name: blockchain.current?.prettyName }, updateEvent)">
-            <Icon icon="mdi:swap-horizontal-bold" />
-            {{ $t('account.btn_transfer') }}
-          </button>
-          <button class="sz-acc-action" @click="dialog.open('delegate', {}, updateEvent)">
-            <Icon icon="mdi:account-multiple-plus-outline" />
-            {{ $t('account.btn_delegate') }}
-          </button>
+          <span class="sz-acc-readonly" title="Explorer only — connect a wallet to send / delegate">
+            <svg viewBox="0 0 16 16" width="11" height="11" fill="currentColor"><path d="M8 1a3 3 0 00-3 3v3H4a1 1 0 00-1 1v6a2 2 0 002 2h6a2 2 0 002-2V8a1 1 0 00-1-1h-1V4a3 3 0 00-3-3zm0 1.5A1.5 1.5 0 016.5 4v3h3V4A1.5 1.5 0 008 2.5z"/></svg>
+            <span class="uppercase tracking-wider text-[10.5px] font-extrabold">View only</span>
+          </span>
         </div>
       </div>
     </section>
@@ -469,10 +456,6 @@ function findTokenAmount(
           <div class="sz-section-kicker">Staking</div>
           <div class="sz-section-title">{{ $t('account.delegations') }} ({{ delegations.length }})</div>
         </div>
-        <div class="flex gap-2 items-center">
-          <button class="sz-acc-btn" @click="dialog.open('delegate', {}, updateEvent)">{{ $t('account.btn_delegate') }}</button>
-          <button class="sz-acc-btn sz-acc-btn--primary" @click="dialog.open('withdraw', {}, updateEvent)">{{ $t('account.btn_withdraw') }}</button>
-        </div>
       </div>
       <div class="overflow-x-auto">
         <table class="sz-table sz-acc-table">
@@ -481,12 +464,11 @@ function findTokenAmount(
               <th>{{ $t('account.validator') }}</th>
               <th class="text-right">{{ $t('account.delegation') }}</th>
               <th class="text-right">{{ $t('account.rewards') }}</th>
-              <th class="text-right">{{ $t('account.action') }}</th>
             </tr>
           </thead>
           <tbody>
             <tr v-if="!delegations.length">
-              <td colspan="4" class="sz-acc-empty">{{ $t('account.no_delegations') }}</td>
+              <td colspan="3" class="sz-acc-empty">{{ $t('account.no_delegations') }}</td>
             </tr>
             <tr v-for="(v, index) in delegations" :key="index">
               <td>
@@ -504,13 +486,6 @@ function findTokenAmount(
                     rewards?.rewards?.find((x) => x.validator_address === v.delegation.validator_address)?.reward
                   ) || '—'
                 }}
-              </td>
-              <td class="text-right">
-                <div v-if="v.balance" class="sz-acc-row-actions">
-                  <button class="sz-acc-row-btn" @click="dialog.open('delegate', { validator_address: v.delegation.validator_address }, updateEvent)" title="Delegate">＋</button>
-                  <button class="sz-acc-row-btn" @click="dialog.open('redelegate', { validator_address: v.delegation.validator_address }, updateEvent)" title="Redelegate">⇆</button>
-                  <button class="sz-acc-row-btn sz-acc-row-btn--danger" @click="dialog.open('unbond', { validator_address: v.delegation.validator_address }, updateEvent)" title="Unbond">−</button>
-                </div>
               </td>
             </tr>
           </tbody>
@@ -1286,6 +1261,33 @@ function findTokenAmount(
 }
 
 .sz-acc-loading { opacity: 1; transition: opacity 0.2s ease; }
+
+/* ============================================================
+   VIEW-ONLY BADGE — replaces the 3-button action cluster.
+   Signals to the user that this is a read-only explorer view.
+   ============================================================ */
+.sz-acc-readonly {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.85rem;
+  border-radius: 10px;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  color: color-mix(in srgb, hsl(var(--bc)) 65%, transparent);
+  background: color-mix(in srgb, hsl(var(--bc)) 6%, transparent);
+  border: 1px dashed color-mix(in srgb, hsl(var(--bc)) 22%, transparent);
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+.sz-acc-readonly:hover {
+  color: color-mix(in srgb, hsl(var(--p)) 70%, var(--text-main));
+  border-color: color-mix(in srgb, hsl(var(--p)) 35%, var(--sz-border));
+  background: var(--sz-accent-soft);
+}
+.sz-acc-readonly svg { opacity: 0.7; }
 </style>
 
 
