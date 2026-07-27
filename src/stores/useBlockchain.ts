@@ -4,6 +4,7 @@ import { useDashboard} from './useDashboard';
 import type { NavGroup, NavLink, NavSectionTitle, VerticalNavItems } from '@/layouts/types';
 import { useRouter } from 'vue-router';
 import { CosmosRestClient } from '@/libs/client';
+import { PageRequest, type PaginatedTxs } from '@/types';
 import {
   useBankStore,
   useBaseStore,
@@ -392,6 +393,64 @@ export const useBlockchain = defineStore('blockchain', {
           const res = await tryOne(addr);
           if (res) return res;
         }
+      }
+
+      // 3) remaining endpoints in config order
+      for (const ep of this.restEndpoints()) {
+        const addr = (ep.address || '').replace(/\/$/, '');
+        if (!addr || seen.has(addr)) continue;
+        seen.add(addr);
+        const res = await tryOne(addr);
+        if (res) return res;
+      }
+
+      return null;
+    },
+
+    /**
+     * Fetch the latest N transactions chain-wide (most-recent first).
+     * Uses the indexed tx search (query=tx.height>0 + order_by desc) so it works
+     * even on low-traffic chains where the last 50 blocks are all empty.
+     * Fast path: active endpoint first (this feed refreshes every ~block, so we
+     * want the quickest healthy node); then archive; then remaining rest.
+     */
+    async fetchRecentTxs(limit = 5): Promise<PaginatedTxs | null> {
+      const query = `?query=tx.height>0`;
+      const page = new PageRequest();
+      page.setPageSize(limit);
+
+      const tryOne = async (base: string): Promise<PaginatedTxs | null> => {
+        const client = CosmosRestClient.newStrategy(base, this.current);
+        try {
+          const res = await Promise.race([
+            client.getTxs(query, {}, page, limit),
+            new Promise<never>((_, reject) => setTimeout(() => reject(new Error('TIMEOUT_12S')), 12000)),
+          ]);
+          if (res && (res as any).tx_responses?.length) return res as PaginatedTxs;
+        } catch (e) {
+          // pruned / 403 / 500 / network / timeout — keep walking
+        }
+        return null;
+      };
+
+      const seen = new Set<string>();
+
+      // 1) active endpoint (fastest, already selected as healthy)
+      const active = this.endpoint?.address;
+      if (active && this.rpc) {
+        const addr = active.replace(/\/$/, '');
+        seen.add(addr);
+        const res = await tryOne(addr);
+        if (res) return res;
+      }
+
+      // 2) archive-first walk (in case active is pruned/indexer-disabled)
+      for (const ep of this.historicalRestOrder(false)) {
+        const addr = (ep.address || '').replace(/\/$/, '');
+        if (!addr || seen.has(addr)) continue;
+        seen.add(addr);
+        const res = await tryOne(addr);
+        if (res) return res;
       }
 
       // 3) remaining endpoints in config order
