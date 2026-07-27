@@ -99,6 +99,9 @@ const totalAmountByCategory = computed(() => [
   totalsRaw.value.unbonding,
 ]);
 const labels = ['Available', 'Delegated', 'Rewards', 'Unbonding'];
+// Slice colors MUST match `labels` order — they are applied positionally by
+// ApexCharts. Kept in lockstep with the breakdown rows (--acc-tone-*).
+const donutColors = ['#16d97e', '#3fb6ff', '#b892ff', '#ff9d5c'];
 
 const totalValue = computed(() => {
   let value = 0;
@@ -346,7 +349,11 @@ function findTokenAmount(
       </div>
       <div class="sz-acc-comp">
         <div class="sz-acc-comp-donut">
-          <DonutChart :series="totalAmountByCategory" :labels="labels" />
+          <DonutChart
+            :series="totalAmountByCategory"
+            :labels="labels"
+            :colors="donutColors"
+          />
         </div>
         <div class="sz-acc-comp-list">
           <div class="sz-acc-comp-row" v-for="(amt, i) in totalAmountByCategory" :key="i" :data-tone="['available','delegated','rewards','unbonding'][i]">

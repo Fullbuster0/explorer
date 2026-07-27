@@ -335,13 +335,17 @@ const donutColors = [
   '#124f03',
 ];
 
-export const getDonutChartConfig = (theme: string, labels: string[]) => {
+export const getDonutChartConfig = (
+  theme: string,
+  labels: (string | undefined)[],
+  colors?: string[]
+) => {
   const { themeSecondaryTextColor, themePrimaryTextColor } = colorVariables(theme);
 
   return {
     stroke: { width: 0 },
     labels,
-    colors: donutColors,
+    colors: colors && colors.length ? colors : donutColors,
     // colors: [
     //   donutColors.series1,
     //   donutColors.series5,
