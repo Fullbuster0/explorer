@@ -355,22 +355,8 @@ const nodeVersionInfo = computed(() => {
   margin-top: 0.2rem;
 }
 
-/* Override ParamCard's tone dot for the chain-id strip so it looks
-   neutral (the dot's job is per-module color coding, not for the
-   overview section). */
-.sz-params-tone[data-tone='default'] {
-  background: hsl(var(--p));
-  color: hsl(var(--p));
-}
-
-/* The narrow cell rule already word-breaks, but some values like a node
-   ID (40 hex chars) still want to overflow visually before wrap. Add
-   overflow-wrap: anywhere + min-width:0 so the cell can't push past its
-   column. */
-.sz-params-cell {
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
+/* sz-params-tone / sz-params-cell base styles are global (style.css).
+   Only page-specific hero/pill overrides stay scoped here. */
 </style>
 
 <route>

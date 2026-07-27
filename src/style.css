@@ -1116,3 +1116,198 @@ html:not(.dark):not([data-theme='dark']) .sz-gh-cell[data-level="4"] { backgroun
     animation: none !important;
   }
 }
+
+/* ============================================================
+   PARAMS PAGE — shared grid/cell system
+   Must be GLOBAL (not scoped in ParamCard) because
+   params/index.vue reuses the same classes for Overview,
+   Application version, and Node information sections.
+   Scoped CSS in ParamCard left those parent grids as
+   display:block → stacked 1-col "acak" layout.
+   ============================================================ */
+.sz-params-tone {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 25%, transparent);
+}
+.sz-params-tone[data-tone='staking'] {
+  background: #3fb6ff;
+  color: #3fb6ff;
+}
+.sz-params-tone[data-tone='slashing'] {
+  background: #ff7a59;
+  color: #ff7a59;
+}
+.sz-params-tone[data-tone='distribution'] {
+  background: #16d97e;
+  color: #16d97e;
+}
+.sz-params-tone[data-tone='gov'] {
+  background: #b892ff;
+  color: #b892ff;
+}
+.sz-params-tone[data-tone='mint'] {
+  background: #ffd166;
+  color: #ffd166;
+}
+.sz-params-tone[data-tone='default'] {
+  background: hsl(var(--p));
+  color: hsl(var(--p));
+}
+
+.sz-params-body {
+  padding-top: 0.25rem;
+}
+
+/* Desktop: auto-fill columns. Mobile: forced 2-col so Overview /
+   App / Node / module cards all share the same density. */
+.sz-params-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 0.65rem 0.85rem;
+  padding: 0.25rem 0 0.5rem;
+}
+@media (max-width: 480px) {
+  .sz-params-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+}
+
+.sz-params-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: 10px;
+  background: color-mix(in srgb, hsl(var(--bc)) 3%, transparent);
+  border: 1px solid var(--sz-border);
+  transition: background 0.15s ease, border-color 0.15s ease;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.sz-params-cell:hover {
+  background: color-mix(in srgb, hsl(var(--p)) 4%, transparent);
+  border-color: color-mix(in srgb, hsl(var(--p)) 22%, var(--sz-border));
+}
+@media (max-width: 480px) {
+  .sz-params-cell {
+    padding: 0.5rem 0.6rem;
+    border-radius: 8px;
+  }
+}
+
+/* Full-width cells for long values (hashes, listen addrs, coin lists).
+   Also used for the last orphan cell in an odd-count row on mobile. */
+.sz-params-cell--wide {
+  grid-column: 1 / -1;
+}
+
+.sz-params-key {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, hsl(var(--bc)) 55%, transparent);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  line-height: 1.3;
+}
+@media (max-width: 480px) {
+  .sz-params-key {
+    font-size: 9.5px;
+    letter-spacing: 0.04em;
+  }
+}
+
+.sz-params-tip {
+  font-size: 11px;
+  opacity: 0.55;
+  cursor: help;
+  transition: opacity 0.15s ease;
+  flex-shrink: 0;
+}
+.sz-params-tip:hover {
+  opacity: 1;
+}
+
+.sz-params-val {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 14px;
+  font-weight: 600;
+  color: hsl(var(--bc));
+  word-break: break-word;
+  line-height: 1.35;
+}
+@media (max-width: 480px) {
+  .sz-params-val {
+    font-size: 12.5px;
+  }
+}
+.sz-params-val[data-tone='on'] {
+  color: #16d97e;
+}
+.sz-params-val[data-tone='off'] {
+  color: #ff7a59;
+}
+.sz-params-val[data-tone='denom'] {
+  color: hsl(var(--p));
+  letter-spacing: 0.04em;
+}
+
+/* Sub-groups (Gov Voting/Deposit/Tally, Staking Bond config, etc.) */
+.sz-params-subgroups {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding-top: 0.25rem;
+}
+.sz-params-subgroup {
+  border-left: 2px solid color-mix(in srgb, hsl(var(--p)) 28%, transparent);
+  padding: 0.45rem 0 0.5rem 0.9rem;
+  border-radius: 0 8px 8px 0;
+  background: color-mix(in srgb, hsl(var(--p)) 3%, transparent);
+}
+@media (max-width: 480px) {
+  .sz-params-subgroup {
+    padding: 0.4rem 0 0.4rem 0.7rem;
+  }
+}
+.sz-params-subgroup-head {
+  margin-bottom: 0.55rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.sz-params-subgroup-title {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  color: color-mix(in srgb, hsl(var(--p)) 55%, hsl(var(--bc)));
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+.sz-params-subgroup-icon {
+  width: 18px;
+  height: 18px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  line-height: 1;
+  background: color-mix(in srgb, hsl(var(--p)) 12%, transparent);
+  border: 1px solid color-mix(in srgb, hsl(var(--p)) 28%, transparent);
+  flex-shrink: 0;
+}
+.sz-params-subgroup-icon[data-icon='vote']    { color: #b892ff; }
+.sz-params-subgroup-icon[data-icon='deposit'] { color: #ffd166; }
+.sz-params-subgroup-icon[data-icon='tally']   { color: #3fb6ff; }
+.sz-params-subgroup-icon[data-icon='bond']    { color: #3fb6ff; }
+.sz-params-subgroup-icon[data-icon='bonus']   { color: #16d97e; }
+.sz-params-subgroup-icon[data-icon='slash']   { color: #ff7a59; }
+.sz-params-subgroup-icon[data-icon='windows'] { color: #ff7a59; }
