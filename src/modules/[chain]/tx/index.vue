@@ -68,7 +68,7 @@ async function fetchRecent(isInitial: boolean) {
   loading.value = true;
   try {
     const res = await chainStore.fetchRecentTxs(RECENT_LIMIT);
-    const rows = res?.tx_responses || [];
+    const rows = (res?.tx_responses || []).slice(0, RECENT_LIMIT);
     if (!rows.length && !isInitial) {
       // don't clobber the previous list on a transient miss
       errored.value = !isInitial;
