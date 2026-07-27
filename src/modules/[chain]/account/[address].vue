@@ -359,14 +359,6 @@ function findTokenAmount(
             {{ totalAmount.toLocaleString(undefined, { maximumFractionDigits: 2 }) }} {{ bondSymbol }} · total portfolio
           </div>
         </div>
-
-        <!-- read-only badge — explorer is observer only -->
-        <div class="sz-acc-actions">
-          <span class="sz-acc-readonly" title="Explorer only — connect a wallet to send / delegate">
-            <svg viewBox="0 0 16 16" width="11" height="11" fill="currentColor"><path d="M8 1a3 3 0 00-3 3v3H4a1 1 0 00-1 1v6a2 2 0 002 2h6a2 2 0 002-2V8a1 1 0 00-1-1h-1V4a3 3 0 00-3-3zm0 1.5A1.5 1.5 0 016.5 4v3h3V4A1.5 1.5 0 008 2.5z"/></svg>
-            <span class="uppercase tracking-wider text-[10.5px] font-extrabold">View only</span>
-          </span>
-        </div>
       </div>
     </section>
 
@@ -1263,33 +1255,6 @@ function findTokenAmount(
 }
 
 .sz-acc-loading { opacity: 1; transition: opacity 0.2s ease; }
-
-/* ============================================================
-   VIEW-ONLY BADGE — replaces the 3-button action cluster.
-   Signals to the user that this is a read-only explorer view.
-   ============================================================ */
-.sz-acc-readonly {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.5rem 0.85rem;
-  border-radius: 10px;
-  font-size: 10.5px;
-  font-weight: 800;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
-  color: color-mix(in srgb, hsl(var(--bc)) 65%, transparent);
-  background: color-mix(in srgb, hsl(var(--bc)) 6%, transparent);
-  border: 1px dashed color-mix(in srgb, hsl(var(--bc)) 22%, transparent);
-  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
-}
-.sz-acc-readonly:hover {
-  color: color-mix(in srgb, hsl(var(--p)) 70%, var(--text-main));
-  border-color: color-mix(in srgb, hsl(var(--p)) 35%, var(--sz-border));
-  background: var(--sz-accent-soft);
-}
-.sz-acc-readonly svg { opacity: 0.7; }
 
 /* ============ SECONDARY TOKEN STRIP ============ */
 .sz-acc-tokens {
