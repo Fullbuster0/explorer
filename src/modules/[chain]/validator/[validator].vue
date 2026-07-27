@@ -359,8 +359,8 @@ let txsPage = 1;
 
 function loadAccountTxs() {
   txsLoading.value = true;
-  blockchain.rpc
-    .getTxsBySender(addresses.value.account, undefined, ACTIVITY_LIMIT)
+  blockchain
+    .fetchAccountTxs(addresses.value.account, undefined, ACTIVITY_LIMIT)
     .then((x: any) => {
       txs.value = x || ({ tx_responses: [] } as PaginatedTxs);
       txsPage = 1;
@@ -379,8 +379,11 @@ function loadMoreAccountTxs() {
   if (!txsHasMore.value || txsLoading.value) return;
   txsLoading.value = true;
   txsPage += 1;
-  blockchain.rpc
-    .getTxsBySender(addresses.value.account, new PageRequest(txsPage, ACTIVITY_LIMIT), ACTIVITY_LIMIT)
+  const pr = new PageRequest();
+  pr.setPageSize(ACTIVITY_LIMIT);
+  pr.setPage(txsPage);
+  blockchain
+    .fetchAccountTxs(addresses.value.account, pr, ACTIVITY_LIMIT)
     .then((x: any) => {
       const rows = x?.tx_responses || [];
       txs.value = {

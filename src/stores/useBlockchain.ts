@@ -395,6 +395,62 @@ export const useBlockchain = defineStore('blockchain', {
       return null;
     },
 
+    /**
+     * Fetch account txs (message.sender) with archive-first fallback.
+     * Same policy as fetchPowerEventsTxs: archive → active → rest.
+     */
+    async fetchAccountTxs(
+      sender: string,
+      page?: PageRequest,
+      limit?: number
+    ): Promise<PaginatedTxs | null> {
+      const tryOne = async (base: string): Promise<PaginatedTxs | null> => {
+        const client = CosmosRestClient.newStrategy(base, this.current);
+        try {
+          const res = await client.getTxsBySender(sender, page, limit);
+          if (res && (res as any).tx_responses) return res as PaginatedTxs;
+        } catch (e: any) {
+          // pruned / 403 / 500 / network — keep walking
+        }
+        return null;
+      };
+
+      const total = (r: PaginatedTxs | null): number => {
+        if (!r) return -1;
+        const t = (r as any).pagination?.total ?? (r as any).total;
+        return Number(t || 0);
+      };
+
+      const seen = new Set<string>();
+      for (const ep of this.historicalRestOrder(false)) {
+        const addr = (ep.address || '').replace(/\/$/, '');
+        if (!addr || seen.has(addr)) continue;
+        seen.add(addr);
+        const res = await tryOne(addr);
+        if (res && total(res) > 0) return res;
+      }
+
+      const active = this.endpoint?.address;
+      if (active && this.rpc) {
+        const addr = active.replace(/\/$/, '');
+        if (!seen.has(addr)) {
+          seen.add(addr);
+          const res = await tryOne(addr);
+          if (res) return res;
+        }
+      }
+
+      for (const ep of this.restEndpoints()) {
+        const addr = (ep.address || '').replace(/\/$/, '');
+        if (!addr || seen.has(addr)) continue;
+        seen.add(addr);
+        const res = await tryOne(addr);
+        if (res) return res;
+      }
+
+      return null;
+    },
+
     // Lightweight liveness probe for a REST/LCD endpoint.
     async healthCheck(address: string, timeoutMs = 6000): Promise<boolean> {
       try {
