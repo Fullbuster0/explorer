@@ -89,6 +89,7 @@ function loadAvatars(identities: string[]) {
 }
 
 let tallyTimer: ReturnType<typeof setInterval> | null = null;
+let votesTimer: ReturnType<typeof setInterval> | null = null;
 
 function bech32DataHex(addr: string): string {
   try {
@@ -729,8 +730,10 @@ async function loadProposal() {
   }
 }
 
-async function loadVotesAndDeposits() {
-  votesLoading.value = true;
+async function loadVotesAndDeposits(silent = false) {
+  // silent=true → background refresh (polling): keep showing current rows, no
+  // "Loading votes…" flicker; only the initial load flips votesLoading.
+  if (!silent) votesLoading.value = true;
   try {
     const ready = await waitForRpc();
     if (!ready) return;
@@ -744,7 +747,7 @@ async function loadVotesAndDeposits() {
   } catch (e) {
     console.warn('[gov] loadVotesAndDeposits failed', e);
   } finally {
-    votesLoading.value = false;
+    if (!silent) votesLoading.value = false;
   }
 }
 
@@ -763,8 +766,27 @@ function stopTallyPoll() {
   }
 }
 
+// Vote table auto-refresh during voting period — validators/delegators can
+// change their vote mid-period; re-pull indexer+LCD silently so the table
+// (option / tx hash / time) stays current without a manual page refresh.
+function startVotesPoll() {
+  stopVotesPoll();
+  if (!isVoting.value) return;
+  votesTimer = setInterval(() => {
+    loadVotesAndDeposits(true);
+  }, 30000);
+}
+
+function stopVotesPoll() {
+  if (votesTimer) {
+    clearInterval(votesTimer);
+    votesTimer = null;
+  }
+}
+
 async function bootstrap() {
   stopTallyPoll();
+  stopVotesPoll();
   allVotes.value = [];
   voteFilter.value = 'all';
   voteSearch.value = '';
@@ -773,6 +795,7 @@ async function bootstrap() {
   await loadProposal();
   await loadVotesAndDeposits();
   startTallyPoll();
+  startVotesPoll();
 }
 
 watch(
@@ -794,7 +817,10 @@ onMounted(() => {
   bootstrap();
 });
 
-onUnmounted(() => stopTallyPoll());
+onUnmounted(() => {
+  stopTallyPoll();
+  stopVotesPoll();
+});
 </script>
 
 <template>
