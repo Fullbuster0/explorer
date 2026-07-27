@@ -662,6 +662,22 @@ watch(
           </div>
           <div>
             <div class="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-secondary mb-0.5">
+              {{ $t('staking.consensus_pub_key') }}
+              <Icon
+                icon="mdi:content-copy"
+                class="cursor-pointer text-sm opacity-70 hover:opacity-100"
+                v-show="v.consensus_pubkey?.key"
+                @click="copyWebsite(v.consensus_pubkey?.key || '')"
+              />
+            </div>
+            <div class="sz-hash text-[12px] break-all">{{ v.consensus_pubkey?.key || '—' }}</div>
+            <div
+              v-if="v.consensus_pubkey?.['@type']"
+              class="text-[10.5px] text-secondary font-mono mt-0.5 break-all opacity-80"
+            >{{ v.consensus_pubkey['@type'] }}</div>
+          </div>
+          <div>
+            <div class="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-secondary mb-0.5">
               {{ $t('staking.hex_addr') }}
               <Icon
                 icon="mdi:content-copy"
