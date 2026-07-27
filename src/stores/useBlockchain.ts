@@ -210,27 +210,50 @@ export const useBlockchain = defineStore('blockchain', {
       return this.current?.endpoints?.rest || [];
     },
 
-    // Historical REST order: archive / non-pruned first, then rest of the list.
-    // Used only for one-shot historical lookups (tx hash, old block) — does NOT
-    // permanently switch the live endpoint (archives can lag on tip data).
+    /** Archive (tx_indexer-heavy) endpoints — chain may declare these
+     *  separately under `endpoints.archive` to enable historical txs
+     *  queries without sacrificing the live `api[]` order. */
+    archiveEndpoints(): Endpoint[] {
+      return this.current?.endpoints?.archive || [];
+    },
+
+    // Historical REST order: explicit archive endpoints first, then any
+    // provider/url substring matches (archive/full/history/allinbits/...), then
+    // the rest of the list. Used only for one-shot historical lookups (tx
+    // hash, old block, account history) — does NOT permanently switch the
+    // live endpoint (archives can lag on tip data).
     historicalRestOrder(preferCurrent = true): Endpoint[] {
+      // First hop: explicit `archived_api` from chain config (curated).
+      // Second hop: same scoring heuristic on the live `restEndpoints()` list.
+      const archive = this.archiveEndpoints();
       const all = this.restEndpoints();
-      if (!all.length) return [];
+      if (!archive.length && !all.length) return [];
+      const explicit = new Set(
+        archive.map((ep) => (ep.address || '').replace(/\/$/, ''))
+      );
       const current = (this.endpoint?.address || '').replace(/\/$/, '');
-      const score = (ep: Endpoint) => {
+      const score = (ep: Endpoint, isExplicit: boolean) => {
         const blob = `${ep.address || ''} ${ep.provider || ''}`.toLowerCase();
-        let s = 0;
+        let s = isExplicit ? 1000 : 0;
         if (blob.includes('archive')) s += 100;
         if (blob.includes('full') || blob.includes('history')) s += 40;
         if (blob.includes('allinbits') || blob.includes('citizenweb3')) s += 20;
         if (preferCurrent && (ep.address || '').replace(/\/$/, '') === current) s -= 5;
         return s;
       };
-      // Stable sort: higher score first, keep relative order for ties.
-      return all
-        .map((ep, i) => ({ ep, i, s: score(ep) }))
-        .sort((a, b) => b.s - a.s || a.i - b.i)
-        .map((x) => x.ep);
+      const rank = (entries: Endpoint[], isExplicit: boolean) =>
+        entries
+          .map((ep, i) => ({ ep, i, s: score(ep, isExplicit) }))
+          .sort((a, b) => b.s - a.s || a.i - b.i)
+          .map((x) => x.ep);
+      const rankedExplicit = rank(archive, true);
+      const rankedRest = rank(
+        all.filter(
+          (ep) => !explicit.has((ep.address || '').replace(/\/$/, ''))
+        ),
+        false
+      );
+      return [...rankedExplicit, ...rankedRest];
     },
 
     /**

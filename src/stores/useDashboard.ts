@@ -56,6 +56,9 @@ export function convertFromLocal(lc: LocalChainConfig): ChainConfig {
     rpc: apiConverter(lc.rpc),
     grpc: apiConverter(lc.grpc || []),
   };
+  if (lc.archived_api?.length) {
+    conf.endpoints.archive = apiConverter(lc.archived_api);
+  }
   if (lc.provider_chain) {
     conf.providerChain = {
       api: apiConverter(lc.provider_chain.api),

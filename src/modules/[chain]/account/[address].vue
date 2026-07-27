@@ -3,9 +3,10 @@ import { useBlockchain, useFormatter, useStakingStore, useTxDialog } from '@/sto
 import DynamicComponent from '@/components/dynamic/DynamicComponent.vue';
 import DonutChart from '@/components/charts/DonutChart.vue';
 import { computed, ref } from '@vue/reactivity';
-import { onMounted } from 'vue';
+import { onMounted, watch } from 'vue';
 import { Icon } from '@iconify/vue';
 
+import { PageRequest } from '@/types';
 import type { AuthAccount, Delegation, TxResponse, DelegatorRewards, UnbondingResponses } from '@/types';
 import type { Coin } from '@cosmjs/amino';
 import Countdown from '@/components/Countdown.vue';
@@ -18,13 +19,67 @@ const stakingStore = useStakingStore();
 const dialog = useTxDialog();
 const format = useFormatter();
 const account = ref({} as AuthAccount);
-const txs = ref({} as TxResponse[]);
+const txs = ref([] as TxResponse[]);
+const txsTotal = ref(0);
+const receivedTotal = ref(0);
 const delegations = ref([] as Delegation[]);
 const rewards = ref({} as DelegatorRewards);
 const balances = ref([] as Coin[]);
 const recentReceived = ref([] as TxResponse[]);
 const unbonding = ref([] as UnbondingResponses[]);
 const unbondingTotal = ref(0);
+
+// archive-backed pagination state for tx history tables
+const HISTORY_PAGE_SIZE = 10;
+const HISTORY_PAGES_SHOWN = 1;
+const txHistoryPage = ref(1);
+const txHistoryOffset = computed(
+  () => (txHistoryPage.value - 1) * HISTORY_PAGE_SIZE
+);
+const txHistoryLimit = ref(HISTORY_PAGE_SIZE);
+const rxHistoryPage = ref(1);
+const rxHistoryOffset = computed(
+  () => (rxHistoryPage.value - 1) * HISTORY_PAGE_SIZE
+);
+const lastTxHistory = computed(() =>
+  Number(localStorage.getItem(`sz_lastacctx_${props.address}`) || 0)
+);
+const archiveInUse = ref(false);
+const txsLoading = ref(false);
+
+watch(txHistoryPage, () => loadTxHistory());
+watch(txHistoryLimit, () => {
+  txHistoryPage.value = 1;
+  loadTxHistory();
+});
+
+async function loadTxHistory() {
+  txsLoading.value = true;
+  try {
+    const page = new PageRequest();
+    page.setPageSize(txHistoryLimit.value);
+    page.offset = String(txHistoryOffset.value);
+    const res = await blockchain.fetchAccountTxs(props.address, page, txHistoryLimit.value);
+    if (res) {
+      txs.value = res.tx_responses || [];
+      txsTotal.value = Number(
+        (res as any).pagination?.total ?? (res as any).total ?? 0
+      );
+      archiveInUse.value = true;
+    }
+  } finally {
+    txsLoading.value = false;
+  }
+}
+
+function setTxHistoryPage(page: number) {
+  const max = Math.max(1, Math.ceil(txsTotal.value / txHistoryLimit.value));
+  txHistoryPage.value = Math.min(Math.max(1, page), max);
+}
+
+function setTxHistorySize(size: number) {
+  txHistoryLimit.value = size;
+}
 
 onMounted(() => {
   loadAccount(props.address);
@@ -75,7 +130,17 @@ const totalValue = computed(() => {
 
 function loadAccount(address: string) {
   blockchain.rpc.getAuthAccount(address).then((x) => (account.value = x.account));
-  blockchain.rpc.getTxsBySender(address).then((x) => (txs.value = x.tx_responses));
+  // Tx history is fetched through fetchAccountTxs (archive-first) so users
+  // actually see their full activity even when the live endpoint indexer
+  // returns nothing.
+  blockchain.fetchAccountTxs(address).then((x) => {
+    if (!x) return;
+    txs.value = x.tx_responses || [];
+    txsTotal.value = Number(
+      (x as any).pagination?.total ?? (x as any).total ?? 0
+    );
+    archiveInUse.value = true;
+  });
   blockchain.rpc.getDistributionDelegatorRewards(address).then((x) => (rewards.value = x));
   blockchain.rpc.getStakingDelegations(address).then(
     (x) => (delegations.value = x.delegation_responses)
@@ -87,8 +152,39 @@ function loadAccount(address: string) {
       y.entries.forEach((z) => (unbondingTotal.value += Number(z.balance)))
     );
   });
-  const receivedQuery = `?&pagination.reverse=true&events=coin_received.receiver='${address}'&pagination.limit=5`;
-  blockchain.rpc.getTxs(receivedQuery, {}).then((x) => (recentReceived.value = x.tx_responses));
+  // coin_received is best handled via the same archive-first path so the
+  // inbox shows the same depth as activity. Build the raw query URL exactly
+  // like client.ts expects (events= → query= rewrite happens inside).
+  loadReceived(address, 5);
+}
+
+async function loadReceived(address: string, limit: number) {
+  // Use raw fetchData to bypass localStorage-cached RPC strategy; we want
+  // archive-first failover regardless of the user's chosen endpoint.
+  const EPs = blockchain.historicalRestOrder(false);
+  const seen = new Set<string>();
+  for (const ep of EPs) {
+    const base = (ep.address || '').replace(/\/$/, '');
+    if (!base || seen.has(base)) continue;
+    seen.add(base);
+    const url = `${base}/cosmos/tx/v1beta1/txs?query=coin_received.receiver='${encodeURIComponent(
+      address
+    )}'&order_by=ORDER_BY_DESC&pagination.limit=${limit}&pagination.count_total=true`;
+    try {
+      const res = await fetch(url);
+      if (!res.ok) continue;
+      const data = (await res.json()) as any;
+      if (Array.isArray(data.tx_responses)) {
+        recentReceived.value = data.tx_responses;
+        receivedTotal.value = Number(data.pagination?.total ?? data.total ?? 0);
+        return;
+      }
+    } catch {
+      // try next
+    }
+  }
+  recentReceived.value = [];
+  receivedTotal.value = 0;
 }
 
 function updateEvent() {
@@ -468,12 +564,34 @@ function findTokenAmount(
       </div>
     </section>
 
-    <!-- ====== TRANSACTIONS ====== -->
-    <section class="sz-section sz-glass overflow-hidden mb-4">
+    <!-- ====== TRANSACTIONS (archive-backed history) ====== -->
+    <section class="sz-section sz-glass overflow-hidden mb-4" :class="{ 'sz-acc-loading': txsLoading && !txs.length }">
       <div class="sz-section-head">
         <div>
-          <div class="sz-section-kicker">Activity</div>
-          <div class="sz-section-title">{{ $t('account.transactions') }} ({{ txs.length || 0 }})</div>
+          <div class="sz-section-kicker flex items-center gap-2">
+            Activity
+            <span class="sz-acc-archive-badge" v-if="archiveInUse" title="History served from archive / indexed endpoint">
+              <svg viewBox="0 0 16 16" width="11" height="11" fill="currentColor"><path d="M2 3a1 1 0 011-1h6.5a1 1 0 01.8.4l1.6 2.2a1 1 0 01.1 1V13a1 1 0 01-1 1H3a1 1 0 01-1-1V3zM4 5v1h6V5H4zm0 3v1h8V8H4zm0 3v1h5v-1H4z"/></svg>
+              archive
+            </span>
+          </div>
+          <div class="sz-section-title">
+            {{ $t('account.transactions') }} ({{ txsTotal ? format.formatNumber(txsTotal, '0,0') : txs.length }})
+            <span v-if="txsTotal > txs.length" class="sz-acc-section-meta">showing {{ txs.length }} of {{ format.formatNumber(txsTotal, '0,0') }}</span>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <div class="sz-acc-page-size">
+            <button
+              v-for="size in [5, 10, 20, 50]"
+              :key="size"
+              class="sz-acc-page-btn"
+              :class="{ 'sz-acc-page-btn--active': txHistoryLimit === size }"
+              @click="setTxHistorySize(size)"
+            >
+              {{ size }}
+            </button>
+          </div>
         </div>
       </div>
       <div class="overflow-x-auto">
@@ -487,7 +605,15 @@ function findTokenAmount(
             </tr>
           </thead>
           <tbody>
-            <tr v-if="!txs.length">
+            <tr v-if="txsLoading && !txs.length">
+              <td colspan="4" class="sz-acc-empty">
+                <div class="flex items-center justify-center gap-3">
+                  <div class="sz-acc-loading-spinner" />
+                  <span class="sz-acc-loading-text">Fetching history from archive…</span>
+                </div>
+              </td>
+            </tr>
+            <tr v-else-if="!txs.length">
               <td colspan="4" class="sz-acc-empty">{{ $t('account.no_transactions') }}</td>
             </tr>
             <tr v-for="(v, index) in txs" :key="v.txhash || index">
@@ -516,6 +642,15 @@ function findTokenAmount(
             </tr>
           </tbody>
         </table>
+      </div>
+      <div class="sz-acc-pager" v-if="txsTotal > txHistoryLimit">
+        <button class="sz-acc-pager-btn" :disabled="txHistoryPage === 1" @click="setTxHistoryPage(txHistoryPage - 1)">← Prev</button>
+        <span class="sz-acc-pager-info">Page {{ txHistoryPage }} / {{ Math.max(1, Math.ceil(txsTotal / txHistoryLimit)) }}</span>
+        <button
+          class="sz-acc-pager-btn"
+          :disabled="txHistoryPage * txHistoryLimit >= txsTotal"
+          @click="setTxHistoryPage(txHistoryPage + 1)"
+        >Next →</button>
       </div>
     </section>
 
@@ -1037,6 +1172,120 @@ function findTokenAmount(
   .sz-acc-value { text-align: left; grid-column: 1 / -1; }
   .sz-acc-value-num { font-size: 1.35rem; }
 }
+
+/* ============================================================
+   ARCHIVE HISTORY — distinctive "archive" badge + pagination.
+   Shazoes-only: 1px monospaced badge with archive glyph.
+   ============================================================ */
+.sz-acc-archive-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.18rem 0.55rem 0.2rem;
+  border-radius: 6px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, #16d97e 80%, white);
+  background: color-mix(in srgb, #16d97e 12%, transparent);
+  border: 1px solid color-mix(in srgb, #16d97e 35%, transparent);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+.sz-acc-archive-badge svg { opacity: 0.9; }
+
+.sz-acc-section-meta {
+  margin-left: 0.5rem;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  letter-spacing: 0.02em;
+}
+
+/* page-size cluster [5 | 10 | 20 | 50] */
+.sz-acc-page-size {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 10px;
+  background: color-mix(in srgb, hsl(var(--bc)) 5%, transparent);
+  border: 1px solid var(--sz-border);
+}
+.sz-acc-page-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30px;
+  height: 26px;
+  padding: 0 0.5rem;
+  border-radius: 7px;
+  background: transparent;
+  border: none;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: color 0.14s ease, background 0.14s ease;
+}
+.sz-acc-page-btn:hover {
+  color: var(--text-main);
+  background: color-mix(in srgb, hsl(var(--bc)) 6%, transparent);
+}
+.sz-acc-page-btn--active {
+  color: white;
+  background: hsl(var(--p));
+  box-shadow: 0 2px 8px color-mix(in srgb, hsl(var(--p)) 28%, transparent);
+}
+.sz-acc-page-btn--active:hover {
+  color: white;
+  background: color-mix(in srgb, hsl(var(--p)) 88%, white);
+}
+
+/* pager */
+.sz-acc-pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.9rem;
+  padding: 0.85rem 1rem 0.95rem;
+  border-top: 1px solid color-mix(in srgb, var(--sz-border) 70%, transparent);
+}
+.sz-acc-pager-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.4rem 0.75rem;
+  border-radius: 8px;
+  font-size: 11.5px;
+  font-weight: 700;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  color: var(--text-main);
+  background: transparent;
+  border: 1px solid var(--sz-border);
+  cursor: pointer;
+  transition: all 0.14s ease;
+}
+.sz-acc-pager-btn:hover:not(:disabled) {
+  color: hsl(var(--p));
+  border-color: color-mix(in srgb, hsl(var(--p)) 45%, var(--sz-border));
+  background: var(--sz-accent-soft);
+}
+.sz-acc-pager-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.sz-acc-pager-info {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  letter-spacing: 0.02em;
+}
+
+.sz-acc-loading { opacity: 1; transition: opacity 0.2s ease; }
 </style>
 
 

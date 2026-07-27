@@ -29,6 +29,13 @@ export interface LocalChainConfig {
   consensus_prefix?: string;
   alias?: string;
   api: string[] | Endpoint[];
+  /**
+   * Optional "archive" API endpoints — providers that run a full tx_indexer
+   * and can serve historical `txs` queries by sender / events. Used
+   * opportunistically (e.g. on the account page) when the primary
+   * `api[]` endpoints aren't indexed.
+   */
+  archived_api?: Endpoint[];
   grpc?: Endpoint[];
   provider_chain?: {
     api: string[] | Endpoint[];
@@ -119,6 +126,8 @@ export interface ChainConfig {
     rest?: Endpoint[];
     rpc?: Endpoint[];
     grpc?: Endpoint[];
+    /** Archive / indexed-tx providers (full tx_indexer). Optional. */
+    archive?: Endpoint[];
   };
   logo: string;
   /** Optional GitHub repo URL for dashboard activity card. */
