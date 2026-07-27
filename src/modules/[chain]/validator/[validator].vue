@@ -134,9 +134,8 @@ staking.fetchValidatorDelegation(validator, addresses.value.account).then((x) =>
   if (x) selfBonded.value = x.delegation_response;
 });
 
-// account txs — first 20 only; user can scroll to load more via IntersectionObserver
-txs.value = { tx_responses: [] } as PaginatedTxs;
-loadAccountTxs();
+// account txs — first 20 only; user can scroll to load more via IntersectionObserver.
+// Initial fetch is deferred to onMounted() below (refs declared further down).
 
 const apr = computed(() => {
   const rate = Number(v.value.commission?.commission_rates.rate || 0);
@@ -402,6 +401,8 @@ function loadMoreAccountTxs() {
 const txsSentinel = ref<HTMLElement | null>(null);
 let txsObserver: IntersectionObserver | null = null;
 onMounted(() => {
+  // Initial load of account txs (deferred until after refs are declared)
+  if (txs.value && !txs.value.tx_responses?.length) loadAccountTxs();
   txsObserver = new IntersectionObserver(
     (entries) => {
       if (entries.some((e) => e.isIntersecting)) loadMoreAccountTxs();
