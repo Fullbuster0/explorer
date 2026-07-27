@@ -301,12 +301,13 @@ export class CosmosRestClient extends BaseRestClient<RequestRegistry> {
   // ?&pagination.reverse=true&events=recv_packet.packet_dst_channel='${channel}'&events=recv_packet.packet_dst_port='${port}'
   async getTxs(query: string, params: any, page?: PageRequest) {
     if (!page) page = new PageRequest();
-    if (semver.gte(this.version.replaceAll('v', ''), '0.50.0')) {
-      let query_edit = query.replaceAll('events=', 'query=');
-      return this.request(this.registry.tx_txs, params, `${query_edit}&order_by=ORDER_BY_DESC&${page.toQueryString()}`);
-    } else {
-      return this.request(this.registry.tx_txs, params, `${query}&${page.toQueryString()}`);
-    }
+    // Cosmos SDK tx search: query= param works across versions; events= is legacy.
+    // Always emit query= so endpoints running newer binaries still work.
+    const q = query.replaceAll('events=', 'query=');
+    const orderBy = semver.gte(this.version.replaceAll('v', ''), '0.50.0')
+      ? '&order_by=ORDER_BY_DESC'
+      : '&order_by=2';
+    return this.request(this.registry.tx_txs, params, `${q}${orderBy}&${page.toQueryString()}`);
   }
   async getTxsAt(height: string | number) {
     return this.request(this.registry.tx_txs_block, { height });

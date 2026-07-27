@@ -62,8 +62,34 @@ const activityTab = ref<ActivityTab>('power');
 enum EventType {
   Delegate = 'delegate',
   Unbond = 'unbond',
+  RedelegateIn = 'redelegate.in',
+  RedelegateOut = 'redelegate.out',
 }
-const selectedEventType = ref(EventType.Delegate);
+const selectedEventType = ref<EventType>(EventType.Delegate);
+
+/** query=event for each power-event kind. Operator address is appended at request time. */
+const eventTypeQuery: Record<EventType, string> = {
+  [EventType.Delegate]: 'query=delegate.validator={validator}',
+  [EventType.Unbond]: 'query=unbond.validator={validator}',
+  [EventType.RedelegateIn]: 'query=redelegate.destination_validator={validator}',
+  [EventType.RedelegateOut]: 'query=redelegate.source_validator={validator}',
+};
+
+/** Sign for the +/- indicator on the amount cell. */
+const eventSign: Record<EventType, 1 | -1> = {
+  [EventType.Delegate]: 1,
+  [EventType.Unbond]: -1,
+  [EventType.RedelegateIn]: 1,
+  [EventType.RedelegateOut]: -1,
+};
+
+/** Event type to read attributes from, when redelegate.in/out share event name 'redelegate'. */
+const eventTypeAttrKey: Record<EventType, string> = {
+  [EventType.Delegate]: 'delegate',
+  [EventType.Unbond]: 'unbond',
+  [EventType.RedelegateIn]: 'redelegate',
+  [EventType.RedelegateOut]: 'redelegate',
+};
 
 // Votes from indexer
 interface ValidatorVoteRow {
@@ -252,8 +278,11 @@ function loadPowerEvents(p: number, type: EventType) {
   selectedEventType.value = type;
   powerPage.setPage(p);
   powerPage.setPageSize(10);
+  const tmpl = eventTypeQuery[type];
+  // Substitute operator address into the query template, then escape quotes for the URL.
+  const q = tmpl.replace('{validator}', validator);
   blockchain.rpc
-    .getTxs("?order_by=2&events={type}.validator='{validator}'", { type: selectedEventType.value, validator }, powerPage)
+    .getTxs(`?${q}`, { validator }, powerPage)
     .then((res) => {
       events.value = res;
     })
@@ -359,13 +388,14 @@ function voteTimeLabel(ts?: string): string {
 }
 
 function mapEvents(evts: { type: string; attributes: { key: string; value: string }[] }[]) {
+  const wanted = eventTypeAttrKey[selectedEventType.value];
   const attributes = evts
-    .filter((x) => x.type === selectedEventType.value)
+    .filter((x) => x.type === wanted)
     .filter(
       (x) =>
         x.attributes.findIndex(
           (attr) => attr.value === validator || attr.value === toBase64(stringToUint8Array(validator))
-        ) > -1
+        ) >= 0
     )
     .map((x) => {
       const output = {} as { [key: string]: string };
@@ -875,6 +905,18 @@ watch(
               :class="{ 'sz-tab--active': selectedEventType === EventType.Unbond }"
               @click="loadPowerEvents(1, EventType.Unbond)"
             >{{ $t('account.btn_unbond') }}</button>
+            <button
+              type="button"
+              class="sz-tab !py-1 !px-3 !text-[12px]"
+              :class="{ 'sz-tab--active': selectedEventType === EventType.RedelegateIn }"
+              @click="loadPowerEvents(1, EventType.RedelegateIn)"
+            >{{ $t('account.btn_redelegate') }} In</button>
+            <button
+              type="button"
+              class="sz-tab !py-1 !px-3 !text-[12px]"
+              :class="{ 'sz-tab--active': selectedEventType === EventType.RedelegateOut }"
+              @click="loadPowerEvents(1, EventType.RedelegateOut)"
+            >{{ $t('account.btn_redelegate') }} Out</button>
           </div>
         </div>
         <div class="overflow-x-auto">
@@ -905,12 +947,12 @@ watch(
                   <div
                     class="flex items-center gap-1.5 font-mono text-[12.5px]"
                     :class="{
-                      'text-success': selectedEventType === EventType.Delegate,
-                      'text-error': selectedEventType === EventType.Unbond,
+                      'text-success': eventSign[selectedEventType] === 1,
+                      'text-error': eventSign[selectedEventType] === -1,
                     }"
                   >
                     <RouterLink :to="`/${chain}/tx/${item.txhash}`" class="link link-hover">
-                      {{ selectedEventType === EventType.Delegate ? '+' : '−' }}
+                      {{ eventSign[selectedEventType] === 1 ? '+' : '−' }}
                       {{ mapEvents(item.events) }}
                     </RouterLink>
                     <Icon v-if="item.code === 0" icon="mdi-check" class="text-yes text-sm" />
