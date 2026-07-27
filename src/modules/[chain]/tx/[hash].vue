@@ -403,16 +403,17 @@ async function doCopy(text?: string) {
             <div class="sz-section-kicker">Raw</div>
             <div class="sz-section-title">JSON</div>
           </div>
+          <button class="sz-chip sz-chip--info cursor-pointer !text-[10.5px]" @click="doCopy(JSON.stringify(tx, null, 2))">
+            <Icon icon="mdi:content-copy" class="mr-1" /> copy
+          </button>
         </div>
-        <div class="px-4 py-3">
+        <div class="sz-json-scroll">
           <JsonViewer
             :value="tx"
             :theme="baseStore.theme"
-            style="background: transparent"
             copyable
-            boxed
             sort
-            expand-depth="5"
+            :expand-depth="3"
           />
         </div>
       </section>
@@ -477,5 +478,50 @@ async function doCopy(text?: string) {
   padding: 0.85rem 0.95rem;
   font-size: 12.5px;
   line-height: 1.55;
+}
+
+/* JSON tab: scroll area, font, theme sync */
+.sz-json-scroll {
+  padding: 0.5rem 0.75rem 1rem;
+  max-height: 70vh;
+  overflow: auto;
+  background: var(--sz-accent-soft);
+  border-top: 1px solid var(--sz-border);
+}
+.sz-json-scroll :deep(.jv-container) {
+  border-radius: 10px !important;
+  font-size: 12.5px !important;
+  line-height: 1.5 !important;
+  white-space: pre-wrap !important;
+  padding: 1.1rem 1.2rem !important;
+  background: transparent !important;
+  border: 1px solid var(--sz-border) !important;
+  max-height: none !important;
+  overflow: visible !important;
+  box-shadow: none !important;
+}
+.sz-json-scroll :deep(.jv-container.jv-dark) {
+  color: #c8d3e6;
+}
+.sz-json-scroll :deep(.jv-container.jv-light) {
+  color: #2b3340;
+}
+.sz-json-scroll :deep(.jv-code) {
+  padding: 0 !important;
+  max-height: none !important;
+  overflow: visible !important;
+}
+.sz-json-scroll :deep(.jv-node) {
+  margin-left: 0 !important;
+  display: block !important;
+  padding: 1px 0 !important;
+}
+.sz-json-scroll :deep(.jv-node .jv-node) {
+  margin-left: 18px !important;
+}
+.sz-json-scroll :deep(.jv-button) {
+  padding: 2px 6px !important;
+  font-size: 10px !important;
+  border-radius: 6px !important;
 }
 </style>
