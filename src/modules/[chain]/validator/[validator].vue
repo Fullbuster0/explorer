@@ -586,22 +586,12 @@ watch(
             <div class="sz-section-kicker">Commission</div>
             <div class="sz-section-title">{{ $t('staking.commissions_&_rewards') }}</div>
           </div>
-          <div class="text-right hidden sm:!block">
-            <div class="sz-metric-label !tracking-wider">Rate</div>
-            <div class="font-mono text-lg font-bold text-main leading-none">{{ commissionRate }}</div>
-            <div class="text-[11px] text-secondary mt-0.5">max {{ commissionMax }} · Δ {{ commissionChange }}</div>
-          </div>
         </div>
         <div class="grid grid-cols-1 md:!grid-cols-2 gap-0 flex-1 min-h-0">
           <div class="px-2 pt-1 pb-3 md:!border-r border-base-content/10">
             <CommissionRate :commission="v.commission" embedded />
           </div>
           <div class="px-4 py-3 flex flex-col gap-3 min-h-0">
-            <div class="sm:!hidden">
-              <div class="sz-metric-label mb-0.5">Rate</div>
-              <div class="font-mono text-xl font-bold text-main">{{ commissionRate }}</div>
-              <div class="text-[11px] text-secondary mb-2">max {{ commissionMax }} · Δ {{ commissionChange }}</div>
-            </div>
             <div class="overflow-auto flex-1 max-h-56">
               <div class="text-[11px] font-bold uppercase tracking-wider text-secondary mb-1.5">
                 {{ $t('staking.commissions') }}

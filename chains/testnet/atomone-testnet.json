@@ -30,6 +30,12 @@
       "exponent": "6",
       "coingecko_id": "atomone",
       "logo": "/logos/atomone.png"
+    },
+    {
+      "base": "uphoton",
+      "symbol": "PHOTON",
+      "exponent": "6",
+      "logo": "/logos/atomone.png"
     }
   ],
   "keplr_features": [
