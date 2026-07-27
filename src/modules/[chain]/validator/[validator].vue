@@ -187,39 +187,63 @@ const loadAvatar = (id: string) => {
   });
 };
 
-function pageload(p: number) {
-  delPage.setPage(p);
-  delPage.limit = 10;
-  delPage.count_total = true;
+/** Fetch ALL delegations for this validator, then sort globally by balance desc.
+ *  LCD page order is unstable across pages, so we cannot rely on per-page sort. */
+const allDelegations = ref<any[]>([]);
+async function loadAllDelegations() {
+  allDelegations.value = [];
   delegationsLoading.value = true;
-  blockchain.rpc
-    .getStakingValidatorsDelegations(validator, delPage)
-    .then((res) => {
-      delegations.value = res;
-      const total = Number(res?.pagination?.total || 0);
-      if (total > 0) delegatorTotal.value = total;
-      else if (res?.delegation_responses) {
-        // some LCDs omit total — fall back to page length on first page
-        if (p === 1) delegatorTotal.value = res.delegation_responses.length;
+  try {
+    const PAGE = 100;
+    const pr = new PageRequest();
+    pr.limit = PAGE;
+    pr.count_total = true;
+    pr.offset = 0;
+    let page = 1;
+    while (true) {
+      pr.setPage(page);
+      let res: any = null;
+      try {
+        res = await blockchain.rpc?.getStakingValidatorsDelegations(validator, pr);
+      } catch {
+        break;
       }
-    })
-    .catch(() => {
-      /* leave empty */
-    })
-    .finally(() => {
-      delegationsLoading.value = false;
+      const rows = res?.delegation_responses || [];
+      if (!rows.length) break;
+      allDelegations.value.push(...rows);
+      const total = Number(res?.pagination?.total || 0);
+      if (total > 0) {
+        delegatorTotal.value = total;
+        if (allDelegations.value.length >= total) break;
+      }
+      if (rows.length < PAGE) break;
+      page += 1;
+      // hard cap to avoid runaway on broken LCDs
+      if (page > 50) break;
+    }
+    // global sort desc by amount
+    allDelegations.value.sort((a, b) => {
+      const aa = Number(a?.balance?.amount || 0);
+      const bb = Number(b?.balance?.amount || 0);
+      return bb - aa;
     });
+    if (!delegatorTotal.value) {
+      delegatorTotal.value = allDelegations.value.length;
+    }
+  } finally {
+    delegationsLoading.value = false;
+  }
 }
 
-/** Current page of delegations, largest amount first. */
-const sortedDelegations = computed(() => {
-  const list = [...(delegations.value?.delegation_responses || [])];
-  return list.sort((a: any, b: any) => {
-    const aa = Number(a?.balance?.amount || 0);
-    const bb = Number(b?.balance?.amount || 0);
-    return bb - aa;
-  });
-});
+/** Page flip is pure client-side once allDelegations is loaded. */
+function pageload(p: number) {
+  delPage.limit = 10;
+  delPage.setPage(p);
+  // If we haven't loaded yet, kick off the full fetch
+  if (!allDelegations.value.length && !delegationsLoading.value) {
+    loadAllDelegations();
+  }
+}
 
 function loadPowerEvents(p: number, type: EventType) {
   selectedEventType.value = type;
@@ -386,6 +410,14 @@ const tipMsg = computed(() => {
     : { class: 'success', msg: 'Copy Success!' };
 });
 
+/** Sorted (desc by amount) delegations for the current page.
+ *  allDelegations is globally sorted; slice by page offset/limit. */
+const sortedDelegations = computed(() => {
+  const limit = delPage.limit || 10;
+  const offset = delPage.offset || 0;
+  return allDelegations.value.slice(offset, offset + limit);
+});
+
 onMounted(() => {
   if (!validator) return;
 
@@ -415,8 +447,8 @@ onMounted(() => {
     });
   });
 
-  // Delegators — enabled (count + first page). Was disabled for perf; limit=10 is fine.
-  pageload(1);
+  // Delegators — fetch all and sort globally desc.
+  loadAllDelegations();
   pagePowerEvents(1);
   // Prefetch votes in background so Activities → Votes is instant
   loadVotes(1);
