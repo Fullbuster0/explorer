@@ -6,7 +6,7 @@
   "rewrites": [
     {
       "source": "/vote-api/:path*",
-      "destination": "https://discussions-suite-reputation-mono.trycloudflare.com/:path*"
+      "destination": "https://blades-situation-proceeds-magnificent.trycloudflare.com/:path*"
     },
     {
       "source": "/(.*)",
