@@ -241,7 +241,7 @@ export const useParamStore = defineStore('paramstore', {
         Object.entries(nb).forEach(([k, v]) => {
           if (!knownNb.has(k)) nbItems.push(tag(k, v));
         });
-        this.distribution.subGroups = [{ title: 'Nakamoto bonus', items: nbItems }];
+        this.distribution.subGroups = [{ title: 'Nakamoto bonus', items: nbItems, badge: 'chain-exclusive' }];
       }
     },
 

@@ -1,11 +1,10 @@
 <script lang="ts" setup>
-import { useParamStore, useFormatter, useBlockchain } from '@/stores';
+import { useParamStore, useBlockchain } from '@/stores';
 import { computed, ref, onMounted } from 'vue';
 import ParamCard from '@/components/ParamCard.vue';
 import Loading from '@/components/Loading.vue';
 
 const store = useParamStore();
-const format = useFormatter();
 const blockchain = useBlockchain();
 
 const chainLoading = ref(true);
@@ -35,21 +34,17 @@ const chainName = computed(
  *  (height / bonded-supply / bonded-ratio / inflation) so we don't have
  *  to re-fetch anything. Just translate the subtitles + pretty-print
  *  the value per item. */
+/** Overview cells — bonded supply / ratio / inflation. Height is
+ *  excluded: it's already visible in the global header ticker and
+ *  duplicated here just added noise. */
 const heroItems = computed(() => {
-  return (store.chain?.items || []).map((it) => {
-    let display = it.value;
-    if (it.subtitle === 'height' && display !== '-') {
-      // Big, monospace, accent.
-      display = String(display);
-    } else if (it.subtitle === 'bonded_ratio' && display !== '-') {
-      // already "xx.x%" — leave as-is.
-    }
-    return {
+  return (store.chain?.items || [])
+    .filter((it) => it.subtitle !== 'height')
+    .map((it) => ({
       key: it.subtitle,
-      value: display,
+      value: it.value,
       label: prettyKey(it.subtitle),
-    };
-  });
+    }));
 });
 
 function prettyKey(k: string) {
@@ -85,15 +80,6 @@ const appVersionRows = computed(() => {
   }));
 });
 
-/** Node Information — same flattening. */
-const nodeVersionRows = computed(() => {
-  const v = store.nodeVersion?.items;
-  if (!Array.isArray(v)) return [];
-  return v.map((row: any) => ({
-    subtitle: row.subtitle,
-    value: row.value,
-  }));
-});
 
 /** Some keys (go_version, cosmos_sdk_version, etc) deserve a more
  *  prominent treatment — separate "Build info" sub-group. */
@@ -113,68 +99,27 @@ const appVersionInfo = computed(() => {
   return { block, rest };
 });
 
-const nodeVersionInfo = computed(() => {
-  const rows = nodeVersionRows.value;
-  // Short scalar fields fit a narrow cell. Anything longer than ~16 chars
-  // (default_node_id, listen_addr, channels, other.*) gets its own wide
-  // row so the value can wrap inside the card without spilling into the
-  // footer.
-  const SHORT_MAX = 16;
-  const known = new Set(['protocol_version.p2p', 'protocol_version.block', 'protocol_version.app']);
-  const block: any[] = [];
-  const rest: any[] = [];
-  rows.forEach((r: any) => {
-    const isLong = String(r.value ?? '').length > SHORT_MAX;
-    if (known.has(r.subtitle) || (!isLong && !r.subtitle.startsWith('other.'))) {
-      block.push(r);
-    } else {
-      rest.push(r);
-    }
-  });
-  return { block, rest };
-});
+
 </script>
 
 <template>
   <div>
-    <!-- ============== HERO ============== -->
-    <section class="sz-section sz-acc-hero mb-4 overflow-hidden">
-      <div class="sz-acc-hero-grid">
-        <div class="sz-acc-id">
-          <div class="sz-section-kicker mb-1">Chain</div>
-          <h1 class="sz-acc-addr-row" style="font-size: 1.55rem; line-height: 1.2;">
-            <span class="sz-hero-mono">{{ chainName || 'Parameters' }}</span>
-            <span v-if="networkLabel" class="sz-params-net-pill" :style="{ '--net-color': themeColor }">
-              {{ networkLabel }}
-            </span>
-          </h1>
-          <div class="sz-page-sub mt-1">
-            {{ store.chain.title || 'Loading chain id…' }}
-          </div>
-        </div>
-        <div class="sz-acc-value">
-          <div class="sz-section-kicker mb-1">Latest block</div>
-          <div v-if="chainLoading" class="sz-acc-value-num">
-            <Loading :bordered="false" />
-          </div>
-          <div v-else class="sz-acc-value-num sz-hero-mono">
-            #{{ store.chain.items.find((i) => i.subtitle === 'height')?.value }}
-          </div>
-          <div class="sz-acc-value-sub">
-            {{ format.toDay(store.latestTime, 'from') || '—' }} · live
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ============== CHAIN OVERVIEW (height / bonded-supply / ratio / inflation) ============== -->
+    <!-- ============== CHAIN OVERVIEW (chain-id + bonded-supply / ratio / inflation) ============== -->
     <section class="sz-section sz-glass overflow-hidden mb-4">
       <div class="sz-section-head">
         <div class="flex items-center gap-3">
           <span class="sz-params-tone" data-tone="default"></span>
           <div>
             <div class="sz-section-kicker">Overview</div>
-            <div class="sz-section-title">Chain metrics</div>
+            <div class="sz-section-title">
+              {{ chainName || 'Chain' }}
+              <span v-if="networkLabel" class="sz-params-net-pill" :style="{ '--net-color': themeColor }">
+                {{ networkLabel }}
+              </span>
+            </div>
+            <div class="sz-params-chainid sz-hero-mono">
+              {{ store.chain.title || '—' }}
+            </div>
           </div>
         </div>
       </div>
@@ -188,7 +133,7 @@ const nodeVersionInfo = computed(() => {
           class="sz-params-cell"
         >
           <div class="sz-params-key">{{ it.label }}</div>
-          <div class="sz-params-val" :data-tone="it.key === 'height' ? undefined : 'denom'">
+          <div class="sz-params-val" data-tone="denom">
             {{ it.value }}
           </div>
         </div>
@@ -253,73 +198,21 @@ const nodeVersionInfo = computed(() => {
       </div>
     </section>
 
-    <!-- ============== NODE INFO ============== -->
-    <section
-      v-if="abciLoading || (nodeVersionInfo.block.length || nodeVersionInfo.rest.length)"
-      class="sz-section sz-glass overflow-hidden mb-4"
-    >
-      <div class="sz-section-head">
-        <div class="flex items-center gap-3">
-          <span class="sz-params-tone" data-tone="default"></span>
-          <div>
-            <div class="sz-section-kicker">Runtime</div>
-            <div class="sz-section-title">Node information</div>
-          </div>
-        </div>
-      </div>
-      <div v-if="abciLoading" class="p-3">
-        <Loading :bordered="false" />
-      </div>
-      <div v-else class="sz-params-grid" style="padding: 0.25rem 0 0.5rem;">
-        <div
-          v-for="(it, i) in nodeVersionInfo.block"
-          :key="'node-block-' + i"
-          class="sz-params-cell"
-        >
-          <div class="sz-params-key">{{ prettyKey(it.subtitle) }}</div>
-          <div class="sz-params-val sz-hero-mono">{{ String(it.value) }}</div>
-        </div>
-        <div
-          v-for="(it, i) in nodeVersionInfo.rest"
-          :key="'node-rest-' + i"
-          class="sz-params-cell sz-params-cell--wide"
-        >
-          <div class="sz-params-key">{{ prettyKey(it.subtitle) }}</div>
-          <div class="sz-params-val sz-hero-mono" style="font-size: 12.5px; word-break: break-all;">
-            {{ String(it.value) }}
-          </div>
-        </div>
-      </div>
-    </section>
   </div>
 </template>
 
 <style scoped>
-/* Inherit the same hero motif used by the account page so the two pages
-   feel like part of the same design system. */
-.sz-acc-hero {
-  position: relative;
-  padding: 1.4rem 1.5rem;
-  border-radius: 14px;
-}
-.sz-acc-hero-grid {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  align-items: center;
-  gap: 1.2rem;
-}
-@media (max-width: 700px) {
-  .sz-acc-hero-grid {
-    grid-template-columns: 1fr;
-  }
-}
-.sz-acc-id .sz-page-sub {
-  color: color-mix(in srgb, hsl(var(--bc)) 65%, transparent);
-  font-size: 12.5px;
-}
 .sz-hero-mono {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
   letter-spacing: -0.01em;
+}
+
+/* Chain-id line under the Overview title — dim mono, smaller. */
+.sz-params-chainid {
+  font-size: 11.5px;
+  margin-top: 0.15rem;
+  color: color-mix(in srgb, hsl(var(--bc)) 55%, transparent);
+  letter-spacing: 0.02em;
 }
 
 /* Network pill — a small rounded badge showing "Mainnet" / "Testnet"
@@ -340,19 +233,6 @@ const nodeVersionInfo = computed(() => {
   border: 1px solid color-mix(in srgb, var(--net-color, hsl(var(--p))) 35%, transparent);
   vertical-align: middle;
   line-height: 1.4;
-}
-
-/* Big-number styling for the "Latest block" hero card. */
-.sz-acc-value-num {
-  font-size: 2.1rem;
-  font-weight: 700;
-  line-height: 1.1;
-}
-.sz-acc-value-sub {
-  font-size: 11.5px;
-  color: color-mix(in srgb, hsl(var(--bc)) 55%, transparent);
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
-  margin-top: 0.2rem;
 }
 
 /* sz-params-tone / sz-params-cell base styles are global (style.css).

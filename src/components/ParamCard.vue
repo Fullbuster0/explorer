@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { computed } from '@vue/reactivity';
-import { useFormatter } from '@/stores';
+import { useFormatter, useBlockchain } from '@/stores';
 import { formatSeconds } from '@/libs/utils';
 
 interface ParamItem {
@@ -11,6 +11,9 @@ interface ParamItem {
 interface SubGroup {
   title: string;
   items: ParamItem[];
+  /** Optional badge — e.g. 'chain-exclusive' renders a pill noting the
+   *  feature only exists on this chain (nakamoto bonus = AtomOne). */
+  badge?: string;
 }
 interface ParamCard {
   title: string;
@@ -25,6 +28,12 @@ const props = defineProps<{
 }>();
 
 const format = useFormatter();
+const blockchain = useBlockchain();
+
+/** Short chain name for the "exclusive" badge (e.g. "AtomOne"). */
+const chainShortName = computed(
+  () => blockchain.current?.prettyName || blockchain.current?.chainName || 'This chain'
+);
 
 /**
  * Tooltip text describing what each param means. Helps the reader who
@@ -222,6 +231,9 @@ const moduleTone = computed(() => {
               {{ sgIcon(sg.title) }}
             </span>
             <span class="sz-params-subgroup-title">{{ sg.title }}</span>
+            <span v-if="sg.badge === 'chain-exclusive'" class="sz-params-exclusive">
+              {{ chainShortName }} exclusive
+            </span>
           </div>
           <div class="sz-params-grid">
             <div

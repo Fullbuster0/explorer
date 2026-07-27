@@ -1311,3 +1311,23 @@ html:not(.dark):not([data-theme='dark']) .sz-gh-cell[data-level="4"] { backgroun
 .sz-params-subgroup-icon[data-icon='bonus']   { color: #16d97e; }
 .sz-params-subgroup-icon[data-icon='slash']   { color: #ff7a59; }
 .sz-params-subgroup-icon[data-icon='windows'] { color: #ff7a59; }
+
+/* "Chain exclusive" badge — marks params that only exist on this
+   chain (e.g. nakamoto bonus on AtomOne). Warm amber so it reads as
+   a rarity marker, not an error. */
+.sz-params-exclusive {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  color: #ffd166;
+  background: color-mix(in srgb, #ffd166 12%, transparent);
+  border: 1px solid color-mix(in srgb, #ffd166 35%, transparent);
+  white-space: nowrap;
+  line-height: 1.5;
+}
