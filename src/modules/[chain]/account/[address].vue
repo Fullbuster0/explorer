@@ -74,17 +74,48 @@ onMounted(() => {
   loadTxHistory();
 });
 
+// Display-friendly bond-denom symbol (e.g. 'ATONE' instead of 'uatone').
+// Single source of truth — every place in the template that prints the
+// staking denom goes through this so chains with dual-token economics
+// (atomone: ATONE + PHOTON) stay consistent.
+const bondSymbol = computed(
+  () => format.tokenDisplayDenom(stakingStore.params.bond_denom)?.toUpperCase() ||
+    stakingStore.params.bond_denom ||
+    ''
+);
+
+// Non-bond-denom balances shown as a secondary strip (e.g. PHOTON on
+// atomone). Most chains have a single native denom — this list stays empty.
+const otherBalances = computed(() => {
+  const bond = stakingStore.params.bond_denom;
+  return (balances.value || []).filter((c) => c.denom !== bond);
+});
+
+// Sum only the bond-denom slice of `balances` for the portfolio donut.
+// On dual-token chains (atomone) this means ATONE-only; PHOTON shows up
+// separately in `otherBalances` so it doesn't pollute the staking pie.
+const bondBalances = computed(() => {
+  const bond = stakingStore.params.bond_denom;
+  return (balances.value || []).filter((c) => c.denom === bond);
+});
+
 // total raw token amounts per category (used for donut + share bars)
 const totalsRaw = computed(() => {
   let sumBal = 0;
-  balances.value?.forEach((x) => (sumBal += format.tokenAmountNumber(x)));
+  bondBalances.value?.forEach((x) => (sumBal += format.tokenAmountNumber(x)));
   let sumDel = 0;
   delegations.value?.forEach((x) => (sumDel += format.tokenAmountNumber(x.balance)));
   let sumRew = 0;
   rewards.value?.total?.forEach((x) => (sumRew += format.tokenAmountNumber(x)));
   let sumUn = 0;
   unbonding.value?.forEach((x) =>
-    x.entries?.forEach((y) => (sumUn += Number(y.balance)))
+    x.entries?.forEach(
+      (y) =>
+        (sumUn += format.tokenAmountNumber({
+          amount: y.balance,
+          denom: stakingStore.params.bond_denom,
+        }))
+    )
   );
   return { available: sumBal, delegated: sumDel, rewards: sumRew, unbonding: sumUn };
 });
@@ -107,7 +138,7 @@ const totalValue = computed(() => {
   let value = 0;
   delegations.value?.forEach((x) => (value += format.tokenValueNumber(x.balance)));
   rewards.value?.total?.forEach((x) => (value += format.tokenValueNumber(x)));
-  balances.value?.forEach((x) => (value += format.tokenValueNumber(x)));
+  bondBalances.value?.forEach((x) => (value += format.tokenValueNumber(x)));
   unbonding.value?.forEach((x) =>
     x.entries?.forEach(
       (y) =>
@@ -325,7 +356,7 @@ function findTokenAmount(
           <div class="sz-section-kicker mb-1">Total Value</div>
           <div class="sz-acc-value-num">${{ totalValue }}</div>
           <div class="sz-acc-value-sub" v-if="totalAmount > 0">
-            {{ totalAmount.toLocaleString(undefined, { maximumFractionDigits: 2 }) }} {{ stakingStore.params.bond_denom }} · total portfolio
+            {{ totalAmount.toLocaleString(undefined, { maximumFractionDigits: 2 }) }} {{ bondSymbol }} · total portfolio
           </div>
         </div>
 
@@ -367,9 +398,43 @@ function findTokenAmount(
             <div class="sz-acc-comp-figures">
               <div class="sz-acc-comp-pct">{{ totalAmount > 0 ? ((amt / totalAmount) * 100).toFixed(1) : '0.0' }}%</div>
               <div class="sz-acc-comp-amount">
-                {{ format.formatNumber(amt, '0,0.[000000]') }} {{ stakingStore.params.bond_denom }}
+                {{ format.formatNumber(amt, '0,0.[000000]') }} {{ bondSymbol }}
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====== SECONDARY TOKENS (dual-token chains only, e.g. PHOTON on atomone) ======
+         Sits between Portfolio Composition and Staking so the donut stays a
+         clean 4-category ATONE-only visualization. Hides itself when the
+         account only holds the bond denom. -->
+    <section
+      v-if="otherBalances.length > 0"
+      class="sz-section sz-glass overflow-hidden mb-4"
+    >
+      <div class="sz-section-head">
+        <div>
+          <div class="sz-section-kicker">Other tokens</div>
+          <div class="sz-section-title">Secondary balances</div>
+        </div>
+      </div>
+      <div class="sz-acc-tokens">
+        <div
+          v-for="(c, i) in otherBalances"
+          :key="i"
+          class="sz-acc-token-row"
+        >
+          <span class="sz-acc-token-swatch"></span>
+          <div class="flex-1 min-w-0">
+            <div class="sz-acc-token-name">
+              {{ format.tokenDisplayDenom(c.denom)?.toUpperCase() || c.denom }}
+            </div>
+            <div class="sz-acc-token-denom">{{ c.denom }}</div>
+          </div>
+          <div class="sz-acc-token-amount">
+            {{ format.formatToken(c, true, '0,0.[000000]') }}
           </div>
         </div>
       </div>
@@ -1225,6 +1290,57 @@ function findTokenAmount(
   background: var(--sz-accent-soft);
 }
 .sz-acc-readonly svg { opacity: 0.7; }
+
+/* ============ SECONDARY TOKEN STRIP ============ */
+.sz-acc-tokens {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+.sz-acc-token-row {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: 10px;
+  background: color-mix(in srgb, hsl(var(--bc)) 3.5%, transparent);
+  border: 1px solid var(--sz-border);
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.sz-acc-token-row:hover {
+  background: color-mix(in srgb, hsl(var(--p)) 5%, transparent);
+  border-color: color-mix(in srgb, hsl(var(--p)) 25%, var(--sz-border));
+}
+.sz-acc-token-swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  flex-shrink: 0;
+  /* PHOTON on atomone — distinct cyan tone so it doesn't fight ATONE's green.
+     Falls back to primary if the chain has no other-tone preset. */
+  background: #5fe6e0;
+  box-shadow: 0 0 0 3px color-mix(in srgb, #5fe6e0 26%, transparent);
+}
+.sz-acc-token-name {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: hsl(var(--bc));
+}
+.sz-acc-token-denom {
+  font-size: 10.5px;
+  color: color-mix(in srgb, hsl(var(--bc)) 45%, transparent);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  margin-top: 0.1rem;
+}
+.sz-acc-token-amount {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: right;
+  color: hsl(var(--bc));
+  white-space: nowrap;
+}
 </style>
 
 
