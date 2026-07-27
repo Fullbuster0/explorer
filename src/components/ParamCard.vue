@@ -144,26 +144,6 @@ function prettyKey(k: string) {
   return k.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-/** Sub-group icon — a single glyph makes each section scannable at a
- *  glance. Helps the reader orient on mobile where the dense list can
- *  feel monotonous. */
-const sgIcons: Record<string, { glyph: string; key: string }> = {
-  'Voting':         { glyph: '🗳', key: 'vote' },
-  'Deposit':        { glyph: '💎', key: 'deposit' },
-  'Tally':          { glyph: '📊', key: 'tally' },
-  'Bond config':    { glyph: '🔗', key: 'bond' },
-  'Nakamoto bonus': { glyph: '⭐', key: 'bonus' },
-  'Slash fractions':{ glyph: '⚡', key: 'slash' },
-  'Penalties':      { glyph: '⚡', key: 'slash' },
-  'Windows':        { glyph: '⏱', key: 'windows' },
-};
-function sgIcon(title: string): string {
-  return sgIcons[title]?.glyph || '·';
-}
-function sgIconKey(title: string): string {
-  return sgIcons[title]?.key || 'default';
-}
-
 /** Group tag tones for the section header. */
 const moduleTone = computed(() => {
   switch (props.card?.module) {
@@ -207,7 +187,6 @@ const moduleTone = computed(() => {
           v-for="(it, i) in card.items"
           :key="'top-' + i"
           class="sz-params-cell"
-          :class="{ 'sz-params-cell--wide': Array.isArray(it.value) && it.kind === 'coinlist' }"
         >
           <div class="sz-params-key" :title="tip(it.subtitle)">
             {{ prettyKey(it.subtitle) }}
@@ -227,9 +206,6 @@ const moduleTone = computed(() => {
           class="sz-params-subgroup"
         >
           <div class="sz-params-subgroup-head">
-            <span class="sz-params-subgroup-icon" :data-icon="sgIconKey(sg.title)">
-              {{ sgIcon(sg.title) }}
-            </span>
             <span class="sz-params-subgroup-title">{{ sg.title }}</span>
             <span v-if="sg.badge === 'chain-exclusive'" class="sz-params-exclusive">
               {{ chainShortName }} exclusive
@@ -240,7 +216,6 @@ const moduleTone = computed(() => {
               v-for="(it, i) in sg.items"
               :key="gi + '-item-' + i"
               class="sz-params-cell"
-              :class="{ 'sz-params-cell--wide': Array.isArray(it.value) && it.kind === 'coinlist' }"
             >
               <div class="sz-params-key" :title="tip(it.subtitle)">
                 {{ prettyKey(it.subtitle) }}
