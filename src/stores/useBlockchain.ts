@@ -349,12 +349,17 @@ export const useBlockchain = defineStore('blockchain', {
         const client = CosmosRestClient.newStrategy(base, this.current);
         try {
           console.info(`[store] tryOne ${base.slice(0, 40)} query=${query.slice(0, 50)}`);
-          const res = await client.getTxs(query, params, page, limit);
+          // Race: fetch vs 15s timeout
+          const res = await Promise.race([
+            client.getTxs(query, params, page, limit),
+            new Promise<never>((_, reject) => setTimeout(() => reject(new Error('TIMEOUT_15S')), 15000)),
+          ]);
           const t = (res as any)?.pagination?.total ?? (res as any)?.total ?? 0;
           console.info(`[store] tryOne ${base.slice(0, 40)} → total=${t} rows=${(res as any)?.tx_responses?.length ?? 0}`);
           if (res && (res as any).tx_responses) return res as PaginatedTxs;
         } catch (e: any) {
-          console.warn(`[store] tryOne ${base.slice(0, 40)} FAILED: ${e?.message || e}`);
+          const msg = e?.message === 'TIMEOUT_15S' ? 'TIMEOUT (15s)' : (e?.message || e);
+          console.warn(`[store] tryOne ${base.slice(0, 40)} FAILED: ${msg}`);
         }
         return null;
       };

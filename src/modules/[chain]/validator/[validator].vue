@@ -289,6 +289,7 @@ function pageload(p: number) {
 }
 
 function loadPowerEvents(_p: number, type: EventType) {
+  console.info('[val] loadPowerEvents', type, 'rpc=', !!blockchain.rpc, 'current=', !!blockchain.current);
   selectedEventType.value = type;
   if (type === EventType.Redelegate) {
     fetchRedelegateCombined();
@@ -630,10 +631,12 @@ onMounted(() => {
 watch(
   () => blockchain.rpc,
   (rpc) => {
+    console.info('[val] rpc watch fired, rpc=', !!rpc, 'events=', events.value?.tx_responses?.length);
     if (rpc && !allDelegations.value.length && !delegationsLoading.value) {
       loadAllDelegations();
     }
     if (rpc && !events.value?.tx_responses?.length) {
+      console.info('[val] calling loadPowerEvents');
       loadPowerEvents(1, selectedEventType.value || EventType.Delegate);
     }
   },
