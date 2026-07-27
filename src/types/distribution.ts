@@ -6,6 +6,15 @@ export interface DistributionParams {
     base_proposer_reward: string;
     bonus_proposer_reward: string;
     withdraw_addr_enabled: boolean;
+    // atomone-specific: see https://github.com/atomone-foundation/atomone
+    nakamoto_bonus?: {
+      enabled?: boolean;
+      step?: string;
+      period_epoch_identifier?: string;
+      minimum_coefficient?: string;
+      maximum_coefficient?: string;
+      [key: string]: any;
+    };
   };
 }
 

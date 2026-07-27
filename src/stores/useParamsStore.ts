@@ -150,6 +150,19 @@ export const useParamStore = defineStore('paramstore', {
         if (p.goal_bonded !== undefined) items.push({ subtitle: 'goal_bonded', value: p.goal_bonded, kind: 'percent' });
         if (p.blocks_per_year !== undefined) items.push({ subtitle: 'blocks_per_year', value: p.blocks_per_year, kind: 'integer' });
         this.mint.items = items;
+        // Also fetch live inflation rate — populate the chain overview card.
+        try {
+          const inflation = await this.getInflationRate();
+          if (inflation) {
+            const idx = this.chain.items.findIndex((x) => x.subtitle === 'inflation');
+            if (idx > -1) {
+              // inflation is a decimal string (0.20 = 20%). Format with
+              // 2 decimal places for the overview card.
+              const pct = (Number(inflation) * 100).toFixed(2);
+              this.chain.items[idx].value = `${pct}%`;
+            }
+          }
+        } catch (e) { /* ignore — overview can stay "—" */ }
       } catch (e: any) {
         // atomone returns 'not implemented' — mark hidden.
         this.modulesHidden.mint = true;
@@ -279,8 +292,9 @@ export const useParamStore = defineStore('paramstore', {
         const res = await this.fetchAbciInfo();
         if (!res) return;
         localStorage.setItem(`sdk_version_${this.blockchain.chainName}`, res.application_version?.cosmos_sdk_version);
-        // build_deps can be 200+ entries of internal Go module paths — not
-        // interesting to readers. Surface the count only.
+        // Flatten application_version into rows. build_deps is collapsed
+        // to a count because it can have 200+ entries of internal Go
+        // modules that aren't user-facing.
         const flatAppVersion: Array<{ subtitle: string; value: any }> = [];
         Object.entries(res.application_version || {}).forEach(([key, value]) => {
           if (key === 'build_deps') {
@@ -290,8 +304,9 @@ export const useParamStore = defineStore('paramstore', {
           flatAppVersion.push({ subtitle: key, value });
         });
         this.appVersion.items = flatAppVersion;
-        // Node info: protocol_version is nested, other is an object, version
-        // fields can be big strings. Flatten everything to key/value rows.
+        // Flatten default_node_info. The original Object.entries() dump
+        // left nested objects (protocol_version, other) as single
+        // [object Object] cells. Surface each leaf field instead.
         const flatNodeVersion: Array<{ subtitle: string; value: any }> = [];
         const ni = res.default_node_info || {};
         if (ni.protocol_version) {
@@ -311,6 +326,16 @@ export const useParamStore = defineStore('paramstore', {
         this.nodeVersion.items = flatNodeVersion;
       } catch (e) {
         console.warn(e);
+      }
+    },
+    async getInflationRate() {
+      const excludes = this.blockchain.current?.excludes;
+      if (excludes && excludes.indexOf('mint') > -1) return null;
+      try {
+        const res = await this.blockchain.rpc?.getMintInflation();
+        return res?.inflation ?? null;
+      } catch (e) {
+        return null;
       }
     },
     async getBaseTendermintBlockLatest() {

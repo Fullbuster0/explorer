@@ -99,38 +99,37 @@ const nodeVersionRows = computed(() => {
  *  prominent treatment — separate "Build info" sub-group. */
 const appVersionInfo = computed(() => {
   const rows = appVersionRows.value;
-  const known = new Set([
-    'cosmos_sdk_version',
-    'go_version',
-    'node',
-    'name',
-    'version',
-    'commit',
-    'build_tags',
-    'build_deps',
-    'client_name',
-    'client_version',
-    'client_git_commit',
-    'client_features',
-    'go_crypto_version',
-  ]);
-  const build: any[] = [];
+  // Same heuristic as nodeVersionInfo: short strings into narrow cells,
+  // long strings (go_version, git_commit hash, build_tags) get a wide
+  // row so they wrap inside the card instead of breaking out.
+  const SHORT_MAX = 16;
+  const block: any[] = [];
   const rest: any[] = [];
   rows.forEach((r: any) => {
-    if (known.has(r.subtitle)) build.push(r);
+    const isLong = String(r.value ?? '').length > SHORT_MAX;
+    if (!isLong) block.push(r);
     else rest.push(r);
   });
-  return { build, rest };
+  return { block, rest };
 });
 
 const nodeVersionInfo = computed(() => {
   const rows = nodeVersionRows.value;
-  const known = new Set(['network', 'moniker', 'version', 'channels', 'other']);
+  // Short scalar fields fit a narrow cell. Anything longer than ~16 chars
+  // (default_node_id, listen_addr, channels, other.*) gets its own wide
+  // row so the value can wrap inside the card without spilling into the
+  // footer.
+  const SHORT_MAX = 16;
+  const known = new Set(['protocol_version.p2p', 'protocol_version.block', 'protocol_version.app']);
   const block: any[] = [];
   const rest: any[] = [];
   rows.forEach((r: any) => {
-    if (known.has(r.subtitle)) block.push(r);
-    else rest.push(r);
+    const isLong = String(r.value ?? '').length > SHORT_MAX;
+    if (known.has(r.subtitle) || (!isLong && !r.subtitle.startsWith('other.'))) {
+      block.push(r);
+    } else {
+      rest.push(r);
+    }
   });
   return { block, rest };
 });
@@ -217,7 +216,7 @@ const nodeVersionInfo = computed(() => {
 
     <!-- ============== APP VERSION ============== -->
     <section
-      v-if="abciLoading || (appVersionInfo.build.length || appVersionInfo.rest.length)"
+      v-if="abciLoading || (appVersionInfo.block.length || appVersionInfo.rest.length)"
       class="sz-section sz-glass overflow-hidden mb-4"
     >
       <div class="sz-section-head">
@@ -234,8 +233,8 @@ const nodeVersionInfo = computed(() => {
       </div>
       <div v-else class="sz-params-grid" style="padding: 0.25rem 0 0.5rem;">
         <div
-          v-for="(it, i) in appVersionInfo.build"
-          :key="'app-build-' + i"
+          v-for="(it, i) in appVersionInfo.block"
+          :key="'app-block-' + i"
           class="sz-params-cell"
         >
           <div class="sz-params-key">{{ prettyKey(it.subtitle) }}</div>
@@ -362,6 +361,15 @@ const nodeVersionInfo = computed(() => {
 .sz-params-tone[data-tone='default'] {
   background: hsl(var(--p));
   color: hsl(var(--p));
+}
+
+/* The narrow cell rule already word-breaks, but some values like a node
+   ID (40 hex chars) still want to overflow visually before wrap. Add
+   overflow-wrap: anywhere + min-width:0 so the cell can't push past its
+   column. */
+.sz-params-cell {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 </style>
 
