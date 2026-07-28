@@ -49,26 +49,43 @@ const counterpartyClientId = computed(
 
 function loadDetail() {
   if (!connId.value || !chainStore.rpc || !chainStore.endpoint?.address) return;
+  // Mark each slice loaded ONLY on success. If the active endpoint is dead
+  // mid-fallback these reject; leaving *Loaded=false lets the endpoint.address
+  // watch below retry once fallback lands on a healthy node. Setting loaded in
+  // .finally (old behaviour) flipped the flag on failure too, so the watch's
+  // `!connLoaded` guard never re-fired and the page hung on "Loading" forever.
+  // .catch swallows the rejection so it doesn't surface as an unhandled error.
   chainStore.rpc
     .getIBCConnectionsById(connId.value)
-    .then((x) => (conn.value = x.connection))
-    .finally(() => (connLoaded.value = true));
+    .then((x) => {
+      conn.value = x.connection;
+      connLoaded.value = true;
+    })
+    .catch(() => {});
   chainStore.rpc
     .getIBCConnectionsClientState(connId.value)
-    .then((x) => (clientState.value = x.identified_client_state))
-    .finally(() => (clientStateLoaded.value = true));
+    .then((x) => {
+      clientState.value = x.identified_client_state;
+      clientStateLoaded.value = true;
+    })
+    .catch(() => {});
   chainStore.rpc
     .getIBCConnectionsChannels(connId.value)
-    .then((x) => (channels.value = x.channels))
-    .finally(() => (channelsLoaded.value = true));
+    .then((x) => {
+      channels.value = x.channels;
+      channelsLoaded.value = true;
+    })
+    .catch(() => {});
 }
 
 onMounted(loadDetail);
-// endpoint may resolve after mount (chain switch / cold load)
+// endpoint may resolve after mount (chain switch / cold load) or change on
+// fallback. Retry until ALL three slices have loaded — checking only connLoaded
+// would leave the page half-stuck if clientState/channels failed but conn didn't.
 watch(
   () => [props.connection_id, chainStore.endpoint?.address] as const,
   ([, addr]) => {
-    if (addr && !connLoaded.value) loadDetail();
+    if (addr && !(connLoaded.value && clientStateLoaded.value && channelsLoaded.value)) loadDetail();
   }
 );
 
