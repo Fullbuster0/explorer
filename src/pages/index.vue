@@ -3,6 +3,8 @@ import { Icon } from '@iconify/vue';
 import { useDashboard, LoadingStatus } from '@/stores';
 import type { ChainConfig } from '@/types/chaindata';
 import ChainSummary from '@/components/ChainSummary.vue';
+import NavbarThemeSwitcher from '@/layouts/components/NavbarThemeSwitcher.vue';
+import newFooter from '@/layouts/components/NavFooter.vue';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 
 const dashboard = useDashboard();
@@ -60,7 +62,7 @@ const chains = computed(() => {
 </script>
 
 <template>
-  <!-- Clean landing (indonode-style): no sidebar, no header, no chain auto-load -->
+  <!-- Clean landing (indonode-style): no sidebar, no chain auto-load -->
   <div class="sz-page-shell min-h-screen text-base-content">
     <div class="sz-aurora" :class="{ 'sz-aurora--paused': auroraPaused }" aria-hidden="true">
       <span class="sz-orb sz-orb-a"></span>
@@ -85,28 +87,31 @@ const chains = computed(() => {
       <span class="sz-beam sz-beam-2"></span>
     </div>
 
+    <!-- floating theme toggle (top-right) -->
+    <div class="fixed right-4 top-4 z-50 sm:right-6 sm:top-5">
+      <div class="rounded-xl border border-base-content/10 bg-base-100/80 p-0.5 shadow-sm backdrop-blur-md">
+        <NavbarThemeSwitcher />
+      </div>
+    </div>
+
     <div class="relative z-10 mx-auto flex min-h-screen max-w-7xl flex-col px-4 pb-10 sm:px-6 lg:px-8">
       <!-- ===== HERO ===== -->
-      <header class="sz-hero relative mb-10 pt-14 sm:pt-20">
-        <div class="flex flex-col items-center text-center gap-4">
-          <div class="mb-1 inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-primary backdrop-blur-md">
+      <header class="sz-hero relative mb-10 pt-10 sm:pt-14">
+        <div class="relative z-10 px-2 sm:px-4">
+          <div class="mb-6 inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-primary backdrop-blur-md">
             <span class="sz-live-dot"></span>
             Multi-chain · Cosmos
           </div>
 
-          <img
-            src="@/assets/logo.svg"
-            alt="Shazoes"
-            class="h-14 w-14 rounded-2xl bg-white/95 p-1.5 shadow-lg object-contain"
-          />
-
-          <div class="min-w-0 max-w-2xl">
-            <h1 class="sz-hero-title text-[2.35rem] sm:text-5xl md:text-[3.4rem] font-extrabold tracking-tight leading-[1.05]">
-              {{ $t('pages.title') }}
-            </h1>
-            <p class="mx-auto mt-3 max-w-xl text-[15px] sm:text-base leading-relaxed text-secondary">
-              Select a network to explore.
-            </p>
+          <div class="flex flex-col items-center text-center gap-4">
+            <div class="min-w-0 max-w-2xl">
+              <h1 class="sz-hero-title text-[2.35rem] sm:text-5xl md:text-[3.4rem] font-extrabold tracking-tight leading-[1.05]">
+                {{ $t('pages.title') }}
+              </h1>
+              <p class="mx-auto mt-3 max-w-xl text-[15px] sm:text-base leading-relaxed text-secondary">
+                {{ $t('pages.slogan') }}
+              </p>
+            </div>
           </div>
         </div>
       </header>
@@ -170,16 +175,8 @@ const chains = computed(() => {
         </div>
       </section>
 
-      <!-- minimal footer (no chrome) -->
-      <footer class="mt-12 flex flex-col items-center gap-3 border-t border-base-content/10 pt-6 text-center text-[12px] text-secondary sm:flex-row sm:justify-between sm:text-left">
-        <span>Maintained by Shazoes</span>
-        <div class="flex flex-wrap items-center justify-center gap-3">
-          <a href="https://x.com/shazoes" target="_blank" rel="noopener noreferrer" class="hover:text-primary transition">@shazoes</a>
-          <a href="https://t.me/shazoes" target="_blank" rel="noopener noreferrer" class="hover:text-primary transition">t.me/shazoes</a>
-          <a href="https://services.shazoes.xyz" target="_blank" rel="noopener noreferrer" class="hover:text-primary transition">services.shazoes.xyz</a>
-          <a href="mailto:hello@shazoes.xyz" class="hover:text-primary transition">hello@shazoes.xyz</a>
-        </div>
-      </footer>
+      <!-- same footer component as chain pages -->
+      <newFooter />
     </div>
   </div>
 </template>
