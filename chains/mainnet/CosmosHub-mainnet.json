@@ -50,28 +50,8 @@
       "provider": "CryptoCrew"
     },
     {
-      "address": "https://cosmoshub.lava.build:443",
-      "provider": "Lava"
-    },
-    {
-      "address": "https://cosmos-lcd.quickapi.com:443",
-      "provider": "Chainlayer"
-    },
-    {
-      "address": "https://rest.cosmoshub.goldenratiostaking.net",
-      "provider": "Golden Ratio Staking"
-    },
-    {
       "address": "https://rest.lavenderfive.com:443/cosmoshub",
       "provider": "Lavender.Five Nodes 🐝"
-    },
-    {
-      "address": "https://cosmos-rest.staketab.org",
-      "provider": "Staketab"
-    },
-    {
-      "address": "https://lcd.cosmos.dragonstake.io",
-      "provider": "DragonStake"
     },
     {
       "address": "https://cosmoshub.rest.stakin-nodes.com",
@@ -86,10 +66,6 @@
       "provider": "Easy 2 Stake"
     },
     {
-      "address": "https://cosmos.api.silknodes.io",
-      "provider": "Silk Nodes"
-    },
-    {
       "address": "https://cosmos-api.w3coins.io",
       "provider": "w3coins"
     },
@@ -102,20 +78,12 @@
       "provider": "cosmosrescue"
     },
     {
-      "address": "https://cosmos-rest.interstellar-lounge.org",
-      "provider": "Interstellar Lounge 🍸"
-    },
-    {
       "address": "https://public.stakewolle.com/cosmos/cosmoshub/rest",
       "provider": "Stakewolle"
     },
     {
       "address": "https://cosmos-api.stakeandrelax.net",
       "provider": "Stake&Relax 🦥"
-    },
-    {
-      "address": "https://cosmoshub.api.quasarstaking.ai",
-      "provider": "Quasar"
     },
     {
       "address": "https://cosmos.ibs.team:443/api",
@@ -128,10 +96,6 @@
     {
       "address": "https://api.cosmoshub-4.citizenweb3.com:443",
       "provider": "Citizen Web3"
-    },
-    {
-      "address": "https://cosmoshub-mainnet.chain.whenmoonwhenlambo.money",
-      "provider": "🚀 WHEN MOON 🌕 WHEN LAMBO 🔥"
     },
     {
       "address": "https://api.cosmos.cumulo.com.es",
@@ -168,18 +132,6 @@
       "provider": "cosmos.directory"
     },
     {
-      "address": "https://cosmos-rpc.icycro.org",
-      "provider": "icycro"
-    },
-    {
-      "address": "https://rpc.cosmos.dragonstake.io",
-      "provider": "dragonstake"
-    },
-    {
-      "address": "https://rpc-cosmoshub.goldenratiostaking.net",
-      "provider": "Golden Ratio Staking"
-    },
-    {
       "address": "https://cosmos.rpc.uquad.org:443",
       "provider": "QUAD"
     },
@@ -192,10 +144,6 @@
       "provider": "Lava"
     },
     {
-      "address": "https://cosmos-rpc.quickapi.com:443",
-      "provider": "Chainlayer"
-    },
-    {
       "address": "https://rpc.lavenderfive.com:443/cosmoshub",
       "provider": "Lavender.Five Nodes 🐝"
     },
@@ -204,32 +152,12 @@
       "provider": "ecostake"
     },
     {
-      "address": "https://go.getblock.io/17515cb3ec0e43b7817f182e5de6066a",
-      "provider": "GetBlock RPC Nodes"
-    },
-    {
-      "address": "https://cosmos-rpc.staketab.org:443",
-      "provider": "Staketab"
-    },
-    {
       "address": "https://cosmoshub.rpc.stakin-nodes.com",
       "provider": "Stakin"
     },
     {
-      "address": "https://cosmos-rpc.rockrpc.net",
-      "provider": "RockawayX Infra"
-    },
-    {
-      "address": "http://rpc-cosmoshub.freshstaking.com:26657",
-      "provider": "FreshSTAKING"
-    },
-    {
       "address": "https://cosmos-rpc.easy2stake.com",
       "provider": "Easy 2 Stake"
-    },
-    {
-      "address": "https://rpc.cosmoshub.goldenratiostaking.net",
-      "provider": "Golden Ratio Staking"
     },
     {
       "address": "https://cosmos-rpc.w3coins.io",
@@ -244,10 +172,6 @@
       "provider": "cosmosrescue"
     },
     {
-      "address": "https://cosmos.interstellar-lounge.org",
-      "provider": "Interstellar Lounge 🍸"
-    },
-    {
       "address": "https://public.stakewolle.com/cosmos/cosmoshub/rpc",
       "provider": "Stakewolle"
     },
@@ -260,14 +184,6 @@
       "provider": "Stake&Relax 🦥"
     },
     {
-      "address": "https://cosmos-hub.drpc.org",
-      "provider": "dRPC"
-    },
-    {
-      "address": "https://cosmoshub.rpc.quasarstaking.ai",
-      "provider": "Quasar"
-    },
-    {
       "address": "https://cosmos.ibs.team:443/rpc",
       "provider": "Inter Blockchain Services"
     },
@@ -276,20 +192,12 @@
       "provider": "Citizen Web3"
     },
     {
-      "address": "https://cosmoshub-mainnet.chain.whenmoonwhenlambo.money",
-      "provider": "🚀 WHEN MOON 🌕 WHEN LAMBO 🔥"
-    },
-    {
       "address": "https://rpc.cosmos.cumulo.com.es",
       "provider": "Cumulo"
     },
     {
       "address": "https://cosmoshub.api.pocket.network",
       "provider": "Pocket Network"
-    },
-    {
-      "address": "https://rpc.sbsconstrutionnconsultancy.com",
-      "provider": "bapimondal-server"
     }
   ],
   "snapshot_provider": "",
