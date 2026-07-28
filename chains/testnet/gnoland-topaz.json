@@ -1,0 +1,134 @@
+{
+  "chain_name": "gnoland-topaz",
+  "chain_id": "topaz-1",
+  "network_type": "testnet",
+  "engine": "gno",
+  "features": [
+    "dashboard",
+    "blocks",
+    "validator",
+    "consensus",
+    "uptime",
+    "parameters"
+  ],
+  "registry_name": "Gnoland Topaz",
+  "coingecko": "",
+  "github": "https://github.com/gnolang/gno",
+  "api": [
+    {
+      "address": "https://gnoland-testnet-rpc.shazoes.xyz",
+      "provider": "Shazoes"
+    },
+    {
+      "address": "https://rpc.topaz.testnets.gno.land",
+      "provider": "Official"
+    },
+    {
+      "address": "https://topaz-gnoland-rpc.noderuner.xyz",
+      "provider": "NodeRuneR"
+    },
+    {
+      "address": "https://gnoland-testnet-rpc.itrocket.net",
+      "provider": "ITRocket"
+    },
+    {
+      "address": "https://gnoland-testnet-rpc.sr20de.xyz",
+      "provider": "SR20DE"
+    },
+    {
+      "address": "https://gnoland-testnet-rpc.doresa.xyz",
+      "provider": "Doresa"
+    },
+    {
+      "address": "https://gnoland-topaz-rpc.oshvank.xyz",
+      "provider": "OshVanK"
+    },
+    {
+      "address": "https://gnoland.test.rpc.nodeshub.online",
+      "provider": "NodesHub"
+    },
+    {
+      "address": "https://lightnode-rpc-gnoland.grandvalleys.com",
+      "provider": "Grand Valley"
+    },
+    {
+      "address": "https://gnoland-topaz-rpc.corenodehq.xyz",
+      "provider": "Corenode"
+    },
+    {
+      "address": "https://gnoland-topaz-testnet-rpc.1xp.vc",
+      "provider": "1XP"
+    },
+    {
+      "address": "https://gnoland-topaz-rpc.hazennetworksolutions.com",
+      "provider": "Hazen"
+    }
+  ],
+  "rpc": [
+    {
+      "address": "https://gnoland-testnet-rpc.shazoes.xyz",
+      "provider": "Shazoes"
+    },
+    {
+      "address": "https://rpc.topaz.testnets.gno.land",
+      "provider": "Official"
+    },
+    {
+      "address": "https://topaz-gnoland-rpc.noderuner.xyz",
+      "provider": "NodeRuneR"
+    },
+    {
+      "address": "https://gnoland-testnet-rpc.itrocket.net",
+      "provider": "ITRocket"
+    },
+    {
+      "address": "https://gnoland-testnet-rpc.sr20de.xyz",
+      "provider": "SR20DE"
+    },
+    {
+      "address": "https://gnoland-testnet-rpc.doresa.xyz",
+      "provider": "Doresa"
+    },
+    {
+      "address": "https://gnoland-topaz-rpc.oshvank.xyz",
+      "provider": "OshVanK"
+    },
+    {
+      "address": "https://gnoland.test.rpc.nodeshub.online",
+      "provider": "NodesHub"
+    },
+    {
+      "address": "https://lightnode-rpc-gnoland.grandvalleys.com",
+      "provider": "Grand Valley"
+    },
+    {
+      "address": "https://gnoland-topaz-rpc.corenodehq.xyz",
+      "provider": "Corenode"
+    },
+    {
+      "address": "https://gnoland-topaz-testnet-rpc.1xp.vc",
+      "provider": "1XP"
+    },
+    {
+      "address": "https://gnoland-topaz-rpc.hazennetworksolutions.com",
+      "provider": "Hazen"
+    }
+  ],
+  "snapshot_provider": "",
+  "sdk_version": "gno-tm2",
+  "coin_type": "118",
+  "min_tx_fee": "1000",
+  "addr_prefix": "g",
+  "theme_color": "#1a8f5b",
+  "logo": "/logos/gno.svg",
+  "assets": [
+    {
+      "base": "ugnot",
+      "symbol": "GNOT",
+      "exponent": "6",
+      "coingecko_id": "",
+      "logo": "/logos/gno.svg"
+    }
+  ],
+  "keplr_features": []
+}

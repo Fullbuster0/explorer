@@ -4,6 +4,8 @@ import { useDashboard} from './useDashboard';
 import type { NavLink, NavSectionTitle, VerticalNavItems } from '@/layouts/types';
 import { useRouter } from 'vue-router';
 import { CosmosRestClient } from '@/libs/client';
+import { GnoTm2Client } from '@/libs/gno/client';
+import { isGnoChain, tm2Health } from '@/libs/gno/tm2';
 import { PageRequest, type PaginatedTxs, type TxResponse } from '@/types';
 import {
   useBankStore,
@@ -29,7 +31,8 @@ export const useBlockchain = defineStore('blockchain', {
       fallbackInProgress: false,
       lastFallbackAt: 0,
       // Declared in state so watchers (validator page power-events) react to it.
-      rpc: undefined as CosmosRestClient | undefined,
+      // For Gno/TM2 chains this is a GnoTm2Client (same method surface).
+      rpc: undefined as CosmosRestClient | GnoTm2Client | undefined,
     };
   },
   getters: {
@@ -597,6 +600,10 @@ export const useBlockchain = defineStore('blockchain', {
 
     // Lightweight liveness probe for a REST/LCD endpoint.
     async healthCheck(address: string, timeoutMs = 6000): Promise<boolean> {
+      // Gnoland / TM2 has no Cosmos LCD — probe `/status` on the JSON-RPC host.
+      if (isGnoChain(this.current)) {
+        return tm2Health(address, timeoutMs);
+      }
       try {
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -660,7 +667,14 @@ export const useBlockchain = defineStore('blockchain', {
     async setRestEndpoint(endpoint: Endpoint) {
       this.connErr = '';
       this.endpoint = endpoint;
-      this.rpc = CosmosRestClient.newStrategy(endpoint.address, this.current);
+      // Gnoland (Tendermint2): no Cosmos LCD — wire the TM2 JSON-RPC client.
+      // `api[]` in chain config holds the same RPC hosts (so restEndpoints /
+      // health / fallback keep working without a parallel code path).
+      if (isGnoChain(this.current)) {
+        this.rpc = GnoTm2Client.new(endpoint.address) as unknown as CosmosRestClient;
+      } else {
+        this.rpc = CosmosRestClient.newStrategy(endpoint.address, this.current);
+      }
       localStorage.setItem(`endpoint-${this.chainName}`, JSON.stringify(endpoint));
     },
     async setCurrent(name: string) {

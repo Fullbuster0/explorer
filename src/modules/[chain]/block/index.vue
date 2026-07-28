@@ -49,9 +49,23 @@ function loadAvatars(identities: string[]) {
   );
 }
 
-/** Resolve block proposer_address (base64) → validator moniker + identity + logo */
+/** Resolve block proposer_address → validator moniker + identity + logo.
+ *  Cosmos: proposer is base64 of 20-byte cons address.
+ *  Gnoland/TM2: proposer is already bech32 `g1…` (matches operator_address). */
 function resolveProposer(proposerAddress?: string) {
   if (!proposerAddress) return { moniker: '', identity: '', logo: '' };
+  // TM2 / Gno: bech32 proposer — match operator_address directly
+  if (proposerAddress.startsWith('g1') || (!/[=+/]/.test(proposerAddress) && proposerAddress.length >= 20 && !/^[0-9A-F]{40}$/i.test(proposerAddress) && proposerAddress.includes('1'))) {
+    const val = staking.validators.find((x) => x.operator_address === proposerAddress);
+    if (val) {
+      const identity = val.description?.identity || '';
+      return {
+        moniker: val.description?.moniker || proposerAddress,
+        identity,
+        logo: logo(identity),
+      };
+    }
+  }
   try {
     const hex = toHex(fromBase64(proposerAddress)).toUpperCase();
     const val = staking.validators.find(
@@ -61,6 +75,16 @@ function resolveProposer(proposerAddress?: string) {
     const moniker = val?.description?.moniker || format.validator(proposerAddress) || proposerAddress;
     return { moniker, identity, logo: logo(identity) };
   } catch {
+    // also try hex direct / operator match fallback
+    const val = staking.validators.find(
+      (x) =>
+        x.operator_address === proposerAddress ||
+        consensusPubkeyToHexAddress(x.consensus_pubkey) === proposerAddress.toUpperCase()
+    );
+    if (val) {
+      const identity = val.description?.identity || '';
+      return { moniker: val.description?.moniker || proposerAddress, identity, logo: logo(identity) };
+    }
     return { moniker: format.validator(proposerAddress) || proposerAddress, identity: '', logo: '' };
   }
 }

@@ -187,9 +187,17 @@ function clearTime() {
 
 const vals = computed(() =>
   validatorsData.value.map((x: any) => {
-    const x2 = x;
-    // @ts-ignore
-    x2.hex = consensusPubkeyToHexAddress(x.consensus_pubkey);
+    const x2 = { ...x };
+    // Cosmos: hex from ed25519 pubkey. Gno/TM2: operator IS the cons bech32 —
+    // consensus `/validators` returns that same bech32, so keep it as `hex` key
+    // for matching (row address comparison is case-insensitive).
+    const op = String(x.operator_address || '');
+    if (op.startsWith('g') && op.length > 10) {
+      x2.hex = op;
+    } else {
+      // @ts-ignore
+      x2.hex = consensusPubkeyToHexAddress(x.consensus_pubkey);
+    }
     return x2;
   })
 );
@@ -238,10 +246,15 @@ interface Row {
 const rows = computed<Row[]>(() => {
   const vs = currentVoteSet.value;
   const totalVP = positions.value.reduce((s: number, p: any) => s + Number(p.voting_power || 0), 0);
-  const proposerAddr = String(roundState.value?.proposer?.address || '').toUpperCase();
+  // Gno TM2: proposer.address is bech32; Cosmos: often hex. Compare case-insensitively raw.
+  const proposerAddr = String(roundState.value?.proposer?.address || '');
   const built = positions.value.map((p: any, i: number) => {
-    const addr = String(p.address || '').toUpperCase();
-    const val = vals.value.find((x: any) => String(x.hex || '').toUpperCase() === addr);
+    const addr = String(p.address || '');
+    const addrU = addr.toUpperCase();
+    const val = vals.value.find((x: any) => {
+      const h = String(x.hex || '');
+      return h === addr || h.toUpperCase() === addrU || String(x.operator_address || '') === addr;
+    });
     const prevote = vs?.prevotes?.[i];
     const precommit = vs?.precommits?.[i];
     return {
@@ -255,7 +268,9 @@ const rows = computed<Row[]>(() => {
       prevote,
       precommit,
       online: isSigned(prevote),
-      isProposer: proposerAddr !== '' && proposerAddr === addr,
+      isProposer:
+        proposerAddr !== '' &&
+        (proposerAddr === addr || proposerAddr.toUpperCase() === addrU),
     };
   });
   const sorted = [...built].sort((a, b) => b.votingPower - a.votingPower);

@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { ref, onMounted, computed, onUnmounted } from 'vue';
-import { fromHex, toBase64 } from '@cosmjs/encoding';
+import { fromBech32, fromHex, toBase64, toHex } from '@cosmjs/encoding';
 import { useStakingStore, useBaseStore, useBlockchain, useFormatter } from '@/stores';
 import UptimeBar from '@/components/UptimeBar.vue';
 import type { SlashingParam, SigningInfo, Block, Validator } from '@/types';
@@ -50,11 +50,29 @@ function padding(blocks: BlockColor[] = []) {
 }
 
 function mapValidator(v: Validator, status: BondStatus): Omit<ValidatorUnit, 'blocks' | 'uptime' | 'missed_blocks_counter' | 'signing'> {
-  const hex = consensusPubkeyToHexAddress(v.consensus_pubkey);
+  // Gnoland/TM2: operator_address is already the consensus bech32 (g1…),
+  // and block signatures carry base64(bech32-data). Prefer that over the
+  // cosmos ed25519→sha256 hex path when the address is bech32 `g…`.
+  const op = v.operator_address || '';
+  let hex = '';
+  let base64 = '';
+  if (op.startsWith('g') && op.length > 10) {
+    try {
+      const { data } = fromBech32(op);
+      base64 = toBase64(data);
+      hex = toHex(data).toUpperCase();
+    } catch {
+      hex = consensusPubkeyToHexAddress(v.consensus_pubkey);
+      base64 = hex ? toBase64(fromHex(hex)) : '';
+    }
+  } else {
+    hex = consensusPubkeyToHexAddress(v.consensus_pubkey);
+    base64 = hex ? toBase64(fromHex(hex)) : '';
+  }
   return {
     moniker: v.description?.moniker || v.operator_address,
     hex,
-    base64: hex ? toBase64(fromHex(hex)) : '',
+    base64,
     status,
     jailed: !!v.jailed,
     operator_address: v.operator_address,

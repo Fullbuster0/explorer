@@ -50,6 +50,12 @@ export interface LocalChainConfig {
   chain_name: string;
   chain_id?: string;
   network_type?: string;
+  /**
+   * Execution engine. Default cosmos (LCD/REST). Set `gno` / `tm2` for
+   * Gnoland Tendermint2 chains that have no Cosmos SDK REST API — the
+   * explorer then talks JSON-RPC directly via GnoTm2Client.
+   */
+  engine?: 'cosmos' | 'gno' | 'tm2';
   coin_type: string;
   logo: string;
   theme_color?: string;
@@ -122,6 +128,8 @@ export interface ChainConfig {
   assets: Asset[];
   themeColor?: string;
   features?: string[];
+  /** See LocalChainConfig.engine — gno/tm2 → Tendermint2 JSON-RPC client. */
+  engine?: 'cosmos' | 'gno' | 'tm2';
   endpoints: {
     rest?: Endpoint[];
     rpc?: Endpoint[];

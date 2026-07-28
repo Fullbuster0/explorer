@@ -22,13 +22,25 @@ export function operatorAddressToAccount(operAddress?: string) {
 export function consensusPubkeyToHexAddress(consensusPubkey?: { '@type': string; key: string }) {
   if (!consensusPubkey) return '';
   let raw = '';
-  if (consensusPubkey['@type'] === '/cosmos.crypto.ed25519.PubKey') {
-    const pubkey = fromBase64(consensusPubkey.key);
+  const t = consensusPubkey['@type'] || '';
+  // Cosmos ed25519 + Gno/TM2 `/tm.PubKeyEd25519` (normalized to cosmos type in gno adapter,
+  // but accept the raw TM2 type too just in case).
+  if (
+    t === '/cosmos.crypto.ed25519.PubKey' ||
+    t === '/tm.PubKeyEd25519' ||
+    t.endsWith('ed25519.PubKey') ||
+    t.endsWith('PubKeyEd25519')
+  ) {
+    const key = (consensusPubkey as any).key || (consensusPubkey as any).value;
+    if (!key) return raw;
+    const pubkey = fromBase64(key);
     if (pubkey) return toHex(sha256(pubkey)).slice(0, 40).toUpperCase();
   }
 
-  if (consensusPubkey['@type'] === '/cosmos.crypto.secp256k1.PubKey') {
-    const pubkey = fromBase64(consensusPubkey.key);
+  if (t === '/cosmos.crypto.secp256k1.PubKey' || t.endsWith('secp256k1.PubKey')) {
+    const key = (consensusPubkey as any).key || (consensusPubkey as any).value;
+    if (!key) return raw;
+    const pubkey = fromBase64(key);
     if (pubkey) return toHex(new Ripemd160().update(sha256(pubkey)).digest());
   }
   return raw;
