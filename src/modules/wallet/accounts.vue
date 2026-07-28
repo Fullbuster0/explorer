@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { CosmosRestClient } from '@/libs/client';
-import { useBlockchain, useDashboard, useFormatter, useStorageStore } from '@/stores';
+import { useBlockchain, useFormatter, useStorageStore } from '@/stores';
 import type { Coin, CoinWithPrice, Delegation } from '@/types';
 import { fromBech32, toBase64, toBech32, toHex } from '@cosmjs/encoding';
 import { Icon } from '@iconify/vue';
@@ -8,7 +8,6 @@ import { computed } from 'vue';
 import { ref } from 'vue';
 import { scanLocalKeys, type AccountEntry, scanCompatibleAccounts, type LocalKey } from './utils';
 
-const dashboard = useDashboard();
 const chainStore = useBlockchain();
 const format = useFormatter();
 const storageStore = useStorageStore();
@@ -152,12 +151,6 @@ async function addAddress(acc: AccountEntry) {
     conf.value[key].push(acc);
   } else {
     conf.value[key] = [acc];
-  }
-
-  // also add chain to favorite
-  if (!dashboard?.favoriteMap?.[acc.chainName]) {
-    dashboard.favoriteMap[acc.chainName] = true;
-    window.localStorage.setItem('favoriteMap', JSON.stringify(dashboard.favoriteMap));
   }
 
   if (acc.endpoint) {

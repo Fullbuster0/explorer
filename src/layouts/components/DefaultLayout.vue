@@ -144,11 +144,11 @@ dayjs();
           <!-- section heading -->
           <div v-if="isNavTitle(item)" class="sz-section-title">{{ item?.heading }}</div>
 
-          <!-- collapsible group (Favorite) -->
+          <!-- collapsible group (generic) -->
           <div v-else-if="isNavGroup(item)" :tabindex="index" class="collapse collapse-arrow">
             <input type="checkbox" class="cursor-pointer !h-10 block" />
             <div class="collapse-title !py-0 px-3 flex items-center cursor-pointer rounded-lg hover:bg-white/5">
-              <Icon v-if="item?.icon?.icon" :icon="item?.icon?.icon" class="text-lg mr-2.5 text-amber-400" />
+              <Icon v-if="item?.icon?.icon" :icon="item?.icon?.icon" class="text-lg mr-2.5 sz-nav-icon" />
               <span class="text-[13.5px] font-semibold capitalize flex-1 text-slate-200 whitespace-nowrap">
                 {{ item?.title }}
               </span>
@@ -198,8 +198,7 @@ dayjs();
             <Icon
               v-if="item?.icon?.icon"
               :icon="item?.icon?.icon"
-              class="text-[18px] mr-2.5 ml-1"
-              :class="item?.title === 'Favorite' ? 'text-amber-400' : 'sz-nav-icon'"
+              class="text-[18px] mr-2.5 ml-1 sz-nav-icon"
             />
             <img
               v-if="item?.icon?.image"

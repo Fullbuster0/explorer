@@ -15,7 +15,7 @@ const stakingStore = useStakingStore();
 const format = useFormatter();
 const chainStore = useBlockchain();
 const dashboard = useDashboard();
-// storage local favorite validator ids
+// storage local uptime-validator ids
 const local = ref(
   JSON.parse(localStorage.getItem('uptime-validators') || '{}') as Record<string, { name: string; address: string }[]>
 );

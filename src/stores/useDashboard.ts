@@ -154,12 +154,10 @@ export enum LoadingStatus {
 
 export const useDashboard = defineStore('dashboard', {
   state: () => {
-    const favMap = JSON.parse(localStorage.getItem('favoriteMap') || '{"atomone-mainnet":true, "CosmosHub-mainnet":true}');
     return {
       status: LoadingStatus.Empty,
       source: ConfigSource.MainnetCosmosDirectory,
       networkType: NetworkType.Mainnet,
-      favoriteMap: favMap as Record<string, boolean>,
       chains: {} as Record<string, ChainConfig>,
       prices: {} as Record<string, any>,
       coingecko: {} as Record<string, { coinId: string; exponent: number; symbol: string }>,
@@ -178,7 +176,6 @@ export const useDashboard = defineStore('dashboard', {
     loadingPrices() {
       const coinIds = [] as string[];
       const keys = Object.keys(this.chains); // load all blockchain
-      // Object.keys(this.favoriteMap) //only load favorite once it has too many chains
       keys.forEach((k) => {
         if (Array.isArray(this.chains[k]?.assets))
           this.chains[k].assets.forEach((a) => {
@@ -265,16 +262,12 @@ export const useDashboard = defineStore('dashboard', {
     setupDefault() {
       if (this.length > 0) {
         const blockchain = useBlockchain();
-        const keys = Object.keys(this.favoriteMap);
-        for (let i = 0; i < keys.length; i++) {
-          if (!blockchain.chainName && this.chains[keys[i]] && this.favoriteMap[keys[i]]) {
-            blockchain.setCurrent(keys[i]);
-            break;
-          }
-        }
         if (!blockchain.chainName) {
-          const [first] = Object.keys(this.chains);
-          blockchain.setCurrent(first);
+          // Prefer CosmosHub if present, else first chain alphabetically
+          const preferred = this.chains['CosmosHub-mainnet']
+            ? 'CosmosHub-mainnet'
+            : Object.keys(this.chains)[0];
+          blockchain.setCurrent(preferred);
         }
         this.loadingPrices();
       }

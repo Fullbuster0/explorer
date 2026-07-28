@@ -1,7 +1,6 @@
 <script lang="ts" setup>
 import { useDashboard } from '@/stores';
 import { computed } from 'vue';
-import { Icon } from '@iconify/vue';
 
 const props = defineProps({
   name: {
@@ -28,13 +27,6 @@ const isTest = computed(() => {
   const nt = (conf.value?.networkType || '').toLowerCase();
   return nt.includes('test') || /[-_]?test/i.test(props.name);
 });
-
-const addFavor = (e: Event) => {
-  e.stopPropagation();
-  e.preventDefault();
-  dashboardStore.favoriteMap[props.name] = !dashboardStore?.favoriteMap?.[props.name];
-  window.localStorage.setItem('favoriteMap', JSON.stringify(dashboardStore.favoriteMap));
-};
 </script>
 
 <template>
@@ -77,19 +69,6 @@ const addFavor = (e: Event) => {
         {{ conf?.chainName || props.name }}
       </div>
     </div>
-
-    <button
-      type="button"
-      @click="addFavor"
-      class="rounded-lg p-1.5 text-lg transition"
-      :class="{
-        'text-amber-400': dashboardStore?.favoriteMap?.[props.name],
-        'text-base-content/25 hover:text-amber-400': !dashboardStore?.favoriteMap?.[props.name],
-      }"
-      :aria-label="dashboardStore?.favoriteMap?.[props.name] ? 'Unfavorite' : 'Favorite'"
-    >
-      <Icon icon="mdi-star" />
-    </button>
   </RouterLink>
 </template>
 

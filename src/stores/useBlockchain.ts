@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import type { ChainConfig, Endpoint } from '@/types/chaindata';
 import { useDashboard} from './useDashboard';
-import type { NavGroup, NavLink, NavSectionTitle, VerticalNavItems } from '@/layouts/types';
+import type { NavLink, NavSectionTitle, VerticalNavItems } from '@/layouts/types';
 import { useRouter } from 'vue-router';
 import { CosmosRestClient } from '@/libs/client';
 import { PageRequest, type PaginatedTxs, type TxResponse } from '@/types';
@@ -138,30 +138,7 @@ export const useBlockchain = defineStore('blockchain', {
         }
       }
 
-      // Favorites
-      const favNavItems: VerticalNavItems = [];
-      Object.keys(this.dashboard.favoriteMap).forEach((name) => {
-        const ch = this.dashboard.chains[name];
-        if (ch && this.dashboard.favoriteMap?.[name]) {
-          favNavItems.push({
-            title: ch.prettyName || ch.chainName || name,
-            to: { path: `/${ch.chainName || name}` },
-            icon: { image: ch.logo, size: '22' },
-          });
-        }
-      });
-
       items.push({ heading: 'Ecosystem' } as NavSectionTitle);
-      if (favNavItems.length) {
-        items.push({
-          title: 'Favorite',
-          children: favNavItems,
-          badgeContent: favNavItems.length,
-          badgeClass: 'bg-primary',
-          i18n: true,
-          icon: { icon: 'mdi-star', size: '22' },
-        } as NavGroup);
-      }
       items.push({
         title: 'All Blockchains',
         to: { path: '/' },
