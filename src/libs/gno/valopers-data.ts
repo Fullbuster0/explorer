@@ -38,7 +38,7 @@ const registry: GnoValoperRow[] = [
     "signingAddress": "g1cgl35t2cdt70jnctwy3x3gzfm2h4klceyju5c0",
     "pubKey": "gpub1868e6808s76djtzhgvrc5772euste774u6gylk780pldg9m2jhfsdvuxa6",
     "serverType": "data-center",
-    "website": "https://topaz.testnets.gno.land",
+    "website": "",
     "identity": ""
   },
   {
@@ -58,7 +58,7 @@ const registry: GnoValoperRow[] = [
     "signingAddress": "g15e6xjjhnqyp3r0vdsg84kv5sewpp9alp5c9er2",
     "pubKey": "gpub1v6ec640n5t5xn50r0kha5uz25szzm942zzzy8ktypzuag5kg6vwsrtwmpc",
     "serverType": "data-center",
-    "website": "https://discord.com",
+    "website": "https://gatahub.zone",
     "identity": ""
   },
   {
@@ -168,7 +168,7 @@ const registry: GnoValoperRow[] = [
     "signingAddress": "g1uswy0vqwgv370dnrexdg7wlac25n3hp0ac52tf",
     "pubKey": "gpub1fm42226dnzcl6ymy5f9qt492m7602nepju7yttx7dhjznxkny4csvev5vn",
     "serverType": "cloud",
-    "website": "https://x.com/zardozmonopoly",
+    "website": "",
     "identity": ""
   },
   {
@@ -178,7 +178,7 @@ const registry: GnoValoperRow[] = [
     "signingAddress": "g1k6zz4jup7cdl0r9xcv5eg8kcm4qtsk3h4vrxs5",
     "pubKey": "gpub152wjygzvsuq7vgfepzs6ewd4slce2ced44aku2my3w3vrl5wghkskmx2ut",
     "serverType": "data-center",
-    "website": "https://utsa.gitbook.io",
+    "website": "https://utsa.gitbook.io/services",
     "identity": ""
   },
   {
@@ -198,7 +198,7 @@ const registry: GnoValoperRow[] = [
     "signingAddress": "g1d5gjtr8kpuhgkjvdfmnnfw6gwy2rdqplw2d7j5",
     "pubKey": "gpub1u4sncqpxz2h6kmcktnjp4uphpf75rw3hctj8qw90p926d793k5tst0vl0v",
     "serverType": "cloud",
-    "website": "https://discord.gg/xsUbUwE9",
+    "website": "",
     "identity": ""
   },
   {
@@ -218,7 +218,7 @@ const registry: GnoValoperRow[] = [
     "signingAddress": "g1qm9jjrkx3ydjg8qcgh2kj6qe9t6n4gelv5xn0n",
     "pubKey": "gpub1ktjentk6e3u2ls62lvcynzvy54k547vq2jgpfp7q0w3yyfpml39skxm7jn",
     "serverType": "cloud",
-    "website": "https://discord.gg/xsUbUwE9",
+    "website": "",
     "identity": ""
   },
   {
@@ -228,7 +228,7 @@ const registry: GnoValoperRow[] = [
     "signingAddress": "g17269vzp45g393067ulat4knr22wdkx6fukpd9w",
     "pubKey": "gpub198e23l3q0gvq28q3qf3tz9x7e6yh8f43wys00usazawe5e49pzws0mhap4",
     "serverType": "on-prem",
-    "website": "https://explorer.nodesafe-app.xyz",
+    "website": "https://x",
     "identity": ""
   },
   {
@@ -238,7 +238,7 @@ const registry: GnoValoperRow[] = [
     "signingAddress": "g1sesaalahr7xyaqg2vaea79rv8lkcasgzvp7679",
     "pubKey": "gpub12u7kuc7l4g8mtu4uqcsthmptnarwdm7prujuvn350jakjgh3c9rq9aglwn",
     "serverType": "data-center",
-    "website": "https://info.lavanet.xyz",
+    "website": "https://teoviteovi.com",
     "identity": ""
   },
   {
@@ -258,7 +258,7 @@ const registry: GnoValoperRow[] = [
     "signingAddress": "g139sha43j4qdxqj2wmrezzj336tc255r25yu0uz",
     "pubKey": "gpub1926l4jyz589wvjeyz77d4pxaa59s9f4qawls6vlsz5ydq2frhjwq674mqt",
     "serverType": "data-center",
-    "website": "https://gnoscan.doresa.xyz",
+    "website": "https://gnoscan.doresa.xyz/",
     "identity": ""
   },
   {
@@ -358,7 +358,7 @@ const registry: GnoValoperRow[] = [
     "signingAddress": "g1zql5jwmtj0cn3xrkedacm4q79v7a7v2eux930l",
     "pubKey": "gpub19kmrvfd7szv309j7jq0s7t2vwhe4plrt5pypppq0608autw8x4wqgjyyvg",
     "serverType": "data-center",
-    "website": "https://nyan-cat.net",
+    "website": "https://nyan-cat.net/",
     "identity": ""
   },
   {
@@ -378,7 +378,7 @@ const registry: GnoValoperRow[] = [
     "signingAddress": "g1p6jh0ngwf39j34rsq823x8v6gj9nsy4s2ec9ce",
     "pubKey": "gpub18gdhnj8njduress46klympcjy7tke2qxjhgkdzf2eqkf2xuhzsrszf23k8",
     "serverType": "data-center",
-    "website": "https://near-staking.com",
+    "website": "https://onnode.org/",
     "identity": ""
   },
   {
@@ -398,7 +398,7 @@ const registry: GnoValoperRow[] = [
     "signingAddress": "g1u53swh7gr8ckxmjyqpr6vrhcsl4tnyy9s0j4wc",
     "pubKey": "gpub1meew6dnlr5u4qmc6wnd9e9y7p30njgtsfgmzh4ty43qrhp67q5fq2p0448",
     "serverType": "on-prem",
-    "website": "https://x.com/MIPEnode",
+    "website": "",
     "identity": ""
   },
   {
@@ -448,7 +448,7 @@ const registry: GnoValoperRow[] = [
     "signingAddress": "g1lyejcpqgnpe3hzjxn20smlkecxaqnul6tq8jqx",
     "pubKey": "gpub15jp9xglm4gah6glw7nvwdg2uppkcxxz4y0e925dtl9760wvnpv5q9xxal2",
     "serverType": "data-center",
-    "website": "https://github.com/lesnikutsa",
+    "website": "",
     "identity": ""
   },
   {
@@ -538,7 +538,7 @@ const registry: GnoValoperRow[] = [
     "signingAddress": "g15xm8yph0wdjhkq4cjnvfnucqax3g0gkl32jses",
     "pubKey": "gpub165wzdtyal6qfuwhvgc2z0tuh7m3p7nulrlk0ctm2qu99c3lnc09su6hylt",
     "serverType": "data-center",
-    "website": "https://x.com/tecnodesnetwork",
+    "website": "",
     "identity": ""
   },
   {
@@ -628,7 +628,7 @@ const registry: GnoValoperRow[] = [
     "signingAddress": "g1n2n29swq5fp2ugrqnqzpxr98eg85tcdx2zkqkq",
     "pubKey": "gpub1xajmd3zhgjjxfcgz2cdsp5sg5kwqjry8j6qcq8wcktf4tkl6yxls2676q4",
     "serverType": "data-center",
-    "website": "https://github.com/logic-apex",
+    "website": "",
     "identity": ""
   },
   {
@@ -668,7 +668,7 @@ const registry: GnoValoperRow[] = [
     "signingAddress": "g1z35znjrdxr5znpzejyqeuuy3w4ezpenaq6wg7t",
     "pubKey": "gpub1mx37u5ke0ncqlys7rnnpvwq6ekkreedtjr4akxm8ady2fd6ywdgq57sene",
     "serverType": "on-prem",
-    "website": "https://explorer.luckystar.asia/Atomone/staking/atonevaloper160u4kq3ygau92fumg883tplcretptvk7pynh4v",
+    "website": "https://luckystar.asia",
     "identity": ""
   },
   {
@@ -688,7 +688,7 @@ const registry: GnoValoperRow[] = [
     "signingAddress": "g1q7gf9dhv3krkztsfn8t7qx23h6232nzlhn6y83",
     "pubKey": "gpub1383lx0jcthk32ccxqvd73kyquys3fq86u583u78vl0xrjd944keq5h2urk",
     "serverType": "data-center",
-    "website": "https://x.com/StellaNodeX](https://x.com/StellaNodeX",
+    "website": "",
     "identity": ""
   },
   {
@@ -708,7 +708,7 @@ const registry: GnoValoperRow[] = [
     "signingAddress": "g1pr03x28ujl93gayrdlrshh34cnmyq3aasaxtm6",
     "pubKey": "gpub1jr524vqpedxs5yvshehf6dqjsw6nh0rhvhe0627d7xrtxunv7v0sk58cze",
     "serverType": "data-center",
-    "website": "https://discord.gg/bdxYJMM7Kt",
+    "website": "",
     "identity": ""
   },
   {
@@ -728,7 +728,7 @@ const registry: GnoValoperRow[] = [
     "signingAddress": "g1y09t98nvqcsc05gyd3dn7lxj3t6y3w8nx0e9nz",
     "pubKey": "gpub1h5fgvhtn2038xay5537dtmcc6ctr07yr27yff3zydahyc0xjygnsamzm7s",
     "serverType": "on-prem",
-    "website": "https://explorer.luckystar.asia/Atomone/staking/atonevaloper160u4kq3ygau92fumg883tplcretptvk7pynh4v",
+    "website": "https://luckystar.asia",
     "identity": ""
   },
   {
@@ -748,7 +748,7 @@ const registry: GnoValoperRow[] = [
     "signingAddress": "g14g83lmjkmcfar20jqlaea6m5yvzh37v20q329m",
     "pubKey": "gpub1wdgjqul94yagjg8072m5fa884902t8s3xm2nl0re70vn59hsjz9s83mrke",
     "serverType": "cloud",
-    "website": "https://x.com/Chiter_inCosmos?t=hZ1yhF13B-7Erxio46jnMw&s=09",
+    "website": "",
     "identity": ""
   },
   {
@@ -818,7 +818,7 @@ const registry: GnoValoperRow[] = [
     "signingAddress": "g1eyv4vt63yej5kp43kf2a3067m7fyw7lcj5fs7u",
     "pubKey": "gpub1487vpwuxu3d7pmkmljjcz87mgauvj035ydvsapr7am4mr36tdmyssdvv6r",
     "serverType": "data-center",
-    "website": "https://node9x.com/",
+    "website": "",
     "identity": ""
   },
   {
@@ -868,7 +868,7 @@ const registry: GnoValoperRow[] = [
     "signingAddress": "g16s39jfzqqgjznswcunpckrk2n423efe4ree3w2",
     "pubKey": "gpub148edycjhp557e8ud3zw2jsphzagdaau8p0eg242eqcd7zvav0jpqmf9dsf",
     "serverType": "data-center",
-    "website": "https://x.com/nsk1984x",
+    "website": "",
     "identity": ""
   },
   {
@@ -878,7 +878,7 @@ const registry: GnoValoperRow[] = [
     "signingAddress": "g1k92w2z8rplhxqref40ae8qxtluscqpn7faw40m",
     "pubKey": "gpub1vl9h7t78hs0p75vlfc7tgx2feug9wgzt5ys48pfr4a3szy69m9yqdp0j3a",
     "serverType": "data-center",
-    "website": "https://x.com/kromo7617",
+    "website": "",
     "identity": ""
   },
   {

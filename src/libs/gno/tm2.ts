@@ -188,9 +188,15 @@ export function tm2ValidatorToStaking(v: any): Validator {
   const pub = normalizeTm2PubKey(v.pub_key);
   const meta = lookupGnoValoper(address);
   const moniker = gnoMoniker(address);
-  const details =
-    (meta?.description || '').trim() ||
-    (meta?.serverType ? `Gnoland validator · ${meta.serverType}` : 'Gnoland TM2 validator');
+  // Don't dump full application essay into details — list UI uses website line.
+  const details = meta?.serverType
+    ? `Gnoland validator · ${meta.serverType}`
+    : 'Gnoland TM2 validator';
+  let website = (meta?.website || '').trim();
+  // Drop markdown leftovers / chat invites from the list subtitle.
+  if (!/^https?:\/\//i.test(website) || /\]\(|discord\.gg|t\.me\//i.test(website)) {
+    website = '';
+  }
   return {
     // Keep signing address as operator_address so proposer/uptime matching
     // (bech32 g1…) keeps working. Registry operatorAddress is secondary.
@@ -203,9 +209,9 @@ export function tm2ValidatorToStaking(v: any): Validator {
     description: {
       moniker,
       identity: meta?.identity || '',
-      website: meta?.website || '',
+      website,
       security_contact: '',
-      details: details.slice(0, 500),
+      details,
     },
     unbonding_height: '0',
     unbonding_time: '1970-01-01T00:00:00Z',
