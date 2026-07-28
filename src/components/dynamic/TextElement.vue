@@ -55,7 +55,7 @@ const isConvertable = computed(() => {
 });
 </script>
 <template>
-  <MdEditor v-if="isMD()" :model-value="format.multiLine(value)" previewOnly class="md-editor-recover"></MdEditor>
+  <MdEditor v-if="isMD()" :model-value="format.multiLine(value)" previewOnly no-mermaid no-katex no-iconfont class="md-editor-recover"></MdEditor>
   <span v-else-if="isAddress()" class="flex">
     <RouterLink :to="`/${chainStore.chainName}/account/${text}`">{{ text }}</RouterLink>
     <div v-for="{ name, provider } in names">

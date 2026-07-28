@@ -989,7 +989,7 @@ onUnmounted(() => {
         <div v-if="proposalSummary">
           <MdEditor
             :model-value="format.multiLine(proposalSummary)"
-            previewOnly
+            previewOnly no-mermaid no-katex no-iconfont
             class="md-editor-recover"
           />
         </div>

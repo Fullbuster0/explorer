@@ -361,7 +361,7 @@ const amount = computed({
                 class="sz-hero-about mt-4 max-w-3xl text-sm leading-relaxed text-secondary"
                 :class="{ 'sz-hero-about--clamped': !aboutExpanded }"
               >
-                <MdEditor :model-value="coinInfo.description?.en" previewOnly />
+                <MdEditor :model-value="coinInfo.description?.en" previewOnly no-mermaid no-katex no-iconfont />
               </div>
               <button
                 v-if="coinInfo.description?.en"

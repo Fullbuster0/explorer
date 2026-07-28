@@ -1,6 +1,8 @@
 // import 'ping-widget';
 import App from '@/App.vue';
 import i18n from '@/plugins/i18n';
+// md-editor: self-hosted hljs, no CDN (CSP script-src 'self')
+import '@/plugins/md-editor';
 import '@/style.css';
 import { createApp } from 'vue';
 import { createPinia } from 'pinia';
