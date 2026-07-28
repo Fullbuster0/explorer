@@ -78,7 +78,16 @@ onMounted(() => {
       </div>
       <div class="sz-comm-scale">
         <span>0%</span>
-        <span class="sz-comm-scale-max">ceiling {{ max.toFixed(0) }}%</span>
+        <span class="sz-comm-scale-max">
+          ceiling {{ max.toFixed(0) }}%
+          <span class="sz-comm-tip" tabindex="0">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="9"></circle>
+              <path d="M12 8h.01M12 12v4.5"></path>
+            </svg>
+            <span class="sz-comm-tip-text">The hard cap on commission — <em>max_rate</em>. Set once at validator creation and locked forever; the rate can move below it, never above.</span>
+          </span>
+        </span>
       </div>
     </div>
 
