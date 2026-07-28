@@ -31,7 +31,7 @@
     <link rel="stylesheet" type="text/css" href="/loader.css" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://at.alicdn.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com; img-src 'self' data: https:; connect-src 'self' https: http: data:; frame-src 'self' https://wallet.keplr.app; font-src 'self' data: https://fonts.gstatic.com https://cdnjs.cloudflare.com https://at.alicdn.com;"
+      content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https: wss: data:; frame-src 'self' https://wallet.keplr.app; worker-src 'self' blob:; child-src 'self' blob:; form-action 'self'; upgrade-insecure-requests"
     />
   </head>
   <body>
@@ -44,11 +44,7 @@
     <script type="module" src="/src/main.ts"></script>
     <!-- ping-pub wallet/tx web-components: Connect Wallet, Send, Delegate, Swap.
          Distinct from the removed /widget route (sidebar module). Keep this. -->
-    <script
-      type="module"
-      src="https://cdn.jsdelivr.net/npm/@ping-pub/widget@0.3.12/dist/widget.min.js"
-      integrity="sha384-qKDWL/dPjkTzqn43/+vE52grvtXBgPxy7lPW+vxnjpOn9zJuHiu4DJ2TR3FrlPB5"
-      crossorigin="anonymous"
-    ></script>
+    <!-- Self-hosted @ping-pub/widget@0.3.12 full dist (entry + chunks). See public/vendor/README.md -->
+    <script type="module" src="/vendor/ping-widget/widget.js"></script>
   </body>
 </html>
