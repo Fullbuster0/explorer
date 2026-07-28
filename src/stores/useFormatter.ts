@@ -143,23 +143,28 @@ export const useFormatter = defineStore('formatter', {
         conf.denom_units.forEach((x) => {
           if (x.exponent >= exponent) exponent = x.exponent;
         });
-        return Number(token.amount) / 10 ** exponent;
+        const raw = Number(token.amount);
+        if (!Number.isFinite(raw)) return 0;
+        const amt = raw / 10 ** exponent;
+        return Number.isFinite(amt) ? amt : 0;
       }
 
       // find the symbol
       const symbol = this.dashboard.coingecko[token.denom]?.symbol || token.denom;
       // convert denomination to symbol
       const exponent = this.dashboard.coingecko[symbol?.toLowerCase()]?.exponent || this.specialDenom(token.denom);
-      // caculate amount of symbol
-      const amount = Number(token.amount) / 10 ** exponent;
-      return amount;
+      // calculate amount of symbol — always return a finite number (audit ACC-02 NaN)
+      const raw = Number(token.amount);
+      if (!Number.isFinite(raw)) return 0;
+      const amount = raw / 10 ** exponent;
+      return Number.isFinite(amount) ? amount : 0;
     },
     tokenValueNumber(token?: Coin) {
       if (!token || !token.denom) return 0;
 
       const amount = this.tokenAmountNumber(token);
       const value = amount * this.price(token.denom);
-      return value;
+      return Number.isFinite(value) ? value : 0;
     },
     formatTokenAmount(token: { denom: string; amount: string }) {
       return this.formatToken(token, false);
@@ -377,8 +382,14 @@ export const useFormatter = defineStore('formatter', {
     formatNumber(input?: number, fmt = '0.[00]') {
       // 0 is a valid amount — do NOT treat it as missing (old `if (!input)`
       // made Total Value render as bare "$" and unbonding as " ATOM").
-      if (input === undefined || input === null || Number.isNaN(Number(input))) return '';
-      return numeral(Number(input)).format(fmt);
+      // Also reject Infinity / NaN so the UI never prints the literal "NaN"
+      // (audit ACC-02 on account rewards composition).
+      if (input === undefined || input === null) return '';
+      const n = Number(input);
+      if (!Number.isFinite(n)) return '0';
+      const out = numeral(n).format(fmt);
+      // numeral can still yield "NaN" for edge inputs — never leak it
+      return out === 'NaN' || out === 'Infinity' ? '0' : out;
     },
     numberAndSign(input: number, fmt = '+0,0') {
       return numeral(input).format(fmt);

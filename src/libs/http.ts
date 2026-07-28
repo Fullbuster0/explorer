@@ -69,13 +69,44 @@ try {
   console.error(error.message);
 }
 // */
+/**
+ * Parse JSON only after validating HTTP status + content.
+ * Bare res.json() on 4xx/5xx/HTML/empty bodies caused uncaught
+ * `SyntaxError: Unexpected end of JSON input` / `Unexpected token '<'`
+ * across gov, accounts, coingecko-adjacent paths (audit HTTP-01).
+ */
+async function readJsonOrThrow(res: Response) {
+  if (!res.ok) {
+    // Drain body so the connection can be reused; ignore parse failures.
+    try {
+      await res.text();
+    } catch {
+      /* ignore */
+    }
+    throw new Error(`HTTP error: ${res.status}, ${res.statusText}`);
+  }
+  const text = await res.text();
+  if (!text || !text.trim()) {
+    throw new Error(`HTTP error: empty body (${res.status})`);
+  }
+  try {
+    return JSON.parse(text);
+  } catch (e: any) {
+    const snip = text.slice(0, 80).replace(/\s+/g, ' ');
+    throw new Error(`HTTP error: invalid JSON (${res.status}): ${snip}`);
+  }
+}
+
 export async function get(url: string, init: RequestInit = {}) {
   const res = await fetchRetry(url, { referrerPolicy: 'origin-when-cross-origin', ...init });
-  return res.json();
+  return readJsonOrThrow(res);
 }
 
 export async function getB(url: string) {
   const res = await fetchRetry(url, { referrerPolicy: 'origin-when-cross-origin' });
+  if (!res.ok) {
+    throw new Error(`HTTP error: ${res.status}, ${res.statusText}`);
+  }
   return res.arrayBuffer();
 }
 
@@ -92,6 +123,5 @@ export async function post(url: string, data: any) {
     },
     body: JSON.stringify(data), // body data type must match "Content-Type"
   });
-  // const response = await axios.post((config ? config.api : this.config.api) + url, data)
-  return response.json(); // parses JSON response into native JavaScript objects
+  return readJsonOrThrow(response);
 }

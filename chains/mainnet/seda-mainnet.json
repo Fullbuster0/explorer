@@ -18,48 +18,24 @@
   "github": "https://github.com/sedaprotocol/seda-chain",
   "api": [
     {
-      "address": "https://seda-mainnet-api.shazoes.xyz",
-      "provider": "Shazoes"
-    },
-    {
-      "address": "https://seda.api.kjnodes.com",
-      "provider": "kjnodes"
-    },
-    {
       "address": "https://seda-api.polkachu.com",
       "provider": "Polkachu"
-    },
-    {
-      "address": "https://rest.cosmos.directory/seda",
-      "provider": "cosmos.directory"
     },
     {
       "address": "https://lcd.mainnet.seda.xyz",
       "provider": "SEDA"
     },
     {
-      "address": "https://rest.lavenderfive.com:443/seda",
-      "provider": "Lavender.Five Nodes 🐝"
-    },
-    {
-      "address": "https://seda.ibs.team:443/api",
-      "provider": "Inter Blockchain Services"
-    },
-    {
-      "address": "https://lcd.seda.bronbro.io:443",
-      "provider": "Bro_n_Bro"
-    },
-    {
-      "address": "https://seda_mainnet_api.chain.whenmoonwhenlambo.money",
-      "provider": "🚀 WHEN MOON 🌕 WHEN LAMBO 🔥"
-    },
-    {
-      "address": "https://seda-api.node39.top:443",
-      "provider": "Node39.TOP"
+      "address": "https://rest.cosmos.directory/seda",
+      "provider": "cosmos.directory"
     },
     {
       "address": "https://seda-rest.cosmos-apis.com:443",
-      "provider": "RHINO 🦏"
+      "provider": "RHINO \ud83e\udd8f"
+    },
+    {
+      "address": "https://rest.lavenderfive.com:443/seda",
+      "provider": "Lavender.Five Nodes \ud83d\udc1d"
     },
     {
       "address": "https://seda.api.cumulo.org.es",
@@ -71,7 +47,7 @@
     },
     {
       "address": "https://seda-api.stakeandrelax.net",
-      "provider": "Stake&Relax 🦥"
+      "provider": "Stake&Relax \ud83e\udda5"
     },
     {
       "address": "https://rest.cros-nest.com/seda",
@@ -84,6 +60,30 @@
     {
       "address": "https://seda-api.kleomedes.network",
       "provider": "Kleomedes"
+    },
+    {
+      "address": "https://seda-mainnet-api.shazoes.xyz",
+      "provider": "Shazoes"
+    },
+    {
+      "address": "https://seda.api.kjnodes.com",
+      "provider": "kjnodes"
+    },
+    {
+      "address": "https://seda.ibs.team:443/api",
+      "provider": "Inter Blockchain Services"
+    },
+    {
+      "address": "https://lcd.seda.bronbro.io:443",
+      "provider": "Bro_n_Bro"
+    },
+    {
+      "address": "https://seda_mainnet_api.chain.whenmoonwhenlambo.money",
+      "provider": "\ud83d\ude80 WHEN MOON \ud83c\udf15 WHEN LAMBO \ud83d\udd25"
+    },
+    {
+      "address": "https://seda-api.node39.top:443",
+      "provider": "Node39.TOP"
     }
   ],
   "rpc": [
@@ -109,7 +109,7 @@
     },
     {
       "address": "https://rpc.lavenderfive.com:443/seda",
-      "provider": "Lavender.Five Nodes 🐝"
+      "provider": "Lavender.Five Nodes \ud83d\udc1d"
     },
     {
       "address": "https://seda.ibs.team:443/rpc",
@@ -121,7 +121,7 @@
     },
     {
       "address": "https://seda_mainnet_rpc.chain.whenmoonwhenlambo.money:443",
-      "provider": "🚀 WHEN MOON 🌕 WHEN LAMBO 🔥"
+      "provider": "\ud83d\ude80 WHEN MOON \ud83c\udf15 WHEN LAMBO \ud83d\udd25"
     },
     {
       "address": "https://seda-rpc.node39.top:443",
@@ -129,7 +129,7 @@
     },
     {
       "address": "https://seda-rpc.cosmos-apis.com:443",
-      "provider": "RHINO 🦏"
+      "provider": "RHINO \ud83e\udd8f"
     },
     {
       "address": "https://seda.rpc.cumulo.org.es",
@@ -141,7 +141,7 @@
     },
     {
       "address": "https://seda-rpc.stakeandrelax.net",
-      "provider": "Stake&Relax 🦥"
+      "provider": "Stake&Relax \ud83e\udda5"
     },
     {
       "address": "https://rpc.cros-nest.com/seda",

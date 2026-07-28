@@ -101,10 +101,11 @@ const bondBalances = computed(() => {
 
 // total raw token amounts per category (used for donut + share bars)
 const totalsRaw = computed(() => {
+  const fin = (n: number) => (Number.isFinite(n) ? n : 0);
   let sumBal = 0;
-  bondBalances.value?.forEach((x) => (sumBal += format.tokenAmountNumber(x)));
+  bondBalances.value?.forEach((x) => (sumBal += fin(format.tokenAmountNumber(x))));
   let sumDel = 0;
-  delegations.value?.forEach((x) => (sumDel += format.tokenAmountNumber(x.balance)));
+  delegations.value?.forEach((x) => (sumDel += fin(format.tokenAmountNumber(x.balance))));
   // Rewards portfolio slice is BOND-DENOM only. Other reward denoms (IBC
   // stTokens etc.) show up in the Secondary balances / rewards cell —
   // summing them here mixed raw micro-units into the ATOM donut and
@@ -112,23 +113,31 @@ const totalsRaw = computed(() => {
   const bond = stakingStore.params.bond_denom;
   let sumRew = 0;
   rewards.value?.total?.forEach((x) => {
-    if (!bond || x.denom === bond) sumRew += format.tokenAmountNumber(x);
+    if (!bond || x.denom === bond) sumRew += fin(format.tokenAmountNumber(x));
   });
   let sumUn = 0;
   unbonding.value?.forEach((x) =>
     x.entries?.forEach(
       (y) =>
-        (sumUn += format.tokenAmountNumber({
-          amount: y.balance,
-          denom: stakingStore.params.bond_denom,
-        }))
+        (sumUn += fin(
+          format.tokenAmountNumber({
+            amount: y.balance,
+            denom: stakingStore.params.bond_denom,
+          })
+        ))
     )
   );
-  return { available: sumBal, delegated: sumDel, rewards: sumRew, unbonding: sumUn };
+  return {
+    available: fin(sumBal),
+    delegated: fin(sumDel),
+    rewards: fin(sumRew),
+    unbonding: fin(sumUn),
+  };
 });
 const totalAmount = computed(() => {
   const t = totalsRaw.value;
-  return t.available + t.delegated + t.rewards + t.unbonding;
+  const s = t.available + t.delegated + t.rewards + t.unbonding;
+  return Number.isFinite(s) ? s : 0;
 });
 const totalAmountByCategory = computed(() => [
   totalsRaw.value.available,
@@ -400,9 +409,9 @@ function findTokenAmount(
               </div>
             </div>
             <div class="sz-acc-comp-figures">
-              <div class="sz-acc-comp-pct">{{ totalAmount > 0 ? ((amt / totalAmount) * 100).toFixed(1) : '0.0' }}%</div>
+              <div class="sz-acc-comp-pct">{{ totalAmount > 0 && Number.isFinite(amt) ? ((amt / totalAmount) * 100).toFixed(1) : '0.0' }}%</div>
               <div class="sz-acc-comp-amount">
-                {{ format.formatNumber(amt, '0,0.[000000]') }} {{ bondSymbol }}
+                {{ format.formatNumber(Number.isFinite(amt) ? amt : 0, '0,0.[000000]') }} {{ bondSymbol }}
               </div>
             </div>
           </div>

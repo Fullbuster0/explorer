@@ -21,12 +21,8 @@
       "provider": "Shazoes"
     },
     {
-      "address": "https://atomone.api.nodeshub.online",
-      "provider": "NodesHub"
-    },
-    {
       "address": "https://atomone-rest.publicnode.com",
-      "provider": "Allnodes ⚡️ Nodes & Staking"
+      "provider": "Allnodes \u26a1\ufe0f Nodes & Staking"
     },
     {
       "address": "https://atomone-mainnet-api.itrocket.net",
@@ -37,12 +33,16 @@
       "provider": "cosmos.directory"
     },
     {
+      "address": "https://atomone.api.nodeshub.online",
+      "provider": "NodesHub"
+    },
+    {
       "address": "https://atomone-api.allinbits.com",
       "provider": "AllInBits"
     },
     {
       "address": "https://atomone-api.cogwheel.zone",
-      "provider": "Cogwheel ⚙️"
+      "provider": "Cogwheel \u2699\ufe0f"
     },
     {
       "address": "https://api-atomone.nodeist.net",
@@ -54,7 +54,7 @@
     },
     {
       "address": "https://atomone_mainnet_api.chain.whenmoonwhenlambo.money",
-      "provider": "🚀 WHEN MOON 🌕 WHEN LAMBO 🔥"
+      "provider": "\ud83d\ude80 WHEN MOON \ud83c\udf15 WHEN LAMBO \ud83d\udd25"
     },
     {
       "address": "https://atomone.ibs.team:443/api",
@@ -62,15 +62,15 @@
     },
     {
       "address": "https://atomone-mainnet-lcd.autostake.com:443",
-      "provider": "AutoStake 🛡️ Slash Protected"
+      "provider": "AutoStake \ud83d\udee1\ufe0f Slash Protected"
     },
     {
       "address": "https://api.atomone-1.atomone.aviaone.com",
-      "provider": "AVIAONE.com 🟢"
+      "provider": "AVIAONE.com \ud83d\udfe2"
     },
     {
       "address": "https://atomone.api.m.stavr.tech",
-      "provider": "🔥STAVR🔥"
+      "provider": "\ud83d\udd25STAVR\ud83d\udd25"
     },
     {
       "address": "https://api.atomone.citizenweb3.com",
@@ -98,7 +98,7 @@
     },
     {
       "address": "https://atomone-mainnet-api.bonynode.online",
-      "provider": "BonyNode💚"
+      "provider": "BonyNode\ud83d\udc9a"
     },
     {
       "address": "https://rest-atomone.22node.xyz",
@@ -142,7 +142,7 @@
     },
     {
       "address": "https://atomone-mainnet-api.oshvank.xyz",
-      "provider": "🏆OshVanK🏆"
+      "provider": "\ud83c\udfc6OshVanK\ud83c\udfc6"
     },
     {
       "address": "https://atomone-api.kleomedes.network",
@@ -178,7 +178,7 @@
     },
     {
       "address": "https://atomone-rpc.publicnode.com:443",
-      "provider": "Allnodes ⚡️ Nodes & Staking"
+      "provider": "Allnodes \u26a1\ufe0f Nodes & Staking"
     },
     {
       "address": "https://atomone-mainnet-rpc.itrocket.net:443",
@@ -194,7 +194,7 @@
     },
     {
       "address": "https://atomone-rpc.cogwheel.zone",
-      "provider": "Cogwheel ⚙️"
+      "provider": "Cogwheel \u2699\ufe0f"
     },
     {
       "address": "https://rpc-atomone.nodeist.net",
@@ -206,7 +206,7 @@
     },
     {
       "address": "https://atomone_mainnet_rpc.chain.whenmoonwhenlambo.money",
-      "provider": "🚀 WHEN MOON 🌕 WHEN LAMBO 🔥"
+      "provider": "\ud83d\ude80 WHEN MOON \ud83c\udf15 WHEN LAMBO \ud83d\udd25"
     },
     {
       "address": "https://atomone.ibs.team:443/rpc",
@@ -214,15 +214,15 @@
     },
     {
       "address": "https://atomone-mainnet-rpc.autostake.com:443",
-      "provider": "AutoStake 🛡️ Slash Protected"
+      "provider": "AutoStake \ud83d\udee1\ufe0f Slash Protected"
     },
     {
       "address": "https://rpc.atomone-1.atomone.aviaone.com:443",
-      "provider": "AVIAONE.com 🟢"
+      "provider": "AVIAONE.com \ud83d\udfe2"
     },
     {
       "address": "https://atomone.rpc.m.stavr.tech:443",
-      "provider": "🔥STAVR🔥"
+      "provider": "\ud83d\udd25STAVR\ud83d\udd25"
     },
     {
       "address": "https://rpc.atomone.citizenweb3.com:443",
@@ -250,7 +250,7 @@
     },
     {
       "address": "https://atomone-mainnet-rpc.bonynode.online",
-      "provider": "BonyNode💚"
+      "provider": "BonyNode\ud83d\udc9a"
     },
     {
       "address": "https://rpc-atomone.22node.xyz",
@@ -294,7 +294,7 @@
     },
     {
       "address": "https://atomone-mainnet-rpc.oshvank.xyz",
-      "provider": "🏆OshVanK🏆"
+      "provider": "\ud83c\udfc6OshVanK\ud83c\udfc6"
     },
     {
       "address": "https://atomone-rpc.kleomedes.network",

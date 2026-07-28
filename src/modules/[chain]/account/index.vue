@@ -11,6 +11,8 @@ const chainStore = useBlockchain();
 const accounts = ref([] as AuthAccount[]);
 const pageRequest = ref(new PageRequest());
 const pageResponse = ref({} as Pagination);
+const loading = ref(false);
+const errorMsg = ref('');
 
 onMounted(() => {
   pageload(1);
@@ -18,10 +20,29 @@ onMounted(() => {
 
 function pageload(p: number) {
   pageRequest.value.setPage(p);
-  chainStore.rpc.getAuthAccounts(pageRequest.value).then((x) => {
-    accounts.value = x.accounts;
-    pageResponse.value = x.pagination;
-  });
+  loading.value = true;
+  errorMsg.value = '';
+  chainStore.rpc
+    .getAuthAccounts(pageRequest.value)
+    .then((x) => {
+      accounts.value = x?.accounts || [];
+      pageResponse.value = x?.pagination || ({} as Pagination);
+      if (!accounts.value.length) {
+        errorMsg.value =
+          'No accounts returned. This LCD may restrict the auth accounts list — try another endpoint from the network menu, or open a specific address via search.';
+      }
+    })
+    .catch((e: any) => {
+      accounts.value = [];
+      pageResponse.value = {} as Pagination;
+      const msg = String(e?.message || e || 'Failed to load accounts');
+      errorMsg.value = msg.includes('HTTP error')
+        ? `${msg}. Many public LCDs block /cosmos/auth/v1beta1/accounts — switch endpoint or search an address directly.`
+        : msg;
+    })
+    .finally(() => {
+      loading.value = false;
+    });
 }
 
 function showType(v: string) {
@@ -61,6 +82,10 @@ function showPubkey(v: any) {
       </div>
     </div>
 
+    <div v-if="errorMsg" class="alert alert-warning mb-4 text-sm">
+      <span>{{ errorMsg }}</span>
+    </div>
+
     <div class="sz-section overflow-hidden">
       <div class="overflow-x-auto">
         <table class="sz-table">
@@ -74,6 +99,9 @@ function showPubkey(v: any) {
             </tr>
           </thead>
           <tbody>
+            <tr v-if="loading">
+              <td colspan="5" class="text-center opacity-60 py-6">Loading accounts…</td>
+            </tr>
             <tr v-for="acc in accounts" :key="showAddress(acc)">
               <td><span class="sz-msg">{{ showType(acc['@type']) }}</span></td>
               <td>
