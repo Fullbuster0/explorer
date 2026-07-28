@@ -122,10 +122,22 @@ const VOTES_LIMIT = 10;
 
 const page = new PageRequest();
 const powerPage = new PageRequest();
-const delPage = new PageRequest();
+
+/** Delegations table pagination — fully client-side once allDelegations is
+ *  loaded. Kept as reactive refs (NOT a plain PageRequest object) so the
+ *  sortedDelegations computed re-runs on page/size change. A non-reactive
+ *  PageRequest here was the old bug: clicking a page mutated delPage.offset
+ *  but Vue never tracked it, so the table never changed page. */
+const delPageNum = ref(1);
+const delPageSize = ref(10);
+const DEL_PAGE_SIZES = [10, 25, 50];
 
 /** Max rows shown in Power Events / Transactions tabs (scroll, no pagination). */
 const ACTIVITY_LIMIT = 20;
+/** Hard cap on the Transactions infinite-scroll list so a busy validator
+ *  doesn't pile unlimited txs into memory. Beyond this we point to the full
+ *  account page. */
+const TXS_MAX = 100;
 
 addresses.value.account = operatorAddressToAccount(validator);
 
@@ -292,12 +304,16 @@ async function loadAllDelegations() {
 
 /** Page flip is pure client-side once allDelegations is loaded. */
 function pageload(p: number) {
-  delPage.limit = 10;
-  delPage.setPage(p);
+  delPageNum.value = p;
   // If we haven't loaded yet, kick off the full fetch
   if (!allDelegations.value.length && !delegationsLoading.value) {
     loadAllDelegations();
   }
+}
+
+/** Row-count selector (10/25/50). Reset to page 1 on size change. */
+function onDelPageSizeChange() {
+  delPageNum.value = 1;
 }
 
 function loadPowerEvents(_p: number, type: EventType) {
@@ -390,6 +406,11 @@ function loadAccountTxs() {
 
 function loadMoreAccountTxs() {
   if (!txsHasMore.value || txsLoading.value) return;
+  // Hard cap: stop piling txs into memory on busy validators.
+  if ((txs.value?.tx_responses?.length || 0) >= TXS_MAX) {
+    txsHasMore.value = false;
+    return;
+  }
   txsLoading.value = true;
   txsPage += 1;
   const pr = new PageRequest();
@@ -399,11 +420,14 @@ function loadMoreAccountTxs() {
     .fetchAccountTxs(addresses.value.account, pr, ACTIVITY_LIMIT)
     .then((x: any) => {
       const rows = x?.tx_responses || [];
+      let combined = [...(txs.value?.tx_responses || []), ...rows];
+      if (combined.length > TXS_MAX) combined = combined.slice(0, TXS_MAX);
       txs.value = {
         ...txs.value,
-        tx_responses: [...(txs.value?.tx_responses || []), ...rows],
+        tx_responses: combined,
       } as PaginatedTxs;
-      txsHasMore.value = rows.length >= ACTIVITY_LIMIT;
+      // more only if under cap AND the page was full
+      txsHasMore.value = combined.length < TXS_MAX && rows.length >= ACTIVITY_LIMIT;
     })
     .catch(() => {
       txsHasMore.value = false;
@@ -412,6 +436,9 @@ function loadMoreAccountTxs() {
       txsLoading.value = false;
     });
 }
+
+/** True once the Transactions list hit the TXS_MAX cap. */
+const txsCapped = computed(() => (txs.value?.tx_responses?.length || 0) >= TXS_MAX);
 
 // IntersectionObserver sentinel for "load more on scroll"
 const txsSentinel = ref<HTMLElement | null>(null);
@@ -593,11 +620,10 @@ const tipMsg = computed(() => {
 });
 
 /** Sorted (desc by amount) delegations for the current page.
- *  allDelegations is globally sorted; slice by page offset/limit. */
+ *  allDelegations is globally sorted; slice by page number/size (reactive). */
 const sortedDelegations = computed(() => {
-  const limit = delPage.limit || 10;
-  const offset = delPage.offset || 0;
-  return allDelegations.value.slice(offset, offset + limit);
+  const offset = (delPageNum.value - 1) * delPageSize.value;
+  return allDelegations.value.slice(offset, offset + delPageSize.value);
 });
 
 /** Validator object + distribution rewards/commission. Retried via the rpc
@@ -995,7 +1021,7 @@ watch(
             >
               <td>
                 <span class="sz-chip font-mono !text-[10px]">
-                  {{ (delPage.offset || 0) + i + 1 }}
+                  {{ (delPageNum - 1) * delPageSize + i + 1 }}
                 </span>
               </td>
               <td>
@@ -1014,10 +1040,22 @@ watch(
           </tbody>
         </table>
       </div>
-      <div class="px-2">
+      <div class="flex flex-wrap items-center justify-between gap-3 px-4 py-1">
+        <label class="flex items-center gap-2 text-[11.5px] text-secondary">
+          <span>Rows</span>
+          <select
+            v-model.number="delPageSize"
+            class="select select-bordered select-xs !h-7 !min-h-0 font-mono text-[12px]"
+            @change="onDelPageSizeChange"
+          >
+            <option v-for="s in DEL_PAGE_SIZES" :key="s" :value="s">{{ s }}</option>
+          </select>
+          <span class="opacity-70">per page</span>
+        </label>
         <PaginationBar
+          :key="delPageSize"
           :total="String(delegatorTotal || delegations.pagination?.total || 0)"
-          :limit="delPage.limit"
+          :limit="delPageSize"
           :callback="pageload"
         />
       </div>
@@ -1269,6 +1307,13 @@ watch(
             <span class="loading loading-spinner loading-xs"></span>
             Loading…
           </span>
+          <RouterLink
+            v-else-if="txsCapped"
+            class="link link-primary no-underline hover:underline"
+            :to="`/${chain}/account/${addresses.account}`"
+          >
+            Capped at {{ TXS_MAX }} — full history on the account page →
+          </RouterLink>
           <span v-else-if="!txsHasMore && (txs.tx_responses?.length || 0) > 0" class="opacity-70">
             End of list
           </span>
