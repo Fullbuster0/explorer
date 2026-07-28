@@ -111,6 +111,20 @@ function updateState() {
   walletStore.loadMyAsset();
 }
 
+// Wallet cell display — distinguishes "not connected" (—), "loading" (…),
+// and "loaded & zero" (real 0). Without this, an empty wallet shows 0 before
+// its data arrives, which reads as a real balance of zero.
+function walletDisplay(loaded: boolean, coin: { amount: string; denom: string }): string {
+  if (!walletStore.currentAddress) return '—';
+  if (!loaded) return '…';
+  return format.formatToken(coin);
+}
+function walletUsd(loaded: boolean, coin: { amount: string; denom: string }): string {
+  if (!walletStore.currentAddress) return '—';
+  if (!loaded) return '…';
+  return format.tokenValue(coin);
+}
+
 function trustColor(v: string) {
   return `text-${colorMap(v)}`;
 }
@@ -651,30 +665,30 @@ const amount = computed({
         <div class="sz-wallet-cell">
           <div class="sz-stat-label">{{ $t('account.balance') }}</div>
           <div class="mt-1 truncate font-mono text-lg font-semibold text-main">
-            {{ format.formatToken(walletStore.balanceOfStakingToken) }}
+            {{ walletDisplay(walletStore.loadedBalances, walletStore.balanceOfStakingToken) }}
           </div>
-          <div class="text-sm" :class="color">${{ format.tokenValue(walletStore.balanceOfStakingToken) }}</div>
+          <div class="text-sm" :class="color">${{ walletUsd(walletStore.loadedBalances, walletStore.balanceOfStakingToken) }}</div>
         </div>
         <div class="sz-wallet-cell">
           <div class="sz-stat-label">{{ $t('account.delegations') }}</div>
           <div class="mt-1 truncate font-mono text-lg font-semibold text-main">
-            {{ format.formatToken(walletStore.stakingAmount) }}
+            {{ walletDisplay(walletStore.loadedDelegations, walletStore.stakingAmount) }}
           </div>
-          <div class="text-sm" :class="color">${{ format.tokenValue(walletStore.stakingAmount) }}</div>
+          <div class="text-sm" :class="color">${{ walletUsd(walletStore.loadedDelegations, walletStore.stakingAmount) }}</div>
         </div>
         <div class="sz-wallet-cell">
           <div class="sz-stat-label">{{ $t('index.reward') }}</div>
           <div class="mt-1 truncate font-mono text-lg font-semibold text-main">
-            {{ format.formatToken(walletStore.rewardAmount) }}
+            {{ walletDisplay(walletStore.loadedRewards, walletStore.rewardAmount) }}
           </div>
-          <div class="text-sm" :class="color">${{ format.tokenValue(walletStore.rewardAmount) }}</div>
+          <div class="text-sm" :class="color">${{ walletUsd(walletStore.loadedRewards, walletStore.rewardAmount) }}</div>
         </div>
         <div class="sz-wallet-cell">
           <div class="sz-stat-label">{{ $t('index.unbonding') }}</div>
           <div class="mt-1 truncate font-mono text-lg font-semibold text-main">
-            {{ format.formatToken(walletStore.unbondingAmount) }}
+            {{ walletDisplay(walletStore.loadedUnbonding, walletStore.unbondingAmount) }}
           </div>
-          <div class="text-sm" :class="color">${{ format.tokenValue(walletStore.unbondingAmount) }}</div>
+          <div class="text-sm" :class="color">${{ walletUsd(walletStore.loadedUnbonding, walletStore.unbondingAmount) }}</div>
         </div>
       </div>
 

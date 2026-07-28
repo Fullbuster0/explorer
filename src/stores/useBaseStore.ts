@@ -17,6 +17,10 @@ export const useBaseStore = defineStore('baseStore', {
       recents: [] as Block[],
       theme: (window.localStorage.getItem('theme') || 'dark') as 'light' | 'dark',
       connected: false,
+      // Set true on first successful block fetch; reset on chain change.
+      // Lets the UI tell "still connecting" (neutral) from "was up, now
+      // dropped" (red) instead of flashing a scary 'disconnected' on load.
+      hasConnectedOnce: false,
     };
   },
   getters: {
@@ -80,6 +84,7 @@ export const useBaseStore = defineStore('baseStore', {
       this.latest = {} as Block;
       this.recents = [];
       this.connected = false;
+      this.hasConnectedOnce = false;
     },
     async clearRecentBlocks() {
       this.recents = [];
@@ -98,6 +103,7 @@ export const useBaseStore = defineStore('baseStore', {
             this.latest = next;
           }
           this.connected = true;
+          this.hasConnectedOnce = true;
         }
       } catch (error) {
         console.error('Error fetching latest block:', error);
@@ -156,6 +162,7 @@ export const useBaseStore = defineStore('baseStore', {
           (await this.blockchain.rpc.getBaseBlockAt(String(height)));
         if (block && (block as any).block?.header?.height) {
           this.connected = true;
+          this.hasConnectedOnce = true;
           return block as Block;
         }
       } catch (error) {

@@ -278,9 +278,15 @@ dayjs();
 
       <!-- network status strip -->
       <div class="sz-statusbar mb-5 flex flex-wrap items-center gap-2 rounded-xl px-4 py-2">
-        <span class="sz-live-dot" :class="{ '!bg-red-500': !baseStore.connected }"></span>
-        <span class="sz-chip" :class="baseStore.connected ? 'sz-chip--ok' : 'sz-chip--bad'">
-          {{ baseStore.connected ? 'Connected' : 'Connecting' }}
+        <span
+          class="sz-live-dot"
+          :class="baseStore.connected ? '' : baseStore.hasConnectedOnce ? '!bg-red-500' : '!bg-amber-400'"
+        ></span>
+        <span
+          class="sz-chip"
+          :class="baseStore.connected ? 'sz-chip--ok' : baseStore.hasConnectedOnce ? 'sz-chip--bad' : 'sz-chip--warn'"
+        >
+          {{ baseStore.connected ? 'Connected' : baseStore.hasConnectedOnce ? 'Disconnected' : 'Connecting' }}
         </span>
         <span class="sz-chip sz-chip--info font-mono">{{ baseStore.currentChainId || '—' }}</span>
         <span class="sz-chip font-mono">#{{ Number(baseStore.latest?.block?.header?.height || 0).toLocaleString() }}</span>

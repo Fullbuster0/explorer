@@ -21,6 +21,12 @@ export const useWalletStore = defineStore('walletStore', {
       unbonding: [] as UnbondingResponses[],
       rewards: { total: [], rewards: [] } as DelegatorRewards,
       wallet: {} as WalletConnected,
+      // Tracks which sources have completed their first fetch — separates
+      // "loading" (… placeholder) from "loaded & 0" (real zero).
+      loadedBalances: false,
+      loadedDelegations: false,
+      loadedUnbonding: false,
+      loadedRewards: false,
     };
   },
   getters: {
@@ -109,15 +115,19 @@ export const useWalletStore = defineStore('walletStore', {
       if (!this.currentAddress) return;
       this.blockchain.rpc.getBankBalances(this.currentAddress).then((x) => {
         this.balances = x.balances;
+        this.loadedBalances = true;
       });
       this.blockchain.rpc.getStakingDelegations(this.currentAddress).then((x) => {
         this.delegations = x.delegation_responses;
+        this.loadedDelegations = true;
       });
       this.blockchain.rpc.getStakingDelegatorUnbonding(this.currentAddress).then((x) => {
         this.unbonding = x.unbonding_responses;
+        this.loadedUnbonding = true;
       });
       this.blockchain.rpc.getDistributionDelegatorRewards(this.currentAddress).then((x) => {
         this.rewards = x;
+        this.loadedRewards = true;
       });
     },
     myBalance() {

@@ -6,8 +6,20 @@ import { useBlockchain, useBaseStore } from '@/stores';
 const chainStore = useBlockchain();
 const baseStore = useBaseStore();
 // storeToRefs keeps nested latest.block.header.height reactive in template
-const { latest, connected } = storeToRefs(baseStore);
+const { latest, connected, hasConnectedOnce } = storeToRefs(baseStore);
 chainStore.initial();
+
+// Connection phase: 'up' (green) | 'connecting' (amber, never connected yet)
+// | 'down' (red, was up then dropped). Avoids flashing a scary red
+// 'disconnected' during the initial load before the first block arrives.
+const phase = computed<'up' | 'connecting' | 'down'>(() => {
+  if (connected.value) return 'up';
+  return hasConnectedOnce.value ? 'down' : 'connecting';
+});
+const phaseLabel = computed(() => {
+  if (phase.value === 'up') return '';
+  return phase.value === 'connecting' ? 'connecting…' : 'disconnected';
+});
 
 const chainLabel = computed(() => {
   const pretty =
@@ -40,13 +52,17 @@ const heightLabel = computed(() => {
       <img v-lazy="chainStore.logo" class="w-9 h-9 rounded-full ring-1 ring-black/5 dark:ring-white/10" />
       <span
         class="absolute -right-0.5 -bottom-0.5 w-2.5 h-2.5 rounded-full ring-2 ring-base-100"
-        :class="connected ? 'bg-success' : 'bg-error'"
+        :class="phase === 'up' ? 'bg-success' : phase === 'connecting' ? 'bg-warning' : 'bg-error'"
       ></span>
     </div>
     <div class="min-w-0 hidden md:!block">
       <div class="capitalize whitespace-nowrap text-[13.5px] font-semibold tracking-tight leading-tight truncate">
         {{ chainLabel || '—' }}
-        <span v-if="!connected" class="text-error font-medium ml-1">disconnected</span>
+        <span
+          v-if="phase !== 'up'"
+          class="font-medium ml-1"
+          :class="phase === 'connecting' ? 'text-warning' : 'text-error'"
+        >{{ phaseLabel }}</span>
       </div>
       <div
         :key="heightNum"
