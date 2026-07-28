@@ -10,10 +10,6 @@ export function getLocalChains() {
   return 'osmosis';
 }
 
-export const percent = (num: number) => {
-  return parseFloat((num * 100).toFixed(2));
-};
-
 export function stringToUint8Array(str: string) {
   const arr = [];
   for (let i = 0, j = str.length; i < j; ++i) {

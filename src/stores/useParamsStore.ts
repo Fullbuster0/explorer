@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { useBlockchain } from './useBlockchain';
-import { percent, formatNumber, formatTokenAmount } from '@/libs/utils';
+import { useFormatter } from './useFormatter';
+import { formatNumber, formatTokenAmount } from '@/libs/utils';
 
 /**
  * Staking params payload — extended for atomone which adds
@@ -125,7 +126,7 @@ export const useParamStore = defineStore('paramstore', {
           0
         )}/${formatNumber(formatTokenAmount(assets, amount, 2, bond_denom, false), true, 0)}`;
         const bondedRatio = this.chain.items.findIndex((x) => x.subtitle === 'bonded_ratio');
-        this.chain.items[bondedRatio].value = `${percent(Number(pool.bonded_tokens) / Number(amount))}%`;
+        this.chain.items[bondedRatio].value = useFormatter().calculatePercent(pool.bonded_tokens, amount);
       });
     },
 
@@ -162,8 +163,7 @@ export const useParamStore = defineStore('paramstore', {
             if (idx > -1) {
               // inflation is a decimal string (0.20 = 20%). Format with
               // 2 decimal places for the overview card.
-              const pct = (Number(inflation) * 100).toFixed(2);
-              this.chain.items[idx].value = `${pct}%`;
+              this.chain.items[idx].value = useFormatter().percent(inflation, '0.00%');
             }
           }
         } catch (e) { /* ignore — overview can stay "—" */ }

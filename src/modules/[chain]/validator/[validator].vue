@@ -181,20 +181,17 @@ const selfRate = computed(() => {
   return '—';
 });
 
-const commissionRate = computed(() => {
-  const r = Number(v.value.commission?.commission_rates?.rate || 0);
-  return `${(r * 100).toFixed(2)}%`;
-});
+const commissionRate = computed(() =>
+  format.percent(v.value.commission?.commission_rates?.rate ?? 0, '0.00%'),
+);
 
-const commissionMax = computed(() => {
-  const r = Number(v.value.commission?.commission_rates?.max_rate || 0);
-  return `${(r * 100).toFixed(0)}%`;
-});
+const commissionMax = computed(() =>
+  format.percent(v.value.commission?.commission_rates?.max_rate ?? 0, '0%'),
+);
 
-const commissionChange = computed(() => {
-  const r = Number(v.value.commission?.commission_rates?.max_change_rate || 0);
-  return `${(r * 100).toFixed(0)}%`;
-});
+const commissionChange = computed(() =>
+  format.percent(v.value.commission?.commission_rates?.max_change_rate ?? 0, '0%'),
+);
 
 const statusLabel = computed(() => {
   const s = String(v.value.status || '');

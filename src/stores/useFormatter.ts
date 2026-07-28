@@ -323,24 +323,31 @@ export const useFormatter = defineStore('formatter', {
     },
     calculatePercent(input?: string | number, total?: string | number) {
       if (!input || !total) return '0';
-      const percent = Number(input) / Number(total);
-      if (!Number.isFinite(percent) || percent <= 0) return '0%';
-      // numeral's % formatter returns "NaN%" for very small scientific-notation
-      // ratios (e.g. a 154-uatom delegation out of 1.1e12 → ~1e-10). It handles
-      // ~1e-5 fine but breaks around ~1e-7. Do the sub-0.01% band with plain
-      // math so tiny shares render "0.00%" instead of "NaN%".
-      if (percent < 0.0001) return `${(percent * 100).toFixed(2)}%`;
-      return numeral(percent).format('0.[00]%');
+      const ratio = Number(input) / Number(total);
+      if (!Number.isFinite(ratio) || ratio <= 0) return '0%';
+      return this.percent(ratio);
     },
     formatDecimalToPercent(decimal: string) {
-      return numeral(decimal).format('0.[00]%');
+      return this.percent(decimal);
     },
     formatCommissionRate(rate?: string) {
       if (!rate) return '-';
       return this.percent(rate);
     },
-    percent(decimal?: string | number) {
-      return decimal ? numeral(decimal).format('0.[00]%') : '-';
+    /**
+     * Single source of truth for percent formatting. `decimal` is a ratio
+     * (0.05 → "5%"). Optional `fmt` is a numeral format string for callers
+     * that need fixed precision (e.g. '0.00%' → "5.00%", '0%' → "5%").
+     *
+     * numeral's % formatter returns "NaN%" for very small scientific-notation
+     * ratios (< ~1e-7), so the sub-0.01% band uses plain math instead.
+     */
+    percent(decimal?: string | number, fmt = '0.[00]%') {
+      if (decimal === undefined || decimal === null || decimal === '') return '-';
+      const n = Number(decimal);
+      if (!Number.isFinite(n)) return '-';
+      if (n !== 0 && Math.abs(n) < 0.0001) return `${(n * 100).toFixed(2)}%`;
+      return numeral(n).format(fmt);
     },
     formatNumber(input?: number, fmt = '0.[00]') {
       if (!input) return '';
