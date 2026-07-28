@@ -403,38 +403,38 @@ const amount = computed({
       </div>
 
       <div class="grid grid-cols-2 gap-3 p-4 sm:grid-cols-3 lg:grid-cols-4">
-        <div class="sz-stat" style="--stat-hue: var(--sz-accent)">
-          <div class="sz-stat-head"><i class="sz-stat-tick"></i><span class="sz-stat-label">Total supply</span></div>
-          <div class="sz-stat-value">{{ tokenomics.supply }}</div>
+        <div class="sz-wallet-cell">
+          <div class="sz-stat-label">Total supply</div>
+          <div class="mt-1 truncate font-mono text-lg font-semibold text-main">{{ tokenomics.supply }}</div>
         </div>
-        <div class="sz-stat" style="--stat-hue: var(--sz-success)">
-          <div class="sz-stat-head"><i class="sz-stat-tick"></i><span class="sz-stat-label">Bonded tokens</span></div>
-          <div class="sz-stat-value">{{ tokenomics.bonded }}</div>
+        <div class="sz-wallet-cell">
+          <div class="sz-stat-label">Bonded tokens</div>
+          <div class="mt-1 truncate font-mono text-lg font-semibold text-main">{{ tokenomics.bonded }}</div>
         </div>
-        <div class="sz-stat" style="--stat-hue: var(--sz-warn)">
-          <div class="sz-stat-head"><i class="sz-stat-tick"></i><span class="sz-stat-label">Inflation</span></div>
-          <div class="sz-stat-value">{{ tokenomics.inflation }}</div>
+        <div class="sz-wallet-cell">
+          <div class="sz-stat-label">Inflation</div>
+          <div class="mt-1 truncate font-mono text-lg font-semibold text-main">{{ tokenomics.inflation }}</div>
         </div>
-        <div class="sz-stat" style="--stat-hue: #10b981">
-          <div class="sz-stat-head"><i class="sz-stat-tick"></i><span class="sz-stat-label">Est. APR</span></div>
-          <div class="sz-stat-value">{{ tokenomics.apr }}</div>
-          <div class="sz-stat-sub">0% commission</div>
+        <div class="sz-wallet-cell">
+          <div class="sz-stat-label">Est. APR</div>
+          <div class="mt-1 truncate font-mono text-lg font-semibold text-main">{{ tokenomics.apr }}</div>
+          <div class="mt-0.5 text-[11px] text-secondary">0% commission</div>
         </div>
-        <div class="sz-stat" style="--stat-hue: #0ea5e9">
-          <div class="sz-stat-head"><i class="sz-stat-tick"></i><span class="sz-stat-label">Community pool</span></div>
-          <div class="sz-stat-value">{{ tokenomics.communityPool }}</div>
+        <div class="sz-wallet-cell">
+          <div class="sz-stat-label">Community pool</div>
+          <div class="mt-1 truncate font-mono text-lg font-semibold text-main">{{ tokenomics.communityPool }}</div>
         </div>
-        <div class="sz-stat" style="--stat-hue: #764bc8">
-          <div class="sz-stat-head"><i class="sz-stat-tick"></i><span class="sz-stat-label">Community tax</span></div>
-          <div class="sz-stat-value">{{ tokenomics.communityTax }}</div>
+        <div class="sz-wallet-cell">
+          <div class="sz-stat-label">Community tax</div>
+          <div class="mt-1 truncate font-mono text-lg font-semibold text-main">{{ tokenomics.communityTax }}</div>
         </div>
-        <div class="sz-stat" style="--stat-hue: #64748b">
-          <div class="sz-stat-head"><i class="sz-stat-tick"></i><span class="sz-stat-label">Unbonding time</span></div>
-          <div class="sz-stat-value">{{ tokenomics.unbonding }}</div>
+        <div class="sz-wallet-cell">
+          <div class="sz-stat-label">Unbonding time</div>
+          <div class="mt-1 truncate font-mono text-lg font-semibold text-main">{{ tokenomics.unbonding }}</div>
         </div>
-        <div class="sz-stat" style="--stat-hue: #a78bfa">
-          <div class="sz-stat-head"><i class="sz-stat-tick"></i><span class="sz-stat-label">Max validators</span></div>
-          <div class="sz-stat-value">{{ tokenomics.maxValidators }}</div>
+        <div class="sz-wallet-cell">
+          <div class="sz-stat-label">Max validators</div>
+          <div class="mt-1 truncate font-mono text-lg font-semibold text-main">{{ tokenomics.maxValidators }}</div>
         </div>
       </div>
     </section>
@@ -648,25 +648,33 @@ const amount = computed({
       </div>
 
       <div class="grid grid-cols-2 gap-3 px-4 py-4 md:grid-cols-4">
-        <div class="sz-stat" style="--stat-hue: var(--sz-accent)">
-          <div class="sz-stat-head"><i class="sz-stat-tick"></i><span class="sz-stat-label">{{ $t('account.balance') }}</span></div>
-          <div class="sz-stat-value">{{ format.formatToken(walletStore.balanceOfStakingToken) }}</div>
-          <div class="mt-1 font-mono text-[12px] font-semibold" :class="color">${{ format.tokenValue(walletStore.balanceOfStakingToken) }}</div>
+        <div class="sz-wallet-cell">
+          <div class="sz-stat-label">{{ $t('account.balance') }}</div>
+          <div class="mt-1 truncate font-mono text-lg font-semibold text-main">
+            {{ format.formatToken(walletStore.balanceOfStakingToken) }}
+          </div>
+          <div class="text-sm" :class="color">${{ format.tokenValue(walletStore.balanceOfStakingToken) }}</div>
         </div>
-        <div class="sz-stat" style="--stat-hue: #764bc8">
-          <div class="sz-stat-head"><i class="sz-stat-tick"></i><span class="sz-stat-label">{{ $t('account.delegations') }}</span></div>
-          <div class="sz-stat-value">{{ format.formatToken(walletStore.stakingAmount) }}</div>
-          <div class="mt-1 font-mono text-[12px] font-semibold" :class="color">${{ format.tokenValue(walletStore.stakingAmount) }}</div>
+        <div class="sz-wallet-cell">
+          <div class="sz-stat-label">{{ $t('account.delegations') }}</div>
+          <div class="mt-1 truncate font-mono text-lg font-semibold text-main">
+            {{ format.formatToken(walletStore.stakingAmount) }}
+          </div>
+          <div class="text-sm" :class="color">${{ format.tokenValue(walletStore.stakingAmount) }}</div>
         </div>
-        <div class="sz-stat" style="--stat-hue: var(--sz-success)">
-          <div class="sz-stat-head"><i class="sz-stat-tick"></i><span class="sz-stat-label">{{ $t('index.reward') }}</span></div>
-          <div class="sz-stat-value">{{ format.formatToken(walletStore.rewardAmount) }}</div>
-          <div class="mt-1 font-mono text-[12px] font-semibold" :class="color">${{ format.tokenValue(walletStore.rewardAmount) }}</div>
+        <div class="sz-wallet-cell">
+          <div class="sz-stat-label">{{ $t('index.reward') }}</div>
+          <div class="mt-1 truncate font-mono text-lg font-semibold text-main">
+            {{ format.formatToken(walletStore.rewardAmount) }}
+          </div>
+          <div class="text-sm" :class="color">${{ format.tokenValue(walletStore.rewardAmount) }}</div>
         </div>
-        <div class="sz-stat" style="--stat-hue: var(--sz-warn)">
-          <div class="sz-stat-head"><i class="sz-stat-tick"></i><span class="sz-stat-label">{{ $t('index.unbonding') }}</span></div>
-          <div class="sz-stat-value">{{ format.formatToken(walletStore.unbondingAmount) }}</div>
-          <div class="mt-1 font-mono text-[12px] font-semibold" :class="color">${{ format.tokenValue(walletStore.unbondingAmount) }}</div>
+        <div class="sz-wallet-cell">
+          <div class="sz-stat-label">{{ $t('index.unbonding') }}</div>
+          <div class="mt-1 truncate font-mono text-lg font-semibold text-main">
+            {{ format.formatToken(walletStore.unbondingAmount) }}
+          </div>
+          <div class="text-sm" :class="color">${{ format.tokenValue(walletStore.unbondingAmount) }}</div>
         </div>
       </div>
 
@@ -876,6 +884,12 @@ const amount = computed({
   color: hsl(var(--p));
   border-color: color-mix(in srgb, hsl(var(--p)) 45%, var(--sz-border));
   background: color-mix(in srgb, hsl(var(--p)) 7%, transparent);
+}
+.sz-wallet-cell {
+  background: color-mix(in srgb, hsl(var(--b2)) 65%, transparent);
+  border: 1px solid var(--sz-border);
+  border-radius: 12px;
+  padding: 0.8rem 0.9rem;
 }
 .sz-gh-stat {
   background: color-mix(in srgb, hsl(var(--b2)) 65%, transparent);
