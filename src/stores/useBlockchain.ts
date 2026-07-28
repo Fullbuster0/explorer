@@ -102,6 +102,9 @@ export const useBlockchain = defineStore('blockchain', {
           },
         ];
 
+        // Prefer explicit nav routes (meta.order set). Detail routes like
+        // /ibc/connection/chain/:chain_id also carry meta.i18n but have no
+        // order — picking them would put a literal ":chain_id" in the sidebar.
         const available = routes
           .filter((x) => x.meta.i18n)
           .filter(
@@ -119,12 +122,28 @@ export const useBlockchain = defineStore('blockchain', {
             },
             i18n: true,
             order: Number(x.meta.order || 100),
+            _hasOrder: x.meta.order !== undefined,
           }));
+
+        // One nav entry per module key — the route with explicit meta.order
+        // wins; only fall back to the lowest-order route if none is marked.
+        const byKey = new Map<string, (typeof available)[number]>();
+        for (const a of available) {
+          const prev = byKey.get(a.key);
+          if (!prev) {
+            byKey.set(a.key, a);
+          } else if (a._hasOrder && !prev._hasOrder) {
+            byKey.set(a.key, a);
+          } else if (a._hasOrder === prev._hasOrder && a.order < prev.order) {
+            byKey.set(a.key, a);
+          }
+        }
+        const uniqueAvailable = [...byKey.values()];
 
         const used = new Set<string>();
         for (const g of groups) {
           const children = g.keys
-            .map((k) => available.find((a) => a.key === k))
+            .map((k) => uniqueAvailable.find((a) => a.key === k))
             .filter(Boolean) as any[];
           if (children.length === 0) continue;
           items.push({ heading: g.heading } as NavSectionTitle);
@@ -134,7 +153,7 @@ export const useBlockchain = defineStore('blockchain', {
           });
         }
         // Any leftover modules
-        const rest = available.filter((a) => !used.has(a.key)).sort((a, b) => a.order - b.order);
+        const rest = uniqueAvailable.filter((a) => !used.has(a.key)).sort((a, b) => a.order - b.order);
         if (rest.length) {
           items.push({ heading: 'More' } as NavSectionTitle);
           rest.forEach((c) => items.push(c as NavLink));

@@ -6,21 +6,38 @@
  */
 import { computed, onMounted, ref, watch } from 'vue';
 import { storeToRefs } from 'pinia';
+import { useRoute } from 'vue-router';
 import { Icon } from '@iconify/vue';
 import { useBlockchain } from '@/stores';
 import { useIBCModule, type IbcChainRow } from '../../connStore';
 import type { Channel, Connection } from '@/types';
 
-const props = defineProps<{
-  chain?: string;
-  chain_id?: string;
-}>();
+
+// Match connection_id style: array props so vite-plugin-pages props:!0
+// always injects route params. Also read useRoute() as hard fallback —
+// never leave remoteId stuck as the literal ":chain_id".
+const props = defineProps(['chain', 'chain_id']);
+const route = useRoute();
 
 const chainStore = useBlockchain();
 const ibcStore = useIBCModule();
 const { loading, loaded, error, rows } = storeToRefs(ibcStore);
 
-const remoteId = computed(() => decodeURIComponent(String(props.chain_id || '')));
+const remoteId = computed(() => {
+  const raw =
+    props.chain_id ||
+    (route.params as any).chain_id ||
+    // last segment of path e.g. /atomone-mainnet/ibc/connection/chain/osmosis-1
+    String(route.path || '')
+      .split('/')
+      .filter(Boolean)
+      .pop() ||
+    '';
+  const s = decodeURIComponent(String(raw));
+  // Guard against unresolved route template leaking into the UI.
+  if (!s || s === ':chain_id' || s.startsWith(':')) return '';
+  return s;
+});
 
 function tryLoad() {
   if (!chainStore.rpc || !chainStore.endpoint?.address) return;
@@ -89,8 +106,24 @@ const openChans = computed(() => (row.value?.channels || []).filter(channelOpen)
       <button class="btn btn-xs btn-primary ml-2" @click="ibcStore.load(true)">Retry</button>
     </div>
 
+    <div v-else-if="!remoteId" class="sz-section py-14 text-center text-secondary text-sm">
+      Missing remote chain id.
+      <RouterLink
+        :to="`/${chainStore.chainName}/ibc/connection`"
+        class="link link-primary ml-1"
+        >Back to IBC list</RouterLink
+      >
+    </div>
+
     <div v-else-if="!row" class="sz-section py-14 text-center text-secondary text-sm">
-      No IBC data for <span class="font-mono">{{ remoteId || '—' }}</span>
+      No IBC data for <span class="font-mono">{{ remoteId }}</span>
+      <div class="mt-2">
+        <RouterLink
+          :to="`/${chainStore.chainName}/ibc/connection`"
+          class="link link-primary"
+          >Back to IBC list</RouterLink
+        >
+      </div>
     </div>
 
     <template v-else>
@@ -304,10 +337,15 @@ const openChans = computed(() => (row.value?.channels || []).filter(channelOpen)
   </div>
 </template>
 
+<!--
+  Intentionally NO meta.i18n here.
+  computedChainMenu builds sidebar from routes with meta.i18n — if this
+  detail route is tagged, the nav can pick path ".../chain/:chain_id" and
+  show "No IBC data for :chain_id". List page (connection/index.vue) owns
+  the sidebar entry via meta.i18n + order.
+-->
 <route>
   {
-    meta: {
-      i18n: 'ibc'
-    }
+    meta: {}
   }
 </route>
