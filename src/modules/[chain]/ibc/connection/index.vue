@@ -40,19 +40,28 @@ const filteredRows = computed(() => {
     return (
       r.name.toLowerCase().includes(q) ||
       r.chainId.toLowerCase().includes(q) ||
-      r.connections.some((c) => (c.id || '').toLowerCase().includes(q))
+      r.connections.some((c) => (c.id || '').toLowerCase().includes(q)) ||
+      (r.preferredChannelId || '').toLowerCase().includes(q) ||
+      (r.primaryConnectionId || '').toLowerCase().includes(q)
     );
   });
 });
 
 function primaryConn(row: IbcChainRow) {
-  // Prefer an OPEN connection, else first
-  return row.connections.find((c) => (c.state || '').includes('OPEN')) || row.connections[0];
+  // Registry-aware primary — NEVER raw first OPEN (that was connection-0 for Osmosis).
+  return ibcStore.primaryConnection(row);
 }
 
 function statusChip(row: IbcChainRow) {
   if (row.connections.length === 0) return { cls: 'sz-chip--bad', label: 'None' };
-  if (row.openConnections === row.connections.length) {
+  // Channels matter more than bare connections for trade safety.
+  if (row.openChannels === 0 && row.openConnections > 0) {
+    return {
+      cls: 'sz-chip--warn',
+      label: `Open conn ${row.openConnections}, 0 channels`,
+    };
+  }
+  if (row.openConnections === row.connections.length && row.openChannels > 0) {
     return {
       cls: 'sz-chip--ok',
       label: `Opened ${row.openConnections}/${row.connections.length}`,
@@ -75,6 +84,11 @@ function markLogoBroken(chainId: string) {
 }
 
 function openRow(row: IbcChainRow) {
+  // Land on chain hub (all conns/channels) — not a single random connection.
+  if (row.chainId && row.chainId !== 'unknown') {
+    ibcStore.showChain(row.chainId);
+    return;
+  }
   const conn = primaryConn(row);
   if (conn?.id) ibcStore.showConnection(conn.id);
 }
@@ -147,6 +161,20 @@ function openRow(row: IbcChainRow) {
       </div>
     </div>
 
+    <!-- safety note -->
+    <div
+      v-if="loaded"
+      class="mt-4 rounded-xl border border-warning/30 bg-warning/5 px-4 py-3 text-[12.5px] text-secondary flex items-start gap-2"
+    >
+      <Icon icon="mdi:shield-alert-outline" class="text-lg text-warning shrink-0 mt-0.5" />
+      <div>
+        <span class="font-semibold text-main">Trade path ≠ first open connection.</span>
+        Primary uses <span class="font-mono">chain-registry</span> preferred channel when available
+        (e.g. AtomOne↔Osmosis <span class="font-mono">connection-2 / channel-2</span>).
+        Click a chain to see <em>all</em> open channels before bridging.
+      </div>
+    </div>
+
     <!-- table -->
     <div class="sz-section mt-4 overflow-hidden">
       <div class="flex flex-wrap items-center justify-between gap-3 border-b border-base-content/10 px-4 py-3">
@@ -175,13 +203,14 @@ function openRow(row: IbcChainRow) {
       </div>
 
       <div v-else class="overflow-x-auto">
-        <table class="sz-table min-w-[720px]">
+        <table class="sz-table min-w-[860px]">
           <thead>
             <tr>
               <th>{{ $t('ibc.chains') }}</th>
               <th>{{ $t('ibc.state') }}</th>
               <th class="text-right">{{ $t('ibc.connections') }}</th>
               <th class="text-right">{{ $t('ibc.channels') }}</th>
+              <th>Preferred path</th>
               <th>{{ $t('ibc.primary_connection') }}</th>
             </tr>
           </thead>
@@ -216,6 +245,12 @@ function openRow(row: IbcChainRow) {
                     <div class="flex items-center gap-1.5">
                       <span class="block truncate text-[13.5px] font-semibold">{{ row.name }}</span>
                       <span v-if="row.wellKnown" class="sz-chip sz-chip--info !px-1.5 !py-0 !text-[9px]">WK</span>
+                      <span
+                        v-if="row.registryPreferred"
+                        class="sz-chip sz-chip--ok !px-1.5 !py-0 !text-[9px]"
+                        title="chain-registry preferred"
+                        >REG</span
+                      >
                     </div>
                     <span class="block truncate font-mono text-[11px] text-secondary">{{ row.chainId }}</span>
                   </div>
@@ -243,6 +278,18 @@ function openRow(row: IbcChainRow) {
                 <div class="text-[10.5px] text-secondary">open / total</div>
               </td>
 
+              <!-- preferred channel path -->
+              <td @click.stop>
+                <div v-if="row.preferredChannelId" class="font-mono text-[12px]">
+                  <span class="font-semibold text-main">{{ row.preferredChannelId }}</span>
+                  <span v-if="row.preferredCounterpartyChannelId" class="text-secondary">
+                    → {{ row.preferredCounterpartyChannelId }}
+                  </span>
+                </div>
+                <span v-else class="text-secondary text-sm">—</span>
+                <div v-if="row.registryPreferred" class="text-[10px] text-success mt-0.5">registry preferred</div>
+              </td>
+
               <!-- primary connection -->
               <td @click.stop>
                 <RouterLink
@@ -253,6 +300,14 @@ function openRow(row: IbcChainRow) {
                   {{ primaryConn(row)!.id }}
                 </RouterLink>
                 <span v-else class="text-secondary text-sm">—</span>
+                <div class="mt-0.5">
+                  <RouterLink
+                    :to="`/${chainStore.chainName}/ibc/connection/chain/${encodeURIComponent(row.chainId)}`"
+                    class="text-[10.5px] text-secondary no-underline hover:text-primary hover:underline"
+                  >
+                    all paths →
+                  </RouterLink>
+                </div>
               </td>
             </tr>
           </tbody>
@@ -266,6 +321,8 @@ function openRow(row: IbcChainRow) {
         <span class="sz-chip sz-chip--ok">{{ $t('ibc.legend_all') }}</span>
         <span class="sz-chip sz-chip--warn">{{ $t('ibc.legend_partial') }}</span>
         <span class="sz-chip sz-chip--bad">{{ $t('ibc.legend_closed') }}</span>
+        <span class="sz-chip sz-chip--ok !text-[9px]">REG</span>
+        <span>= chain-registry preferred trade path</span>
         <span class="hidden md:!inline">{{ $t('ibc.legend_note') }}</span>
       </div>
     </div>

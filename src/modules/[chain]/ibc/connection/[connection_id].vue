@@ -13,11 +13,13 @@ import PaginationBar from '@/components/PaginationBar.vue';
 import Loading from '@/components/Loading.vue';
 import PendingPackets from './PendingPackets.vue';
 import { Icon } from '@iconify/vue';
+import { useIBCModule } from '../connStore';
 
 const props = defineProps(['chain', 'connection_id']);
 const chainStore = useBlockchain();
 const baseStore = useBaseStore();
 const format = useFormatter();
+const ibcStore = useIBCModule();
 
 const conn = ref({} as Connection);
 const clientState = ref({} as { client_id: string; client_state: ClientState });
@@ -78,7 +80,11 @@ function loadDetail() {
     .catch(() => {});
 }
 
-onMounted(loadDetail);
+onMounted(() => {
+  loadDetail();
+  // Need list+registry so we can mark preferred trade path on this connection.
+  if (chainStore.rpc) ibcStore.load();
+});
 // endpoint may resolve after mount (chain switch / cold load) or change on
 // fallback. Retry until ALL three slices have loaded — checking only connLoaded
 // would leave the page half-stuck if clientState/channels failed but conn didn't.
@@ -134,6 +140,18 @@ function channelChip(state: string) {
 function shortState(state?: string) {
   return (state || '').replace('STATE_', '').replace(/_/g, ' ');
 }
+const isPreferredConnection = computed(() => {
+  const id = String(props.connection_id || '');
+  return (ibcStore.rows || []).some((r) => r.primaryConnectionId === id && r.registryPreferred);
+});
+const preferredChannelOnThis = computed(() => {
+  const id = String(props.connection_id || '');
+  const row = (ibcStore.rows || []).find((r) => r.primaryConnectionId === id);
+  return row?.preferredChannelId || '';
+});
+function isPreferredChannel(ch: Channel) {
+  return !!preferredChannelOnThis.value && ch.channel_id === preferredChannelOnThis.value;
+}
 </script>
 
 <template>
@@ -185,6 +203,28 @@ function shortState(state?: string) {
         </div>
       </div>
 
+    </div>
+
+    <div
+      v-if="isPreferredConnection"
+      class="mb-4 rounded-xl border border-success/40 bg-success/5 px-4 py-3 text-[12.5px] flex items-center gap-2"
+    >
+      <Icon icon="mdi:check-decagram" class="text-lg text-success shrink-0" />
+      <div>
+        <span class="font-semibold text-main">Registry preferred trade path</span>
+        <span class="text-secondary"> — this connection is the community / chain-registry route</span>
+        <span v-if="preferredChannelOnThis" class="font-mono"> ({{ preferredChannelOnThis }})</span>.
+      </div>
+    </div>
+    <div
+      v-else-if="connLoaded && channelsLoaded && openChannels === 0"
+      class="mb-4 rounded-xl border border-warning/40 bg-warning/5 px-4 py-3 text-[12.5px] flex items-center gap-2"
+    >
+      <Icon icon="mdi:alert-outline" class="text-lg text-warning shrink-0" />
+      <div>
+        <span class="font-semibold text-main">No open transfer channel on this connection.</span>
+        <span class="text-secondary"> It may be a half-open or non-trade link — check the chain hub for the preferred path.</span>
+      </div>
     </div>
 
     <!-- quick stats -->
@@ -294,8 +334,11 @@ function shortState(state?: string) {
             </tr>
           </thead>
           <tbody>
-            <tr v-for="v in channels" :key="v.channel_id + v.port_id">
-              <td class="font-mono text-[12.5px] font-semibold">{{ v.channel_id }}</td>
+            <tr v-for="v in channels" :key="v.channel_id + v.port_id" :class="{ 'bg-success/5': isPreferredChannel(v) }">
+              <td class="font-mono text-[12.5px] font-semibold">
+                {{ v.channel_id }}
+                <span v-if="isPreferredChannel(v)" class="sz-chip sz-chip--ok !px-1.5 !py-0 !text-[9px] ml-1">★ preferred</span>
+              </td>
               <td class="font-mono text-[12px] text-secondary">{{ v.port_id }}</td>
               <td>
                 <span class="sz-chip" :class="channelChip(v.state)">{{ shortState(v.state) }}</span>
