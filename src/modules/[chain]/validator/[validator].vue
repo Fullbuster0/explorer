@@ -7,6 +7,7 @@ import {
   useFormatter,
   useMintStore,
   useStakingStore,
+  useTxDialog,
 } from '@/stores';
 import { onMounted, computed, ref, watch } from 'vue';
 import { Icon } from '@iconify/vue';
@@ -29,6 +30,7 @@ const props = defineProps(['validator', 'chain']);
 const staking = useStakingStore();
 const blockchain = useBlockchain();
 const format = useFormatter();
+const dialog = useTxDialog();
 
 const validator: string = props.validator;
 
@@ -150,12 +152,40 @@ addresses.value.account = operatorAddressToAccount(validator);
 // self bond — refetched via the rpc watch below. Setup runs before the chain's
 // REST client exists on slow-connecting chains (e.g. CosmosHub); rpc?. would
 // otherwise resolve undefined silently and leave this stuck at "—".
-function loadSelfBond() {
-  if (!blockchain.rpc || !addresses.value.account) return;
-  if (selfBonded.value.balance?.amount) return; // already loaded
-  staking.fetchValidatorDelegation(validator, addresses.value.account).then((x) => {
-    if (x?.delegation_response) selfBonded.value = x.delegation_response;
-  });
+function loadSelfBond(force = false) {
+  if (!blockchain.rpc || !validator) return;
+  // Keep account derivation in sync (valoper → account) every call.
+  if (!addresses.value.account) {
+    addresses.value.account = operatorAddressToAccount(validator);
+  }
+  if (!addresses.value.account) return;
+  if (!force && selfBonded.value.balance?.amount) return; // already loaded
+  staking
+    .fetchValidatorDelegation(validator, addresses.value.account)
+    .then((x) => {
+      if (x?.delegation_response) selfBonded.value = x.delegation_response;
+    })
+    .catch((e: any) => {
+      // Many public LCDs 500 on the single-delegation path; fall back by
+      // scanning the first page of validator delegations for this account.
+      console.warn('[val] self-bond direct path failed:', e?.message || e);
+      return blockchain.rpc
+        .getStakingValidatorsDelegations(validator, (() => {
+          const pr = new PageRequest();
+          pr.limit = 100;
+          pr.count_total = true;
+          pr.offset = 0;
+          return pr;
+        })())
+        .then((res: any) => {
+          const rows = res?.delegation_responses || [];
+          const hit = rows.find(
+            (r: any) => r?.delegation?.delegator_address === addresses.value.account
+          );
+          if (hit) selfBonded.value = hit;
+        })
+        .catch((e2: any) => console.warn('[val] self-bond fallback failed:', e2?.message || e2));
+    });
 }
 loadSelfBond();
 
@@ -851,9 +881,14 @@ watch(
               <span v-if="identity" class="sz-chip font-mono !text-[10px] !font-medium text-secondary">
                 {{ identity }}
               </span>
-              <span class="sz-chip ml-auto sm:!ml-0 !text-[11px] uppercase tracking-wide opacity-80" title="Detail pages are read-only. Use Wallet Helper or dashboard wallet panel to sign txs.">
-                View only
-              </span>
+              <label
+                for="delegate"
+                class="btn btn-primary btn-sm ml-auto sm:!ml-0"
+                @click="dialog.open('delegate', { validator_address: v.operator_address || validator })"
+              >
+                <Icon icon="mdi-handshake-outline" class="text-base mr-1" />
+                {{ $t('account.btn_delegate') }}
+              </label>
             </div>
           </div>
         </div>
@@ -948,7 +983,11 @@ watch(
                 <span v-if="!rewards?.length" class="text-secondary text-xs">—</span>
               </div>
             </div>
-            <div class="text-[11px] text-secondary mt-auto pt-2">View only — commission withdraw via connected wallet tools</div>
+            <label
+              for="withdraw_commission"
+              class="btn btn-primary btn-sm w-full mt-auto"
+              @click="dialog.open('withdraw_commission', { validator_address: v.operator_address || validator })"
+            >{{ $t('account.btn_withdraw') }}</label>
           </div>
         </div>
       </div>

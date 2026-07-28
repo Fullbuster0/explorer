@@ -9,6 +9,7 @@ import {
   useFormatter,
   useGovStore,
   useStakingStore,
+  useTxDialog,
 } from '@/stores';
 import { PageRequest, type GovProposal, type GovVote, type Validator } from '@/types';
 import { fromBech32, toHex } from '@cosmjs/encoding';
@@ -16,6 +17,7 @@ import { fromBech32, toHex } from '@cosmjs/encoding';
 const props = defineProps(['proposal_id', 'chain']);
 const format = useFormatter();
 const store = useGovStore();
+const dialog = useTxDialog();
 const stakingStore = useStakingStore();
 const chainStore = useBlockchain();
 const baseStore = useBaseStore();
@@ -263,6 +265,7 @@ const statusChipClass = computed(() => statusChipFor(proposal.value?.status || '
 const statusLabel = computed(() => statusText(proposal.value?.status));
 const msgTypeLabel = computed(() => msgTypeOf(proposal.value?.content));
 const isVoting = computed(() => proposal.value?.status === 'PROPOSAL_STATUS_VOTING_PERIOD');
+const isDeposit = computed(() => proposal.value?.status === 'PROPOSAL_STATUS_DEPOSIT_PERIOD');
 
 const totalVoted = computed(() => {
   const tally = proposal.value?.final_tally_result;
@@ -838,9 +841,25 @@ onUnmounted(() => {
         </div>
       </div>
       <div class="flex flex-wrap gap-2 shrink-0 items-center">
-        <span class="sz-chip !text-[11px] uppercase tracking-wide opacity-80" title="Governance detail is read-only. Vote/deposit from Wallet Helper after connecting.">
-          View only
-        </span>
+        <template v-if="isVoting">
+          <label
+            for="vote"
+            class="btn btn-primary btn-sm"
+            @click="dialog.open('vote', { proposal_id })"
+          >{{ $t('gov.btn_vote') }}</label>
+        </template>
+        <template v-else-if="isDeposit">
+          <label
+            for="deposit"
+            class="btn btn-outline btn-sm"
+            @click="dialog.open('deposit', { proposal_id })"
+          >{{ $t('gov.btn_deposit') }}</label>
+        </template>
+        <span
+          v-else
+          class="sz-chip !text-[11px] uppercase tracking-wide opacity-80"
+          title="Proposal is no longer open for vote or deposit."
+        >View only</span>
       </div>
     </div>
 
