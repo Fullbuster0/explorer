@@ -168,26 +168,22 @@ function shortState(state?: string) {
         </div>
       </div>
 
-      <!-- quick stats strip -->
-      <div class="grid grid-cols-3 border-t border-base-content/10 divide-x divide-base-content/10">
-        <div class="px-4 py-3 text-center">
-          <div class="sz-stat-label">{{ $t('ibc.channels') }}</div>
-          <div class="mt-0.5 font-mono text-lg font-bold">
-            {{ openChannels }}<span class="text-secondary text-sm font-medium">/{{ channels.length }}</span>
-          </div>
-        </div>
-        <div class="px-4 py-3 text-center">
-          <div class="sz-stat-label">{{ $t('ibc.client_type') }}</div>
-          <div class="mt-0.5 truncate text-[12px] font-semibold">
-            {{ (clientState.client_state?.['@type'] || '—').split('.').pop() }}
-          </div>
-        </div>
-        <div class="px-4 py-3 text-center">
-          <div class="sz-stat-label">{{ $t('ibc.latest_height') }}</div>
-          <div class="mt-0.5 font-mono text-[13px] font-semibold">
-            {{ clientState.client_state?.latest_height?.revision_height || '—' }}
-          </div>
-        </div>
+    </div>
+
+    <!-- quick stats -->
+    <div class="grid grid-cols-1 gap-3 mb-4 sm:!grid-cols-3">
+      <div class="sz-stat" style="--stat-hue: #0ea5e9">
+        <div class="sz-stat-head"><i class="sz-stat-tick"></i><span class="sz-stat-label">{{ $t('ibc.channels') }}</span></div>
+        <div class="sz-stat-value">{{ openChannels }}<span class="sz-stat-unit">/{{ channels.length }}</span></div>
+        <div class="sz-stat-sub">open / total</div>
+      </div>
+      <div class="sz-stat" style="--stat-hue: #764bc8">
+        <div class="sz-stat-head"><i class="sz-stat-tick"></i><span class="sz-stat-label">{{ $t('ibc.client_type') }}</span></div>
+        <div class="sz-stat-value">{{ (clientState.client_state?.['@type'] || '—').split('.').pop() }}</div>
+      </div>
+      <div class="sz-stat" style="--stat-hue: var(--sz-success)">
+        <div class="sz-stat-head"><i class="sz-stat-tick"></i><span class="sz-stat-label">{{ $t('ibc.latest_height') }}</span></div>
+        <div class="sz-stat-value">{{ clientState.client_state?.latest_height?.revision_height || '—' }}</div>
       </div>
     </div>
 
