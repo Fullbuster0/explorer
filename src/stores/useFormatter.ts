@@ -125,19 +125,24 @@ export const useFormatter = defineStore('formatter', {
     tokenAmountNumber(token?: Coin) {
       if (!token || !token.denom) return 0;
 
-      // IBC denoms: resolve exponent from ibcMetadata (fetched lazily)
+      // IBC denoms: resolve exponent from ibcMetadata (fetched lazily).
+      // CRITICAL: do NOT fall through to the native-denom path below when
+      // metadata is still loading — that path applies exponent 0 and would
+      // render raw micro-units as absurd numbers (e.g. 71,214,085,933,949
+      // "ATOM" instead of 0.0027 stEVMOS). Return 0 until metadata lands;
+      // ibcMetadata is reactive so the caller recomputes once it loads.
       if (token.denom.startsWith('ibc/')) {
         const ibcDenom = token.denom.replace('ibc/', '');
         const conf = this.ibcMetadata[ibcDenom];
         if (!conf) {
           this.fetchDenomMetadata(ibcDenom);
-        } else {
-          let exponent = 0;
-          conf.denom_units.forEach((x) => {
-            if (x.exponent >= exponent) exponent = x.exponent;
-          });
-          return Number(token.amount) / 10 ** exponent;
+          return 0;
         }
+        let exponent = 0;
+        conf.denom_units.forEach((x) => {
+          if (x.exponent >= exponent) exponent = x.exponent;
+        });
+        return Number(token.amount) / 10 ** exponent;
       }
 
       // find the symbol

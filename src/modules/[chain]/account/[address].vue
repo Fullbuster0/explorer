@@ -105,8 +105,15 @@ const totalsRaw = computed(() => {
   bondBalances.value?.forEach((x) => (sumBal += format.tokenAmountNumber(x)));
   let sumDel = 0;
   delegations.value?.forEach((x) => (sumDel += format.tokenAmountNumber(x.balance)));
+  // Rewards portfolio slice is BOND-DENOM only. Other reward denoms (IBC
+  // stTokens etc.) show up in the Secondary balances / rewards cell —
+  // summing them here mixed raw micro-units into the ATOM donut and
+  // produced absurd totals like 71 trillion "ATOM".
+  const bond = stakingStore.params.bond_denom;
   let sumRew = 0;
-  rewards.value?.total?.forEach((x) => (sumRew += format.tokenAmountNumber(x)));
+  rewards.value?.total?.forEach((x) => {
+    if (!bond || x.denom === bond) sumRew += format.tokenAmountNumber(x);
+  });
   let sumUn = 0;
   unbonding.value?.forEach((x) =>
     x.entries?.forEach(
@@ -137,7 +144,11 @@ const donutColors = ['#16d97e', '#3fb6ff', '#b892ff', '#ff9d5c'];
 const totalValue = computed(() => {
   let value = 0;
   delegations.value?.forEach((x) => (value += format.tokenValueNumber(x.balance)));
-  rewards.value?.total?.forEach((x) => (value += format.tokenValueNumber(x)));
+  // USD value: bond-denom rewards only (same reason as totalsRaw).
+  const bond = stakingStore.params.bond_denom;
+  rewards.value?.total?.forEach((x) => {
+    if (!bond || x.denom === bond) value += format.tokenValueNumber(x);
+  });
   bondBalances.value?.forEach((x) => (value += format.tokenValueNumber(x)));
   unbonding.value?.forEach((x) =>
     x.entries?.forEach(
