@@ -2,7 +2,6 @@ import { defineStore } from 'pinia';
 import { get } from '@/libs/http';
 import type { ChainConfig, DirectoryChainConfig, Endpoint, LocalChainConfig } from '@/types/chaindata';
 import { ConfigSource, NetworkType } from '@/types/chaindata';
-import { useBlockchain } from './useBlockchain';
 import { coingeckoUrl } from '@/stores';
 
 function apiConverter(api?: any[] | string) {
@@ -260,15 +259,9 @@ export const useDashboard = defineStore('dashboard', {
       return config;
     },
     setupDefault() {
+      // Home is chain-agnostic (indonode-style landing). Do NOT auto-select a
+      // chain here — chain is set only via router when user opens /:chain/...
       if (this.length > 0) {
-        const blockchain = useBlockchain();
-        if (!blockchain.chainName) {
-          // Prefer CosmosHub if present, else first chain alphabetically
-          const preferred = this.chains['CosmosHub-mainnet']
-            ? 'CosmosHub-mainnet'
-            : Object.keys(this.chains)[0];
-          blockchain.setCurrent(preferred);
-        }
         this.loadingPrices();
       }
     },

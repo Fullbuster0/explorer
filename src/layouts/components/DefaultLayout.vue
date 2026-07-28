@@ -24,12 +24,17 @@ import dayjs from 'dayjs';
 const dashboard = useDashboard();
 dashboard.initial();
 const blockchain = useBlockchain();
-blockchain.randomSetupEndpoint();
+// Only wire RPC when a chain is actually selected (chain pages). Home uses
+// blank layout and never auto-loads a chain.
+if (blockchain.chainName) {
+  blockchain.randomSetupEndpoint();
+}
 const baseStore = useBaseStore();
 
 const current = ref(''); // the current chain
 const temp = ref('');
 blockchain.$subscribe((m, s) => {
+  if (!s.chainName) return;
   if (current.value === s.chainName && temp.value != s.endpoint.address) {
     temp.value = s.endpoint.address;
     // endpoint switch — wipe stale height then re-init
