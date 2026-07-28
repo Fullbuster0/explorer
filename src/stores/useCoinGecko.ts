@@ -15,13 +15,43 @@ const LocalStoreKey = 'currency';
 
 export const coingeckoUrl = import.meta.env.VITE_COINGECKO_URL || 'https://api.coingecko.com';
 
-// Optional free demo API key — bypasses the aggressive public-tier rate limit /
-// datacenter-IP 403s. Set VITE_COINGECKO_API_KEY to enable. Without it the app
-// still works, prices just may be unavailable (handled gracefully downstream).
+// Optional free demo API key — raises rate limits. Set VITE_COINGECKO_API_KEY.
 const cgApiKey = import.meta.env.VITE_COINGECKO_API_KEY as string | undefined;
 export const coingeckoHeaders: Record<string, string> = cgApiKey
   ? { 'x-cg-demo-api-key': cgApiKey }
   : {};
+
+/**
+ * CoinGecko locked the free `/simple/price` endpoint behind an API key
+ * (returns 403 without one), but `/coins/markets` is still open. Fetch prices
+ * via markets and reshape the array into the `{ coinId: PriceMeta }` map the
+ * rest of the app expects (same shape /simple/price used to return).
+ */
+export async function fetchPriceMap(
+  coinIds: string[],
+  vsCurrencies: string[]
+): Promise<Record<string, PriceMeta>> {
+  if (!coinIds.length) return {};
+  const vs = vsCurrencies.filter((c) => !!c);
+  const primary = vs[0] || 'usd';
+  const url =
+    `${coingeckoUrl}/api/v3/coins/markets?vs_currency=${encodeURIComponent(primary)}` +
+    `&ids=${encodeURIComponent(coinIds.join(','))}` +
+    `&price_change_percentage=24h&per_page=250`;
+  const rows: any[] = await get(url, { headers: coingeckoHeaders });
+  const out: Record<string, PriceMeta> = {};
+  if (!Array.isArray(rows)) return out;
+  for (const r of rows) {
+    if (!r?.id) continue;
+    const meta: PriceMeta = {};
+    const price = r.current_price;
+    if (price != null) (meta as any)[primary] = String(price);
+    const ch = r.price_change_percentage_24h;
+    if (ch != null) (meta as any)[`${primary}_24h_change`] = String(ch);
+    out[r.id] = meta;
+  }
+  return out;
+}
 
 export const useCoingecko = defineStore('coingecko', {
   state: () => {
@@ -44,11 +74,10 @@ export const useCoingecko = defineStore('coingecko', {
 
     fetchCoinPrice(ids: string[]) {
       // Filter null/empty secondary currency so we never send "usd,null".
-      const vs = ['usd', this.currency].filter((c) => !!c).join(',');
-      const url = `${coingeckoUrl}/api/v3/simple/price?include_24hr_change=true&vs_currencies=${vs}&ids=${ids.join(',')}`;
-      get(url, { headers: coingeckoHeaders })
+      const vs = ['usd', this.currency].filter((c) => !!c);
+      fetchPriceMap(ids, vs)
         .then((data) => {
-          if (data && typeof data === 'object') this.prices = { ...this.prices, ...data };
+          this.prices = { ...this.prices, ...data };
         })
         .catch((e) => console.warn('[coingecko] price fetch failed:', e?.message || e));
     },
