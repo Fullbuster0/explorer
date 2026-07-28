@@ -404,36 +404,36 @@ const amount = computed({
 
       <div class="grid grid-cols-2 gap-3 p-4 sm:grid-cols-3 lg:grid-cols-4">
         <div class="sz-wallet-cell">
-          <div class="sz-metric-label">Total supply</div>
+          <div class="sz-stat-label">Total supply</div>
           <div class="mt-1 truncate font-mono text-lg font-semibold text-main">{{ tokenomics.supply }}</div>
         </div>
         <div class="sz-wallet-cell">
-          <div class="sz-metric-label">Bonded tokens</div>
+          <div class="sz-stat-label">Bonded tokens</div>
           <div class="mt-1 truncate font-mono text-lg font-semibold text-main">{{ tokenomics.bonded }}</div>
         </div>
         <div class="sz-wallet-cell">
-          <div class="sz-metric-label">Inflation</div>
+          <div class="sz-stat-label">Inflation</div>
           <div class="mt-1 truncate font-mono text-lg font-semibold text-main">{{ tokenomics.inflation }}</div>
         </div>
         <div class="sz-wallet-cell">
-          <div class="sz-metric-label">Est. APR</div>
+          <div class="sz-stat-label">Est. APR</div>
           <div class="mt-1 truncate font-mono text-lg font-semibold text-main">{{ tokenomics.apr }}</div>
           <div class="mt-0.5 text-[11px] text-secondary">0% commission</div>
         </div>
         <div class="sz-wallet-cell">
-          <div class="sz-metric-label">Community pool</div>
+          <div class="sz-stat-label">Community pool</div>
           <div class="mt-1 truncate font-mono text-lg font-semibold text-main">{{ tokenomics.communityPool }}</div>
         </div>
         <div class="sz-wallet-cell">
-          <div class="sz-metric-label">Community tax</div>
+          <div class="sz-stat-label">Community tax</div>
           <div class="mt-1 truncate font-mono text-lg font-semibold text-main">{{ tokenomics.communityTax }}</div>
         </div>
         <div class="sz-wallet-cell">
-          <div class="sz-metric-label">Unbonding time</div>
+          <div class="sz-stat-label">Unbonding time</div>
           <div class="mt-1 truncate font-mono text-lg font-semibold text-main">{{ tokenomics.unbonding }}</div>
         </div>
         <div class="sz-wallet-cell">
-          <div class="sz-metric-label">Max validators</div>
+          <div class="sz-stat-label">Max validators</div>
           <div class="mt-1 truncate font-mono text-lg font-semibold text-main">{{ tokenomics.maxValidators }}</div>
         </div>
       </div>
@@ -552,19 +552,19 @@ const amount = computed({
 
           <div class="grid grid-cols-2 gap-2 px-4 pt-3 sm:grid-cols-4">
             <div class="sz-gh-stat">
-              <div class="sz-metric-label">Stars</div>
+              <div class="sz-stat-label">Stars</div>
               <div class="sz-gh-stat-val">{{ githubCard.stars }}</div>
             </div>
             <div class="sz-gh-stat">
-              <div class="sz-metric-label">Forks</div>
+              <div class="sz-stat-label">Forks</div>
               <div class="sz-gh-stat-val">{{ githubCard.forks }}</div>
             </div>
             <div class="sz-gh-stat">
-              <div class="sz-metric-label">Open issues</div>
+              <div class="sz-stat-label">Open issues</div>
               <div class="sz-gh-stat-val">{{ githubCard.openIssues }}</div>
             </div>
             <div class="sz-gh-stat">
-              <div class="sz-metric-label">Language</div>
+              <div class="sz-stat-label">Language</div>
               <div class="sz-gh-stat-val truncate">{{ githubCard.language || '—' }}</div>
             </div>
           </div>
@@ -649,28 +649,28 @@ const amount = computed({
 
       <div class="grid grid-cols-2 gap-3 px-4 py-4 md:grid-cols-4">
         <div class="sz-wallet-cell">
-          <div class="sz-metric-label">{{ $t('account.balance') }}</div>
+          <div class="sz-stat-label">{{ $t('account.balance') }}</div>
           <div class="mt-1 truncate font-mono text-lg font-semibold text-main">
             {{ format.formatToken(walletStore.balanceOfStakingToken) }}
           </div>
           <div class="text-sm" :class="color">${{ format.tokenValue(walletStore.balanceOfStakingToken) }}</div>
         </div>
         <div class="sz-wallet-cell">
-          <div class="sz-metric-label">{{ $t('account.delegations') }}</div>
+          <div class="sz-stat-label">{{ $t('account.delegations') }}</div>
           <div class="mt-1 truncate font-mono text-lg font-semibold text-main">
             {{ format.formatToken(walletStore.stakingAmount) }}
           </div>
           <div class="text-sm" :class="color">${{ format.tokenValue(walletStore.stakingAmount) }}</div>
         </div>
         <div class="sz-wallet-cell">
-          <div class="sz-metric-label">{{ $t('index.reward') }}</div>
+          <div class="sz-stat-label">{{ $t('index.reward') }}</div>
           <div class="mt-1 truncate font-mono text-lg font-semibold text-main">
             {{ format.formatToken(walletStore.rewardAmount) }}
           </div>
           <div class="text-sm" :class="color">${{ format.tokenValue(walletStore.rewardAmount) }}</div>
         </div>
         <div class="sz-wallet-cell">
-          <div class="sz-metric-label">{{ $t('index.unbonding') }}</div>
+          <div class="sz-stat-label">{{ $t('index.unbonding') }}</div>
           <div class="mt-1 truncate font-mono text-lg font-semibold text-main">
             {{ format.formatToken(walletStore.unbondingAmount) }}
           </div>

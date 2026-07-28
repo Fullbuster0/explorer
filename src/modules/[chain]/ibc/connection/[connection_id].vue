@@ -171,19 +171,19 @@ function shortState(state?: string) {
       <!-- quick stats strip -->
       <div class="grid grid-cols-3 border-t border-base-content/10 divide-x divide-base-content/10">
         <div class="px-4 py-3 text-center">
-          <div class="sz-metric-label">{{ $t('ibc.channels') }}</div>
+          <div class="sz-stat-label">{{ $t('ibc.channels') }}</div>
           <div class="mt-0.5 font-mono text-lg font-bold">
             {{ openChannels }}<span class="text-secondary text-sm font-medium">/{{ channels.length }}</span>
           </div>
         </div>
         <div class="px-4 py-3 text-center">
-          <div class="sz-metric-label">{{ $t('ibc.client_type') }}</div>
+          <div class="sz-stat-label">{{ $t('ibc.client_type') }}</div>
           <div class="mt-0.5 truncate text-[12px] font-semibold">
             {{ (clientState.client_state?.['@type'] || '—').split('.').pop() }}
           </div>
         </div>
         <div class="px-4 py-3 text-center">
-          <div class="sz-metric-label">{{ $t('ibc.latest_height') }}</div>
+          <div class="sz-stat-label">{{ $t('ibc.latest_height') }}</div>
           <div class="mt-0.5 font-mono text-[13px] font-semibold">
             {{ clientState.client_state?.latest_height?.revision_height || '—' }}
           </div>

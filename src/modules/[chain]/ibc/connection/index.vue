@@ -113,52 +113,24 @@ function openRow(row: IbcChainRow) {
 
     <!-- summary metrics -->
     <div class="grid grid-cols-2 gap-3 xl:!grid-cols-4">
-      <div class="sz-metric">
-        <div class="flex items-start justify-between gap-2">
-          <div class="min-w-0">
-            <div class="sz-metric-label">{{ $t('ibc.chains') }}</div>
-            <div class="sz-metric-value truncate">{{ summary.chains || '—' }}</div>
-            <div class="sz-metric-sub">
-              <span class="font-mono">{{ summary.wellKnownChains || 0 }}</span> {{ $t('ibc.well_known').toLowerCase() }}
-            </div>
-          </div>
-          <span class="sz-metric-icon"><Icon icon="mdi:link-variant" /></span>
-        </div>
+      <div class="sz-stat" style="--stat-hue: var(--sz-accent)">
+        <div class="sz-stat-head"><i class="sz-stat-tick"></i><span class="sz-stat-label">{{ $t('ibc.chains') }}</span></div>
+        <div class="sz-stat-value">{{ summary.chains || '—' }}</div>
+        <div class="sz-stat-sub">{{ summary.wellKnownChains || 0 }} {{ $t('ibc.well_known').toLowerCase() }}</div>
       </div>
-      <div class="sz-metric">
-        <div class="flex items-start justify-between gap-2">
-          <div class="min-w-0">
-            <div class="sz-metric-label">{{ $t('ibc.open_connections') }}</div>
-            <div class="sz-metric-value truncate">
-              <span class="font-mono">{{ summary.openConnections || 0 }}</span
-              ><span class="text-secondary text-base font-medium">/{{ summary.connections || 0 }}</span>
-            </div>
-          </div>
-          <span class="sz-metric-icon sz-metric-icon--success"><Icon icon="mdi:transit-connection-variant" /></span>
-        </div>
+      <div class="sz-stat" style="--stat-hue: var(--sz-success)">
+        <div class="sz-stat-head"><i class="sz-stat-tick"></i><span class="sz-stat-label">{{ $t('ibc.open_connections') }}</span></div>
+        <div class="sz-stat-value">{{ summary.openConnections || 0 }}<span class="sz-stat-unit">/{{ summary.connections || 0 }}</span></div>
       </div>
-      <div class="sz-metric">
-        <div class="flex items-start justify-between gap-2">
-          <div class="min-w-0">
-            <div class="sz-metric-label">{{ $t('ibc.channels') }}</div>
-            <div class="sz-metric-value truncate">
-              <span class="font-mono">{{ summary.openChannels || 0 }}</span
-              ><span class="text-secondary text-base font-medium">/{{ summary.channels || 0 }}</span>
-            </div>
-            <div class="sz-metric-sub">open / total</div>
-          </div>
-          <span class="sz-metric-icon"><Icon icon="mdi:swap-horizontal" /></span>
-        </div>
+      <div class="sz-stat" style="--stat-hue: #0ea5e9">
+        <div class="sz-stat-head"><i class="sz-stat-tick"></i><span class="sz-stat-label">{{ $t('ibc.channels') }}</span></div>
+        <div class="sz-stat-value">{{ summary.openChannels || 0 }}<span class="sz-stat-unit">/{{ summary.channels || 0 }}</span></div>
+        <div class="sz-stat-sub">open / total</div>
       </div>
-      <div class="sz-metric">
-        <div class="flex items-start justify-between gap-2">
-          <div class="min-w-0">
-            <div class="sz-metric-label">{{ $t('ibc.well_known') }}</div>
-            <div class="sz-metric-value truncate">{{ summary.wellKnownChains || 0 }}</div>
-            <div class="sz-metric-sub">registry / hosted</div>
-          </div>
-          <span class="sz-metric-icon sz-metric-icon--warning"><Icon icon="mdi:star-outline" /></span>
-        </div>
+      <div class="sz-stat" style="--stat-hue: var(--sz-warn)">
+        <div class="sz-stat-head"><i class="sz-stat-tick"></i><span class="sz-stat-label">{{ $t('ibc.well_known') }}</span></div>
+        <div class="sz-stat-value">{{ summary.wellKnownChains || 0 }}</div>
+        <div class="sz-stat-sub">registry / hosted</div>
       </div>
     </div>
 

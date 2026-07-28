@@ -219,41 +219,21 @@ loadAvatars();
 
     <!-- network staking vitals -->
     <div class="grid grid-cols-2 gap-3 xl:!grid-cols-4">
-      <div class="sz-metric">
-        <div class="flex items-start justify-between gap-2">
-          <div class="min-w-0">
-            <div class="sz-metric-label">{{ $t('staking.inflation') }}</div>
-            <div class="sz-metric-value truncate">{{ format.percent(mintStore.inflation) }}</div>
-          </div>
-          <span class="sz-metric-icon sz-metric-icon--success"><Icon icon="mdi:trending-up" /></span>
-        </div>
+      <div class="sz-stat" style="--stat-hue: var(--sz-success)">
+        <div class="sz-stat-head"><i class="sz-stat-tick"></i><span class="sz-stat-label">{{ $t('staking.inflation') }}</span></div>
+        <div class="sz-stat-value">{{ format.percent(mintStore.inflation) }}</div>
       </div>
-      <div class="sz-metric">
-        <div class="flex items-start justify-between gap-2">
-          <div class="min-w-0">
-            <div class="sz-metric-label">{{ $t('staking.unbonding_time') }}</div>
-            <div class="sz-metric-value truncate">{{ formatSeconds(staking.params?.unbonding_time) }}</div>
-          </div>
-          <span class="sz-metric-icon"><Icon icon="mdi:lock-open-outline" /></span>
-        </div>
+      <div class="sz-stat" style="--stat-hue: var(--sz-accent)">
+        <div class="sz-stat-head"><i class="sz-stat-tick"></i><span class="sz-stat-label">{{ $t('staking.unbonding_time') }}</span></div>
+        <div class="sz-stat-value">{{ formatSeconds(staking.params?.unbonding_time) }}</div>
       </div>
-      <div class="sz-metric">
-        <div class="flex items-start justify-between gap-2">
-          <div class="min-w-0">
-            <div class="sz-metric-label">{{ $t('staking.double_sign_slashing') }}</div>
-            <div class="sz-metric-value truncate">{{ format.percent(slashing.slash_fraction_double_sign) }}</div>
-          </div>
-          <span class="sz-metric-icon sz-metric-icon--error"><Icon icon="mdi:alert-octagon-outline" /></span>
-        </div>
+      <div class="sz-stat" style="--stat-hue: var(--sz-danger)">
+        <div class="sz-stat-head"><i class="sz-stat-tick"></i><span class="sz-stat-label">{{ $t('staking.double_sign_slashing') }}</span></div>
+        <div class="sz-stat-value">{{ format.percent(slashing.slash_fraction_double_sign) }}</div>
       </div>
-      <div class="sz-metric">
-        <div class="flex items-start justify-between gap-2">
-          <div class="min-w-0">
-            <div class="sz-metric-label">{{ $t('staking.downtime_slashing') }}</div>
-            <div class="sz-metric-value truncate">{{ format.percent(slashing.slash_fraction_downtime) }}</div>
-          </div>
-          <span class="sz-metric-icon sz-metric-icon--warning"><Icon icon="mdi:pause" /></span>
-        </div>
+      <div class="sz-stat" style="--stat-hue: var(--sz-warn)">
+        <div class="sz-stat-head"><i class="sz-stat-tick"></i><span class="sz-stat-label">{{ $t('staking.downtime_slashing') }}</span></div>
+        <div class="sz-stat-value">{{ format.percent(slashing.slash_fraction_downtime) }}</div>
       </div>
     </div>
 

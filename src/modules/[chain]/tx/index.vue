@@ -314,7 +314,7 @@ const secondsSinceLastFetch = computed(() => {
 
     <div v-show="tab === 'search'" class="sz-section p-5">
       <div class="form-control max-w-xl">
-        <label class="sz-metric-label mb-2">Transaction Hash</label>
+        <label class="sz-stat-label mb-2">Transaction Hash</label>
         <div class="flex gap-2">
           <input
             v-model="hash"

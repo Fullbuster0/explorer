@@ -206,7 +206,7 @@ const rawType = computed(() => String((tx.value.tx as any)?.['@type'] || '/cosmo
 
             <!-- gas gauge -->
             <div class="sz-tx-gauge shrink-0">
-              <div class="sz-metric-label mb-1">{{ $t('tx.gas') }}</div>
+              <div class="sz-stat-label mb-1">{{ $t('tx.gas') }}</div>
               <div class="font-mono text-[1.35rem] font-bold leading-none">
                 {{ Number(tx.tx_response.gas_used || 0).toLocaleString() }}
                 <span class="text-secondary font-medium text-[0.95rem]">/ {{ Number(tx.tx_response.gas_wanted || 0).toLocaleString() }}</span>
@@ -222,52 +222,37 @@ const rawType = computed(() => String((tx.value.tx as any)?.['@type'] || '/cosmo
 
       <!-- metric strip -->
       <div class="grid grid-cols-2 md:!grid-cols-3 xl:!grid-cols-5 gap-3 mb-4">
-        <div class="sz-metric">
-          <div class="flex items-start justify-between gap-2">
-            <div class="sz-metric-label">{{ $t('account.height') }}</div>
-            <div class="sz-metric-icon"><Icon icon="mdi-cube-outline" /></div>
-          </div>
+        <div class="sz-stat" style="--stat-hue: var(--sz-accent)">
+          <div class="sz-stat-head"><i class="sz-stat-tick"></i><span class="sz-stat-label">{{ $t('account.height') }}</span></div>
           <RouterLink
-            class="sz-metric-value !text-[1.15rem] text-primary link link-hover no-underline"
+            class="sz-stat-value text-primary link link-hover no-underline"
             :to="`/${props.chain}/block/${tx.tx_response.height}`"
           >{{ tx.tx_response.height }}</RouterLink>
-          <div class="sz-metric-sub">block</div>
+          <div class="sz-stat-sub">block</div>
         </div>
 
-        <div class="sz-metric">
-          <div class="flex items-start justify-between gap-2">
-            <div class="sz-metric-label">{{ $t('account.time') }}</div>
-            <div class="sz-metric-icon"><Icon icon="mdi-clock-outline" /></div>
-          </div>
-          <div class="sz-metric-value !text-[1.05rem] !leading-snug">{{ format.toDay(txTime, 'from') }}</div>
-          <div class="sz-metric-sub font-mono">{{ format.toLocaleDate(txTime) }}</div>
+        <div class="sz-stat" style="--stat-hue: #764bc8">
+          <div class="sz-stat-head"><i class="sz-stat-tick"></i><span class="sz-stat-label">{{ $t('account.time') }}</span></div>
+          <div class="sz-stat-value">{{ format.toDay(txTime, 'from') }}</div>
+          <div class="sz-stat-sub">{{ format.toLocaleDate(txTime) }}</div>
         </div>
 
-        <div class="sz-metric">
-          <div class="flex items-start justify-between gap-2">
-            <div class="sz-metric-label">{{ $t('tx.fee') }}</div>
-            <div class="sz-metric-icon"><Icon icon="mdi-cash-multiple" /></div>
-          </div>
-          <div class="sz-metric-value !text-[1.05rem] !leading-snug">{{ feeText || '—' }}</div>
-          <div class="sz-metric-sub">paid by signer</div>
+        <div class="sz-stat" style="--stat-hue: var(--sz-warn)">
+          <div class="sz-stat-head"><i class="sz-stat-tick"></i><span class="sz-stat-label">{{ $t('tx.fee') }}</span></div>
+          <div class="sz-stat-value">{{ feeText || '—' }}</div>
+          <div class="sz-stat-sub">paid by signer</div>
         </div>
 
-        <div class="sz-metric">
-          <div class="flex items-start justify-between gap-2">
-            <div class="sz-metric-label">{{ $t('tx.gas') }}</div>
-            <div class="sz-metric-icon"><Icon icon="mdi-fire" /></div>
-          </div>
-          <div class="sz-metric-value !text-[1.15rem]">{{ gasUsedRatio }}%</div>
-          <div class="sz-metric-sub font-mono">{{ Number(tx.tx_response.gas_used || 0).toLocaleString() }} used</div>
+        <div class="sz-stat" style="--stat-hue: #f97316">
+          <div class="sz-stat-head"><i class="sz-stat-tick"></i><span class="sz-stat-label">{{ $t('tx.gas') }}</span></div>
+          <div class="sz-stat-value">{{ gasUsedRatio }}%</div>
+          <div class="sz-stat-sub">{{ Number(tx.tx_response.gas_used || 0).toLocaleString() }} used</div>
         </div>
 
-        <div class="sz-metric">
-          <div class="flex items-start justify-between gap-2">
-            <div class="sz-metric-label">{{ $t('account.messages') }}</div>
-            <div class="sz-metric-icon"><Icon icon="mdi-swap-horizontal" /></div>
-          </div>
-          <div class="sz-metric-value !text-[1.15rem]">{{ messages.length }}</div>
-          <div class="sz-metric-sub">{{ events.length }} events</div>
+        <div class="sz-stat" style="--stat-hue: #0ea5e9">
+          <div class="sz-stat-head"><i class="sz-stat-tick"></i><span class="sz-stat-label">{{ $t('account.messages') }}</span></div>
+          <div class="sz-stat-value">{{ messages.length }}</div>
+          <div class="sz-stat-sub">{{ events.length }} events</div>
         </div>
       </div>
 

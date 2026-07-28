@@ -863,7 +863,7 @@ onUnmounted(() => {
             <div class="sz-section-title">{{ $t('gov.tally') }}</div>
           </div>
           <div class="text-right">
-            <div class="sz-metric-label">Turnout</div>
+            <div class="sz-stat-label">Turnout</div>
             <div class="font-mono text-lg font-bold tabular">{{ turnoutLabel }}</div>
           </div>
         </div>
