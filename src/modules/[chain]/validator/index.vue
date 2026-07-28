@@ -222,8 +222,8 @@ loadAvatars();
       </div>
     </div>
 
-    <!-- network staking vitals -->
-    <div class="grid grid-cols-2 gap-3 xl:!grid-cols-4">
+    <!-- network staking vitals — Gno has no mint/slashing modules -->
+    <div v-if="!isGno" class="grid grid-cols-2 gap-3 xl:!grid-cols-4">
       <div class="sz-stat" style="--stat-hue: var(--sz-success)">
         <div class="sz-stat-head"><i class="sz-stat-tick"></i><span class="sz-stat-label">{{ $t('staking.inflation') }}</span></div>
         <div class="sz-stat-value">{{ format.percent(mintStore.inflation) }}</div>
@@ -239,6 +239,24 @@ loadAvatars();
       <div class="sz-stat" style="--stat-hue: var(--sz-warn)">
         <div class="sz-stat-head"><i class="sz-stat-tick"></i><span class="sz-stat-label">{{ $t('staking.downtime_slashing') }}</span></div>
         <div class="sz-stat-value">{{ format.percent(slashing.slash_fraction_downtime) }}</div>
+      </div>
+    </div>
+    <div v-else class="grid grid-cols-2 gap-3 xl:!grid-cols-4">
+      <div class="sz-stat" style="--stat-hue: var(--sz-success)">
+        <div class="sz-stat-head"><i class="sz-stat-tick"></i><span class="sz-stat-label">Total voting power</span></div>
+        <div class="sz-stat-value">{{ Number(staking.totalPower || 0).toLocaleString() }} VP</div>
+      </div>
+      <div class="sz-stat" style="--stat-hue: var(--sz-accent)">
+        <div class="sz-stat-head"><i class="sz-stat-tick"></i><span class="sz-stat-label">Active set</span></div>
+        <div class="sz-stat-value">{{ list.length }} / {{ staking.params?.max_validators || 100 }}</div>
+      </div>
+      <div class="sz-stat" style="--stat-hue: var(--sz-info, var(--sz-accent))">
+        <div class="sz-stat-head"><i class="sz-stat-tick"></i><span class="sz-stat-label">Engine</span></div>
+        <div class="sz-stat-value">Tendermint2</div>
+      </div>
+      <div class="sz-stat" style="--stat-hue: var(--sz-warn)">
+        <div class="sz-stat-head"><i class="sz-stat-tick"></i><span class="sz-stat-label">Wallet</span></div>
+        <div class="sz-stat-value">Adena</div>
       </div>
     </div>
 

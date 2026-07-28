@@ -9,6 +9,7 @@ import utc from 'dayjs/plugin/utc';
 import localeData from 'dayjs/plugin/localeData';
 import { fromBase64, fromHex, toHex } from '@cosmjs/encoding';
 import { consensusPubkeyToHexAddress, get } from '@/libs';
+import { gnoMoniker } from '@/libs/gno/valopers';
 import type { Coin, DenomTrace } from '@/types';
 import type { Asset } from '@/types/chaindata';
 
@@ -320,6 +321,7 @@ export const useFormatter = defineStore('formatter', {
       if (typeof address === 'string' && address.startsWith('g1')) {
         const byOp = this.staking.validators.find((x) => x.operator_address === address);
         if (byOp?.description?.moniker) return byOp.description.moniker;
+        return gnoMoniker(address);
       }
 
       try {
@@ -327,7 +329,7 @@ export const useFormatter = defineStore('formatter', {
         const validator = this.staking.validators.find(
           (x) => consensusPubkeyToHexAddress(x.consensus_pubkey) === txt
         );
-        return validator?.description?.moniker;
+        return validator?.description?.moniker || gnoMoniker(address);
       } catch {
         // fall through — maybe raw hex or unknown encoding
         const validator = this.staking.validators.find(
@@ -335,14 +337,14 @@ export const useFormatter = defineStore('formatter', {
             x.operator_address === address ||
             consensusPubkeyToHexAddress(x.consensus_pubkey) === String(address).toUpperCase()
         );
-        return validator?.description?.moniker;
+        return validator?.description?.moniker || gnoMoniker(address);
       }
     },
     // find validator by operator address
     validatorFromBech32(address: string) {
       if (!address) return address;
       const validator = this.staking.validators.find((x) => x.operator_address === address);
-      return validator?.description?.moniker;
+      return validator?.description?.moniker || gnoMoniker(address);
     },
     calculatePercent(input?: string | number, total?: string | number) {
       if (!input || !total) return '0';

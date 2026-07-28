@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue';
 import { fromBase64, toHex } from '@cosmjs/encoding';
 import { useBaseStore, useFormatter, useStakingStore } from '@/stores';
 import { consensusPubkeyToHexAddress } from '@/libs';
+import { gnoMoniker } from '@/libs/gno/valopers';
 import TxsInBlocksChart from '@/components/charts/TxsInBlocksChart.vue';
 import { Icon } from '@iconify/vue';
 
@@ -54,17 +55,24 @@ function loadAvatars(identities: string[]) {
  *  Gnoland/TM2: proposer is already bech32 `g1…` (matches operator_address). */
 function resolveProposer(proposerAddress?: string) {
   if (!proposerAddress) return { moniker: '', identity: '', logo: '' };
-  // TM2 / Gno: bech32 proposer — match operator_address directly
+  // TM2 / Gno: bech32 proposer — match operator_address directly.
+  // Fall back to static valoper registry so moniker works even before
+  // staking store finishes loading.
   if (proposerAddress.startsWith('g1') || (!/[=+/]/.test(proposerAddress) && proposerAddress.length >= 20 && !/^[0-9A-F]{40}$/i.test(proposerAddress) && proposerAddress.includes('1'))) {
     const val = staking.validators.find((x) => x.operator_address === proposerAddress);
     if (val) {
       const identity = val.description?.identity || '';
       return {
-        moniker: val.description?.moniker || proposerAddress,
+        moniker: val.description?.moniker || gnoMoniker(proposerAddress),
         identity,
         logo: logo(identity),
       };
     }
+    return {
+      moniker: gnoMoniker(proposerAddress),
+      identity: '',
+      logo: '',
+    };
   }
   try {
     const hex = toHex(fromBase64(proposerAddress)).toUpperCase();

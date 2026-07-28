@@ -225,10 +225,13 @@ const chainSymbol = computed(() => {
   return a?.symbol || '';
 });
 const hasMarket = computed(() => !!(coinInfo.value && coinInfo.value.name));
+const isGno = computed(
+  () => blockchain.current?.engine === 'gno' || blockchain.current?.engine === 'tm2'
+);
 
 /** nodes.guru-style tokenomics snapshot from live chain stores */
 const tokenomics = computed(() => {
-  const isGno = blockchain.current?.engine === 'gno' || blockchain.current?.engine === 'tm2';
+  const gno = isGno.value;
   const denom =
     stakingStore.params?.bond_denom ||
     bankStore.supply?.denom ||
@@ -240,16 +243,17 @@ const tokenomics = computed(() => {
   const inflationN = Number(mintStore.inflation || 0);
   const communityTaxN = Number(distStore.params?.community_tax || 0);
   // Gno: bonded_tokens is sum of TM2 voting power (unitless). No total supply.
-  // Show power total + 100% bonded ratio instead of empty tokenomics.
-  const bondedRatio = isGno
+  const bondedRatio = gno
     ? bondedN > 0
       ? 1
       : 0
     : supplyN > 0
       ? bondedN / supplyN
       : 0;
-  const apr = !isGno && bondedRatio > 0 ? ((1 - communityTaxN) * inflationN) / bondedRatio : 0;
+  const apr = !gno && bondedRatio > 0 ? ((1 - communityTaxN) * inflationN) / bondedRatio : 0;
   const bondedPct = Math.max(0, Math.min(100, bondedRatio * 100));
+  const activeVals = stakingStore.validators?.length || 0;
+  const maxVals = Number(stakingStore.params?.max_validators || 0) || 100;
 
   const formatPower = (n: number) => {
     if (!n) return '—';
@@ -257,31 +261,36 @@ const tokenomics = computed(() => {
   };
 
   return {
-    denom: isGno ? 'VP' : denom,
-    supply: isGno ? '—' : supplyN ? format.formatTokenAmount({ amount: String(supplyN), denom }) : '—',
-    bonded: isGno
+    denom: gno ? 'VP' : denom,
+    supply: gno ? '—' : supplyN ? format.formatTokenAmount({ amount: String(supplyN), denom }) : '—',
+    bonded: gno
       ? formatPower(bondedN)
       : bondedN
         ? format.formatTokenAmount({ amount: String(bondedN), denom })
         : '—',
-    notBonded: isGno
+    notBonded: gno
       ? '—'
       : notBondedN
         ? format.formatTokenAmount({ amount: String(notBondedN), denom })
         : '—',
-    bondedRatio: isGno ? (bondedN > 0 ? '100%' : '—') : format.percent(bondedRatio),
-    bondedPct: isGno ? (bondedN > 0 ? 100 : 0) : bondedPct,
-    inflation: isGno ? '—' : format.percent(inflationN),
-    apr: isGno ? '—' : format.percent(apr),
-    communityTax: isGno ? '—' : format.percent(communityTaxN),
-    communityPool: isGno
+    bondedRatio: gno ? (bondedN > 0 ? '100%' : '—') : format.percent(bondedRatio),
+    bondedPct: gno ? (bondedN > 0 ? 100 : 0) : bondedPct,
+    inflation: gno ? '—' : format.percent(inflationN),
+    apr: gno ? '—' : format.percent(apr),
+    communityTax: gno ? '—' : format.percent(communityTaxN),
+    communityPool: gno
       ? '—'
       : format.formatTokens(
           // @ts-ignore
           (store.communityPool || []).filter((x: any) => x.denom === denom)
         ) || '—',
-    unbonding: formatSeconds(stakingStore.params?.unbonding_time) || '—',
+    unbonding: gno ? 'n/a' : formatSeconds(stakingStore.params?.unbonding_time) || '—',
     maxValidators: stakingStore.params?.max_validators || '—',
+    // Gno-only extras for the network card
+    activeValidators: activeVals,
+    validatorSlots: `${activeVals} / ${maxVals}`,
+    engine: gno ? 'Tendermint2' : 'Cosmos SDK',
+    chainId: blockchain.current?.chainId || '—',
   };
 });
 
@@ -409,17 +418,20 @@ const amount = computed({
     <div class="sz-dash-body">
     <!-- Row 1: Tokenomics + Market -->
     <div class="sz-dash-row" :class="{ 'sz-dash-row--single': !hasMarket }">
-    <!-- ===== Tokenomics (nodes.guru-style) ===== -->
+    <!-- ===== Tokenomics (nodes.guru-style) / Gno Network card ===== -->
     <section class="sz-section sz-dash-tokenomics">
       <div class="sz-section-head">
         <div>
-          <div class="sz-section-kicker">Economics</div>
-          <div class="sz-section-title">Tokenomics</div>
+          <div class="sz-section-kicker">{{ isGno ? 'Network' : 'Economics' }}</div>
+          <div class="sz-section-title">{{ isGno ? 'Consensus' : 'Tokenomics' }}</div>
         </div>
-        <div class="sz-chip font-mono">{{ tokenomics.bondedRatio }} bonded</div>
+        <div class="sz-chip font-mono">
+          {{ isGno ? tokenomics.engine : `${tokenomics.bondedRatio} bonded` }}
+        </div>
       </div>
 
-      <div class="px-4 pt-4">
+      <!-- Cosmos bonded-ratio bar — meaningless on Gno (no bank supply) -->
+      <div v-if="!isGno" class="px-4 pt-4">
         <div class="mb-1.5 flex items-center justify-between gap-2 text-xs">
           <span class="text-secondary font-semibold uppercase tracking-wider">Bonded ratio</span>
           <span class="font-mono font-semibold text-main">{{ tokenomics.bondedRatio }}</span>
@@ -433,7 +445,32 @@ const amount = computed({
         </div>
       </div>
 
-      <div class="grid grid-cols-2 gap-3 p-4 sm:grid-cols-3 lg:grid-cols-4">
+      <!-- Gno: validator-slot fill bar (active / max) -->
+      <div v-else class="px-4 pt-4">
+        <div class="mb-1.5 flex items-center justify-between gap-2 text-xs">
+          <span class="text-secondary font-semibold uppercase tracking-wider">Validator set</span>
+          <span class="font-mono font-semibold text-main">{{ tokenomics.validatorSlots }}</span>
+        </div>
+        <div class="sz-tok-track" aria-hidden="true">
+          <div
+            class="sz-tok-fill"
+            :style="{
+              width:
+                Math.min(
+                  100,
+                  (Number(tokenomics.activeValidators) / Math.max(1, Number(tokenomics.maxValidators) || 100)) * 100
+                ) + '%',
+            }"
+          ></div>
+        </div>
+        <div class="mt-1.5 flex justify-between text-[11px] text-secondary font-mono">
+          <span>Total power {{ tokenomics.bonded }}</span>
+          <span>Max {{ tokenomics.maxValidators }}</span>
+        </div>
+      </div>
+
+      <!-- Cosmos tokenomics grid -->
+      <div v-if="!isGno" class="grid grid-cols-2 gap-3 p-4 sm:grid-cols-3 lg:grid-cols-4">
         <div class="sz-wallet-cell">
           <div class="sz-stat-label">Total supply</div>
           <div class="mt-1 truncate font-mono text-lg font-semibold text-main">{{ tokenomics.supply }}</div>
@@ -466,6 +503,45 @@ const amount = computed({
         <div class="sz-wallet-cell">
           <div class="sz-stat-label">Max validators</div>
           <div class="mt-1 truncate font-mono text-lg font-semibold text-main">{{ tokenomics.maxValidators }}</div>
+        </div>
+      </div>
+
+      <!-- Gno network grid — only real TM2 facts, no dead Cosmos metrics -->
+      <div v-else class="grid grid-cols-2 gap-3 p-4 sm:grid-cols-3 lg:grid-cols-4">
+        <div class="sz-wallet-cell">
+          <div class="sz-stat-label">Total voting power</div>
+          <div class="mt-1 truncate font-mono text-lg font-semibold text-main">{{ tokenomics.bonded }}</div>
+        </div>
+        <div class="sz-wallet-cell">
+          <div class="sz-stat-label">Active validators</div>
+          <div class="mt-1 truncate font-mono text-lg font-semibold text-main">{{ tokenomics.validatorSlots }}</div>
+        </div>
+        <div class="sz-wallet-cell">
+          <div class="sz-stat-label">Max validators</div>
+          <div class="mt-1 truncate font-mono text-lg font-semibold text-main">{{ tokenomics.maxValidators }}</div>
+        </div>
+        <div class="sz-wallet-cell">
+          <div class="sz-stat-label">Engine</div>
+          <div class="mt-1 truncate font-mono text-lg font-semibold text-main">{{ tokenomics.engine }}</div>
+        </div>
+        <div class="sz-wallet-cell">
+          <div class="sz-stat-label">Chain ID</div>
+          <div class="mt-1 truncate font-mono text-lg font-semibold text-main">{{ tokenomics.chainId }}</div>
+        </div>
+        <div class="sz-wallet-cell">
+          <div class="sz-stat-label">Bond denom</div>
+          <div class="mt-1 truncate font-mono text-lg font-semibold text-main">VP</div>
+          <div class="mt-0.5 text-[11px] text-secondary">unitless TM2 power</div>
+        </div>
+        <div class="sz-wallet-cell">
+          <div class="sz-stat-label">Wallet</div>
+          <div class="mt-1 truncate font-mono text-lg font-semibold text-main">Adena</div>
+          <div class="mt-0.5 text-[11px] text-secondary">connect later</div>
+        </div>
+        <div class="sz-wallet-cell">
+          <div class="sz-stat-label">LCD / bank</div>
+          <div class="mt-1 truncate font-mono text-lg font-semibold text-main">n/a</div>
+          <div class="mt-0.5 text-[11px] text-secondary">RPC-only chain</div>
         </div>
       </div>
     </section>
@@ -660,8 +736,8 @@ const amount = computed({
       </template>
     </section>
 
-    <!-- ===== Wallet ===== -->
-    <section class="sz-section sz-dash-wallet">
+    <!-- ===== Wallet (Cosmos only — Gno uses Adena, deferred) ===== -->
+    <section v-if="!isGno" class="sz-section sz-dash-wallet">
       <div class="sz-section-head">
         <div class="min-w-0">
           <div class="sz-section-kicker">Wallet</div>
