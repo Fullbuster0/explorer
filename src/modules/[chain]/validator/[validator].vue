@@ -607,11 +607,13 @@ const sortedDelegations = computed(() => {
  *  v / rewards / commission empty — which also zeroes the self-rate tile,
  *  since selfRate = calculatePercent(selfBond, v.tokens). */
 function loadValidatorCore() {
+  console.info('[val] loadValidatorCore called, rpc=', !!blockchain.rpc, 'vLoaded=', !!v.value.operator_address);
   if (!blockchain.rpc || !validator) return;
   if (!v.value.operator_address) {
     staking
       .fetchValidator(validator)
       .then((res) => {
+        console.info('[val] fetchValidator OK, operator=', res?.validator?.operator_address, 'tokens=', res?.validator?.tokens);
         v.value = res.validator;
         identity.value = res.validator?.description?.identity || '';
         if (identity.value && !avatars.value[identity.value]) loadAvatar(identity.value);
@@ -621,7 +623,9 @@ function loadValidatorCore() {
           blockchain.current?.bech32ConsensusPrefix || ''
         );
       })
-      .catch(() => {});
+      .catch((e) => {
+        console.warn('[val] fetchValidator FAILED:', e?.message || e);
+      });
   }
   if (!rewards.value?.length) {
     blockchain.rpc
