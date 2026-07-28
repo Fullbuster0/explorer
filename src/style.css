@@ -520,9 +520,9 @@ html[data-theme='dark'] .sz-card {
   gap: 5px;
   flex-wrap: wrap;
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 1.5rem;
+  font-size: 1.35rem;
   font-weight: 700;
-  letter-spacing: -0.04em;
+  letter-spacing: -0.045em;
   line-height: 1.05;
   color: var(--text-main);
 }

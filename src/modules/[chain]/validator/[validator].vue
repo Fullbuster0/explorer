@@ -749,7 +749,7 @@ watch(
       <div class="sz-stat" style="--stat-hue: var(--sz-accent)">
         <div class="sz-stat-head"><i class="sz-stat-tick"></i><span class="sz-stat-label">{{ $t('staking.total_bonded') }}</span></div>
         <div class="sz-stat-value">
-          {{ format.formatToken({ amount: v.tokens, denom: staking.params.bond_denom }, false, '0,0.[00]') }}
+          {{ format.formatToken({ amount: v.tokens, denom: staking.params.bond_denom }, false, '0,0') }}
           <span class="sz-stat-unit">{{ bondDenomDisplay }}</span>
         </div>
         <div class="sz-stat-sub">VP {{ powerPercent }}</div>
@@ -758,7 +758,7 @@ watch(
       <div class="sz-stat" style="--stat-hue: #764bc8">
         <div class="sz-stat-head"><i class="sz-stat-tick"></i><span class="sz-stat-label">{{ $t('staking.self_bonded') }}</span></div>
         <div class="sz-stat-value">
-          {{ format.formatToken(selfBonded.balance, false, '0,0.[00]') || '—' }}
+          {{ format.formatToken(selfBonded.balance, false, '0,0') || '—' }}
           <span class="sz-stat-unit">{{ bondDenomDisplay }}</span>
         </div>
         <div class="sz-stat-sub">{{ selfRate }}</div>
