@@ -170,17 +170,28 @@ export const useBlockchain = defineStore('blockchain', {
     },
 
     randomEndpoint(chainName: string): Endpoint | undefined {
+      const all = this.current?.endpoints?.rest;
       const end = localStorage.getItem(`endpoint-${chainName}`);
       if (end) {
-        return JSON.parse(end);
-      } else {
-        const all = this.current?.endpoints?.rest;
-        if (all) {
-          const rn = Math.random();
-          const endpoint = all[Math.floor(rn * all.length)];
-          return endpoint;
+        try {
+          const saved = JSON.parse(end) as Endpoint;
+          // Only trust the cached endpoint if it still belongs to this chain's
+          // current list. A stale/dead cached endpoint (e.g. from an old config
+          // or a node that went down) would otherwise be re-used forever and
+          // freeze the app until the user cleared storage / hard-refreshed.
+          if (saved?.address && all?.some((e) => e.address === saved.address)) {
+            return saved;
+          }
+        } catch {
+          /* corrupt cache — fall through to random pick */
         }
       }
+      if (all && all.length) {
+        const rn = Math.random();
+        const endpoint = all[Math.floor(rn * all.length)];
+        return endpoint;
+      }
+      return undefined;
     },
 
     restEndpoints(): Endpoint[] {
@@ -609,6 +620,10 @@ export const useBlockchain = defineStore('blockchain', {
         this.healthCheck(endpoint.address, 6000).then((ok) => {
           if (!ok) this.fallbackEndpoint();
         });
+      } else {
+        // No endpoint configured at all — still try a fallback pick so the page
+        // doesn't sit forever waiting for an RPC that will never be wired.
+        this.fallbackEndpoint();
       }
     },
 
@@ -633,6 +648,9 @@ export const useBlockchain = defineStore('blockchain', {
           console.info(`[explorer] RPC fallback: ${current} -> ${healthy.ep.address}`);
           this.connErr = '';
           await this.setRestEndpoint(healthy.ep);
+          // Re-run chain init so stores that already gave up (or never started
+          // because the old RPC was dead) get a fresh shot — no manual refresh.
+          this.initial();
         }
       } finally {
         this.fallbackInProgress = false;

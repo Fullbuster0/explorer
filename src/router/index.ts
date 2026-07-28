@@ -71,7 +71,12 @@ router.beforeEach((to) => {
   if (chain) {
     const blockchain = useBlockchain();
     if (chain !== blockchain.chainName) {
-      blockchain.setCurrent(chain.toString());
+      // setCurrent is async (may await dashboard init) — do NOT block navigation
+      // on it. A hung await here would freeze the whole router (sidebar clicks
+      // stop responding until a hard refresh). Fire-and-forget + swallow errors.
+      Promise.resolve(blockchain.setCurrent(chain.toString())).catch((e) =>
+        console.warn('[router] setCurrent failed', e)
+      );
     }
   }
 });
@@ -81,6 +86,18 @@ router.afterEach((to) => {
     document.title = titleFor(to);
   } catch {
     /* ignore */
+  }
+});
+
+// Surface hard navigation failures (e.g. lazy chunk load error after a deploy)
+// instead of silently leaving the user on a blank/stuck page.
+router.onError((err, to) => {
+  console.error('[router] navigation error:', err?.message || err);
+  const msg = String(err?.message || '');
+  if (/Loading chunk|Failed to fetch dynamically imported|Importing a module script failed/i.test(msg)) {
+    // Stale chunk after a new deploy — one clean reload to pick up fresh assets.
+    const target = to?.fullPath || window.location.pathname;
+    window.location.replace(target);
   }
 });
 

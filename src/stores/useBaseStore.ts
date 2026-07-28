@@ -74,8 +74,16 @@ export const useBaseStore = defineStore('baseStore', {
     async initial() {
       // Drop previous chain's height immediately so navbar doesn't show stale #
       this.resetBlockState();
-      while (!this.hasRpc) {
+      // Wait for the RPC client to be wired up — but bounded. If endpoint setup
+      // fails we must NOT spin forever (that froze the page until hard-refresh).
+      let waited = 0;
+      while (!this.hasRpc && waited < 12000) {
         await new Promise((resolve) => setTimeout(resolve, 250));
+        waited += 250;
+      }
+      if (!this.hasRpc) {
+        console.warn('[baseStore] RPC not ready after 12s — giving up initial block poll');
+        return;
       }
       await this.fetchLatest();
     },
