@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { Icon } from '@iconify/vue';
-import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 
 // Components
 import newFooter from '@/layouts/components/NavFooter.vue';
@@ -50,6 +50,15 @@ blockchain.$subscribe((m, s) => {
 });
 
 const sidebarShow = ref(false);
+
+// Lock body scroll while the mobile drawer is open. Done in JS (not CSS
+// :has) because scoped styles can't target <html>.
+watch(sidebarShow, (open) => {
+  document.body.style.overflow = open ? 'hidden' : '';
+});
+onUnmounted(() => {
+  document.body.style.overflow = '';
+});
 
 // Pause aurora CSS animations while the user is scrolling — biggest paint thrash source.
 const auroraPaused = ref(false);
@@ -349,11 +358,6 @@ dayjs();
   background: rgba(6, 10, 20, 0.55);
   backdrop-filter: blur(2px);
   -webkit-backdrop-filter: blur(2px);
-  /* lock body scroll while open — handled via class on html below */
-}
-/* Prevent background scroll while mobile drawer is open */
-html:has(.sz-sidebar-backdrop) {
-  overflow: hidden;
 }
 .sz-logo-mark {
   display: inline-flex;
