@@ -92,6 +92,20 @@ function openRow(row: IbcChainRow) {
   const conn = primaryConn(row);
   if (conn?.id) ibcStore.showConnection(conn.id);
 }
+
+/** Live example from THIS chain's registry hits — never hardcode AtomOne. */
+const registryExample = computed(() => {
+  const hit = (rows.value || []).find(
+    (r) => r.registryPreferred && r.preferredChannelId && r.primaryConnectionId
+  );
+  if (!hit) return null;
+  return {
+    name: hit.name,
+    conn: hit.primaryConnectionId,
+    chan: hit.preferredChannelId,
+    cp: hit.preferredCounterpartyChannelId || '',
+  };
+});
 </script>
 
 <template>
@@ -161,7 +175,7 @@ function openRow(row: IbcChainRow) {
       </div>
     </div>
 
-    <!-- safety note -->
+    <!-- safety note — generic for every host chain (not AtomOne-only copy) -->
     <div
       v-if="loaded"
       class="mt-4 rounded-xl border border-warning/30 bg-warning/5 px-4 py-3 text-[12.5px] text-secondary flex items-start gap-2"
@@ -169,8 +183,17 @@ function openRow(row: IbcChainRow) {
       <Icon icon="mdi:shield-alert-outline" class="text-lg text-warning shrink-0 mt-0.5" />
       <div>
         <span class="font-semibold text-main">Trade path ≠ first open connection.</span>
-        Primary uses <span class="font-mono">chain-registry</span> preferred channel when available
-        (e.g. AtomOne↔Osmosis <span class="font-mono">connection-2 / channel-2</span>).
+        Primary picks the cosmos/chain-registry preferred transfer channel when that file exists for
+        <span class="font-mono">{{ chainStore.current?.prettyName || chainStore.chainName }}</span>
+        ↔ each remote; otherwise the first OPEN connection that already has an OPEN transfer channel.
+        <template v-if="registryExample">
+          Example on this chain:
+          <span class="font-semibold text-main">{{ registryExample.name }}</span>
+          <span class="font-mono"
+            >{{ registryExample.conn }} / {{ registryExample.chan
+            }}{{ registryExample.cp ? ` → ${registryExample.cp}` : '' }}</span
+          >.
+        </template>
         Click a chain to see <em>all</em> open channels before bridging.
       </div>
     </div>
