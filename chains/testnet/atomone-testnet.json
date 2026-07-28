@@ -17,11 +17,19 @@
   "coingecko": "atomone",
   "api": [
     {
+      "address": "https://atomone-testnet-api.itrocket.net",
+      "provider": "itrocket"
+    },
+    {
       "address": "https://testnet-atomone-api.konsortech.xyz",
       "provider": "konsortech"
     }
   ],
   "rpc": [
+    {
+      "address": "https://atomone-testnet-rpc.itrocket.net",
+      "provider": "itrocket"
+    },
     {
       "address": "https://testnet-atomone-rpc.konsortech.xyz",
       "provider": "konsortech"
