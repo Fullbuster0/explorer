@@ -738,6 +738,10 @@ function findTokenAmount(
   letter-spacing: -0.01em;
   word-break: break-all;
 }
+/* shrink address on narrow screens so the shortened form stays tidy */
+@media (max-width: 540px) {
+  .sz-acc-addr { font-size: 0.88rem; }
+}
 .sz-acc-copy {
   display: inline-flex;
   align-items: center;

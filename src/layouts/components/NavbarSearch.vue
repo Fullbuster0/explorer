@@ -687,6 +687,12 @@ onUnmounted(() => {
   font-size: 0.7rem;
   color: var(--text-secondary);
 }
+/* Keyboard hints are meaningless on touch — hide on mobile */
+@media (max-width: 767px) {
+  .sz-search-footer {
+    display: none;
+  }
+}
 .sz-search-footer kbd {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
   font-size: 0.65rem;

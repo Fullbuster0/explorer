@@ -121,6 +121,14 @@ dayjs();
       <span class="sz-beam sz-beam-1"></span>
       <span class="sz-beam sz-beam-2"></span>
     </div>
+    <!-- Mobile sidebar backdrop — tap outside to close. xl+ sidebar is always
+         visible so backdrop is xl:hidden. z-40 sits under sidebar (z-50). -->
+    <div
+      v-if="sidebarShow"
+      class="sz-sidebar-backdrop fixed inset-0 z-40 xl:!hidden"
+      aria-hidden="true"
+      @click="sidebarShow = false"
+    ></div>
     <!-- ===== SIDEBAR ===== -->
     <aside
       class="sz-sidebar fixed left-0 top-0 bottom-0 z-50 w-64 overflow-y-auto"
@@ -336,6 +344,16 @@ dayjs();
     linear-gradient(180deg, #070b14 0%, #0a1020 55%, #0c1226 100%);
   border-right: 1px solid rgba(148, 163, 184, 0.1);
   /* no backdrop-filter — solid dark surface, zero scroll paint cost */
+}
+.sz-sidebar-backdrop {
+  background: rgba(6, 10, 20, 0.55);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  /* lock body scroll while open — handled via class on html below */
+}
+/* Prevent background scroll while mobile drawer is open */
+html:has(.sz-sidebar-backdrop) {
+  overflow: hidden;
 }
 .sz-logo-mark {
   display: inline-flex;
