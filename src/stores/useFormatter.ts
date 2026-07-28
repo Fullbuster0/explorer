@@ -324,11 +324,12 @@ export const useFormatter = defineStore('formatter', {
     calculatePercent(input?: string | number, total?: string | number) {
       if (!input || !total) return '0';
       const percent = Number(input) / Number(total);
-      // Non-zero but below the 0.[00]% resolution floor (< 0.01%) would render
-      // as a bare "0" — show two forced decimals instead so tiny shares (small
-      // validators' self-bond / delegator share, sub-0.01% tally slices) stay
-      // visible. >= 0.01% keeps the compact 0.[00]% form.
-      if (percent > 0 && percent < 0.0001) return numeral(percent).format('0.00%');
+      if (!Number.isFinite(percent) || percent <= 0) return '0%';
+      // numeral's % formatter returns "NaN%" for very small scientific-notation
+      // ratios (e.g. a 154-uatom delegation out of 1.1e12 → ~1e-10). It handles
+      // ~1e-5 fine but breaks around ~1e-7. Do the sub-0.01% band with plain
+      // math so tiny shares render "0.00%" instead of "NaN%".
+      if (percent < 0.0001) return `${(percent * 100).toFixed(2)}%`;
       return numeral(percent).format('0.[00]%');
     },
     formatDecimalToPercent(decimal: string) {
