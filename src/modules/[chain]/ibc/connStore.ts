@@ -62,6 +62,7 @@ export const useIBCModule = defineStore('module-ibc', {
     return {
       loading: false,
       loaded: false,
+      loadGen: 0,
       error: '',
       connections: [] as Connection[],
       channels: [] as Channel[],
@@ -90,64 +91,79 @@ export const useIBCModule = defineStore('module-ibc', {
   },
   actions: {
     async load(force = false) {
-      if (this.loading) return;
       if (this.loaded && !force) return;
+      if (this.loading && !force) return;
+      // A force load (e.g. endpoint fallback) supersedes any in-flight load.
+      const gen = ++this.loadGen;
       this.loading = true;
       this.error = '';
       try {
         const rpc = this.chain.rpc;
         const [conns, chans, clients] = await Promise.all([
-          this.fetchAll<Connection>((p) => rpc.getIBCConnections(p).then((x: any) => x.connections || [])),
-          this.fetchAll<Channel>((p) => rpc.getIBCChannels(p).then((x: any) => x.channels || [])),
-          this.fetchClientChains(),
+          this.fetchCursor<Connection>((pr) =>
+            rpc.getIBCConnections(pr).then((x: any) => ({ items: x.connections || [], next: x.pagination?.next_key }))
+          ),
+          this.fetchCursor<Channel>((pr) =>
+            rpc.getIBCChannels(pr).then((x: any) => ({ items: x.channels || [], next: x.pagination?.next_key }))
+          ),
+          this.fetchClientChains(gen),
         ]);
+        if (gen !== this.loadGen) return; // superseded by a newer load
         this.connections = conns;
         this.channels = chans;
         this.clientChain = clients;
         this.buildRows();
         this.loaded = true;
       } catch (e: any) {
+        if (gen !== this.loadGen) return;
         this.error = String(e?.message || e);
       } finally {
-        this.loading = false;
+        if (gen === this.loadGen) this.loading = false;
       }
     },
 
-    async fetchAll<T>(fn: (p: PageRequest) => Promise<T[]>): Promise<T[]> {
+    /**
+     * Cursor pagination via pagination.next_key. Several public LCD nodes
+     * (e.g. nodestake) IGNORE pagination.offset/limit on IBC endpoints, which
+     * broke the old offset loop into 20 redundant 1.7MB fetches and a timeout.
+     * next_key is the Cosmos-standard cursor and terminates reliably.
+     */
+    async fetchCursor<T>(fetchPage: (pr: PageRequest) => Promise<{ items: T[]; next?: string }>): Promise<T[]> {
       const out: T[] = [];
-      let page = 1;
       const pr = new PageRequest();
-      pr.setPageSize(100);
-      // Safety cap: most chains have < 200 connections; avoid infinite loops.
-      while (page <= 20) {
-        pr.setPage(page);
-        const batch = await fn(pr);
-        if (!batch || batch.length === 0) break;
-        out.push(...batch);
-        if (batch.length < pr.limit) break;
-        page += 1;
+      pr.setPageSize(500);
+      pr.count_total = false;
+      let guard = 0;
+      while (guard < 40) {
+        guard++;
+        const { items, next } = await fetchPage(pr);
+        if (items.length) out.push(...items);
+        if (!next || items.length === 0) break;
+        pr.key = next;
       }
       return out;
     },
 
-    async fetchClientChains(): Promise<Record<string, string>> {
+    async fetchClientChains(gen?: number): Promise<Record<string, string>> {
       const map: Record<string, string> = {};
       const rpc = this.chain.rpc;
       const pr = new PageRequest();
-      pr.setPageSize(100);
-      let page = 1;
-      while (page <= 20) {
-        pr.setPage(page);
+      pr.setPageSize(500);
+      pr.count_total = false;
+      let guard = 0;
+      while (guard < 40) {
+        guard++;
+        if (gen !== undefined && gen !== this.loadGen) return map; // superseded mid-flight
         const res: any = await rpc.getIBCClientStates(pr);
         const list = res?.client_states || [];
-        if (list.length === 0) break;
         for (const cs of list) {
           const cid = cs?.client_id;
           const remote = cs?.client_state?.chain_id;
           if (cid && remote) map[cid] = remote;
         }
-        if (list.length < pr.limit) break;
-        page += 1;
+        const next = res?.pagination?.next_key;
+        if (!next || list.length === 0) break;
+        pr.key = next;
       }
       return map;
     },
