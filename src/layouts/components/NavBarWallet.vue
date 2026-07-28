@@ -13,7 +13,12 @@ const storageStore = useStorageStore();
 //   console.log(m, s);
 // });
 function walletStateChange(res: any) {
-  walletStore.setConnectedWallet(res.detail?.value);
+  // Only accept structured connect payloads from the ping widget.
+  // Ignore empty/garbage events (XSS or mis-fired custom events).
+  const value = res?.detail?.value;
+  if (!value || typeof value !== 'object') return;
+  if (typeof value.cosmosAddress !== 'string' || value.cosmosAddress.length < 10) return;
+  walletStore.setConnectedWallet(value);
 }
 let showCopyToast = ref(0);
 async function copyAdress(address: string) {

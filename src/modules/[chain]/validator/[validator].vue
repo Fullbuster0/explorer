@@ -7,7 +7,6 @@ import {
   useFormatter,
   useMintStore,
   useStakingStore,
-  useTxDialog,
 } from '@/stores';
 import { onMounted, computed, ref, watch } from 'vue';
 import { Icon } from '@iconify/vue';
@@ -30,7 +29,6 @@ const props = defineProps(['validator', 'chain']);
 const staking = useStakingStore();
 const blockchain = useBlockchain();
 const format = useFormatter();
-const dialog = useTxDialog();
 
 const validator: string = props.validator;
 
@@ -853,14 +851,9 @@ watch(
               <span v-if="identity" class="sz-chip font-mono !text-[10px] !font-medium text-secondary">
                 {{ identity }}
               </span>
-              <label
-                for="delegate"
-                class="btn btn-primary btn-sm ml-auto sm:!ml-0"
-                @click="dialog.open('delegate', { validator_address: v.operator_address || validator })"
-              >
-                <Icon icon="mdi-handshake-outline" class="text-base mr-1" />
-                {{ $t('account.btn_delegate') }}
-              </label>
+              <span class="sz-chip ml-auto sm:!ml-0 !text-[11px] uppercase tracking-wide opacity-80" title="Detail pages are read-only. Use Wallet Helper or dashboard wallet panel to sign txs.">
+                View only
+              </span>
             </div>
           </div>
         </div>
@@ -955,11 +948,7 @@ watch(
                 <span v-if="!rewards?.length" class="text-secondary text-xs">—</span>
               </div>
             </div>
-            <label
-              for="withdraw_commission"
-              class="btn btn-primary btn-sm w-full mt-auto"
-              @click="dialog.open('withdraw_commission', { validator_address: v.operator_address || validator })"
-            >{{ $t('account.btn_withdraw') }}</label>
+            <div class="text-[11px] text-secondary mt-auto pt-2">View only — commission withdraw via connected wallet tools</div>
           </div>
         </div>
       </div>

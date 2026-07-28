@@ -7,10 +7,34 @@ import { useStakingStore } from './useStakingStore';
 import router from '@/router';
 import { decryptWallet } from '@/utils/crypto';
 
+/**
+ * Persist only the public connection metadata (address + wallet name + hdPath).
+ * Never store mnemonic/private keys here — signing stays in the extension.
+ *
+ * Honour storage preference: session mode must NOT leak into localStorage
+ * (previous dual-write defeated the "Persist session" toggle).
+ */
 function persistConnectedWallet(key: string, value: WalletConnected, storage: Storage) {
-  const plaintext = JSON.stringify(value);
+  // Allowlist fields — drop anything unexpected from a compromised widget event
+  const safe: WalletConnected = {
+    // @ts-ignore — WalletConnected shape
+    cosmosAddress: value.cosmosAddress,
+    // @ts-ignore
+    hdPath: value.hdPath,
+    // @ts-ignore
+    wallet: value.wallet,
+  };
+  if (!(safe as any).cosmosAddress) return;
+  const plaintext = JSON.stringify(safe);
   storage.setItem(key, plaintext);
-  localStorage.setItem(key, plaintext);
+  // Mirror to the other store only when user opted into durable local persistence
+  if (storage === localStorage) {
+    // durable mode: primary is localStorage (already set)
+  } else {
+    // session mode: ensure localStorage copy is cleared so a shared PC
+    // doesn't keep the address after the tab closes
+    localStorage.removeItem(key);
+  }
 }
 
 export const useWalletStore = defineStore('walletStore', {
@@ -177,16 +201,28 @@ export const useWalletStore = defineStore('walletStore', {
       this.$reset();
     },
     setConnectedWallet(value: WalletConnected) {
-      if (!value) return;
+      if (!value || !(value as any).cosmosAddress) return;
+      // Reject payloads that look like they carry secrets (defense in depth)
+      const raw = JSON.stringify(value);
+      if (/mnemonic|privateKey|privKey|seedPhrase|\"seed\"/i.test(raw)) {
+        console.error('[wallet] refused connect payload that looks like it contains secrets');
+        return;
+      }
       const chainStore = useBlockchain();
       const key = chainStore.defaultHDPath;
       const storageStore = useStorageStore();
       const storage = storageStore.currentStorage;
       persistConnectedWallet(key, value, storage);
-      if (!storageStore.isSession) {
+      if (storageStore.isSession) {
+        localStorage.removeItem(key);
+      } else {
         sessionStorage.removeItem(key);
       }
-      this.wallet = value;
+      this.wallet = {
+        cosmosAddress: (value as any).cosmosAddress,
+        hdPath: (value as any).hdPath,
+        wallet: (value as any).wallet,
+      } as WalletConnected;
       this.loadMyAsset();
     },
     suggestChain() {

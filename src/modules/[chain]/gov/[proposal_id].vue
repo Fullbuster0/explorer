@@ -9,7 +9,6 @@ import {
   useFormatter,
   useGovStore,
   useStakingStore,
-  useTxDialog,
 } from '@/stores';
 import { PageRequest, type GovProposal, type GovVote, type Validator } from '@/types';
 import { fromBech32, toHex } from '@cosmjs/encoding';
@@ -17,7 +16,6 @@ import { fromBech32, toHex } from '@cosmjs/encoding';
 const props = defineProps(['proposal_id', 'chain']);
 const format = useFormatter();
 const store = useGovStore();
-const dialog = useTxDialog();
 const stakingStore = useStakingStore();
 const chainStore = useBlockchain();
 const baseStore = useBaseStore();
@@ -839,17 +837,10 @@ onUnmounted(() => {
           <span v-if="proposal.voting_end_time"> · Ends {{ format.toDay(proposal.voting_end_time) }}</span>
         </div>
       </div>
-      <div class="flex flex-wrap gap-2 shrink-0">
-        <label
-          for="vote"
-          class="btn btn-primary btn-sm"
-          @click="dialog.open('vote', { proposal_id })"
-        >{{ $t('gov.btn_vote') }}</label>
-        <label
-          for="deposit"
-          class="btn btn-outline btn-sm"
-          @click="dialog.open('deposit', { proposal_id })"
-        >{{ $t('gov.btn_deposit') }}</label>
+      <div class="flex flex-wrap gap-2 shrink-0 items-center">
+        <span class="sz-chip !text-[11px] uppercase tracking-wide opacity-80" title="Governance detail is read-only. Vote/deposit from Wallet Helper after connecting.">
+          View only
+        </span>
       </div>
     </div>
 

@@ -7,3 +7,8 @@ dist
 .env*
 !.env.example
 .vercel
+
+# local wallet audit secrets
+**/wallet-audit/
+**/.seed
+scripts/tx-audit-*.local.*

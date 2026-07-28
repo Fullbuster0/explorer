@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { useBaseStore, useBlockchain, useFormatter, useMintStore, useStakingStore, useTxDialog } from '@/stores';
+import { useBaseStore, useBlockchain, useFormatter, useMintStore, useStakingStore } from '@/stores';
 import { computed } from '@vue/reactivity';
 import { onMounted, ref } from 'vue';
 import { Icon } from '@iconify/vue';
@@ -10,7 +10,6 @@ import { diff } from 'semver';
 const staking = useStakingStore();
 const base = useBaseStore();
 const format = useFormatter();
-const dialog = useTxDialog();
 const chainStore = useBlockchain();
 const mintStore = useMintStore();
 
@@ -361,14 +360,7 @@ loadAvatars();
               <td class="text-center">
                 <span v-if="v.jailed" class="sz-chip sz-chip--bad">{{ $t('staking.jailed') }}</span>
                 <span v-else-if="isGno" class="text-[11px] text-secondary">—</span>
-                <label
-                  v-else
-                  for="delegate"
-                  class="btn btn-xs btn-primary rounded-md capitalize"
-                  @click="dialog.open('delegate', { validator_address: v.operator_address })"
-                >
-                  {{ $t('account.btn_delegate') }}
-                </label>
+                <span v-else class="sz-chip !text-[10px] uppercase tracking-wide opacity-70">View only</span>
               </td>
             </tr>
           </tbody>
