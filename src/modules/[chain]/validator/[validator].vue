@@ -139,6 +139,14 @@ const ACTIVITY_LIMIT = 20;
  *  account page. */
 const TXS_MAX = 100;
 
+/** Power Events — some LCDs ignore pagination.limit on tx-search and return
+ *  EVERY match (e.g. "158 of 158"). We cap what we hold in memory (latest
+ *  POWER_MAX, query is already order_by DESC) and paginate the display
+ *  client-side at PE_PAGE_SIZE so the DOM never renders the full set at once. */
+const pePageNum = ref(1);
+const PE_PAGE_SIZE = 20;
+const POWER_MAX = 500;
+
 addresses.value.account = operatorAddressToAccount(validator);
 
 // self bond — refetched via the rpc watch below. Setup runs before the chain's
@@ -319,6 +327,7 @@ function onDelPageSizeChange() {
 function loadPowerEvents(_p: number, type: EventType) {
   console.info('[val] loadPowerEvents', type, 'rpc=', !!blockchain.rpc, 'current=', !!blockchain.current);
   selectedEventType.value = type;
+  pePageNum.value = 1;
   if (type === EventType.Redelegate) {
     fetchRedelegateCombined();
     return;
@@ -329,11 +338,22 @@ function loadPowerEvents(_p: number, type: EventType) {
   blockchain
     .fetchPowerEventsTxs(`?${q}`, { validator }, powerPage, ACTIVITY_LIMIT)
     .then((res: any) => {
-      events.value = res || ({} as PaginatedTxs);
+      events.value = capPowerEvents(res);
     })
     .catch(() => {
       events.value = {} as PaginatedTxs;
     });
+}
+
+/** Cap the rows we hold (latest POWER_MAX) while keeping the chain's true
+ *  pagination.total for an honest "latest X of Y" footer. */
+function capPowerEvents(res: any): PaginatedTxs {
+  if (!res) return {} as PaginatedTxs;
+  const rows = res.tx_responses || [];
+  return {
+    ...res,
+    tx_responses: rows.length > POWER_MAX ? rows.slice(0, POWER_MAX) : rows,
+  } as PaginatedTxs;
 }
 
 /**
@@ -341,6 +361,7 @@ function loadPowerEvents(_p: number, type: EventType) {
  * Each side uses archive-first fallback, then merged + sorted + tagged.
  */
 async function fetchRedelegateCombined() {
+  pePageNum.value = 1;
   const [inQ, outQ] = eventTypeQuery[EventType.Redelegate].map((t) =>
     `?${t.replace('{validator}', validator)}`
   );
@@ -371,15 +392,23 @@ async function fetchRedelegateCombined() {
   );
 
   events.value = {
-    tx_responses: merged,
+    tx_responses: merged.length > POWER_MAX ? merged.slice(0, POWER_MAX) : merged,
     pagination: { total, next_key: null },
     total,
   } as PaginatedTxs;
 }
 
-function pagePowerEvents(_p: number) {
-  // Power Events uses scroll, not pagination. Ignored.
+function pagePowerEvents(p: number) {
+  pePageNum.value = p;
 }
+
+/** Power-event rows for the current page (client-side slice of the capped,
+ *  already height-desc set we hold in memory). */
+const pagedPowerEvents = computed(() => {
+  const rows = events.value?.tx_responses || [];
+  const offset = (pePageNum.value - 1) * PE_PAGE_SIZE;
+  return rows.slice(offset, offset + PE_PAGE_SIZE);
+});
 
 // ─── Account Transactions (scroll, first 20) ──────────────────────────────
 const txsLoading = ref(false);
@@ -1130,7 +1159,7 @@ watch(
               <tr v-if="!events.tx_responses?.length">
                 <td colspan="3" class="text-center text-secondary py-8 text-sm">No power events.</td>
               </tr>
-              <tr v-for="(item, i) in events.tx_responses" :key="item.txhash + '-' + i">
+              <tr v-for="(item, i) in pagedPowerEvents" :key="item.txhash + '-' + i">
                 <td class="max-w-[240px]">
                   <div class="flex flex-col gap-0.5">
                     <RouterLink
@@ -1170,12 +1199,19 @@ watch(
         </div>
         <div class="px-4 py-2.5 border-t border-base-content/10 flex flex-wrap items-center gap-3 text-[11.5px] text-secondary">
           <span>
-            Showing the latest
+            Holding the latest
             <b class="font-mono text-main">{{ events.tx_responses?.length || 0 }}</b>
             of
             <b class="font-mono text-main">{{ events.pagination?.total || events.total || 0 }}</b>
-            <span>events (scroll for older history in TX pages)</span>
+            <span>events</span>
           </span>
+        </div>
+        <div class="px-2">
+          <PaginationBar
+            :total="String(events.tx_responses?.length || 0)"
+            :limit="PE_PAGE_SIZE"
+            :callback="pagePowerEvents"
+          />
         </div>
       </div>
 
