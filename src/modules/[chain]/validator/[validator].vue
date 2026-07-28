@@ -256,14 +256,39 @@ const loadAvatar = (id: string) => {
   });
 };
 
-/** Fetch ALL delegations for this validator, then sort globally by balance desc.
- *  LCD page order is unstable across pages, so we cannot rely on per-page sort. */
+/** Fetch ALL delegations for this validator, sorted globally by balance desc.
+ *  LCD page order is unstable across pages, so we cannot rely on per-page sort.
+ *
+ *  Progressive: each page that lands is pushed + sorted immediately, so the
+ *  first rows render after ONE request instead of after all ~46 pages. The
+ *  table stays globally sorted at every step (no final reorder jump).
+ *  Per-page failures retry 3×, then the page is skipped — partial data beats
+ *  an empty table. A generation token aborts the loop on unmount/reload. */
 const allDelegations = ref<any[]>([]);
+const delLoadError = ref(false);
+let delLoadToken = 0;
+
+async function fetchDelPage(pr: PageRequest, page: number, token: number) {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (token !== delLoadToken) return null; // aborted
+    try {
+      pr.setPage(page);
+      return await blockchain.rpc.getStakingValidatorsDelegations(validator, pr);
+    } catch {
+      if (attempt < 2) await new Promise((r) => setTimeout(r, 800));
+    }
+  }
+  return null; // permanent failure for this page
+}
+
 async function loadAllDelegations() {
   if (!blockchain.rpc || !validator) return;
   // already loading or already have data — skip
   if (delegationsLoading.value) return;
+  const token = ++delLoadToken; // invalidate any previous loop
   allDelegations.value = [];
+  delegatorTotal.value = 0;
+  delLoadError.value = false;
   delegationsLoading.value = true;
   try {
     const PAGE = 100;
@@ -272,17 +297,29 @@ async function loadAllDelegations() {
     pr.count_total = true;
     pr.offset = 0;
     let page = 1;
-    while (true) {
-      pr.setPage(page);
-      let res: any = null;
-      try {
-        res = await blockchain.rpc.getStakingValidatorsDelegations(validator, pr);
-      } catch {
-        break;
+    let failedPages = 0;
+    while (token === delLoadToken) {
+      const res: any = await fetchDelPage(pr, page, token);
+      if (token !== delLoadToken) return; // aborted mid-await
+      if (!res) {
+        failedPages++;
+        // page 1 total failure = no data at all — give up; the rpc
+        // watcher retries when the endpoint fallback lands.
+        if (page === 1) break;
+        page += 1;
+        if (page > 50) break;
+        continue;
       }
       const rows = res?.delegation_responses || [];
-      if (!rows.length) break;
-      allDelegations.value.push(...rows);
+      if (rows.length) {
+        allDelegations.value.push(...rows);
+        // incremental sort — table stays globally desc while streaming
+        allDelegations.value.sort((a, b) => {
+          const aa = Number(a?.balance?.amount || 0);
+          const bb = Number(b?.balance?.amount || 0);
+          return bb - aa;
+        });
+      }
       const total = Number(res?.pagination?.total || 0);
       if (total > 0) {
         delegatorTotal.value = total;
@@ -293,17 +330,12 @@ async function loadAllDelegations() {
       // hard cap to avoid runaway on broken LCDs
       if (page > 50) break;
     }
-    // global sort desc by amount
-    allDelegations.value.sort((a, b) => {
-      const aa = Number(a?.balance?.amount || 0);
-      const bb = Number(b?.balance?.amount || 0);
-      return bb - aa;
-    });
     if (!delegatorTotal.value) {
       delegatorTotal.value = allDelegations.value.length;
     }
+    if (failedPages && !allDelegations.value.length) delLoadError.value = true;
   } finally {
-    delegationsLoading.value = false;
+    if (token === delLoadToken) delegationsLoading.value = false;
   }
 }
 
@@ -482,6 +514,7 @@ onMounted(() => {
 });
 onUnmounted(() => {
   txsObserver?.disconnect();
+  delLoadToken++; // abort in-flight delegation streaming
 });
 
 /** Prefer same-origin /vote-api (Vercel rewrite). Override via VITE_VOTE_INDEXER_URL. */
@@ -1019,6 +1052,10 @@ watch(
             <span class="font-mono text-secondary font-medium text-sm ml-2">
               {{ delegatorTotal > 0 ? delegatorTotal.toLocaleString() : (delegations.delegation_responses?.length || 0) }}
             </span>
+            <span
+              v-if="delegationsLoading && allDelegations.length"
+              class="font-mono text-[10.5px] text-secondary opacity-60 ml-1"
+            >loading {{ allDelegations.length.toLocaleString() }}/{{ delegatorTotal ? delegatorTotal.toLocaleString() : '…' }}</span>
           </div>
         </div>
       </div>
@@ -1038,7 +1075,12 @@ watch(
             </tr>
             <tr v-else-if="!sortedDelegations.length">
               <td colspan="4" class="text-center text-secondary py-8 text-sm">
-                {{ $t('account.no_delegations') || 'No delegations found.' }}
+                <template v-if="delLoadError">
+                  Failed to load delegations — retrying when the endpoint recovers…
+                </template>
+                <template v-else>
+                  {{ $t('account.no_delegations') || 'No delegations found.' }}
+                </template>
               </td>
             </tr>
             <tr
