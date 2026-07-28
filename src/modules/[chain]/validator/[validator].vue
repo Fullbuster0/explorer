@@ -129,10 +129,17 @@ const ACTIVITY_LIMIT = 20;
 
 addresses.value.account = operatorAddressToAccount(validator);
 
-// self bond
-staking.fetchValidatorDelegation(validator, addresses.value.account).then((x) => {
-  if (x) selfBonded.value = x.delegation_response;
-});
+// self bond — refetched via the rpc watch below. Setup runs before the chain's
+// REST client exists on slow-connecting chains (e.g. CosmosHub); rpc?. would
+// otherwise resolve undefined silently and leave this stuck at "—".
+function loadSelfBond() {
+  if (!blockchain.rpc || !addresses.value.account) return;
+  if (selfBonded.value.balance?.amount) return; // already loaded
+  staking.fetchValidatorDelegation(validator, addresses.value.account).then((x) => {
+    if (x?.delegation_response) selfBonded.value = x.delegation_response;
+  });
+}
+loadSelfBond();
 
 // account txs — first 20 only; user can scroll to load more via IntersectionObserver.
 // Initial fetch is deferred to onMounted() below (refs declared further down).
@@ -639,6 +646,9 @@ watch(
     console.info('[val] rpc watch fired, rpc=', !!rpc, 'events=', events.value?.tx_responses?.length);
     if (rpc && !allDelegations.value.length && !delegationsLoading.value) {
       loadAllDelegations();
+    }
+    if (rpc && !selfBonded.value.balance?.amount) {
+      loadSelfBond();
     }
     if (rpc && !events.value?.tx_responses?.length) {
       console.info('[val] calling loadPowerEvents');
