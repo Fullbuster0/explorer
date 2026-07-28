@@ -1317,7 +1317,7 @@ watch(
           <span v-else-if="!txsHasMore && (txs.tx_responses?.length || 0) > 0" class="opacity-70">
             End of list
           </span>
-          <span v-else class="opacity-70">Scroll for more</span>
+          <span v-else-if="txsHasMore && (txs.tx_responses?.length || 0) > 0" class="opacity-70">Scroll for more</span>
         </div>
       </div>
     </section>
