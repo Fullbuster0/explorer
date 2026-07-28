@@ -188,6 +188,11 @@ const powerPercent = computed(() => {
   return format.calculatePercent(v.value.tokens, String(staking.totalPower));
 });
 
+const bondDenomDisplay = computed(() => {
+  const d = String(staking.params.bond_denom || '');
+  return d.replace(/^u/, '').toUpperCase() || d.toUpperCase();
+});
+
 const rank = computed(() => {
   const list = staking.validators || [];
   const idx = list.findIndex((x) => x.operator_address === validator);
@@ -739,73 +744,53 @@ watch(
       </div>
     </section>
 
-    <!-- METRIC STRIP -->
+    <!-- METRIC STRIP (sz-stat instrument tiles) -->
     <div class="grid grid-cols-2 md:!grid-cols-3 xl:!grid-cols-6 gap-3 mb-4">
-      <div class="sz-metric">
-        <div class="flex items-start justify-between gap-2">
-          <div class="sz-metric-label">{{ $t('staking.total_bonded') }}</div>
-          <div class="sz-metric-icon"><Icon icon="mdi-coin" /></div>
+      <div class="sz-stat" style="--stat-hue: var(--sz-accent)">
+        <div class="sz-stat-head"><i class="sz-stat-tick"></i><span class="sz-stat-label">{{ $t('staking.total_bonded') }}</span></div>
+        <div class="sz-stat-value">
+          {{ format.formatToken({ amount: v.tokens, denom: staking.params.bond_denom }, false, '0,0.[00]') }}
+          <span class="sz-stat-unit">{{ bondDenomDisplay }}</span>
         </div>
-        <div class="sz-metric-value !text-[1.15rem]">
-          {{
-            format.formatToken2({
-              amount: v.tokens,
-              denom: staking.params.bond_denom,
-            })
-          }}
-        </div>
-        <div class="sz-metric-sub">VP {{ powerPercent }}</div>
+        <div class="sz-stat-sub">VP {{ powerPercent }}</div>
       </div>
 
-      <div class="sz-metric">
-        <div class="flex items-start justify-between gap-2">
-          <div class="sz-metric-label">{{ $t('staking.self_bonded') }}</div>
-          <div class="sz-metric-icon"><Icon icon="mdi-account-circle-outline" /></div>
+      <div class="sz-stat" style="--stat-hue: #764bc8">
+        <div class="sz-stat-head"><i class="sz-stat-tick"></i><span class="sz-stat-label">{{ $t('staking.self_bonded') }}</span></div>
+        <div class="sz-stat-value">
+          {{ format.formatToken(selfBonded.balance, false, '0,0.[00]') || '—' }}
+          <span class="sz-stat-unit">{{ bondDenomDisplay }}</span>
         </div>
-        <div class="sz-metric-value !text-[1.15rem]">
-          {{ format.formatToken(selfBonded.balance) || '—' }}
-        </div>
-        <div class="sz-metric-sub">{{ selfRate }}</div>
+        <div class="sz-stat-sub">{{ selfRate }}</div>
       </div>
 
-      <div class="sz-metric">
-        <div class="flex items-start justify-between gap-2">
-          <div class="sz-metric-label">{{ $t('staking.delegators') }}</div>
-          <div class="sz-metric-icon"><Icon icon="mdi-account-group-outline" /></div>
-        </div>
-        <div class="sz-metric-value !text-[1.15rem]">
+      <div class="sz-stat" style="--stat-hue: #0ea5e9">
+        <div class="sz-stat-head"><i class="sz-stat-tick"></i><span class="sz-stat-label">{{ $t('staking.delegators') }}</span></div>
+        <div class="sz-stat-value">
           {{ delegatorTotal > 0 ? delegatorTotal.toLocaleString() : (delegationsLoading ? '…' : '—') }}
         </div>
-        <div class="sz-metric-sub">{{ $t('staking.delegators_sub') }}</div>
+        <div class="sz-stat-sub">{{ $t('staking.delegators_sub') }}</div>
       </div>
 
-      <div class="sz-metric">
-        <div class="flex items-start justify-between gap-2">
-          <div class="sz-metric-label">{{ $t('staking.commission') }}</div>
-          <div class="sz-metric-icon"><Icon icon="mdi-percent-outline" /></div>
-        </div>
-        <div class="sz-metric-value !text-[1.15rem]">{{ commissionRate }}</div>
-        <div class="sz-metric-sub">max {{ commissionMax }} · Δ {{ commissionChange }}</div>
+      <div class="sz-stat" style="--stat-hue: var(--sz-warn)">
+        <div class="sz-stat-head"><i class="sz-stat-tick"></i><span class="sz-stat-label">{{ $t('staking.commission') }}</span></div>
+        <div class="sz-stat-value">{{ commissionRate }}</div>
+        <div class="sz-stat-sub">max {{ commissionMax }} · Δ {{ commissionChange }}</div>
       </div>
 
-      <div class="sz-metric">
-        <div class="flex items-start justify-between gap-2">
-          <div class="sz-metric-label">{{ $t('staking.annual_profit') }}</div>
-          <div class="sz-metric-icon sz-metric-icon--success"><Icon icon="mdi-finance" /></div>
-        </div>
-        <div class="sz-metric-value !text-[1.15rem]">{{ apr }}</div>
-        <div class="sz-metric-sub">est. after commission</div>
+      <div class="sz-stat" style="--stat-hue: var(--sz-success)">
+        <div class="sz-stat-head"><i class="sz-stat-tick"></i><span class="sz-stat-label">{{ $t('staking.annual_profit') }}</span></div>
+        <div class="sz-stat-value">{{ apr }}</div>
+        <div class="sz-stat-sub">est. after commission</div>
       </div>
 
-      <div class="sz-metric">
-        <div class="flex items-start justify-between gap-2">
-          <div class="sz-metric-label">{{ $t('staking.min_self') }}</div>
-          <div class="sz-metric-icon"><Icon icon="mdi-lock-outline" /></div>
-        </div>
-        <div class="sz-metric-value !text-[1.05rem] !leading-snug">
+      <div class="sz-stat" style="--stat-hue: #64748b">
+        <div class="sz-stat-head"><i class="sz-stat-tick"></i><span class="sz-stat-label">{{ $t('staking.min_self') }}</span></div>
+        <div class="sz-stat-value">
           {{ v.min_self_delegation || '—' }}
+          <span class="sz-stat-unit">{{ bondDenomDisplay }}</span>
         </div>
-        <div class="sz-metric-sub font-mono">{{ staking.params.bond_denom || '' }}</div>
+        <div class="sz-stat-sub">min self bond</div>
       </div>
     </div>
 

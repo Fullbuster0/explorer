@@ -449,6 +449,98 @@ html[data-theme='dark'] .sz-card {
   color: #f59e0b;
 }
 
+/* ── sz-stat · instrument-readout metric tile (v2) ─────────────────
+   Signature: per-metric hue tick + top accent line that sweeps full on
+   hover, big mono value with split unit, staggered entrance. */
+.sz-stat {
+  position: relative;
+  overflow: hidden;
+  background: hsl(var(--b1));
+  border: 1px solid var(--sz-border);
+  border-radius: 14px;
+  padding: 0.9rem 1rem 0.85rem;
+  transition:
+    transform 0.22s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.22s ease,
+    box-shadow 0.22s ease;
+  animation: szStatIn 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.sz-stat:nth-child(1) { animation-delay: 0.03s; }
+.sz-stat:nth-child(2) { animation-delay: 0.08s; }
+.sz-stat:nth-child(3) { animation-delay: 0.13s; }
+.sz-stat:nth-child(4) { animation-delay: 0.18s; }
+.sz-stat:nth-child(5) { animation-delay: 0.23s; }
+.sz-stat:nth-child(6) { animation-delay: 0.28s; }
+@keyframes szStatIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+/* top accent line — rests at 22% width, sweeps full on hover */
+.sz-stat::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--stat-hue, var(--sz-accent));
+  transform: scaleX(0.22);
+  transform-origin: left center;
+  opacity: 0.9;
+  transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.32s ease;
+}
+.sz-stat:hover {
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--stat-hue, var(--sz-accent)) 40%, var(--sz-border));
+  box-shadow: 0 12px 28px -14px color-mix(in srgb, var(--stat-hue, var(--sz-accent)) 50%, transparent);
+}
+.sz-stat:hover::before { transform: scaleX(1); opacity: 1; }
+.sz-stat-head { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.sz-stat-tick {
+  width: 3px;
+  height: 13px;
+  border-radius: 2px;
+  background: var(--stat-hue, var(--sz-accent));
+  flex-shrink: 0;
+}
+.sz-stat-label {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sz-stat-value {
+  margin-top: 0.55rem;
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  flex-wrap: wrap;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1.05;
+  color: var(--text-main);
+}
+.sz-stat-unit {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+.sz-stat-sub {
+  margin-top: 0.45rem;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10.5px;
+  letter-spacing: -0.01em;
+  color: var(--text-secondary);
+}
+
 /* section chrome */
 .sz-section {
   background: hsl(var(--b1));
