@@ -9,6 +9,7 @@ import { fromBase64, fromBech32, toBase64, toHex } from '@cosmjs/encoding';
 import { get } from '@/libs/http';
 import type { Block, NodeInfo, PaginatedTendermintValidator } from '@/types';
 import type { PaginatedValdiators, StakingParam, StakingPool, Validator } from '@/types/staking';
+import { gnoMoniker, lookupGnoValoper } from './valopers';
 
 const UA_HEADERS = { 'User-Agent': 'ShazoesExplorer/1.0' };
 
@@ -177,17 +178,22 @@ export function normalizeTm2PubKey(pub: any): { '@type': string; key: string } {
   };
 }
 
-function shortMoniker(address: string) {
-  if (!address) return 'validator';
-  return address.length > 16 ? `${address.slice(0, 10)}…${address.slice(-4)}` : address;
-}
-
 /** TM2 `/validators` row → Cosmos staking Validator (synthetic). */
 export function tm2ValidatorToStaking(v: any): Validator {
+  // TM2 validator address == signing/consensus address (bech32 g1…)
   const address = v.address || '';
+  // Raw Tendermint voting power (NOT token amount). Do NOT run through
+  // ugnot exponent — bond_denom is set to `VP` so formatToken leaves it raw.
   const power = String(v.voting_power ?? v.power ?? '0');
   const pub = normalizeTm2PubKey(v.pub_key);
+  const meta = lookupGnoValoper(address);
+  const moniker = gnoMoniker(address);
+  const details =
+    (meta?.description || '').trim() ||
+    (meta?.serverType ? `Gnoland validator · ${meta.serverType}` : 'Gnoland TM2 validator');
   return {
+    // Keep signing address as operator_address so proposer/uptime matching
+    // (bech32 g1…) keeps working. Registry operatorAddress is secondary.
     operator_address: address,
     consensus_pubkey: pub,
     jailed: false,
@@ -195,11 +201,11 @@ export function tm2ValidatorToStaking(v: any): Validator {
     tokens: power,
     delegator_shares: power,
     description: {
-      moniker: shortMoniker(address),
-      identity: '',
-      website: '',
+      moniker,
+      identity: meta?.identity || '',
+      website: meta?.website || '',
       security_contact: '',
-      details: 'Gnoland TM2 validator (no Cosmos staking module)',
+      details: details.slice(0, 500),
     },
     unbonding_height: '0',
     unbonding_time: '1970-01-01T00:00:00Z',
@@ -290,7 +296,10 @@ export function gnoStakingParams(): StakingParam {
       max_validators: 100,
       max_entries: 0,
       historical_entries: 0,
-      bond_denom: 'ugnot',
+      // NOT ugnot — TM2 voting_power is unitless. Using a denom absent from
+      // assets[] prevents formatToken() from applying the 1e6 ugnot exponent
+      // (which previously rendered power 60 as "0.00006 GNOT").
+      bond_denom: 'VP',
       min_commission_rate: '0',
       min_self_delegation: '1',
     },

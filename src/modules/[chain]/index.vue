@@ -228,6 +228,7 @@ const hasMarket = computed(() => !!(coinInfo.value && coinInfo.value.name));
 
 /** nodes.guru-style tokenomics snapshot from live chain stores */
 const tokenomics = computed(() => {
+  const isGno = blockchain.current?.engine === 'gno' || blockchain.current?.engine === 'tm2';
   const denom =
     stakingStore.params?.bond_denom ||
     bankStore.supply?.denom ||
@@ -238,31 +239,47 @@ const tokenomics = computed(() => {
   const supplyN = Number(bankStore.supply?.amount || 0);
   const inflationN = Number(mintStore.inflation || 0);
   const communityTaxN = Number(distStore.params?.community_tax || 0);
-  const bondedRatio = supplyN > 0 ? bondedN / supplyN : 0;
-  // network APR estimate at 0% commission (same formula as validator page)
-  const apr = bondedRatio > 0 ? ((1 - communityTaxN) * inflationN) / bondedRatio : 0;
+  // Gno: bonded_tokens is sum of TM2 voting power (unitless). No total supply.
+  // Show power total + 100% bonded ratio instead of empty tokenomics.
+  const bondedRatio = isGno
+    ? bondedN > 0
+      ? 1
+      : 0
+    : supplyN > 0
+      ? bondedN / supplyN
+      : 0;
+  const apr = !isGno && bondedRatio > 0 ? ((1 - communityTaxN) * inflationN) / bondedRatio : 0;
   const bondedPct = Math.max(0, Math.min(100, bondedRatio * 100));
 
+  const formatPower = (n: number) => {
+    if (!n) return '—';
+    return `${n.toLocaleString()} VP`;
+  };
+
   return {
-    denom,
-    supply: supplyN
-      ? format.formatTokenAmount({ amount: String(supplyN), denom })
-      : '—',
-    bonded: bondedN
-      ? format.formatTokenAmount({ amount: String(bondedN), denom })
-      : '—',
-    notBonded: notBondedN
-      ? format.formatTokenAmount({ amount: String(notBondedN), denom })
-      : '—',
-    bondedRatio: format.percent(bondedRatio),
-    bondedPct,
-    inflation: format.percent(inflationN),
-    apr: format.percent(apr),
-    communityTax: format.percent(communityTaxN),
-    communityPool: format.formatTokens(
-      // @ts-ignore
-      (store.communityPool || []).filter((x: any) => x.denom === denom)
-    ) || '—',
+    denom: isGno ? 'VP' : denom,
+    supply: isGno ? '—' : supplyN ? format.formatTokenAmount({ amount: String(supplyN), denom }) : '—',
+    bonded: isGno
+      ? formatPower(bondedN)
+      : bondedN
+        ? format.formatTokenAmount({ amount: String(bondedN), denom })
+        : '—',
+    notBonded: isGno
+      ? '—'
+      : notBondedN
+        ? format.formatTokenAmount({ amount: String(notBondedN), denom })
+        : '—',
+    bondedRatio: isGno ? (bondedN > 0 ? '100%' : '—') : format.percent(bondedRatio),
+    bondedPct: isGno ? (bondedN > 0 ? 100 : 0) : bondedPct,
+    inflation: isGno ? '—' : format.percent(inflationN),
+    apr: isGno ? '—' : format.percent(apr),
+    communityTax: isGno ? '—' : format.percent(communityTaxN),
+    communityPool: isGno
+      ? '—'
+      : format.formatTokens(
+          // @ts-ignore
+          (store.communityPool || []).filter((x: any) => x.denom === denom)
+        ) || '—',
     unbonding: formatSeconds(stakingStore.params?.unbonding_time) || '—',
     maxValidators: stakingStore.params?.max_validators || '—',
   };

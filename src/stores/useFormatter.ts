@@ -316,9 +316,27 @@ export const useFormatter = defineStore('formatter', {
     validator(address: string) {
       if (!address) return address;
 
-      const txt = toHex(fromBase64(address)).toUpperCase();
-      const validator = this.staking.validators.find((x) => consensusPubkeyToHexAddress(x.consensus_pubkey) === txt);
-      return validator?.description?.moniker;
+      // Gnoland/TM2: proposer is already bech32 g1… (signing address)
+      if (typeof address === 'string' && address.startsWith('g1')) {
+        const byOp = this.staking.validators.find((x) => x.operator_address === address);
+        if (byOp?.description?.moniker) return byOp.description.moniker;
+      }
+
+      try {
+        const txt = toHex(fromBase64(address)).toUpperCase();
+        const validator = this.staking.validators.find(
+          (x) => consensusPubkeyToHexAddress(x.consensus_pubkey) === txt
+        );
+        return validator?.description?.moniker;
+      } catch {
+        // fall through — maybe raw hex or unknown encoding
+        const validator = this.staking.validators.find(
+          (x) =>
+            x.operator_address === address ||
+            consensusPubkeyToHexAddress(x.consensus_pubkey) === String(address).toUpperCase()
+        );
+        return validator?.description?.moniker;
+      }
     },
     // find validator by operator address
     validatorFromBech32(address: string) {

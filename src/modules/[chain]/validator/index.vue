@@ -14,6 +14,11 @@ const dialog = useTxDialog();
 const chainStore = useBlockchain();
 const mintStore = useMintStore();
 
+/** Gno/TM2 has no Cosmos staking txs — hide Delegate until Adena is wired. */
+const isGno = computed(
+  () => chainStore.current?.engine === 'gno' || chainStore.current?.engine === 'tm2'
+);
+
 const cache = JSON.parse(localStorage.getItem('avatars') || '{}');
 const avatars = ref(cache || {});
 const latest = ref({} as Record<string, number>);
@@ -317,6 +322,7 @@ loadAvatars();
               <!-- action -->
               <td class="text-center">
                 <span v-if="v.jailed" class="sz-chip sz-chip--bad">{{ $t('staking.jailed') }}</span>
+                <span v-else-if="isGno" class="text-[11px] text-secondary">—</span>
                 <label
                   v-else
                   for="delegate"

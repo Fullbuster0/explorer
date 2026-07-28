@@ -73,13 +73,24 @@ export class GnoTm2Client {
     if (!this._vals.length) {
       await this.getStakingValidators('BOND_STATUS_BONDED');
     }
-    const hit = this._vals.find((v: Validator) => v.operator_address === validator_addr);
+    const match = (v: Validator) =>
+      v.operator_address === validator_addr ||
+      // also accept registry operatorAddress in the URL
+      (v as any)._operatorAddress === validator_addr;
+    const hit = this._vals.find(match);
     if (hit) return { validator: hit };
     // try live fetch + match
     const all = adaptTm2StakingValidators(await tm2Validators(this.endpoint));
     this._vals = all.validators;
-    const found = all.validators.find((v: Validator) => v.operator_address === validator_addr);
+    const found = this._vals.find(match);
     if (found) return { validator: found };
+    // Lookup by moniker registry operator → signing address, then refetch
+    const { lookupGnoValoper } = await import('./valopers');
+    const meta = lookupGnoValoper(validator_addr);
+    if (meta?.signingAddress && meta.signingAddress !== validator_addr) {
+      const viaSign = this._vals.find((v: Validator) => v.operator_address === meta.signingAddress);
+      if (viaSign) return { validator: viaSign };
+    }
     // synthetic stub so detail page doesn't crash
     return {
       validator: tm2ValidatorToStaking({ address: validator_addr, voting_power: '0', pub_key: null }),
