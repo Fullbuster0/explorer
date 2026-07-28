@@ -1043,7 +1043,7 @@ watch(
       </div>
     </div>
     <!-- DELEGATIONS / DELEGATORS -->
-    <section class="sz-section mb-4 overflow-hidden">
+    <section id="sz-delegations" class="sz-section mb-4 overflow-hidden">
       <div class="sz-section-head">
         <div>
           <div class="sz-section-kicker">{{ $t('account.delegations') }}</div>
