@@ -842,18 +842,16 @@ onUnmounted(() => {
       </div>
       <div class="flex flex-wrap gap-2 shrink-0 items-center">
         <template v-if="isVoting">
-          <label
-            for="vote"
+          <button type="button"
             class="btn btn-primary btn-sm"
-            @click="dialog.open('vote', { proposal_id })"
-          >{{ $t('gov.btn_vote') }}</label>
+            @click="dialog.open('vote', { proposal_id: String(proposal_id) })"
+          >{{ $t('gov.btn_vote') }}</button>
         </template>
         <template v-else-if="isDeposit">
-          <label
-            for="deposit"
+          <button type="button"
             class="btn btn-outline btn-sm"
-            @click="dialog.open('deposit', { proposal_id })"
-          >{{ $t('gov.btn_deposit') }}</label>
+            @click="dialog.open('deposit', { proposal_id: String(proposal_id) })"
+          >{{ $t('gov.btn_deposit') }}</button>
         </template>
         <span
           v-else

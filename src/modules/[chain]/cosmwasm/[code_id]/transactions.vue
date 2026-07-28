@@ -216,37 +216,33 @@ const tab = ref('detail');
           ><span class="btn btn-xs text-xs mr-2"> Back </span>
         </RouterLink>
 
-        <label
-          for="wasm_migrate_contract"
+        <button type="button"
           class="btn btn-primary btn-xs text-xs mr-2"
           @click="dialog.open('wasm_migrate_contract', { contract: contractAddress })"
         >
           {{ $t('cosmwasm.btn_migrate') }}
-        </label>
+        </button>
 
-        <label
-          for="wasm_update_admin"
+        <button type="button"
           class="btn btn-primary btn-xs text-xs mr-2"
           @click="dialog.open('wasm_update_admin', { contract: contractAddress })"
         >
           {{ $t('cosmwasm.btn_update_admin') }}
-        </label>
+        </button>
 
-        <label
-          for="wasm_clear_admin"
+        <button type="button"
           class="btn btn-primary btn-xs text-xs mr-2"
           @click="dialog.open('wasm_clear_admin', { contract: contractAddress })"
         >
           {{ $t('cosmwasm.btn_clear_admin') }}
-        </label>
+        </button>
 
-        <label
-          for="wasm_execute_contract"
+        <button type="button"
           class="btn btn-primary btn-xs text-xs mr-2"
           @click="dialog.open('wasm_execute_contract', { contract: contractAddress })"
         >
           {{ $t('cosmwasm.btn_execute') }}
-        </label>
+        </button>
       </div>
     </div>
 

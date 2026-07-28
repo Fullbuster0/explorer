@@ -72,16 +72,14 @@ function showInfo(address: string) {
         </table>
         <div class="flex justify-between">
           <PaginationBar :limit="pageRequest.limit" :total="response.pagination?.total" :callback="loadContract" />
-          <label
-            for="wasm_instantiate_contract"
+          <button type="button"
             class="btn btn-primary my-5"
             @click="
               dialog.open('wasm_instantiate_contract', {
                 codeId: props.code_id,
               })
             "
-            >{{ $t('cosmwasm.instantiate_contract') }}</label
-          >
+            >{{ $t('cosmwasm.instantiate_contract') }}</button>
         </div>
       </div>
     </div>

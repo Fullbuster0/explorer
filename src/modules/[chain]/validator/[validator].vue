@@ -881,14 +881,13 @@ watch(
               <span v-if="identity" class="sz-chip font-mono !text-[10px] !font-medium text-secondary">
                 {{ identity }}
               </span>
-              <label
-                for="delegate"
+              <button type="button"
                 class="btn btn-primary btn-sm ml-auto sm:!ml-0"
                 @click="dialog.open('delegate', { validator_address: v.operator_address || validator })"
               >
                 <Icon icon="mdi-handshake-outline" class="text-base mr-1" />
                 {{ $t('account.btn_delegate') }}
-              </label>
+              </button>
             </div>
           </div>
         </div>
@@ -983,11 +982,10 @@ watch(
                 <span v-if="!rewards?.length" class="text-secondary text-xs">—</span>
               </div>
             </div>
-            <label
-              for="withdraw_commission"
+            <button type="button"
               class="btn btn-primary btn-sm w-full mt-auto"
               @click="dialog.open('withdraw_commission', { validator_address: v.operator_address || validator })"
-            >{{ $t('account.btn_withdraw') }}</label>
+            >{{ $t('account.btn_withdraw') }}</button>
           </div>
         </div>
       </div>

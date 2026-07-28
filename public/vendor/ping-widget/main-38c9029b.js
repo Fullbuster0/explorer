@@ -168392,9 +168392,7 @@ const _hoisted_1$h = { class: "form-control" }, _hoisted_2$h = /* @__PURE__ */ c
         I.value = q.params.bond_denom, M.value = q.params.unbonding_time;
       }), getActiveValidators(o.endpoint).then((q) => {
         var j;
-        c.value = q.validators, d.value.validator_address || (u.value = (j = q.validators.find(
-          (W) => W.description.identity === "6783E9F948541962"
-        )) == null ? void 0 : j.operator_address);
+        c.value = q.validators;
       });
     }
     return n({ msgs: G, isValid: F, initial: E }), (q, j) => {
@@ -168599,7 +168597,7 @@ const _hoisted_1$h = { class: "form-control" }, _hoisted_2$h = /* @__PURE__ */ c
         I.value = j.params.bond_denom;
       }), getActiveValidators(o.endpoint).then((j) => {
         var W;
-        c.value = j.validators, u.value = (W = j.validators.find((ue) => ue.description.identity === "6783E9F948541962")) == null ? void 0 : W.operator_address;
+        c.value = j.validators, u.value = d.value.validator_address || d.value.dst_validator_address || u.value;
       });
     }
     return n({ msgs: b, isValid: E, initial: q }), (j, W) => {

@@ -361,14 +361,13 @@ loadAvatars();
               <td class="text-center">
                 <span v-if="v.jailed" class="sz-chip sz-chip--bad">{{ $t('staking.jailed') }}</span>
                 <span v-else-if="isGno" class="text-[11px] text-secondary">—</span>
-                <label
+                <button type="button"
                   v-else
-                  for="delegate"
                   class="btn btn-xs btn-primary rounded-md capitalize"
                   @click="dialog.open('delegate', { validator_address: v.operator_address })"
                 >
                   {{ $t('account.btn_delegate') }}
-                </label>
+                </button>
               </td>
             </tr>
           </tbody>

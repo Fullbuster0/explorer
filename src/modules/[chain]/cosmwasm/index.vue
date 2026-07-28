@@ -92,9 +92,9 @@ function gotoHistory() {
       </table>
       <div class="flex justify-between">
         <PaginationBar :limit="pageRequest.limit" :total="codes.pagination?.total" :callback="pageload" />
-        <label for="wasm_store_code" class="btn btn-primary my-5" @click="dialog.open('wasm_store_code', {})">{{
+        <button type="button" class="btn btn-primary my-5" @click="dialog.open('wasm_store_code', {})">{{
           $t('cosmwasm.btn_up_sc')
-        }}</label>
+        }}</button>
       </div>
     </div>
   </div>

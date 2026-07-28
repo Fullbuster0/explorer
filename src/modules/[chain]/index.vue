@@ -821,20 +821,18 @@ const amount = computed({
               </td>
               <td>
                 <div>
-                  <label
-                    for="delegate"
+                  <button type="button"
                     class="btn !btn-xs !btn-primary btn-ghost rounded-sm mr-2"
                     @click="dialog.open('delegate', { validator_address: item.delegation.validator_address }, updateState)"
                   >
                     {{ $t('account.btn_delegate') }}
-                  </label>
-                  <label
-                    for="withdraw"
+                  </button>
+                  <button type="button"
                     class="btn !btn-xs !btn-primary btn-ghost rounded-sm"
                     @click="dialog.open('withdraw', { validator_address: item.delegation.validator_address }, updateState)"
                   >
                     {{ $t('index.btn_withdraw_reward') }}
-                  </label>
+                  </button>
                 </div>
               </td>
             </tr>
@@ -844,12 +842,12 @@ const amount = computed({
 
       <div class="grid grid-cols-3 gap-3 px-4 pb-5">
         <label for="PingTokenConvert" class="btn btn-primary text-white">{{ $t('index.btn_swap') }}</label>
-        <label for="send" class="btn !bg-yes !border-yes text-white" @click="dialog.open('send', {}, updateState)">
+        <button type="button" class="btn !bg-yes !border-yes text-white" @click="dialog.open('send', {}, updateState)">
           {{ $t('account.btn_send') }}
-        </label>
-        <label for="delegate" class="btn !bg-info !border-info text-white" @click="dialog.open('delegate', {}, updateState)">
+        </button>
+        <button type="button" class="btn !bg-info !border-info text-white" @click="dialog.open('delegate', {}, updateState)">
           {{ $t('account.btn_delegate') }}
-        </label>
+        </button>
         <RouterLink to="/wallet/receive" class="btn !bg-info !border-info text-white hidden">
           {{ $t('index.receive') }}
         </RouterLink>
