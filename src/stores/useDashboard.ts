@@ -2,7 +2,7 @@ import { defineStore } from 'pinia';
 import { get } from '@/libs/http';
 import type { ChainConfig, DirectoryChainConfig, Endpoint, LocalChainConfig } from '@/types/chaindata';
 import { ConfigSource, NetworkType } from '@/types/chaindata';
-import { coingeckoUrl } from '@/stores';
+import { coingeckoUrl, coingeckoHeaders } from '@/stores';
 
 function apiConverter(api?: any[] | string) {
   if (!api) return [] as Endpoint[];
@@ -191,14 +191,17 @@ export const useDashboard = defineStore('dashboard', {
           });
       });
 
-      const currencies = ['usd, cny']; // usd,cny,eur,jpy,krw,sgd,hkd
+      const currencies = ['usd', 'cny']; // usd,cny,eur,jpy,krw,sgd,hkd
       get(
         `${coingeckoUrl}/api/v3/simple/price?include_24hr_change=true&vs_currencies=${currencies.join(
           ','
-        )}&ids=${coinIds.join(',')}`
-      ).then((x) => {
-        this.prices = x;
-      });
+        )}&ids=${coinIds.join(',')}`,
+        { headers: coingeckoHeaders }
+      )
+        .then((x) => {
+          if (x && typeof x === 'object') this.prices = x;
+        })
+        .catch((e) => console.warn('[dashboard] price fetch failed:', e?.message || e));
     },
     async loadingFromRegistry() {
       if (this.status === LoadingStatus.Empty) {

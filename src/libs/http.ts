@@ -69,8 +69,8 @@ try {
   console.error(error.message);
 }
 // */
-export async function get(url: string) {
-  const res = await fetchRetry(url, { referrerPolicy: 'origin-when-cross-origin' });
+export async function get(url: string, init: RequestInit = {}) {
+  const res = await fetchRetry(url, { referrerPolicy: 'origin-when-cross-origin', ...init });
   return res.json();
 }
 
