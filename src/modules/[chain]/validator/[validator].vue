@@ -600,34 +600,57 @@ const sortedDelegations = computed(() => {
   return allDelegations.value.slice(offset, offset + limit);
 });
 
+/** Validator object + distribution rewards/commission. Retried via the rpc
+ *  watch below — onMounted can fire before the chain's REST client exists on
+ *  slow-connecting chains (e.g. CosmosHub). blockchain.rpc.<method> (no
+ *  optional chaining) would otherwise throw on undefined and leave
+ *  v / rewards / commission empty — which also zeroes the self-rate tile,
+ *  since selfRate = calculatePercent(selfBond, v.tokens). */
+function loadValidatorCore() {
+  if (!blockchain.rpc || !validator) return;
+  if (!v.value.operator_address) {
+    staking
+      .fetchValidator(validator)
+      .then((res) => {
+        v.value = res.validator;
+        identity.value = res.validator?.description?.identity || '';
+        if (identity.value && !avatars.value[identity.value]) loadAvatar(identity.value);
+        addresses.value.hex = consensusPubkeyToHexAddress(v.value.consensus_pubkey);
+        addresses.value.valCons = pubKeyToValcons(
+          v.value.consensus_pubkey,
+          blockchain.current?.bech32ConsensusPrefix || ''
+        );
+      })
+      .catch(() => {});
+  }
+  if (!rewards.value?.length) {
+    blockchain.rpc
+      .getDistributionValidatorOutstandingRewards(validator)
+      .then((res) => {
+        rewards.value = res.rewards?.rewards?.sort((a, b) => Number(b.amount) - Number(a.amount));
+        res.rewards?.rewards?.forEach((x) => {
+          if (x.denom.startsWith('ibc/')) format.fetchDenomTrace(x.denom);
+        });
+      })
+      .catch(() => {});
+  }
+  if (!commission.value?.length) {
+    blockchain.rpc
+      .getDistributionValidatorCommission(validator)
+      .then((res) => {
+        commission.value = res.commission?.commission?.sort((a, b) => Number(b.amount) - Number(a.amount));
+        res.commission?.commission?.forEach((x) => {
+          if (x.denom.startsWith('ibc/')) format.fetchDenomTrace(x.denom);
+        });
+      })
+      .catch(() => {});
+  }
+}
+
 onMounted(() => {
   if (!validator) return;
 
-  staking.fetchValidator(validator).then((res) => {
-    v.value = res.validator;
-    identity.value = res.validator?.description?.identity || '';
-    if (identity.value && !avatars.value[identity.value]) loadAvatar(identity.value);
-
-    addresses.value.hex = consensusPubkeyToHexAddress(v.value.consensus_pubkey);
-    addresses.value.valCons = pubKeyToValcons(
-      v.value.consensus_pubkey,
-      blockchain.current?.bech32ConsensusPrefix || ''
-    );
-  });
-
-  blockchain.rpc.getDistributionValidatorOutstandingRewards(validator).then((res) => {
-    rewards.value = res.rewards?.rewards?.sort((a, b) => Number(b.amount) - Number(a.amount));
-    res.rewards?.rewards?.forEach((x) => {
-      if (x.denom.startsWith('ibc/')) format.fetchDenomTrace(x.denom);
-    });
-  });
-
-  blockchain.rpc.getDistributionValidatorCommission(validator).then((res) => {
-    commission.value = res.commission?.commission?.sort((a, b) => Number(b.amount) - Number(a.amount));
-    res.commission?.commission?.forEach((x) => {
-      if (x.denom.startsWith('ibc/')) format.fetchDenomTrace(x.denom);
-    });
-  });
+  loadValidatorCore();
 
   // Delegators — fetch all and sort globally desc.
   // Wait for rpc readiness: onMounted can fire before chain endpoint is set.
@@ -649,6 +672,9 @@ watch(
     }
     if (rpc && !selfBonded.value.balance?.amount) {
       loadSelfBond();
+    }
+    if (rpc && !v.value.operator_address) {
+      loadValidatorCore();
     }
     if (rpc && !events.value?.tx_responses?.length) {
       console.info('[val] calling loadPowerEvents');

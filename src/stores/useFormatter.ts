@@ -324,7 +324,12 @@ export const useFormatter = defineStore('formatter', {
     calculatePercent(input?: string | number, total?: string | number) {
       if (!input || !total) return '0';
       const percent = Number(input) / Number(total);
-      return numeral(percent > 0.0001 ? percent : 0).format('0.[00]%');
+      // Non-zero but below the 0.[00]% resolution floor (< 0.01%) would render
+      // as a bare "0" — show two forced decimals instead so tiny shares (small
+      // validators' self-bond / delegator share, sub-0.01% tally slices) stay
+      // visible. >= 0.01% keeps the compact 0.[00]% form.
+      if (percent > 0 && percent < 0.0001) return numeral(percent).format('0.00%');
+      return numeral(percent).format('0.[00]%');
     },
     formatDecimalToPercent(decimal: string) {
       return numeral(decimal).format('0.[00]%');
