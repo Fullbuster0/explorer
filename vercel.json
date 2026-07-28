@@ -10,6 +10,17 @@
     },
     {
       "source": "/(.*)",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": "(?i).*(bot|crawl|spider|slurp|facebookexternalhit|facebot|twitterbot|linkedinbot|discordbot|telegrambot|whatsapp|slackbot|embedly|quora|pinterest|redditbot|applebot|bingpreview|yandex|baidu|duckduck|ia_archiver|semrush|ahrefs|mj12bot|dotbot|petalbot).*"
+        }
+      ],
+      "destination": "/api/og?path=$1"
+    },
+    {
+      "source": "/(.*)",
       "destination": "/index.html"
     }
   ]
