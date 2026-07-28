@@ -237,7 +237,11 @@ const tokenomics = computed(() => {
     bankStore.supply?.denom ||
     blockchain.current?.assets?.[0]?.base ||
     '';
-  const bondedN = Number(stakingStore.pool?.bonded_tokens || 0);
+  // Gno: prefer live sum of validator tokens (totalPower). pool may be 0 if
+  // fetchPool raced before validators finished loading.
+  const bondedN = gno
+    ? Number(stakingStore.pool?.bonded_tokens || 0) || Number(stakingStore.totalPower || 0) || 0
+    : Number(stakingStore.pool?.bonded_tokens || 0);
   const notBondedN = Number(stakingStore.pool?.not_bonded_tokens || 0);
   const supplyN = Number(bankStore.supply?.amount || 0);
   const inflationN = Number(mintStore.inflation || 0);

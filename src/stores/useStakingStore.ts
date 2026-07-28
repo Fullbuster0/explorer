@@ -71,7 +71,16 @@ export const useStakingStore = defineStore('stakingStore', {
       }
     },
     async fetchAcitveValdiators() {
-      return this.fetchValidators('BOND_STATUS_BONDED', 500);
+      const list = await this.fetchValidators('BOND_STATUS_BONDED', 500);
+      // Keep pool in sync after validators land (Gno pool is derived from set).
+      if (list?.length) {
+        try {
+          await this.fetchPool();
+        } catch {
+          /* ignore */
+        }
+      }
+      return list;
     },
     async fetchInacitveValdiators() {
       return this.fetchValidators('BOND_STATUS_UNBONDED');
