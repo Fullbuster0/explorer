@@ -113,22 +113,52 @@ export const useWalletStore = defineStore('walletStore', {
   actions: {
     async loadMyAsset() {
       if (!this.currentAddress) return;
-      this.blockchain.rpc.getBankBalances(this.currentAddress).then((x) => {
-        this.balances = x.balances;
-        this.loadedBalances = true;
-      });
-      this.blockchain.rpc.getStakingDelegations(this.currentAddress).then((x) => {
-        this.delegations = x.delegation_responses;
-        this.loadedDelegations = true;
-      });
-      this.blockchain.rpc.getStakingDelegatorUnbonding(this.currentAddress).then((x) => {
-        this.unbonding = x.unbonding_responses;
-        this.loadedUnbonding = true;
-      });
-      this.blockchain.rpc.getDistributionDelegatorRewards(this.currentAddress).then((x) => {
-        this.rewards = x;
-        this.loadedRewards = true;
-      });
+      // Soft-fail each source so a single LCD miss doesn't leave portfolio hanging
+      // or throw uncaught rejections after connect.
+      this.blockchain.rpc
+        .getBankBalances(this.currentAddress)
+        .then((x) => {
+          this.balances = x.balances;
+          this.loadedBalances = true;
+        })
+        .catch((e: any) => {
+          console.warn('[wallet] balances:', e?.message || e);
+          this.balances = [];
+          this.loadedBalances = true;
+        });
+      this.blockchain.rpc
+        .getStakingDelegations(this.currentAddress)
+        .then((x) => {
+          this.delegations = x.delegation_responses;
+          this.loadedDelegations = true;
+        })
+        .catch((e: any) => {
+          console.warn('[wallet] delegations:', e?.message || e);
+          this.delegations = [];
+          this.loadedDelegations = true;
+        });
+      this.blockchain.rpc
+        .getStakingDelegatorUnbonding(this.currentAddress)
+        .then((x) => {
+          this.unbonding = x.unbonding_responses;
+          this.loadedUnbonding = true;
+        })
+        .catch((e: any) => {
+          console.warn('[wallet] unbonding:', e?.message || e);
+          this.unbonding = [];
+          this.loadedUnbonding = true;
+        });
+      this.blockchain.rpc
+        .getDistributionDelegatorRewards(this.currentAddress)
+        .then((x) => {
+          this.rewards = x;
+          this.loadedRewards = true;
+        })
+        .catch((e: any) => {
+          console.warn('[wallet] rewards:', e?.message || e);
+          this.rewards = { total: [], rewards: [] } as any;
+          this.loadedRewards = true;
+        });
     },
     myBalance() {
       return this.blockchain.rpc.getBankBalances(this.currentAddress);

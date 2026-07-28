@@ -29,9 +29,12 @@ function loadSigningInfo(chainName: string) {
   const chain = dashboard.chains[chainName];
   if (chain && chain.endpoints.rest) {
     const client = CosmosRestClient.newDefault(chain.endpoints.rest[0].address);
-    client.getSlashingSigningInfos().then((resp) => {
-      signingInfo.value[chainName] = resp.info;
-    });
+    client
+      .getSlashingSigningInfos()
+      .then((resp) => {
+        signingInfo.value[chainName] = resp.info;
+      })
+      .catch((e: any) => console.warn('[uptime-custom] signing infos:', e?.message || e));
   }
 }
 if (local.value)

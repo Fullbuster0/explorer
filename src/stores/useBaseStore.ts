@@ -156,10 +156,21 @@ export const useBaseStore = defineStore('baseStore', {
       return newBlocks;
     },
     async fetchValidatorByHeight(height?: number, offset = 0) {
-      return this.blockchain.rpc.getBaseValidatorsetAt(String(height), offset);
+      try {
+        return await this.blockchain.rpc.getBaseValidatorsetAt(String(height), offset);
+      } catch (error: any) {
+        // Pruned LCDs frequently 500/404 on historical validatorsets.
+        console.warn('[base] validatorset@height:', error?.message || error);
+        return { validators: [], pagination: {} } as any;
+      }
     },
     async fetchLatestValidators(offset = 0) {
-      return this.blockchain.rpc.getBaseValidatorsetLatest(offset);
+      try {
+        return await this.blockchain.rpc.getBaseValidatorsetLatest(offset);
+      } catch (error: any) {
+        console.warn('[base] validatorset/latest:', error?.message || error);
+        return { validators: [], pagination: {} } as any;
+      }
     },
     async fetchBlock(height?: number | string) {
       try {

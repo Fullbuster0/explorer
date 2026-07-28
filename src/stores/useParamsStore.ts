@@ -115,19 +115,26 @@ export const useParamStore = defineStore('paramstore', {
       this.staking.items = generalItems;
       this.staking.subGroups = [{ title: 'Bond config', items: bondItems }];
 
-      Promise.all([this.getStakingPool(), this.getBankTotal(bond_denom)]).then((resArr) => {
-        const pool = resArr[0]?.pool;
-        const amount = resArr[1]?.amount?.amount;
-        const assets = this.blockchain.current?.assets;
-        const bondedAndSupply = this.chain.items.findIndex((x) => x.subtitle === 'bonded_and_supply');
-        this.chain.items[bondedAndSupply].value = `${formatNumber(
-          formatTokenAmount(assets, pool.bonded_tokens, 2, bond_denom, false),
-          true,
-          0
-        )}/${formatNumber(formatTokenAmount(assets, amount, 2, bond_denom, false), true, 0)}`;
-        const bondedRatio = this.chain.items.findIndex((x) => x.subtitle === 'bonded_ratio');
-        this.chain.items[bondedRatio].value = useFormatter().calculatePercent(pool.bonded_tokens, amount);
-      });
+      Promise.all([this.getStakingPool(), this.getBankTotal(bond_denom)])
+        .then((resArr) => {
+          const pool = resArr[0]?.pool;
+          const amount = resArr[1]?.amount?.amount;
+          if (!pool || amount == null) return;
+          const assets = this.blockchain.current?.assets;
+          const bondedAndSupply = this.chain.items.findIndex((x) => x.subtitle === 'bonded_and_supply');
+          if (bondedAndSupply > -1) {
+            this.chain.items[bondedAndSupply].value = `${formatNumber(
+              formatTokenAmount(assets, pool.bonded_tokens, 2, bond_denom, false),
+              true,
+              0
+            )}/${formatNumber(formatTokenAmount(assets, amount, 2, bond_denom, false), true, 0)}`;
+          }
+          const bondedRatio = this.chain.items.findIndex((x) => x.subtitle === 'bonded_ratio');
+          if (bondedRatio > -1) {
+            this.chain.items[bondedRatio].value = useFormatter().calculatePercent(pool.bonded_tokens, amount);
+          }
+        })
+        .catch((e: any) => console.warn('[params] bonded/supply:', e?.message || e));
     },
 
     /**
@@ -179,29 +186,33 @@ export const useParamStore = defineStore('paramstore', {
      * the punishment regime looks like.
      */
     async handleSlashingParams() {
-      const res = await this.getSlashingParams();
-      if (!res?.params) return;
-      const p = res.params as any;
-      const tag = (k: string, v: any, kind?: string) => ({ subtitle: k, value: v, kind });
-      const windows = [
-        tag('signed_blocks_window', p.signed_blocks_window, 'integer'),
-        tag('min_signed_per_window', p.min_signed_per_window, 'percent'),
-        tag('downtime_jail_duration', p.downtime_jail_duration, 'duration'),
-      ];
-      const penalties = [
-        tag('slash_fraction_double_sign', p.slash_fraction_double_sign, 'percent'),
-        tag('slash_fraction_downtime', p.slash_fraction_downtime, 'percent'),
-      ];
-      // Keep any future fields visible too.
-      const known = new Set([
-        'signed_blocks_window', 'min_signed_per_window', 'downtime_jail_duration',
-        'slash_fraction_double_sign', 'slash_fraction_downtime',
-      ]);
-      Object.entries(p).forEach(([k, v]) => {
-        if (!known.has(k)) windows.push(tag(k, v, typeof v === 'number' ? 'integer' : undefined));
-      });
-      this.slashing.items = windows;
-      this.slashing.subGroups = [{ title: 'Slash fractions', items: penalties }];
+      try {
+        const res = await this.getSlashingParams();
+        if (!res?.params) return;
+        const p = res.params as any;
+        const tag = (k: string, v: any, kind?: string) => ({ subtitle: k, value: v, kind });
+        const windows = [
+          tag('signed_blocks_window', p.signed_blocks_window, 'integer'),
+          tag('min_signed_per_window', p.min_signed_per_window, 'percent'),
+          tag('downtime_jail_duration', p.downtime_jail_duration, 'duration'),
+        ];
+        const penalties = [
+          tag('slash_fraction_double_sign', p.slash_fraction_double_sign, 'percent'),
+          tag('slash_fraction_downtime', p.slash_fraction_downtime, 'percent'),
+        ];
+        // Keep any future fields visible too.
+        const known = new Set([
+          'signed_blocks_window', 'min_signed_per_window', 'downtime_jail_duration',
+          'slash_fraction_double_sign', 'slash_fraction_downtime',
+        ]);
+        Object.entries(p).forEach(([k, v]) => {
+          if (!known.has(k)) windows.push(tag(k, v, typeof v === 'number' ? 'integer' : undefined));
+        });
+        this.slashing.items = windows;
+        this.slashing.subGroups = [{ title: 'Slash fractions', items: penalties }];
+      } catch (e: any) {
+        console.warn('[params] slashing:', e?.message || e);
+      }
     },
 
     /**
@@ -210,38 +221,43 @@ export const useParamStore = defineStore('paramstore', {
      * coefs are legible instead of one flattened key/value dump.
      */
     async handleDistributionParams() {
-      const res = await this.getDistributionParams();
-      if (!res?.params) return;
-      const p = res.params as any;
-      const tag = (k: string, v: any, kind?: string) => ({ subtitle: k, value: v, kind });
-      const general: any[] = [];
-      if (p.community_tax !== undefined) general.push(tag('community_tax', p.community_tax, 'percent'));
-      if (p.withdraw_addr_enabled !== undefined) general.push(tag('withdraw_addr_enabled', p.withdraw_addr_enabled, 'boolean'));
-      if (p.base_proposer_reward !== undefined) general.push(tag('base_proposer_reward', p.base_proposer_reward, 'percent'));
-      if (p.bonus_proposer_reward !== undefined) general.push(tag('bonus_proposer_reward', p.bonus_proposer_reward, 'percent'));
-      // Keep unknown flat fields too (future-proof).
-      const known = new Set([
-        'community_tax', 'withdraw_addr_enabled', 'base_proposer_reward', 'bonus_proposer_reward', 'nakamoto_bonus',
-      ]);
-      Object.entries(p).forEach(([k, v]) => {
-        if (!known.has(k)) general.push(tag(k, v));
-      });
-      this.distribution.items = general;
-      // nakamoto_bonus is atomone-specific and structured — render as a sub-card.
-      if (p.nakamoto_bonus) {
-        const nb = p.nakamoto_bonus;
-        const nbItems: any[] = [];
-        if (nb.enabled !== undefined) nbItems.push(tag('enabled', nb.enabled, 'boolean'));
-        if (nb.step !== undefined) nbItems.push(tag('step', nb.step, 'percent'));
-        if (nb.period_epoch_identifier) nbItems.push(tag('period_epoch_identifier', nb.period_epoch_identifier));
-        if (nb.minimum_coefficient !== undefined) nbItems.push(tag('minimum_coefficient', nb.minimum_coefficient, 'percent'));
-        if (nb.maximum_coefficient !== undefined) nbItems.push(tag('maximum_coefficient', nb.maximum_coefficient, 'percent'));
-        // Surface anything new atomone adds in a future upgrade.
-        const knownNb = new Set(['enabled', 'step', 'period_epoch_identifier', 'minimum_coefficient', 'maximum_coefficient']);
-        Object.entries(nb).forEach(([k, v]) => {
-          if (!knownNb.has(k)) nbItems.push(tag(k, v));
+      try {
+        const res = await this.getDistributionParams();
+        if (!res?.params) return;
+        const p = res.params as any;
+        const tag = (k: string, v: any, kind?: string) => ({ subtitle: k, value: v, kind });
+        const general: any[] = [];
+        if (p.community_tax !== undefined) general.push(tag('community_tax', p.community_tax, 'percent'));
+        if (p.withdraw_addr_enabled !== undefined) general.push(tag('withdraw_addr_enabled', p.withdraw_addr_enabled, 'boolean'));
+        if (p.base_proposer_reward !== undefined) general.push(tag('base_proposer_reward', p.base_proposer_reward, 'percent'));
+        if (p.bonus_proposer_reward !== undefined) general.push(tag('bonus_proposer_reward', p.bonus_proposer_reward, 'percent'));
+        // Keep unknown flat fields too (future-proof).
+        const known = new Set([
+          'community_tax', 'withdraw_addr_enabled', 'base_proposer_reward', 'bonus_proposer_reward', 'nakamoto_bonus',
+        ]);
+        Object.entries(p).forEach(([k, v]) => {
+          if (!known.has(k)) general.push(tag(k, v));
         });
-        this.distribution.subGroups = [{ title: 'Nakamoto bonus', items: nbItems, badge: 'chain-exclusive' }];
+        this.distribution.items = general;
+        // nakamoto_bonus is atomone-specific and structured — render as a sub-card.
+        if (p.nakamoto_bonus) {
+          const nb = p.nakamoto_bonus;
+          const nbItems: any[] = [];
+          if (nb.enabled !== undefined) nbItems.push(tag('enabled', nb.enabled, 'boolean'));
+          if (nb.step !== undefined) nbItems.push(tag('step', nb.step, 'percent'));
+          if (nb.period_epoch_identifier) nbItems.push(tag('period_epoch_identifier', nb.period_epoch_identifier));
+          if (nb.minimum_coefficient !== undefined) nbItems.push(tag('minimum_coefficient', nb.minimum_coefficient, 'percent'));
+          if (nb.maximum_coefficient !== undefined) nbItems.push(tag('maximum_coefficient', nb.maximum_coefficient, 'percent'));
+          // Surface anything new atomone adds in a future upgrade.
+          const knownNb = new Set(['enabled', 'step', 'period_epoch_identifier', 'minimum_coefficient', 'maximum_coefficient']);
+          Object.entries(nb).forEach(([k, v]) => {
+            if (!knownNb.has(k)) nbItems.push(tag(k, v));
+          });
+          // badge is UI-only metadata; cast to keep TS happy on subGroups shape
+          this.distribution.subGroups = [{ title: 'Nakamoto bonus', items: nbItems, badge: 'chain-exclusive' } as any];
+        }
+      } catch (e: any) {
+        console.warn('[params] distribution:', e?.message || e);
       }
     },
 

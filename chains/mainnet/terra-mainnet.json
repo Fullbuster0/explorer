@@ -23,7 +23,7 @@
     },
     {
       "address": "https://terra-rest.publicnode.com",
-      "provider": "Allnodes ⚡️ Nodes & Staking"
+      "provider": "Allnodes \u26a1\ufe0f Nodes & Staking"
     },
     {
       "address": "https://terra-api.polkachu.com",
@@ -63,7 +63,7 @@
     },
     {
       "address": "https://terra-phoenix-api.highstakes.ch",
-      "provider": "High Stakes 🇨🇭"
+      "provider": "High Stakes \ud83c\udde8\ud83c\udded"
     }
   ],
   "rpc": [
@@ -73,7 +73,7 @@
     },
     {
       "address": "https://terra-rpc.publicnode.com:443",
-      "provider": "Allnodes ⚡️ Nodes & Staking"
+      "provider": "Allnodes \u26a1\ufe0f Nodes & Staking"
     },
     {
       "address": "https://terra-rpc.polkachu.com:443",
@@ -85,7 +85,7 @@
     },
     {
       "address": "https://rpc.lavenderfive.com:443/terra2",
-      "provider": "Lavender.Five Nodes 🐝"
+      "provider": "Lavender.Five Nodes \ud83d\udc1d"
     },
     {
       "address": "https://terra-rpc.stakely.io:443",
@@ -97,7 +97,7 @@
     },
     {
       "address": "https://terra-phoenix-rpc.highstakes.ch",
-      "provider": "High Stakes 🇨🇭"
+      "provider": "High Stakes \ud83c\udde8\ud83c\udded"
     },
     {
       "address": "https://terra2.tdrsys.com:2053",

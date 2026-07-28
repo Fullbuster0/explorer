@@ -53,7 +53,7 @@ function refreshDashboard() {
 onMounted(() => {
   refreshDashboard();
 });
-const ticker = computed(() => store.coinInfo.tickers[store.tickerIndex]);
+const ticker = computed(() => store.coinInfo?.tickers?.[store.tickerIndex]);
 
 const currName = ref('');
 blockchain.$subscribe((m, s) => {

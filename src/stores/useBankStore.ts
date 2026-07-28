@@ -27,13 +27,22 @@ export const useBankStore = defineStore('bankstore', {
       this.supply = {} as Coin;
       const denom = this.staking.params.bond_denom || this.blockchain.current?.assets[0].base;
       if (denom) {
-        this.blockchain.rpc.getBankSupplyByDenom(denom).then((res) => {
-          if (res.amount) this.supply = res.amount;
-        });
+        // Some LCDs 500/501 on /supply/{denom} (Pocket, pruned nodes). Soft-fail.
+        this.blockchain.rpc
+          .getBankSupplyByDenom(denom)
+          .then((res) => {
+            if (res.amount) this.supply = res.amount;
+          })
+          .catch((e: any) => console.warn('[bank] supply:', e?.message || e));
       }
     },
     async fetchSupply(denom: string) {
-      return this.blockchain.rpc.getBankSupplyByDenom(denom);
+      try {
+        return await this.blockchain.rpc.getBankSupplyByDenom(denom);
+      } catch (e: any) {
+        console.warn('[bank] fetchSupply:', e?.message || e);
+        return { amount: { amount: '0', denom } } as any;
+      }
     },
     async fetchDenomTrace(denom: string) {
       const hash = denom.replace('ibc/', '');

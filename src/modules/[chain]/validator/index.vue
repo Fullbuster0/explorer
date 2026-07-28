@@ -28,15 +28,27 @@ const unbondList = ref([] as Validator[]);
 const slashing = ref({} as SlashingParam);
 
 onMounted(() => {
-  staking.fetchUnbondingValdiators().then((res) => {
-    unbondList.value = res.concat(unbondList.value);
-  });
-  staking.fetchInacitveValdiators().then((res) => {
-    unbondList.value = unbondList.value.concat(res);
-  });
-  chainStore.rpc.getSlashingParams().then((res) => {
-    slashing.value = res.params;
-  });
+  // Soft-fail: unbonding/inactive lists + slashing params are nice-to-have.
+  // Some LCDs 500 on historical validatorsets / custom modules — must not
+  // surface as uncaught pageerrors that fail the whole validators page.
+  staking
+    .fetchUnbondingValdiators()
+    .then((res) => {
+      unbondList.value = res.concat(unbondList.value);
+    })
+    .catch((e: any) => console.warn('[validator] unbonding list:', e?.message || e));
+  staking
+    .fetchInacitveValdiators()
+    .then((res) => {
+      unbondList.value = unbondList.value.concat(res);
+    })
+    .catch((e: any) => console.warn('[validator] inactive list:', e?.message || e));
+  chainStore.rpc
+    .getSlashingParams()
+    .then((res) => {
+      slashing.value = res.params;
+    })
+    .catch((e: any) => console.warn('[validator] slashing params:', e?.message || e));
 });
 
 async function fetchChange(blockWindow: number = 14400) {
@@ -48,24 +60,32 @@ async function fetchChange(blockWindow: number = 14400) {
   } else {
     height = 1;
   }
-  // voting power in 24h ago
+  // voting power in 24h ago — soft-fail per page (pruned LCDs 500 often)
   while (page < staking.validators.length && height > 0) {
-    await base.fetchValidatorByHeight(height, page).then((x) => {
-      x.validators.forEach((v) => {
-        yesterday.value[v.pub_key.key] = Number(v.voting_power);
+    try {
+      const x = await base.fetchValidatorByHeight(height, page);
+      x?.validators?.forEach((v) => {
+        if (v?.pub_key?.key) yesterday.value[v.pub_key.key] = Number(v.voting_power);
       });
-    });
+    } catch (e: any) {
+      console.warn('[validator] set@height failed:', e?.message || e);
+      break;
+    }
     page += 100;
   }
 
   page = 0;
   // voting power for now
   while (page < staking.validators.length) {
-    await base.fetchLatestValidators(page).then((x) => {
-      x.validators.forEach((v) => {
-        latest.value[v.pub_key.key] = Number(v.voting_power);
+    try {
+      const x = await base.fetchLatestValidators(page);
+      x?.validators?.forEach((v) => {
+        if (v?.pub_key?.key) latest.value[v.pub_key.key] = Number(v.voting_power);
       });
-    });
+    } catch (e: any) {
+      console.warn('[validator] latest set failed:', e?.message || e);
+      break;
+    }
     page += 100;
   }
 }

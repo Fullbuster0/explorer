@@ -22,12 +22,21 @@ export const useDistributionStore = defineStore('distributionStore', {
       this.fetchParams();
     },
     async fetchParams() {
-      const response = await this.blockchain.rpc?.getDistributionParams();
-      if (response?.params) this.params = response.params;
+      try {
+        const response = await this.blockchain.rpc?.getDistributionParams();
+        if (response?.params) this.params = response.params;
+      } catch (e: any) {
+        console.warn('[distribution] params:', e?.message || e);
+      }
       return this.params;
     },
     async fetchCommunityPool() {
-      return this.blockchain.rpc?.getDistributionCommunityPool();
+      try {
+        return await this.blockchain.rpc?.getDistributionCommunityPool();
+      } catch (e: any) {
+        console.warn('[distribution] communityPool:', e?.message || e);
+        return { pool: [] } as any;
+      }
     },
   },
 });

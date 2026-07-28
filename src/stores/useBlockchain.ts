@@ -186,13 +186,28 @@ export const useBlockchain = defineStore('blockchain', {
             return saved;
           }
         } catch {
-          /* corrupt cache — fall through to random pick */
+          /* corrupt cache — fall through to weighted pick */
         }
       }
       if (all && all.length) {
-        const rn = Math.random();
-        const endpoint = all[Math.floor(rn * all.length)];
-        return endpoint;
+        // Weighted toward the front of the config list. Chain JSON is curated
+        // with reliable/CORS-friendly hosts first; pure Math.random() across
+        // 20+ public LCDs often landed on CORS-broken or archive hosts
+        // (citizenweb3, kleomedes, …) and first-paint failed until fallback.
+        // Weight ≈ (n - i): index 0 is n× more likely than the last entry.
+        const n = all.length;
+        let total = 0;
+        const weights = all.map((_, i) => {
+          const w = n - i;
+          total += w;
+          return w;
+        });
+        let r = Math.random() * total;
+        for (let i = 0; i < n; i++) {
+          r -= weights[i];
+          if (r <= 0) return all[i];
+        }
+        return all[0];
       }
       return undefined;
     },

@@ -22,6 +22,14 @@
       "provider": "Shazoes"
     },
     {
+      "address": "https://api.hippo-protocol.com",
+      "provider": "Hippo Protocol"
+    },
+    {
+      "address": "https://hippo.api.nodeshub.online",
+      "provider": "NodesHub"
+    },
+    {
       "address": "https://rest.cosmos.directory/hippo",
       "provider": "cosmos.directory"
     }

@@ -18,22 +18,22 @@
   "github": "https://github.com/hippo-protocol/hippo-protocol",
   "api": [
     {
-      "address": "https://hippo-testnet-api.shazoes.xyz",
-      "provider": "Shazoes"
-    },
-    {
       "address": "https://api.testnet.hippo-protocol.com",
       "provider": "Hippo Protocol"
+    },
+    {
+      "address": "https://hippo-testnet-api.shazoes.xyz",
+      "provider": "Shazoes"
     }
   ],
   "rpc": [
     {
-      "address": "https://hippo-testnet-rpc.shazoes.xyz",
-      "provider": "Shazoes"
-    },
-    {
       "address": "https://rpc.testnet.hippo-protocol.com",
       "provider": "Hippo Protocol"
+    },
+    {
+      "address": "https://hippo-testnet-rpc.shazoes.xyz",
+      "provider": "Shazoes"
     }
   ],
   "snapshot_provider": "",

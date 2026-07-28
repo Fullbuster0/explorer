@@ -23,15 +23,11 @@
     },
     {
       "address": "https://cosmos-rest.publicnode.com",
-      "provider": "Allnodes ⚡️ Nodes & Staking"
+      "provider": "Allnodes \u26a1\ufe0f Nodes & Staking"
     },
     {
-      "address": "https://cosmoshub.api.kjnodes.com",
-      "provider": "kjnodes"
-    },
-    {
-      "address": "https://cosmoshub-mainnet-api.itrocket.net",
-      "provider": "ITRocket"
+      "address": "https://rest.lavenderfive.com:443/cosmoshub",
+      "provider": "Lavender.Five Nodes \ud83d\udc1d"
     },
     {
       "address": "https://cosmos-api.polkachu.com",
@@ -42,24 +38,28 @@
       "provider": "cosmos.directory"
     },
     {
-      "address": "https://cosmos.rpc.uquad.org:443",
-      "provider": "QUAD"
-    },
-    {
-      "address": "https://rest.cosmoshub-main.ccvalidators.com:443",
-      "provider": "CryptoCrew"
-    },
-    {
-      "address": "https://rest.lavenderfive.com:443/cosmoshub",
-      "provider": "Lavender.Five Nodes 🐝"
+      "address": "https://cosmoshub-mainnet-api.itrocket.net",
+      "provider": "ITRocket"
     },
     {
       "address": "https://cosmoshub.rest.stakin-nodes.com",
       "provider": "Stakin"
     },
     {
-      "address": "https://rest-cosmoshub.ecostake.com",
-      "provider": "ecostake"
+      "address": "https://rest.cosmoshub-main.ccvalidators.com:443",
+      "provider": "CryptoCrew"
+    },
+    {
+      "address": "https://cosmos-api.stakeandrelax.net",
+      "provider": "Stake&Relax \ud83e\udda5"
+    },
+    {
+      "address": "https://api.cosmos.cumulo.com.es",
+      "provider": "Cumulo"
+    },
+    {
+      "address": "https://cosmos.rpc.uquad.org:443",
+      "provider": "QUAD"
     },
     {
       "address": "https://cosmos-lcd.easy2stake.com",
@@ -71,7 +71,7 @@
     },
     {
       "address": "https://cosmos-api.highstakes.ch",
-      "provider": "High Stakes 🇨🇭"
+      "provider": "High Stakes \ud83c\udde8\ud83c\udded"
     },
     {
       "address": "https://cosmoshub-api.cosmosrescue.dev",
@@ -82,12 +82,16 @@
       "provider": "Stakewolle"
     },
     {
-      "address": "https://cosmos-api.stakeandrelax.net",
-      "provider": "Stake&Relax 🦥"
-    },
-    {
       "address": "https://cosmos.ibs.team:443/api",
       "provider": "Inter Blockchain Services"
+    },
+    {
+      "address": "https://cosmoshub.api.kjnodes.com",
+      "provider": "kjnodes"
+    },
+    {
+      "address": "https://rest-cosmoshub.ecostake.com",
+      "provider": "ecostake"
     },
     {
       "address": "https://api.cosmoshub-4-archive.citizenweb3.com:443",
@@ -96,10 +100,6 @@
     {
       "address": "https://api.cosmoshub-4.citizenweb3.com:443",
       "provider": "Citizen Web3"
-    },
-    {
-      "address": "https://api.cosmos.cumulo.com.es",
-      "provider": "Cumulo"
     },
     {
       "address": "https://cosmoshub.api.pocket.network",
@@ -131,15 +131,11 @@
     },
     {
       "address": "https://cosmos-rpc.publicnode.com:443",
-      "provider": "Allnodes ⚡️ Nodes & Staking"
+      "provider": "Allnodes \u26a1\ufe0f Nodes & Staking"
     },
     {
-      "address": "https://cosmoshub.rpc.kjnodes.com",
-      "provider": "kjnodes"
-    },
-    {
-      "address": "https://cosmoshub-mainnet-rpc.itrocket.net",
-      "provider": "ITRocket"
+      "address": "https://rpc.lavenderfive.com:443/cosmoshub",
+      "provider": "Lavender.Five Nodes \ud83d\udc1d"
     },
     {
       "address": "https://cosmos-rpc.polkachu.com:443",
@@ -150,8 +146,12 @@
       "provider": "cosmos.directory"
     },
     {
-      "address": "https://cosmos.rpc.uquad.org:443",
-      "provider": "QUAD"
+      "address": "https://cosmoshub-mainnet-rpc.itrocket.net",
+      "provider": "ITRocket"
+    },
+    {
+      "address": "https://cosmoshub.rpc.stakin-nodes.com",
+      "provider": "Stakin"
     },
     {
       "address": "https://rpc.cosmoshub-main.ccvalidators.com:443",
@@ -162,16 +162,16 @@
       "provider": "Lava"
     },
     {
-      "address": "https://rpc.lavenderfive.com:443/cosmoshub",
-      "provider": "Lavender.Five Nodes 🐝"
+      "address": "https://cosmos-rpc.stakeandrelax.net",
+      "provider": "Stake&Relax \ud83e\udda5"
     },
     {
-      "address": "https://rpc-cosmoshub.ecostake.com",
-      "provider": "ecostake"
+      "address": "https://rpc.cosmos.cumulo.com.es",
+      "provider": "Cumulo"
     },
     {
-      "address": "https://cosmoshub.rpc.stakin-nodes.com",
-      "provider": "Stakin"
+      "address": "https://cosmos.rpc.uquad.org:443",
+      "provider": "QUAD"
     },
     {
       "address": "https://cosmos-rpc.easy2stake.com",
@@ -183,7 +183,7 @@
     },
     {
       "address": "https://cosmos-rpc.highstakes.ch",
-      "provider": "High Stakes 🇨🇭"
+      "provider": "High Stakes \ud83c\udde8\ud83c\udded"
     },
     {
       "address": "https://cosmoshub-rpc.cosmosrescue.dev",
@@ -194,24 +194,24 @@
       "provider": "Stakewolle"
     },
     {
-      "address": "https://rpc.cosmoshub-4.citizenweb3.com",
-      "provider": "Citizen Web3"
-    },
-    {
-      "address": "https://cosmos-rpc.stakeandrelax.net",
-      "provider": "Stake&Relax 🦥"
-    },
-    {
       "address": "https://cosmos.ibs.team:443/rpc",
       "provider": "Inter Blockchain Services"
     },
     {
-      "address": "https://rpc.cosmoshub-4-archive.citizenweb3.com:443",
+      "address": "https://cosmoshub.rpc.kjnodes.com",
+      "provider": "kjnodes"
+    },
+    {
+      "address": "https://rpc-cosmoshub.ecostake.com",
+      "provider": "ecostake"
+    },
+    {
+      "address": "https://rpc.cosmoshub-4.citizenweb3.com",
       "provider": "Citizen Web3"
     },
     {
-      "address": "https://rpc.cosmos.cumulo.com.es",
-      "provider": "Cumulo"
+      "address": "https://rpc.cosmoshub-4-archive.citizenweb3.com:443",
+      "provider": "Citizen Web3"
     },
     {
       "address": "https://cosmoshub.api.pocket.network",

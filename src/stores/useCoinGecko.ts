@@ -38,19 +38,26 @@ export async function fetchPriceMap(
     `${coingeckoUrl}/api/v3/coins/markets?vs_currency=${encodeURIComponent(primary)}` +
     `&ids=${encodeURIComponent(coinIds.join(','))}` +
     `&price_change_percentage=24h&per_page=250`;
-  const rows: any[] = await get(url, { headers: coingeckoHeaders });
-  const out: Record<string, PriceMeta> = {};
-  if (!Array.isArray(rows)) return out;
-  for (const r of rows) {
-    if (!r?.id) continue;
-    const meta: PriceMeta = {};
-    const price = r.current_price;
-    if (price != null) (meta as any)[primary] = String(price);
-    const ch = r.price_change_percentage_24h;
-    if (ch != null) (meta as any)[`${primary}_24h_change`] = String(ch);
-    out[r.id] = meta;
+  try {
+    const rows: any[] = await get(url, { headers: coingeckoHeaders });
+    const out: Record<string, PriceMeta> = {};
+    if (!Array.isArray(rows)) return out;
+    for (const r of rows) {
+      if (!r?.id) continue;
+      const meta: PriceMeta = {};
+      const price = r.current_price;
+      if (price != null) (meta as any)[primary] = String(price);
+      const ch = r.price_change_percentage_24h;
+      if (ch != null) (meta as any)[`${primary}_24h_change`] = String(ch);
+      out[r.id] = meta;
+    }
+    return out;
+  } catch (e: any) {
+    // Soft-fail: prices are nice-to-have. CORS / rate-limit / offline
+    // must not cascade into uncaught rejections on every page.
+    console.warn('[coingecko] fetchPriceMap failed:', e?.message || e);
+    return {};
   }
-  return out;
 }
 
 export const useCoingecko = defineStore('coingecko', {
@@ -74,7 +81,9 @@ export const useCoingecko = defineStore('coingecko', {
 
     fetchCoinPrice(ids: string[]) {
       // Filter null/empty secondary currency so we never send "usd,null".
-      const vs = ['usd', this.currency].filter((c) => !!c);
+      const vs = (['usd', this.currency] as (string | null | undefined)[]).filter(
+        (c): c is string => !!c
+      );
       fetchPriceMap(ids, vs)
         .then((data) => {
           this.prices = { ...this.prices, ...data };

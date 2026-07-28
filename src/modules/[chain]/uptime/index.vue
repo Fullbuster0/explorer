@@ -259,9 +259,12 @@ onMounted(() => {
   updateTotalSigningInfo();
   loadAllValidators();
 
-  chainStore.rpc.getSlashingParams().then((x) => {
-    slashingParam.value = x.params;
-  });
+  chainStore.rpc
+    .getSlashingParams()
+    .then((x) => {
+      slashingParam.value = x.params;
+    })
+    .catch((e: any) => console.warn('[uptime] slashing params:', e?.message || e));
 });
 
 function preFill() {
@@ -374,6 +377,7 @@ function updateTotalSigningInfo() {
       signingInfo.value = next;
       liveMissed.value = nextMissed;
     })
+    .catch((e: any) => console.warn('[uptime] signing infos:', e?.message || e))
     .finally(() => {
       signingFetchInFlight = false;
       if (signingFetchQueued) {

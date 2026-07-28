@@ -254,7 +254,8 @@ export const useIndexModule = defineStore('module-index', {
               amount: String(parseInt(t.amount)),
               denom: t.denom,
             }));
-        });
+        })
+        .catch((e: any) => console.warn('[dashboard] communityPool:', e?.message || e));
       // const gov = useGovStore();
       // gov.fetchProposals('2').then((x) => {
       //   this.proposals = x;
@@ -273,13 +274,26 @@ export const useIndexModule = defineStore('module-index', {
         this.blockchain?.coingecko ||
         '';
       if (cgId) {
-        this.coingecko.getCoinInfo(cgId).then((x) => {
-          this.coinInfo = x;
-          this.loadGithubActivity();
-        });
-        this.coingecko.getMarketChart(this.days, cgId).then((x) => {
-          this.marketData = x;
-        });
+        // CoinGecko free tier is flaky (CORS / rate-limit / network). Never
+        // let a rejection surface as an uncaught pageerror
+        // (`TypeError: Network request failed` from cross-fetch).
+        this.coingecko
+          .getCoinInfo(cgId)
+          .then((x) => {
+            this.coinInfo = x;
+            this.loadGithubActivity();
+          })
+          .catch((e: any) => {
+            console.warn('[dashboard] coinInfo failed:', e?.message || e);
+          });
+        this.coingecko
+          .getMarketChart(this.days, cgId)
+          .then((x) => {
+            this.marketData = x;
+          })
+          .catch((e: any) => {
+            console.warn('[dashboard] marketChart failed:', e?.message || e);
+          });
       }
     },
 
