@@ -195,6 +195,8 @@ export const useIBCModule = defineStore('module-ibc', {
       loaded: false,
       loadGen: 0,
       error: '',
+      /** Chain this dataset belongs to — prevents showing chain A data on chain B. */
+      dataChain: '',
       connections: [] as Connection[],
       channels: [] as Channel[],
       clientChain: {} as Record<string, string>, // client_id -> remote chain_id
@@ -224,12 +226,34 @@ export const useIBCModule = defineStore('module-ibc', {
   },
   actions: {
     async load(force = false) {
+      const chain = this.chainName;
+      // Chain switch: the cached dataset belongs to another chain.
+      // Clear it so the UI never shows chain A rows on chain B, then force.
+      if (this.dataChain && this.dataChain !== chain) {
+        force = true;
+        this.loaded = false;
+        this.error = '';
+        this.connections = [];
+        this.channels = [];
+        this.clientChain = {};
+        this.rows = [];
+        this.registryPaths = {};
+        this.summary = {
+          connections: 0,
+          openConnections: 0,
+          channels: 0,
+          openChannels: 0,
+          chains: 0,
+          wellKnownChains: 0,
+        };
+      }
       if (this.loaded && !force) return;
       if (this.loading && !force) return;
       // A force load (e.g. endpoint fallback) supersedes any in-flight load.
       const gen = ++this.loadGen;
       this.loading = true;
       this.error = '';
+      this.dataChain = chain;
       try {
         const rpc = this.chain.rpc;
         const [conns, chans, clients] = await Promise.all([

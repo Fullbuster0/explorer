@@ -89,7 +89,7 @@ onMounted(() => {
 // fallback. Retry until ALL three slices have loaded — checking only connLoaded
 // would leave the page half-stuck if clientState/channels failed but conn didn't.
 watch(
-  () => [props.connection_id, chainStore.endpoint?.address] as const,
+  () => [props.connection_id, chainStore.endpoint?.address, chainStore.chainName] as const,
   ([, addr]) => {
     if (addr && !(connLoaded.value && clientStateLoaded.value && channelsLoaded.value)) loadDetail();
   }

@@ -46,9 +46,9 @@ function tryLoad() {
 
 onMounted(tryLoad);
 watch(
-  () => chainStore.endpoint?.address,
-  () => {
-    if (chainStore.rpc) ibcStore.load(true);
+  () => [chainStore.endpoint?.address, chainStore.chainName] as const,
+  ([addr]) => {
+    if (addr && chainStore.rpc) ibcStore.load(true);
   }
 );
 

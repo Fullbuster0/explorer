@@ -24,10 +24,12 @@ onMounted(() => {
 });
 
 watch(
-  () => chainStore.endpoint?.address,
-  () => {
-    // Chain/endpoint switch: force reload
-    if (chainStore.rpc) ibcStore.load(true);
+  () => [chainStore.endpoint?.address, chainStore.chainName] as const,
+  ([addr, name]) => {
+    if (!addr || !chainStore.rpc) return;
+    // Endpoint switch OR chain switch: force reload.
+    // load() also self-detects chain mismatch and clears stale rows.
+    ibcStore.load(true);
   }
 );
 
