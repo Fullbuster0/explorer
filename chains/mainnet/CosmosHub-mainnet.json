@@ -106,6 +106,24 @@
       "provider": "Pocket Network"
     }
   ],
+  "archived_api": [
+    {
+      "address": "https://api.cosmoshub-4-archive.citizenweb3.com:443",
+      "provider": "Citizen Web3 (Archive)"
+    },
+    {
+      "address": "https://rest.lavenderfive.com:443/cosmoshub",
+      "provider": "Lavender.Five (Archive)"
+    },
+    {
+      "address": "https://cosmos-rest.publicnode.com",
+      "provider": "PublicNode (Archive)"
+    },
+    {
+      "address": "https://cosmos-api.polkachu.com",
+      "provider": "Polkachu (Archive)"
+    }
+  ],
   "rpc": [
     {
       "address": "https://rpc.cosmos.nodestake.org",
