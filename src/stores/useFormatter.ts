@@ -350,8 +350,10 @@ export const useFormatter = defineStore('formatter', {
       return numeral(n).format(fmt);
     },
     formatNumber(input?: number, fmt = '0.[00]') {
-      if (!input) return '';
-      return numeral(input).format(fmt);
+      // 0 is a valid amount — do NOT treat it as missing (old `if (!input)`
+      // made Total Value render as bare "$" and unbonding as " ATOM").
+      if (input === undefined || input === null || Number.isNaN(Number(input))) return '';
+      return numeral(Number(input)).format(fmt);
     },
     numberAndSign(input: number, fmt = '+0,0') {
       return numeral(input).format(fmt);

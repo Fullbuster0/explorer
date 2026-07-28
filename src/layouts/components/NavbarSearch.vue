@@ -62,11 +62,15 @@ function clearRecent() {
 }
 
 function normalizeQuery(raw: string) {
-  return String(raw || '').trim();
+  // collapse whitespace + common paste noise (0x prefix, surrounding quotes)
+  return String(raw || '')
+    .trim()
+    .replace(/^['"]+|['"]+$/g, '')
+    .replace(/\s+/g, '');
 }
 
 function classify(raw: string): SearchHit | null {
-  const key = normalizeQuery(raw);
+  let key = normalizeQuery(raw);
   if (!key) return null;
   const current = chainName.value;
   if (!current) return null;
@@ -83,9 +87,10 @@ function classify(raw: string): SearchHit | null {
     };
   }
 
-  // tx hash: 64 hex
-  if (/^[A-Fa-f0-9]{64}$/.test(key)) {
-    const hash = key.toUpperCase();
+  // tx hash: 64 hex, optional 0x prefix (EVM-style paste)
+  const hexKey = key.replace(/^0x/i, '');
+  if (/^[A-Fa-f0-9]{64}$/.test(hexKey)) {
+    const hash = hexKey.toUpperCase();
     return {
       kind: 'tx',
       query: hash,

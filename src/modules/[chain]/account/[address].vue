@@ -148,7 +148,8 @@ const totalValue = computed(() => {
         }))
     )
   );
-  return format.formatNumber(value, '0,0.00');
+  // Always show a number (incl. 0.00). Price may lag — still render 0.00, not bare "$".
+  return format.formatNumber(value, '0,0.00') || '0.00';
 });
 
 function loadAccount(address: string) {
