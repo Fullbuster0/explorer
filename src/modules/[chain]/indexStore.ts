@@ -133,8 +133,9 @@ export const useIndexModule = defineStore('module-index', {
       return page1 || page2 || page3;
     },
     telegram(): string {
-      if (!this.coinInfo?.links?.homepage) return '';
-      return `https://t.me/${this.coinInfo?.links.telegram_channel_identifier}`;
+      const id = this.coinInfo?.links?.telegram_channel_identifier;
+      if (!id) return '';
+      return `https://t.me/${id}`;
     },
 
     priceChange(): string {
