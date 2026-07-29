@@ -98,6 +98,13 @@ const gnoCounts = computed(() => {
   return c;
 });
 
+/** Sum of voting power across ACTIVE set (from indexer, not RPC). */
+const gnoTotalVp = computed(() =>
+  gnoValidators.value
+    .filter((g) => g.status === 'ACTIVE')
+    .reduce((s, g) => s + Number(g.votingPower || 0), 0),
+);
+
 onMounted(() => {
   // Soft-fail: unbonding/inactive lists + slashing params are nice-to-have.
   // Some LCDs 500 on historical validatorsets / custom modules — must not
@@ -228,24 +235,38 @@ const calculateRank = function (position: number) {
 };
 
 const list = computed(() => {
-  if (tab.value === 'active') {
-    // Gno: prefer the indexer ACTIVE set (has shareRate + status); fall back to RPC set.
-    if (isGno.value && gnoValidators.value.length) {
-      return gnoValidators.value
-        .filter((g) => g.status === 'ACTIVE')
-        .sort((a, b) => Number(b.votingPower) - Number(a.votingPower))
-        .map((g, i) => ({ v: gnoToValidator(g), rank: calculateRank(i), logo: '', gno: g as GnoIndexerValidator | null }));
-    }
-    return staking.validators.map((x, i) => ({ v: x, rank: calculateRank(i), logo: logo(x.description.identity), gno: null as GnoIndexerValidator | null }));
-  }
+  // Gno: ONLY the onbloc indexer set (ACTIVE / INACTIVE / PENDING).
+  // Never fall back to staking.validators (RPC) — that list is moniker-polluted
+  // by valopers overlay and has no status dimension, so Active looks identical
+  // to Pending and every row is "ACTIVE".
   if (isGno.value) {
-    const want = tab.value === 'pending' ? 'PENDING' : 'INACTIVE';
+    if (!gnoValidators.value.length) return [];
+    const want =
+      tab.value === 'active' ? 'ACTIVE' : tab.value === 'pending' ? 'PENDING' : 'INACTIVE';
     return gnoValidators.value
       .filter((g) => g.status === want)
       .sort((a, b) => Number(b.votingPower) - Number(a.votingPower))
-      .map((g) => ({ v: gnoToValidator(g), rank: 'primary', logo: '', gno: g as GnoIndexerValidator | null }));
+      .map((g, i) => ({
+        v: gnoToValidator(g),
+        rank: want === 'ACTIVE' ? calculateRank(i) : 'primary',
+        logo: '',
+        gno: g as GnoIndexerValidator | null,
+      }));
   }
-  return unbondList.value.map((x, i) => ({ v: x, rank: 'primary', logo: logo(x.description.identity), gno: null as GnoIndexerValidator | null }));
+  if (tab.value === 'active') {
+    return staking.validators.map((x, i) => ({
+      v: x,
+      rank: calculateRank(i),
+      logo: logo(x.description.identity),
+      gno: null as GnoIndexerValidator | null,
+    }));
+  }
+  return unbondList.value.map((x, i) => ({
+    v: x,
+    rank: 'primary',
+    logo: logo(x.description.identity),
+    gno: null as GnoIndexerValidator | null,
+  }));
 });
 
 const fetchAvatar = (identity: string) => {
@@ -319,11 +340,14 @@ loadAvatars();
       <div>
         <h1 class="sz-page-title">{{ $t('module.validator') }}</h1>
         <div class="sz-page-sub">
-          <span class="font-mono">{{ list.length }}</span>
+          <span class="font-mono">{{ isGno ? (gnoValidators.length || '…') : list.length }}</span>
           <template v-if="isGno && gnoValidators.length">
             · {{ gnoCounts.ACTIVE }} active · {{ gnoCounts.PENDING }} pending · {{ gnoCounts.INACTIVE }} inactive
           </template>
-          <template v-else>
+          <template v-else-if="isGno && gnoLoading">
+            · loading from indexer…
+          </template>
+          <template v-else-if="!isGno">
             / {{ staking.params.max_validators }} {{ $t('staking.validator').toLowerCase() }}
           </template>
         </div>
@@ -378,7 +402,7 @@ loadAvatars();
       </div>
       <div class="sz-stat" style="--stat-hue: var(--sz-accent)">
         <div class="sz-stat-head"><i class="sz-stat-tick"></i><span class="sz-stat-label">Total VP</span></div>
-        <div class="sz-stat-value">{{ Number(staking.totalPower || 0).toLocaleString() }}</div>
+        <div class="sz-stat-value">{{ Number(gnoTotalVp || staking.totalPower || 0).toLocaleString() }}</div>
       </div>
     </div>
 
@@ -397,6 +421,21 @@ loadAvatars();
             </tr>
           </thead>
           <tbody>
+            <tr v-if="isGno && gnoLoading && !gnoValidators.length">
+              <td colspan="6" class="py-10 text-center text-[12.5px] text-secondary">
+                Loading validators from indexer…
+              </td>
+            </tr>
+            <tr v-else-if="isGno && gnoError && !gnoValidators.length">
+              <td colspan="6" class="py-10 text-center text-[12.5px] text-error">
+                {{ gnoError }}
+              </td>
+            </tr>
+            <tr v-else-if="!list.length">
+              <td colspan="6" class="py-10 text-center text-[12.5px] text-secondary">
+                No validators in this status.
+              </td>
+            </tr>
             <tr v-for="({ v, rank, logo, gno }, i) in list" :key="v.operator_address">
               <!-- rank -->
               <td>

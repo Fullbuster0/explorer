@@ -9,7 +9,7 @@ import { fromBase64, fromBech32, toBase64, toHex } from '@cosmjs/encoding';
 import { get } from '@/libs/http';
 import type { Block, NodeInfo, PaginatedTendermintValidator } from '@/types';
 import type { PaginatedValdiators, StakingParam, StakingPool, Validator } from '@/types/staking';
-import { gnoMoniker, lookupGnoValoper } from './valopers';
+import { lookupGnoValoper } from './valopers';
 
 // Do NOT set User-Agent here — browsers forbid it ("Refused to set unsafe header")
 // and Node-side callers don't need a custom UA for public RPCs.
@@ -180,7 +180,15 @@ export function normalizeTm2PubKey(pub: any): { '@type': string; key: string } {
   };
 }
 
-/** TM2 `/validators` row → Cosmos staking Validator (synthetic). */
+/** TM2 `/validators` row → Cosmos staking Validator (synthetic).
+ *  Moniker policy (matches gnoscan validators page):
+ *    moniker = shortAddr(signingAddress)
+ *  Do NOT overlay the valopers realm moniker here. Valopers maps the
+ *  signing address → operator moniker, and those same monikers appear as
+ *  PENDING candidates on the indexer. Overlaying them makes the Active
+ *  tab look identical to Pending even though addresses are disjoint.
+ *  Valopers is still used for website/identity metadata only.
+ */
 export function tm2ValidatorToStaking(v: any): Validator {
   // TM2 validator address == signing/consensus address (bech32 g1…)
   const address = v.address || '';
@@ -189,7 +197,8 @@ export function tm2ValidatorToStaking(v: any): Validator {
   const power = String(v.voting_power ?? v.power ?? '0');
   const pub = normalizeTm2PubKey(v.pub_key);
   const meta = lookupGnoValoper(address);
-  const moniker = gnoMoniker(address);
+  const moniker =
+    address.length > 16 ? `${address.slice(0, 10)}…${address.slice(-4)}` : address || 'validator';
   // Don't dump full application essay into details — list UI uses website line.
   const details = meta?.serverType
     ? `Gnoland validator · ${meta.serverType}`
