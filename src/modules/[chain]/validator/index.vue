@@ -247,36 +247,65 @@ onMounted(() => {
   // Soft-fail: unbonding/inactive lists + slashing params are nice-to-have.
   // Some LCDs 500 on historical validatorsets / custom modules — must not
   // surface as uncaught pageerrors that fail the whole validators page.
-  staking
-    .fetchUnbondingValdiators()
-    .then((res) => {
-      unbondList.value = res.concat(unbondList.value);
-    })
-    .catch((e: any) => console.warn('[validator] unbonding list:', e?.message || e));
-  staking
-    .fetchInacitveValdiators()
-    .then((res) => {
-      unbondList.value = unbondList.value.concat(res);
-    })
-    .catch((e: any) => console.warn('[validator] inactive list:', e?.message || e));
-  chainStore.rpc
-    .getSlashingParams()
-    .then((res) => {
-      slashing.value = res.params;
-    })
-    .catch((e: any) => console.warn('[validator] slashing params:', e?.message || e));
+  // Guard rpc — onMounted can race chain connect (Gno "need refresh" class).
+  const rpc = chainStore.rpc;
+  if (rpc) {
+    staking
+      .fetchUnbondingValdiators()
+      .then((res) => {
+        unbondList.value = res.concat(unbondList.value);
+      })
+      .catch((e: any) => console.warn('[validator] unbonding list:', e?.message || e));
+    staking
+      .fetchInacitveValdiators()
+      .then((res) => {
+        unbondList.value = unbondList.value.concat(res);
+      })
+      .catch((e: any) => console.warn('[validator] inactive list:', e?.message || e));
+    rpc
+      .getSlashingParams()
+      .then((res) => {
+        slashing.value = res.params;
+      })
+      .catch((e: any) => console.warn('[validator] slashing params:', e?.message || e));
+  }
   // Gno: pull the full ACTIVE/INACTIVE/PENDING set from the indexer
   fetchGnoValidators();
   // Re-fetch if indexer_api arrives after mount (race with chain init)
   watch(indexerUrl, (url, prev) => {
     if (url && url !== prev) fetchGnoValidators();
   });
+  // Also re-fetch when engine/current settles (first paint often has empty indexer_api)
+  watch(
+    () => [isGno.value, chainStore.current?.chain_name, !!chainStore.rpc] as const,
+    ([gno, , hasRpc], prev) => {
+      if (gno && (!prev || !prev[0] || !gnoValidators.value.length)) {
+        fetchGnoValidators();
+      }
+      // Cosmos soft-fail params once rpc appears
+      if (!gno && hasRpc && !slashing.value?.signed_blocks_window) {
+        chainStore.rpc
+          ?.getSlashingParams()
+          .then((res) => {
+            slashing.value = res.params;
+          })
+          .catch(() => undefined);
+      }
+    }
+  );
   // Near-realtime: poll every 60s while this page is open. Toast only on real
   // set changes (new pending register / activated / inactivated) — not every tick.
   // Same idea as TX page polling, but validators change rarely so toast is useful.
   if (isGno.value) {
     gnoPollTimer = setInterval(() => fetchGnoValidators({ silent: true }), 60_000);
   }
+  // Start poller when isGno flips true after mount (chain switch / late engine)
+  watch(isGno, (gno) => {
+    if (gno && !gnoPollTimer) {
+      fetchGnoValidators();
+      gnoPollTimer = setInterval(() => fetchGnoValidators({ silent: true }), 60_000);
+    }
+  });
 });
 
 onUnmounted(() => {

@@ -626,6 +626,16 @@ export const useBlockchain = defineStore('blockchain', {
       page?: PageRequest,
       limit?: number
     ): Promise<PaginatedTxs | null> {
+      // Gno/TM2: no Cosmos LCD archives. Account history comes from the onbloc
+      // indexer (see account/[address].vue loadTxHistory). Walking archiveEndpoints
+      // against Gno RPC hosts hangs 12s×N and freezes the page until refresh.
+      if (isGnoChain(this.current)) {
+        return {
+          txs: [] as any[],
+          tx_responses: [],
+          pagination: { total: '0' } as any,
+        } as unknown as PaginatedTxs;
+      }
       const tryBoth = async (
         base: string
       ): Promise<TxResponse[] | null> => {

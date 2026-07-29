@@ -3,11 +3,13 @@ import { useBlockchain, useFormatter, useStakingStore } from '@/stores';
 import DonutChart from '@/components/charts/DonutChart.vue';
 import { computed, ref } from '@vue/reactivity';
 import { onMounted, watch } from 'vue';
+import { RouterLink } from 'vue-router';
 
 import { PageRequest } from '@/types';
 import type { AuthAccount, Delegation, TxResponse, DelegatorRewards, UnbondingResponses } from '@/types';
 import type { Coin } from '@cosmjs/amino';
 import Countdown from '@/components/Countdown.vue';
+import { getGnoIndexer, type GnoTx } from '@/libs/gno/indexer';
 
 const props = defineProps(['address', 'chain']);
 
@@ -20,6 +22,7 @@ const isGno = computed(
 const account = ref({} as AuthAccount);
 const accountLoaded = ref(false);
 const accountLoadError = ref('');
+const accountLoadToken = ref(0);
 const delegations = ref([] as Delegation[]);
 const rewards = ref({} as DelegatorRewards);
 const balances = ref([] as Coin[]);
@@ -34,6 +37,11 @@ const HISTORY_PAGE_SIZE = 10;
 const txHistoryPage = ref(1);
 const txHistoryLimit = ref(HISTORY_PAGE_SIZE);
 const txsLoading = ref(false);
+const gnoTxs = ref<GnoTx[]>([]);
+const gnoTxsHasNext = ref(false);
+const gnoTxsCursor = ref<string | undefined>();
+const gnoTxsError = ref('');
+const gnoTxsLoadingMore = ref(false);
 
 // The full fetched list (server may return more than `txHistoryLimit`).
 const allTxs = ref([] as TxResponse[]);
@@ -46,11 +54,71 @@ const txs = computed(() => {
 
 // What we display as the total count = all fetched (since server ignores
 // limit/offset). Falls back to 0 while loading.
-const txsTotal = computed(() => allTxs.value.length);
+const txsTotal = computed(() =>
+  isGno.value ? gnoTxs.value.length : allTxs.value.length
+);
+
+const indexerUrl = computed(() => (blockchain.current as any)?.indexer_api || '');
+
+function shortGnoHash(h: string): string {
+  if (!h) return '—';
+  return h.length > 18 ? `${h.slice(0, 8)}…${h.slice(-6)}` : h;
+}
+
+function gnoFuncLabel(tx: GnoTx): string {
+  const f = tx.func?.[0];
+  if (!f) return 'Tx';
+  return f.funcType || f.messageType?.split('.').pop() || 'Tx';
+}
+
+function gnoAmountLabel(tx: GnoTx): string {
+  const a = tx.amount || tx.amountOut || tx.amountIn;
+  if (!a || !a.value || a.value === '0') return '—';
+  const n = Number(a.value);
+  if (!Number.isFinite(n)) return `${a.value} ${a.denom || ''}`;
+  if (a.denom === 'ugnot') {
+    const g = n / 1e6;
+    return `${g.toLocaleString(undefined, { maximumFractionDigits: 6 })} GNOT`;
+  }
+  return `${n.toLocaleString()} ${a.denom || ''}`;
+}
+
+function gnoDirection(tx: GnoTx, addr: string): 'in' | 'out' | 'self' | 'none' {
+  const from = (tx.fromAddress || '').toLowerCase();
+  const to = (tx.toAddress || '').toLowerCase();
+  const me = (addr || '').toLowerCase();
+  if (!me) return 'none';
+  const isFrom = from === me;
+  const isTo = to === me;
+  if (isFrom && isTo) return 'self';
+  if (isFrom) return 'out';
+  if (isTo) return 'in';
+  // valoper activity often has empty toAddress — treat as outbound from this account
+  if (isFrom && !to) return 'out';
+  return 'none';
+}
 
 async function loadTxHistory() {
   txsLoading.value = true;
+  gnoTxsError.value = '';
+  txHistoryPage.value = 1;
   try {
+    if (isGno.value) {
+      // Gno: onbloc account transactions (RPC tx_index=off; no Cosmos LCD archives).
+      // Wait for indexer_api if chain config still settling.
+      const idx = indexerUrl.value;
+      if (!idx) {
+        allTxs.value = [];
+        gnoTxs.value = [];
+        return;
+      }
+      const page = await getGnoIndexer(idx).getAccountTransactions(props.address);
+      gnoTxs.value = page.items || [];
+      gnoTxsCursor.value = page.cursor;
+      gnoTxsHasNext.value = !!page.hasNext;
+      allTxs.value = []; // Cosmos table unused on Gno
+      return;
+    }
     const page = new PageRequest();
     page.setPageSize(100); // ask generously — server caps internally
     page.offset = 0;
@@ -58,8 +126,33 @@ async function loadTxHistory() {
     if (res) {
       allTxs.value = res.tx_responses || [];
     }
+    gnoTxs.value = [];
+  } catch (e: any) {
+    console.warn('[account] loadTxHistory failed:', e?.message || e);
+    if (isGno.value) gnoTxsError.value = e?.message || String(e);
+    allTxs.value = [];
+    gnoTxs.value = [];
   } finally {
     txsLoading.value = false;
+  }
+}
+
+async function loadMoreGnoTxs() {
+  if (!isGno.value || !indexerUrl.value || !gnoTxsHasNext.value || !gnoTxsCursor.value || gnoTxsLoadingMore.value) return;
+  gnoTxsLoadingMore.value = true;
+  try {
+    const page = await getGnoIndexer(indexerUrl.value).getAccountTransactionsAfter(
+      props.address,
+      gnoTxsCursor.value
+    );
+    const seen = new Set(gnoTxs.value.map((t) => t.txHash));
+    for (const t of page.items || []) if (t.txHash && !seen.has(t.txHash)) gnoTxs.value.push(t);
+    gnoTxsCursor.value = page.cursor;
+    gnoTxsHasNext.value = !!page.hasNext;
+  } catch (e: any) {
+    console.warn('[account] gno loadMore failed:', e?.message || e);
+  } finally {
+    gnoTxsLoadingMore.value = false;
   }
 }
 
@@ -91,11 +184,28 @@ watch(
 );
 
 // Retry once the chain RPC client becomes available (Gno endpoint pick).
+// Also re-fire when rpc instance changes (endpoint fallback) even if a prior
+// load left accountLoaded=true with empty shell — that was the "need refresh" path.
+const lastAccountRpc = ref<any>(null);
 watch(
   () => blockchain.rpc,
   (rpc) => {
-    if (rpc && props.address && !accountLoaded.value) {
+    if (!rpc || !props.address) return;
+    const rpcChanged = rpc !== lastAccountRpc.value;
+    lastAccountRpc.value = rpc;
+    const hasType = !!(account.value as any)?.['@type'];
+    if (rpcChanged || !accountLoaded.value || !hasType) {
       loadAccount(props.address);
+    }
+  }
+);
+
+// Indexer_api often arrives a tick after mount — re-fetch Gno history.
+watch(
+  () => indexerUrl.value,
+  (url, prev) => {
+    if (isGno.value && url && url !== prev && props.address) {
+      loadTxHistory();
     }
   }
 );
@@ -232,6 +342,7 @@ function loadAccount(address: string) {
   rewards.value = {} as any;
   unbonding.value = [];
 
+  const token = ++accountLoadToken.value;
   const rpc = blockchain.rpc;
   if (!rpc) {
     // Wait for endpoint — watch below will retry
@@ -240,6 +351,7 @@ function loadAccount(address: string) {
 
   Promise.all([
     rpc.getAuthAccount(address).then((x) => {
+      if (token !== accountLoadToken.value) return;
       // Never leave null — empty object fails the template gate and spins forever.
       account.value = (x?.account as any) || {
         '@type': isGno.value ? '/gno.BaseAccount' : '/cosmos.auth.v1beta1.BaseAccount',
@@ -249,10 +361,12 @@ function loadAccount(address: string) {
       };
     }),
     rpc.getBankBalances(address).then((x) => {
+      if (token !== accountLoadToken.value) return;
       balances.value = x?.balances || [];
     }),
   ])
     .catch((e: any) => {
+      if (token !== accountLoadToken.value) return;
       accountLoadError.value = e?.message || String(e);
       // Still show a shell so the page is usable (copy address, etc.)
       if (!account.value || !(account.value as any)['@type']) {
@@ -265,17 +379,23 @@ function loadAccount(address: string) {
       }
     })
     .finally(() => {
+      if (token !== accountLoadToken.value) return;
       accountLoaded.value = true;
     });
 
   // Gno/TM2: no staking / distribution modules — skip empty Cosmos calls
   if (isGno.value) return;
 
-  rpc.getDistributionDelegatorRewards?.(address).then((x) => (rewards.value = x));
-  rpc.getStakingDelegations?.(address).then(
-    (x) => (delegations.value = x.delegation_responses)
-  );
+  rpc.getDistributionDelegatorRewards?.(address).then((x) => {
+    if (token !== accountLoadToken.value) return;
+    rewards.value = x;
+  });
+  rpc.getStakingDelegations?.(address).then((x) => {
+    if (token !== accountLoadToken.value) return;
+    delegations.value = x.delegation_responses;
+  });
   rpc.getStakingDelegatorUnbonding?.(address).then((x) => {
+    if (token !== accountLoadToken.value) return;
     unbonding.value = x.unbonding_responses;
     x.unbonding_responses?.forEach((y) =>
       y.entries.forEach((z) => (unbondingTotal.value += Number(z.balance)))
@@ -644,19 +764,20 @@ function findTokenAmount(
       </div>
     </section>
 
-    <!-- ====== TRANSACTIONS (archive-backed history) ====== -->
-    <section class="sz-section sz-glass overflow-hidden mb-4" :class="{ 'sz-acc-loading': txsLoading && !txs.length }">
+    <!-- TRANSACTIONS -->
+    <section class="sz-section overflow-hidden">
       <div class="sz-section-head">
         <div>
           <div class="sz-section-kicker">
             Activity
           </div>
           <div class="sz-section-title">
-            {{ $t('account.transactions') }} ({{ txsTotal ? format.formatNumber(txsTotal, '0,0') : txs.length }})
-            <span v-if="txsTotal > txs.length" class="sz-acc-section-meta">showing {{ txs.length }} of {{ format.formatNumber(txsTotal, '0,0') }}</span>
+            {{ $t('account.transactions') }} ({{ txsTotal ? format.formatNumber(txsTotal, '0,0') : (isGno ? gnoTxs.length : txs.length) }})
+            <span v-if="!isGno && txsTotal > txs.length" class="sz-acc-section-meta">showing {{ txs.length }} of {{ format.formatNumber(txsTotal, '0,0') }}</span>
+            <span v-if="isGno" class="sz-acc-section-meta">via indexer</span>
           </div>
         </div>
-        <div class="flex items-center gap-2">
+        <div v-if="!isGno" class="flex items-center gap-2">
           <div class="sz-acc-page-size">
             <button
               v-for="size in [5, 10, 20, 50]"
@@ -670,7 +791,80 @@ function findTokenAmount(
           </div>
         </div>
       </div>
-      <div class="overflow-x-auto">
+
+      <!-- Gno: indexer-backed history (amountIn/Out shape) -->
+      <div v-if="isGno" class="overflow-x-auto">
+        <table class="sz-table sz-acc-table">
+          <thead>
+            <tr>
+              <th style="width: 12%">Height</th>
+              <th style="width: 22%">Hash</th>
+              <th>Function</th>
+              <th style="width: 14%">Amount</th>
+              <th style="width: 10%">Dir</th>
+              <th style="width: 16%" class="text-right">Time</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-if="txsLoading && !gnoTxs.length">
+              <td colspan="6" class="sz-acc-empty">
+                <div class="flex items-center justify-center gap-3">
+                  <div class="sz-acc-loading-spinner" />
+                  <span class="sz-acc-loading-text">Fetching history from indexer…</span>
+                </div>
+              </td>
+            </tr>
+            <tr v-else-if="gnoTxsError && !gnoTxs.length">
+              <td colspan="6" class="sz-acc-empty">Failed to load history: {{ gnoTxsError }}</td>
+            </tr>
+            <tr v-else-if="!gnoTxs.length">
+              <td colspan="6" class="sz-acc-empty">{{ $t('account.no_transactions') }}</td>
+            </tr>
+            <tr v-for="(tx, index) in gnoTxs" :key="tx.txHash || index">
+              <td class="sz-acc-num">
+                <RouterLink v-if="tx.blockHeight" :to="`/${chain}/block/${tx.blockHeight}`" class="sz-acc-link">#{{ tx.blockHeight }}</RouterLink>
+                <span v-else>—</span>
+              </td>
+              <td class="truncate" style="max-width: 220px">
+                <RouterLink
+                  v-if="tx.txHash"
+                  :to="`/${chain}/tx/${encodeURIComponent(tx.txHash)}`"
+                  class="sz-acc-link sz-acc-hash"
+                >{{ shortGnoHash(tx.txHash) }}</RouterLink>
+                <span v-else>—</span>
+              </td>
+              <td>
+                <span class="sz-msg-pill">{{ gnoFuncLabel(tx) }}</span>
+                <span v-if="tx.successYn" class="sz-status sz-status--ok ml-1" title="Success"><span class="sz-status-glyph">✓</span>OK</span>
+                <span v-else class="sz-status sz-status--fail ml-1" title="Failed"><span class="sz-status-glyph">✕</span></span>
+              </td>
+              <td class="font-mono text-xs">{{ gnoAmountLabel(tx) }}</td>
+              <td>
+                <span
+                  class="sz-acc-direction"
+                  :data-tone="gnoDirection(tx, address)"
+                  :title="`Direction: ${gnoDirection(tx, address)}`"
+                >
+                  <span class="sz-acc-direction-glyph">{{ gnoDirection(tx, address) === 'in' ? '↓' : gnoDirection(tx, address) === 'out' ? '↑' : '·' }}</span>
+                  {{ gnoDirection(tx, address) === 'in' ? 'IN' : gnoDirection(tx, address) === 'out' ? 'OUT' : '—' }}
+                </span>
+              </td>
+              <td class="text-right sz-acc-time">
+                <div class="sz-acc-time-rel">{{ tx.timestamp ? format.toDay(tx.timestamp, 'from') : '—' }}</div>
+                <div class="sz-acc-time-abs">{{ tx.timestamp ? format.toLocaleDate(tx.timestamp) : '' }}</div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <div v-if="gnoTxsHasNext" class="p-3 text-center">
+          <button class="btn btn-sm btn-primary" :disabled="gnoTxsLoadingMore" @click="loadMoreGnoTxs">
+            {{ gnoTxsLoadingMore ? 'Loading…' : 'Load more' }}
+          </button>
+        </div>
+      </div>
+
+      <!-- Cosmos LCD archive history -->
+      <div v-else class="overflow-x-auto">
         <table class="sz-table sz-acc-table">
           <thead>
             <tr>
@@ -734,15 +928,15 @@ function findTokenAmount(
             </tr>
           </tbody>
         </table>
-      </div>
-      <div class="sz-acc-pager" v-if="allTxs.length > txHistoryLimit">
-        <button class="sz-acc-pager-btn" :disabled="txHistoryPage === 1" @click="setTxHistoryPage(txHistoryPage - 1)">← Prev</button>
-        <span class="sz-acc-pager-info">Page {{ txHistoryPage }} / {{ Math.max(1, Math.ceil(allTxs.length / txHistoryLimit)) }}</span>
-        <button
-          class="sz-acc-pager-btn"
-          :disabled="txHistoryPage * txHistoryLimit >= allTxs.length"
-          @click="setTxHistoryPage(txHistoryPage + 1)"
-        >Next →</button>
+        <div class="sz-acc-pager" v-if="allTxs.length > txHistoryLimit">
+          <button class="sz-acc-pager-btn" :disabled="txHistoryPage === 1" @click="setTxHistoryPage(txHistoryPage - 1)">← Prev</button>
+          <span class="sz-acc-pager-info">Page {{ txHistoryPage }} / {{ Math.max(1, Math.ceil(allTxs.length / txHistoryLimit)) }}</span>
+          <button
+            class="sz-acc-pager-btn"
+            :disabled="txHistoryPage * txHistoryLimit >= allTxs.length"
+            @click="setTxHistoryPage(txHistoryPage + 1)"
+          >Next →</button>
+        </div>
       </div>
     </section>
 

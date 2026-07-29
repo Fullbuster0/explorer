@@ -113,6 +113,12 @@ watch(
     fetchFirst();
   }
 );
+watch(
+  () => indexerUrl.value,
+  (url, prev) => {
+    if (url && url !== prev && !realms.value.length) fetchFirst();
+  }
+);
 </script>
 
 <template>

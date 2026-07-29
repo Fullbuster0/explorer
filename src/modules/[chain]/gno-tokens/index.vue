@@ -78,6 +78,12 @@ watch(
     fetchTokens();
   }
 );
+watch(
+  () => indexerUrl.value,
+  (url, prev) => {
+    if (url && url !== prev && !tokens.value.length) fetchTokens();
+  }
+);
 </script>
 
 <template>

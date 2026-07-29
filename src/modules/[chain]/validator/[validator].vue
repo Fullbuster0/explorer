@@ -1313,8 +1313,12 @@ watch(
     console.info('[val] rpc watch fired, rpc=', !!rpc, 'events=', events.value?.tx_responses?.length);
     if (!rpc) return;
     if (isGno.value) {
-      // Gno: liquid balances once RPC is ready (auth/accounts)
-      if (!gnoBalances.value.signing && !gnoBalances.value.loading) loadGnoBalances();
+      // Gno: liquid balances + core (valopers/indexer) once RPC is ready.
+      // Re-run core if meta/operator still empty after first paint race.
+      if (!gnoMeta.value || !addresses.value.operAddress) {
+        loadValidatorCore();
+      }
+      if (!gnoBalances.value.loading) loadGnoBalances();
       return;
     }
     if (!allDelegations.value.length && !delegationsLoading.value) {
@@ -1751,16 +1755,13 @@ watch(
                 @click="copyWebsite(addresses.account || '')"
               />
             </div>
-            <RouterLink
-              v-if="addresses.account"
-              class="sz-hash text-primary link link-hover break-all text-[12px]"
-              :to="`/${chain}/account/${addresses.account}`"
-            >{{ addresses.account }}</RouterLink>
-            <div v-else class="sz-hash text-[12px] break-all">—</div>
+            <!-- Gno: signing key is consensus identity only — no /account link (spins / empty activity).
+                 Account balance + valoper TX history live on the OPERATOR address. -->
+            <div class="sz-hash text-[12px] break-all">{{ addresses.account || '—' }}</div>
             <div class="mt-1 text-[11px] text-secondary">
               Balance:
               <span class="font-mono text-base-content">{{ gnoBalances.loading ? '…' : formatGnoBal(gnoBalances.signing) }}</span>
-              <span class="opacity-60"> · liquid ugnot</span>
+              <span class="opacity-60"> · liquid · no account link</span>
             </div>
           </div>
           <div>
@@ -1782,7 +1783,7 @@ watch(
             <div class="mt-1 text-[11px] text-secondary">
               Balance:
               <span class="font-mono text-base-content">{{ gnoBalances.loading ? '…' : formatGnoBal(gnoBalances.operator) }}</span>
-              <span class="opacity-60"> · valoper activity</span>
+              <span class="opacity-60"> · account + valoper activity</span>
             </div>
           </div>
           <div>
@@ -2369,7 +2370,7 @@ watch(
           <RouterLink
             v-else-if="txsCapped"
             class="link link-primary no-underline hover:underline"
-            :to="`/${chain}/account/${addresses.account}`"
+            :to="`/${chain}/account/${addresses.operAddress || addresses.account}`"
           >
             Capped at {{ TXS_MAX }} — full history on the account page →
           </RouterLink>

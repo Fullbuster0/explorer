@@ -143,6 +143,13 @@ watch(
     fetchFirst();
   }
 );
+// indexer_api often missing on first paint — re-fetch when it lands (no hard refresh)
+watch(
+  () => indexerUrl.value,
+  (url, prev) => {
+    if (url && url !== prev && !txs.value.length) fetchFirst();
+  }
+);
 
 const secondsSinceLastFetch = computed(() => {
   if (!lastFetchedAt.value) return null;
