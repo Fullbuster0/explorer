@@ -10,6 +10,7 @@ import type { AuthAccount, Delegation, TxResponse, DelegatorRewards, UnbondingRe
 import type { Coin } from '@cosmjs/amino';
 import Countdown from '@/components/Countdown.vue';
 import { getGnoIndexer, type GnoTx } from '@/libs/gno/indexer';
+import { lookupGnoValoper, gnoMoniker, initGnoValopers } from '@/libs/gno/valopers';
 
 const props = defineProps(['address', 'chain']);
 
@@ -59,6 +60,43 @@ const txsTotal = computed(() =>
 );
 
 const indexerUrl = computed(() => (blockchain.current as any)?.indexer_api || '');
+
+/** Gno related-entity chips: is this g1 a validator signing or operator address? */
+const gnoRelated = computed(() => {
+  if (!isGno.value) return null;
+  const addr = String(props.address || '').trim();
+  if (!addr) return null;
+  const hit = lookupGnoValoper(addr);
+  if (!hit) return null;
+  const moniker = hit.moniker || gnoMoniker(hit.signingAddress || hit.operatorAddress) || 'Validator';
+  const isSigning = !!(hit.signingAddress && hit.signingAddress === addr);
+  const isOperator = !!(hit.operatorAddress && hit.operatorAddress === addr);
+  return {
+    moniker,
+    isSigning,
+    isOperator,
+    // Product lock: signing stays plain on validator page, but FROM account we
+    // may deep-link to the validator detail (signing is the route key).
+    validatorTo: hit.signingAddress
+      ? `/${props.chain}/validator/${hit.signingAddress}`
+      : '',
+    operatorTo:
+      hit.operatorAddress && hit.operatorAddress !== addr
+        ? `/${props.chain}/account/${hit.operatorAddress}`
+        : '',
+    // Counterpart signing shown plain (no auto account-link of signing from chips
+    // that would confuse product lock — only as mono text if different).
+    signingPlain:
+      hit.signingAddress && hit.signingAddress !== addr ? hit.signingAddress : '',
+    operatorPlain:
+      hit.operatorAddress && hit.operatorAddress !== addr ? hit.operatorAddress : '',
+  };
+});
+
+// Warm valopers on Gno so chips resolve on cold account deep-links
+if (isGno.value) {
+  initGnoValopers(String(props.chain || 'gnoland-testnet')).catch(() => {});
+}
 
 function shortGnoHash(h: string): string {
   if (!h) return '—';
@@ -606,6 +644,38 @@ function findTokenAmount(
                 <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
               </svg>
             </button>
+          </div>
+          <!-- Gno related-entity chips: reduce sign vs operator confusion -->
+          <div v-if="gnoRelated" class="flex flex-wrap items-center gap-1.5 mt-2">
+            <RouterLink
+              v-if="gnoRelated.validatorTo"
+              class="sz-chip sz-chip--info !text-[10px] hover:opacity-90"
+              :to="gnoRelated.validatorTo"
+              :title="`Validator ${gnoRelated.moniker}`"
+            >
+              Validator · {{ gnoRelated.moniker }}
+            </RouterLink>
+            <span
+              v-if="gnoRelated.isSigning"
+              class="sz-chip !text-[10px]"
+              title="This is the Tendermint2 signing address (consensus). It is not the balance entity."
+            >Signing address</span>
+            <span
+              v-if="gnoRelated.isOperator"
+              class="sz-chip sz-chip--ok !text-[10px]"
+              title="Operator holds balance and signs valoper realm txs."
+            >Operator · balance entity</span>
+            <RouterLink
+              v-if="gnoRelated.operatorTo"
+              class="sz-chip !text-[10px] hover:underline"
+              :to="gnoRelated.operatorTo"
+              title="Open operator account (balance + history)"
+            >Operator account →</RouterLink>
+            <span
+              v-if="gnoRelated.signingPlain"
+              class="font-mono text-[10px] opacity-60"
+              :title="gnoRelated.signingPlain"
+            >sign {{ shortAddr(gnoRelated.signingPlain) }}</span>
           </div>
         </div>
 

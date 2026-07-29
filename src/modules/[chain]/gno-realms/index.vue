@@ -191,29 +191,39 @@ if (typeof document !== 'undefined') {
           <tbody>
             <tr v-for="(r, i) in filtered" :key="r.path || i" class="sz-ledger-row">
               <td>
-                <a
+                <RouterLink
                   class="font-semibold text-sm hover:underline"
-                  :href="gnowebUrl(r.path)"
-                  target="_blank"
-                  rel="noopener"
-                  :title="`Open on gnoweb: ${r.path}`"
+                  :to="`/${props.chain}/gno-realms/${encodeURIComponent(r.path)}`"
+                  :title="`Realm detail: ${r.path}`"
                 >
                   {{ r.name || '—' }}
-                </a>
-              </td>
-              <td>
+                </RouterLink>
                 <a
-                  class="font-mono text-xs text-slate-500 hover:text-primary truncate block max-w-[280px]"
+                  class="ml-1 text-[10px] opacity-50 hover:opacity-90"
                   :href="gnowebUrl(r.path)"
                   target="_blank"
                   rel="noopener"
+                  title="Open on gnoweb"
+                  @click.stop
+                >↗</a>
+              </td>
+              <td>
+                <RouterLink
+                  class="font-mono text-xs text-slate-500 hover:text-primary truncate block max-w-[280px]"
+                  :to="`/${props.chain}/gno-realms/${encodeURIComponent(r.path)}`"
                   :title="r.path"
                 >
                   {{ r.path?.replace(/^gno\.land\//, '') }}
-                </a>
+                </RouterLink>
               </td>
               <td>
-                <span class="font-mono text-xs" :title="r.publisher">{{ shortAddr(r.publisher) }}</span>
+                <RouterLink
+                  v-if="r.publisher"
+                  class="font-mono text-xs hover:underline"
+                  :to="`/${props.chain}/account/${r.publisher}`"
+                  :title="r.publisher"
+                >{{ shortAddr(r.publisher) }}</RouterLink>
+                <span v-else class="font-mono text-xs">—</span>
                 <div v-if="r.publisherName" class="text-[10px] text-slate-400">{{ r.publisherName }}</div>
               </td>
               <td>

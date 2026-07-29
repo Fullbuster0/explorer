@@ -276,6 +276,39 @@ export class GnoIndexerClient {
     };
   }
 
+  /**
+   * Resolve one realm by exact package path.
+   * onbloc `/realms?path=` is not a reliable exact filter — walk pages.
+   */
+  async getRealmByPath(pkgPath: string): Promise<GnoRealm | undefined> {
+    const want = String(pkgPath || '').trim();
+    if (!want) return undefined;
+    let cursor: string | undefined;
+    for (let i = 0; i < 40; i++) {
+      const page = cursor ? await this.getRealmsAfter(cursor) : await this.getRealms();
+      const hit = (page.items || []).find((r) => r.path === want);
+      if (hit) return hit;
+      if (!page.hasNext || !page.cursor) break;
+      cursor = page.cursor;
+    }
+    return undefined;
+  }
+
+  /** Resolve one GRC20 token by tokenId, path, or symbol (exact, case-sensitive for id/path). */
+  async getTokenByKey(key: string): Promise<GnoToken | undefined> {
+    const want = String(key || '').trim();
+    if (!want) return undefined;
+    const page = await this.getTokens();
+    const items = page.items || [];
+    return (
+      items.find((t) => t.tokenId === want) ||
+      items.find((t) => t.path === want) ||
+      items.find((t) => t.symbol === want) ||
+      items.find((t) => t.tokenId?.toLowerCase() === want.toLowerCase()) ||
+      items.find((t) => t.path?.toLowerCase() === want.toLowerCase())
+    );
+  }
+
   /** Fetch all validators across ACTIVE / INACTIVE / PENDING (cursor-paginated).
    *  Optional onPage fires after each page so UI can paint progressively
    *  (first ~20 rows in <1s instead of waiting ~5s for full set). */

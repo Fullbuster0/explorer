@@ -3,7 +3,7 @@ import { computed, ref, watch } from 'vue';
 import { fromBase64, toHex } from '@cosmjs/encoding';
 import { useBaseStore, useFormatter, useStakingStore } from '@/stores';
 import { consensusPubkeyToHexAddress } from '@/libs';
-import { gnoMoniker } from '@/libs/gno/valopers';
+import { gnoMoniker, lookupGnoValoper } from '@/libs/gno/valopers';
 import TxsInBlocksChart from '@/components/charts/TxsInBlocksChart.vue';
 import { Icon } from '@iconify/vue';
 
@@ -50,28 +50,31 @@ function loadAvatars(identities: string[]) {
   );
 }
 
-/** Resolve block proposer_address → validator moniker + identity + logo.
+/** Resolve block proposer_address → validator moniker + identity + logo + route.
  *  Cosmos: proposer is base64 of 20-byte cons address.
- *  Gnoland/TM2: proposer is already bech32 `g1…` (matches operator_address). */
+ *  Gnoland/TM2: proposer is already bech32 `g1…` (matches signing / operator). */
 function resolveProposer(proposerAddress?: string) {
-  if (!proposerAddress) return { moniker: '', identity: '', logo: '' };
-  // TM2 / Gno: bech32 proposer — match operator_address directly.
+  if (!proposerAddress) return { moniker: '', identity: '', logo: '', signing: '', to: '' };
+  // TM2 / Gno: bech32 proposer — match operator_address or valoper registry.
   // Fall back to static valoper registry so moniker works even before
   // staking store finishes loading.
   if (proposerAddress.startsWith('g1') || (!/[=+/]/.test(proposerAddress) && proposerAddress.length >= 20 && !/^[0-9A-F]{40}$/i.test(proposerAddress) && proposerAddress.includes('1'))) {
     const val = staking.validators.find((x) => x.operator_address === proposerAddress);
-    if (val) {
-      const identity = val.description?.identity || '';
-      return {
-        moniker: val.description?.moniker || gnoMoniker(proposerAddress),
-        identity,
-        logo: logo(identity),
-      };
-    }
+    const reg = lookupGnoValoper(proposerAddress);
+    const moniker =
+      val?.description?.moniker ||
+      reg?.moniker ||
+      gnoMoniker(proposerAddress);
+    const identity = val?.description?.identity || '';
+    // Validator detail route key = Tendermint2 signing address
+    const signing = reg?.signingAddress || (val ? proposerAddress : '') || proposerAddress;
+    const to = signing ? `/${props.chain}/validator/${signing}` : '';
     return {
-      moniker: gnoMoniker(proposerAddress),
-      identity: '',
-      logo: '',
+      moniker: moniker || proposerAddress,
+      identity,
+      logo: logo(identity),
+      signing,
+      to,
     };
   }
   try {
@@ -81,7 +84,8 @@ function resolveProposer(proposerAddress?: string) {
     );
     const identity = val?.description?.identity || '';
     const moniker = val?.description?.moniker || format.validator(proposerAddress) || proposerAddress;
-    return { moniker, identity, logo: logo(identity) };
+    const to = val?.operator_address ? `/${props.chain}/validator/${val.operator_address}` : '';
+    return { moniker, identity, logo: logo(identity), signing: val?.operator_address || '', to };
   } catch {
     // also try hex direct / operator match fallback
     const val = staking.validators.find(
@@ -91,9 +95,21 @@ function resolveProposer(proposerAddress?: string) {
     );
     if (val) {
       const identity = val.description?.identity || '';
-      return { moniker: val.description?.moniker || proposerAddress, identity, logo: logo(identity) };
+      return {
+        moniker: val.description?.moniker || proposerAddress,
+        identity,
+        logo: logo(identity),
+        signing: val.operator_address,
+        to: `/${props.chain}/validator/${val.operator_address}`,
+      };
     }
-    return { moniker: format.validator(proposerAddress) || proposerAddress, identity: '', logo: '' };
+    return {
+      moniker: format.validator(proposerAddress) || proposerAddress,
+      identity: '',
+      logo: '',
+      signing: '',
+      to: '',
+    };
   }
 }
 
@@ -177,7 +193,13 @@ watch(
               </div>
             </div>
             <div class="min-w-0 flex-1">
-              <div class="truncate text-[11.5px] font-medium text-base-content" :title="proposer.moniker">
+              <!-- Nested RouterLink is invalid HTML; use span + @click.stop for val deep-link -->
+              <div
+                class="truncate text-[11.5px] font-medium text-base-content"
+                :class="proposer.to ? 'hover:text-primary cursor-pointer' : ''"
+                :title="proposer.moniker"
+                @click.stop="proposer.to && $router.push(proposer.to)"
+              >
                 {{ proposer.moniker || '—' }}
               </div>
               <div class="mt-0.5 text-[11px] font-medium text-green-600">

@@ -171,19 +171,28 @@ if (typeof document !== 'undefined') {
                     {{ (t.symbol || '?').slice(0, 2) }}
                   </div>
                   <div>
-                    <a
+                    <RouterLink
                       class="font-semibold text-sm hover:underline"
+                      :to="`/${props.chain}/gno-tokens/${encodeURIComponent(t.tokenId || t.path)}`"
+                    >
+                      {{ t.name || t.symbol || '—' }}
+                    </RouterLink>
+                    <a
+                      class="ml-1 text-[10px] opacity-50 hover:opacity-90"
                       :href="gnowebUrl(t.path)"
                       target="_blank"
                       rel="noopener"
-                    >
-                      {{ t.name || t.symbol || '—' }}
-                    </a>
+                      title="Open on gnoweb"
+                      @click.stop
+                    >↗</a>
                   </div>
                 </div>
               </td>
               <td>
-                <span class="font-mono text-xs font-semibold">{{ t.symbol || '—' }}</span>
+                <RouterLink
+                  class="font-mono text-xs font-semibold hover:underline"
+                  :to="`/${props.chain}/gno-tokens/${encodeURIComponent(t.tokenId || t.path)}`"
+                >{{ t.symbol || '—' }}</RouterLink>
               </td>
               <td>
                 <span class="font-mono text-xs">{{ formatSupply(t) }}</span>
@@ -195,15 +204,13 @@ if (typeof document !== 'undefined') {
                 <span class="font-mono text-xs text-slate-400">{{ t.decimals ?? '—' }}</span>
               </td>
               <td>
-                <a
+                <RouterLink
                   class="font-mono text-xs text-slate-500 hover:text-primary truncate block max-w-[260px]"
-                  :href="gnowebUrl(t.path)"
-                  target="_blank"
-                  rel="noopener"
+                  :to="`/${props.chain}/gno-realms/${encodeURIComponent(t.path)}`"
                   :title="t.path"
                 >
                   {{ shortPath(t.path) }}
-                </a>
+                </RouterLink>
               </td>
             </tr>
             <tr v-if="!filtered.length && loading">
