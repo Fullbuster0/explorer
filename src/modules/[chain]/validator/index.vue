@@ -368,6 +368,24 @@ loadAvatars();
       </div>
     </div>
 
+    <!-- Gno status legend — Pending ≠ inactive; registered but not yet signing -->
+    <div v-if="isGno" class="sz-section mt-3 px-4 py-3 text-[12px] leading-relaxed text-secondary">
+      <div class="flex flex-wrap items-start gap-x-5 gap-y-2">
+        <span class="inline-flex items-center gap-1.5">
+          <span class="sz-chip sz-chip--ok !text-[10px]">ACTIVE</span>
+          Signing blocks now (in the Tendermint2 validator set).
+        </span>
+        <span class="inline-flex items-center gap-1.5">
+          <span class="sz-chip sz-chip--warn !text-[10px]">PENDING</span>
+          Registered, not signing yet — needs community voting to become active.
+        </span>
+        <span class="inline-flex items-center gap-1.5">
+          <span class="sz-chip sz-chip--bad !text-[10px]">INACTIVE</span>
+          Left the active set (jailed / removed).
+        </span>
+      </div>
+    </div>
+
     <!-- network staking vitals — Gno has no mint/slashing modules -->
     <div v-if="!isGno" class="grid grid-cols-2 gap-3 xl:!grid-cols-4">
       <div class="sz-stat" style="--stat-hue: var(--sz-success)">
