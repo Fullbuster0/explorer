@@ -247,35 +247,74 @@ async function buildRegistry() {
   }
 
   // --- Manual identity overrides (highest priority) ---
-  let overrideMap = new Map();
+  // Keys may be moniker OR g1 operatorAddress OR g1 signingAddress.
+  // Lookup order when applying: operator → signing → moniker
+  // (addresses are stable; moniker is mutable).
+  let overrideByMoniker = new Map(); // monikerLower → identity
+  let overrideByOperator = new Map(); // operatorAddress → identity
+  let overrideBySigning = new Map(); // signingAddress → identity
   try {
     if (existsSync(OVERRIDE_FILE)) {
       const raw = JSON.parse(readFileSync(OVERRIDE_FILE, 'utf-8'));
       const ov = raw.overrides || {};
-      for (const [mon, id] of Object.entries(ov)) {
-        if (mon && id && typeof id === 'string') {
-          overrideMap.set(mon.toLowerCase(), id.trim());
+      for (const [key, val] of Object.entries(ov)) {
+        if (!key || !val) continue;
+        // Support both "identity-string" and { identity: "..." } forms
+        const id =
+          typeof val === 'string'
+            ? val.trim()
+            : typeof val === 'object' && val.identity
+              ? String(val.identity).trim()
+              : '';
+        if (!id) continue;
+        const k = key.trim();
+        if (/^g1[a-z0-9]{38,}$/i.test(k)) {
+          // g1 address — could be operator or signing; index both
+          overrideByOperator.set(k.toLowerCase(), id);
+          overrideBySigning.set(k.toLowerCase(), id);
+        } else {
+          overrideByMoniker.set(k.toLowerCase(), id);
+        }
+        // Structured form may also pin operator/signing explicitly
+        if (typeof val === 'object') {
+          if (val.operator) overrideByOperator.set(String(val.operator).toLowerCase(), id);
+          if (val.signing) overrideBySigning.set(String(val.signing).toLowerCase(), id);
+          if (val.moniker) overrideByMoniker.set(String(val.moniker).toLowerCase(), id);
         }
       }
-      if (overrideMap.size > 0) {
-        console.log(`Loaded ${overrideMap.size} manual identity override(s)`);
+      const total =
+        overrideByMoniker.size + overrideByOperator.size + overrideBySigning.size;
+      if (total > 0) {
+        console.log(
+          `Loaded overrides: ${overrideByMoniker.size} moniker, ${overrideByOperator.size} operator/signing keys`
+        );
       }
     }
   } catch (e) {
     console.warn(`  Override file load failed: ${e.message || e}`);
   }
 
+  function resolveOverride(r) {
+    const op = (r.operatorAddress || '').toLowerCase();
+    const sig = (r.signingAddress || '').toLowerCase();
+    const mon = (r.moniker || '').toLowerCase();
+    if (op && overrideByOperator.has(op)) return overrideByOperator.get(op);
+    if (sig && overrideBySigning.has(sig)) return overrideBySigning.get(sig);
+    if (mon && overrideByMoniker.has(mon)) return overrideByMoniker.get(mon);
+    return null;
+  }
+
   // Apply overrides FIRST (before AtomOne enrich)
-  if (overrideMap.size > 0) {
+  {
     let applied = 0;
     for (const r of rows) {
-      const key = (r.moniker || '').toLowerCase();
-      if (overrideMap.has(key)) {
-        r.identity = overrideMap.get(key);
+      const id = resolveOverride(r);
+      if (id) {
+        r.identity = id;
         applied++;
       }
     }
-    console.log(`  Manual overrides applied: ${applied}`);
+    if (applied > 0) console.log(`  Manual overrides applied: ${applied}`);
   }
 
   // --- AtomOne moniker → Keybase identity enrichment ---
@@ -286,9 +325,8 @@ async function buildRegistry() {
       let hit = 0;
       let kept = 0;
       for (const r of rows) {
-        // Skip if already has manual override
-        const monKey = (r.moniker || '').toLowerCase();
-        if (overrideMap.has(monKey)) continue;
+        // Skip if already has manual override (any key type)
+        if (resolveOverride(r)) continue;
 
         const mon = r.moniker || '';
         const monLower = mon.toLowerCase();

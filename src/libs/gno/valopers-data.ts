@@ -1,7 +1,7 @@
 /** Auto-generated Gnoland valoper moniker registry.
  * Source: https://topaz.testnets.gno.land/r/gnops/valopers
  * Identity: AtomOne mainnet moniker match → Keybase (for logos)
- * Generated: 2026-07-29T12:41:37.880Z
+ * Generated: 2026-07-29T13:25:54.653Z
  * Do not hand-edit — run: node scripts/refresh-gno-valopers.mjs
  */
 export interface GnoValoperRow {
@@ -363,6 +363,15 @@ const registry: GnoValoperRow[] = [
     "operatorAddress": "g1uzxyk9fvtk0zfsl20kswvatt2da67sjjh4fud0",
     "website": "",
     "identity": "B6A097CCB9561F6F",
+    "serverType": "data-center",
+    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+  },
+  {
+    "moniker": "KalpaTech",
+    "signingAddress": "g1r3hst33nz5txj5rp3scvf4uzvcd2kylhyq8lxq",
+    "operatorAddress": "g1f363suf6h7trgyshs5gmf80f2ee9lfzjs3hr03",
+    "website": "",
+    "identity": "2ABCBF8F9F31AF0E",
     "serverType": "data-center",
     "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
   },
