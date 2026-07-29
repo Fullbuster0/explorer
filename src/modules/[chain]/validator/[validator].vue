@@ -105,6 +105,8 @@ async function loadGnoBalances() {
   const signing = addresses.value.account || validator.value;
   const operator = addresses.value.operAddress || v.value.operator_address || '';
   if (!signing && !operator) return;
+  // Skip re-entry only while in-flight; always allow re-run after meta fills.
+  if (gnoBalances.value.loading) return;
   gnoBalances.value = { ...gnoBalances.value, loading: true };
   try {
     const [s, o] = await Promise.all([
@@ -119,7 +121,7 @@ async function loadGnoBalances() {
       loading: false,
     };
   } catch {
-    gnoBalances.value = { loading: false };
+    gnoBalances.value = { ...gnoBalances.value, loading: false };
   }
 }
 const gnoSigning = ref<{
@@ -1318,7 +1320,7 @@ watch(
       if (!gnoMeta.value || !addresses.value.operAddress) {
         loadValidatorCore();
       }
-      if (!gnoBalances.value.loading) loadGnoBalances();
+      loadGnoBalances();
       return;
     }
     if (!allDelegations.value.length && !delegationsLoading.value) {
@@ -1336,6 +1338,22 @@ watch(
     }
   },
   { immediate: true }
+);
+
+// After valopers/meta fills operator address, re-fetch balances (first rpc
+// tick often only has signing address → operator balance stayed 0 until refresh).
+watch(
+  () => [addresses.value.operAddress, addresses.value.account, isGno.value] as const,
+  ([op, sign, gno], prev) => {
+    if (!gno || !blockchain.rpc) return;
+    if (op || sign) {
+      const prevOp = prev?.[0];
+      const prevSign = prev?.[1];
+      if (op !== prevOp || sign !== prevSign || !gnoBalances.value.operator?.length) {
+        loadGnoBalances();
+      }
+    }
+  }
 );
 
 watch(
