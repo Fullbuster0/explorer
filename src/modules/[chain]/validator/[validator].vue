@@ -1338,7 +1338,7 @@ watch(
       <div class="grid grid-cols-2 md:!grid-cols-3 xl:!grid-cols-6 gap-0 divide-x divide-base-content/10">
         <div class="px-4 py-3">
           <div class="text-[11px] font-bold uppercase tracking-wider text-secondary mb-1">Status</div>
-          <div class="text-sm font-semibold">{{ gnoChain?.status || statusLabel || (gnoRpc?.votingPower ? 'ACTIVE' : '—') }}</div>
+          <div class="text-sm font-semibold">{{ gnoStatusLabel }}</div>
         </div>
         <div class="px-4 py-3">
           <div class="text-[11px] font-bold uppercase tracking-wider text-secondary mb-1">Indexed Height</div>
@@ -1784,7 +1784,7 @@ watch(
           <div class="sz-section-title">Transactions</div>
         </div>
         <div class="flex items-center gap-2 text-[11.5px] text-secondary">
-          <span class="font-mono" :title="validator.value">{{ shortAddr(validator.value) }}</span>
+          <span class="font-mono" :title="validator">{{ shortAddr(validator) }}</span>
           <span class="opacity-60">·</span>
           <span>via indexer</span>
         </div>
