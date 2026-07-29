@@ -7,9 +7,11 @@
  *   2) src/libs/gno/valopers-data.ts   (bundled for Vercel SPA; identity committed so
  *      live logos work — Vercel can't serve the gitignored JSON)
  *
- * Identity enrichment (Keybase logos):
- *   Gno valopers have empty identity. Match moniker (case-insensitive exact)
- *   against AtomOne mainnet validators and copy their Keybase identity.
+ * Identity enrichment (Keybase logos), priority high→low:
+ *   0. Manual overrides  src/libs/gno/identity-overrides.json  (operator-controlled)
+ *   1. Exact moniker match vs AtomOne mainnet
+ *   2. Normalize-exact (strip emoji/decor)
+ *   3. Prefix / contains (shorter≥60% longer, UNIQUE identity only)
  *   Existing avatar pipeline (keybase() → S3 → localStorage) then shows logos.
  *
  * Usage: node scripts/refresh-gno-valopers.mjs [--chain gnoland-testnet]
@@ -28,6 +30,7 @@ const ROOT = join(__dirname, '..');
 const OUTPUT_DIR = join(ROOT, 'public', 'data');
 const OUTPUT_FILE = join(OUTPUT_DIR, 'gno-valopers.json');
 const BUNDLE_FILE = join(ROOT, 'src', 'libs', 'gno', 'valopers-data.ts');
+const OVERRIDE_FILE = join(ROOT, 'src', 'libs', 'gno', 'identity-overrides.json');
 
 const UA = 'ShazoesExplorer/1.0 (valoper-refresh)';
 const DELAY_MS = 150;
@@ -243,6 +246,38 @@ async function buildRegistry() {
     }
   }
 
+  // --- Manual identity overrides (highest priority) ---
+  let overrideMap = new Map();
+  try {
+    if (existsSync(OVERRIDE_FILE)) {
+      const raw = JSON.parse(readFileSync(OVERRIDE_FILE, 'utf-8'));
+      const ov = raw.overrides || {};
+      for (const [mon, id] of Object.entries(ov)) {
+        if (mon && id && typeof id === 'string') {
+          overrideMap.set(mon.toLowerCase(), id.trim());
+        }
+      }
+      if (overrideMap.size > 0) {
+        console.log(`Loaded ${overrideMap.size} manual identity override(s)`);
+      }
+    }
+  } catch (e) {
+    console.warn(`  Override file load failed: ${e.message || e}`);
+  }
+
+  // Apply overrides FIRST (before AtomOne enrich)
+  if (overrideMap.size > 0) {
+    let applied = 0;
+    for (const r of rows) {
+      const key = (r.moniker || '').toLowerCase();
+      if (overrideMap.has(key)) {
+        r.identity = overrideMap.get(key);
+        applied++;
+      }
+    }
+    console.log(`  Manual overrides applied: ${applied}`);
+  }
+
   // --- AtomOne moniker → Keybase identity enrichment ---
   if (!skipAtomone) {
     console.log('Enriching identity from AtomOne mainnet (exact + normalize + contains)…');
@@ -251,6 +286,10 @@ async function buildRegistry() {
       let hit = 0;
       let kept = 0;
       for (const r of rows) {
+        // Skip if already has manual override
+        const monKey = (r.moniker || '').toLowerCase();
+        if (overrideMap.has(monKey)) continue;
+
         const mon = r.moniker || '';
         const monLower = mon.toLowerCase();
         const monNorm = normalizeMoniker(mon);

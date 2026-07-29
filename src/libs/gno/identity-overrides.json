@@ -1,0 +1,4 @@
+{
+  "_comment": "Manual Keybase identity overrides for Gno validators. Priority: manual > AtomOne auto-match. Key = moniker (case-insensitive, trimmed). Value = Keybase identity hash (16 hex chars). To find: https://keybase.io/_/api/1.0/user/lookup.json?usernames=<kb_username>&fields=basics → basics.id_suffix (or copy from AtomOne/Cosmos explorer validator page).",
+  "overrides": {}
+}

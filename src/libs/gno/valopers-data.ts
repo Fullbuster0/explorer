@@ -1,7 +1,7 @@
 /** Auto-generated Gnoland valoper moniker registry.
  * Source: https://topaz.testnets.gno.land/r/gnops/valopers
  * Identity: AtomOne mainnet moniker match → Keybase (for logos)
- * Generated: 2026-07-29T12:20:04.098Z
+ * Generated: 2026-07-29T12:41:37.880Z
  * Do not hand-edit — run: node scripts/refresh-gno-valopers.mjs
  */
 export interface GnoValoperRow {
