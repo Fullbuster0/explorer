@@ -107,6 +107,38 @@ const behind = computed(() => {
   return blocktime.value.isBefore(current);
 });
 
+/** Status chip: never ask users to pick an RPC. Auto-heal is the product. */
+const statusLabel = computed(() => {
+  if (blockchain.connPhase === 'reconnecting' || blockchain.fallbackInProgress) return 'Reconnecting';
+  if (blockchain.connPhase === 'degraded') return 'Trouble connecting';
+  if (baseStore.connected) return 'Connected';
+  if (baseStore.hasConnectedOnce) return 'Disconnected';
+  return 'Connecting';
+});
+const statusChipClass = computed(() => {
+  if (blockchain.connPhase === 'reconnecting' || blockchain.fallbackInProgress) return 'sz-chip--warn';
+  if (blockchain.connPhase === 'degraded') return 'sz-chip--bad';
+  if (baseStore.connected) return 'sz-chip--ok';
+  if (baseStore.hasConnectedOnce) return 'sz-chip--bad';
+  return 'sz-chip--warn';
+});
+const statusDotClass = computed(() => {
+  if (blockchain.connPhase === 'reconnecting' || blockchain.fallbackInProgress) return '!bg-amber-400';
+  if (blockchain.connPhase === 'degraded') return '!bg-red-500';
+  if (baseStore.connected) return '';
+  if (baseStore.hasConnectedOnce) return '!bg-red-500';
+  return '!bg-amber-400';
+});
+const showConnBanner = computed(
+  () =>
+    blockchain.connPhase === 'reconnecting' ||
+    blockchain.connPhase === 'degraded' ||
+    blockchain.justRecovered
+);
+function onTryAgain() {
+  blockchain.reconnectNow();
+}
+
 dayjs();
 </script>
 
@@ -304,22 +336,68 @@ dayjs();
 
       <!-- network status strip -->
       <div class="sz-statusbar mb-5 flex flex-wrap items-center gap-2 rounded-xl px-4 py-2">
-        <span
-          class="sz-live-dot"
-          :class="baseStore.connected ? '' : baseStore.hasConnectedOnce ? '!bg-red-500' : '!bg-amber-400'"
-        ></span>
-        <span
-          class="sz-chip"
-          :class="baseStore.connected ? 'sz-chip--ok' : baseStore.hasConnectedOnce ? 'sz-chip--bad' : 'sz-chip--warn'"
-        >
-          {{ baseStore.connected ? 'Connected' : baseStore.hasConnectedOnce ? 'Disconnected' : 'Connecting' }}
+        <span class="sz-live-dot" :class="statusDotClass"></span>
+        <span class="sz-chip" :class="statusChipClass">
+          {{ statusLabel }}
         </span>
+        <span v-if="blockchain.justRecovered" class="sz-chip sz-chip--ok">Back online</span>
         <span class="sz-chip sz-chip--info font-mono">{{ baseStore.currentChainId || '—' }}</span>
         <span class="sz-chip font-mono">#{{ Number(baseStore.latest?.block?.header?.height || 0).toLocaleString() }}</span>
         <span class="sz-chip font-mono">
           {{ baseStore.blocktime ? (baseStore.blocktime / 1000).toFixed(1) + 's' : '—' }} / block
         </span>
         <span v-if="behind" class="sz-chip sz-chip--warn">Out of sync</span>
+        <!-- Recovery is one tap — never an endpoint list for normal users -->
+        <button
+          v-if="blockchain.connPhase === 'degraded' || blockchain.connPhase === 'reconnecting'"
+          type="button"
+          class="sz-chip sz-chip--info ml-auto cursor-pointer hover:opacity-90"
+          :disabled="blockchain.fallbackInProgress"
+          @click="onTryAgain"
+        >
+          {{ blockchain.fallbackInProgress ? 'Working…' : 'Try again' }}
+        </button>
+      </div>
+
+      <!-- Non-technical connection banner (no RPC / endpoint jargon) -->
+      <div
+        v-if="showConnBanner"
+        class="mb-4 rounded-xl px-4 py-3 text-sm flex flex-wrap items-start gap-3"
+        :class="
+          blockchain.justRecovered
+            ? 'bg-success/10 border border-success/30'
+            : blockchain.connPhase === 'degraded'
+              ? 'bg-error/10 border border-error/30'
+              : 'bg-warning/10 border border-warning/30'
+        "
+      >
+        <div class="flex-1 min-w-0">
+          <div class="font-semibold">
+            <template v-if="blockchain.justRecovered">Back online</template>
+            <template v-else-if="blockchain.connPhase === 'reconnecting'">Reconnecting…</template>
+            <template v-else>Connection trouble</template>
+          </div>
+          <div class="opacity-80 mt-0.5">
+            <template v-if="blockchain.justRecovered">
+              We restored the connection automatically. You don’t need to change any settings.
+            </template>
+            <template v-else-if="blockchain.connPhase === 'reconnecting'">
+              We’re switching to a working connection in the background. No action needed.
+            </template>
+            <template v-else>
+              {{ blockchain.connErr || "We're having trouble reaching the network. Tap Try again — we'll reconnect automatically." }}
+            </template>
+          </div>
+        </div>
+        <button
+          v-if="!blockchain.justRecovered"
+          type="button"
+          class="btn btn-sm btn-primary shrink-0"
+          :disabled="blockchain.fallbackInProgress"
+          @click="onTryAgain"
+        >
+          {{ blockchain.fallbackInProgress ? 'Working…' : 'Try again' }}
+        </button>
       </div>
 
       <!-- pages -->

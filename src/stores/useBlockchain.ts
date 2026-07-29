@@ -62,9 +62,16 @@ export const useBlockchain = defineStore('blockchain', {
       rest: '',
       chainName: '',
       endpoint: {} as Endpoint,
+      /** User-facing connection hint (never raw RPC jargon as primary copy). */
       connErr: '',
       fallbackInProgress: false,
       lastFallbackAt: 0,
+      /** ok | reconnecting | degraded — drives statusbar without requiring RPC literacy. */
+      connPhase: 'ok' as 'ok' | 'reconnecting' | 'degraded',
+      /** Short chip after a successful silent switch (cleared by UI after a few seconds). */
+      justRecovered: false,
+      /** How many auto-fallback sweeps ran since last healthy connect. */
+      fallbackAttempts: 0,
       // Declared in state so watchers (validator page power-events) react to it.
       // For Gno/TM2 chains this is a GnoTm2Client (same method surface).
       rpc: undefined as CosmosRestClient | GnoTm2Client | undefined,
@@ -752,41 +759,126 @@ export const useBlockchain = defineStore('blockchain', {
         // Self-heal: if the chosen endpoint is dead, fall back in the background
         // so non-technical users are never stuck on a down RPC.
         this.healthCheck(endpoint.address, 6000).then((ok) => {
-          if (!ok) this.fallbackEndpoint();
+          if (!ok) this.fallbackEndpoint({ reason: 'startup-unhealthy' });
         });
       } else {
         // No endpoint configured at all — still try a fallback pick so the page
         // doesn't sit forever waiting for an RPC that will never be wired.
-        this.fallbackEndpoint();
+        this.fallbackEndpoint({ reason: 'no-endpoint' });
       }
     },
 
-    // Auto-switch to a healthy REST endpoint when the current one is down.
-    async fallbackEndpoint() {
+    /**
+     * Force a reconnect sweep — the ONLY user-facing recovery action.
+     * No endpoint picker: we probe the pool and switch silently.
+     */
+    async reconnectNow() {
+      this.lastFallbackAt = 0; // bypass cooldown
+      this.fallbackInProgress = false;
+      this.connPhase = 'reconnecting';
+      this.connErr = '';
+      await this.fallbackEndpoint({ reason: 'user-retry', force: true });
+    },
+
+    /**
+     * Auto-switch to a healthy endpoint when the current one is down.
+     * Non-technical users never pick an RPC — we rotate the config pool
+     * (preferring earlier / known-good hosts) and re-init stores.
+     */
+    async fallbackEndpoint(opts: { reason?: string; force?: boolean } = {}) {
       const all = this.restEndpoints();
-      if (all.length <= 1) return;
+      if (!all.length) {
+        this.connPhase = 'degraded';
+        this.connErr = "We can't reach the network right now. Please try again in a moment.";
+        return;
+      }
       const now = Date.now();
-      // Guard against concurrent / rapid-fire fallback loops.
-      if (this.fallbackInProgress || now - this.lastFallbackAt < 15000) return;
+      // Guard against concurrent / rapid-fire fallback loops (unless force).
+      if (!opts.force) {
+        if (this.fallbackInProgress) return;
+        // Soft cooldown — shorter when already disconnected so recovery is snappy
+        const cool = this.connPhase === 'degraded' ? 5000 : 12000;
+        if (now - this.lastFallbackAt < cool) return;
+      } else if (this.fallbackInProgress) {
+        // force while in-flight: skip duplicate
+        return;
+      }
       this.fallbackInProgress = true;
       this.lastFallbackAt = now;
+      this.connPhase = 'reconnecting';
+      this.fallbackAttempts += 1;
       try {
         const current = this.endpoint?.address;
-        // Skip denied endpoints in fallback candidates too
-        const candidates = all.filter((e) => e.address !== current && !isDenied(this.chainName, e.address));
-        const pool = candidates.length > 0 ? candidates : all.filter((e) => e.address !== current);
+        // Single-endpoint chains: re-probe current; if dead, surface degraded (no magic peer).
+        if (all.length === 1) {
+          const only = all[0];
+          const ok = await this.healthCheck(only.address, 5000);
+          if (ok) {
+            this.connErr = '';
+            this.connPhase = 'ok';
+            if (only.address !== current) {
+              await this.setRestEndpoint(only);
+              this.initial();
+            }
+          } else {
+            this.connPhase = 'degraded';
+            this.connErr =
+              "We're having trouble reaching the network. Tap Try again — we'll reconnect automatically.";
+          }
+          return;
+        }
+
+        // 1) Prefer non-denied, non-current, config order (Shazoes first on Gno)
+        let pool = all.filter((e) => e.address !== current && !isDenied(this.chainName, e.address));
+        // 2) If empty, allow denied (TTL may be wrong / transient) — last resort
+        if (pool.length === 0) {
+          pool = all.filter((e) => e.address !== current);
+        }
+        // 3) Still empty → only current left; re-check it
+        if (pool.length === 0) {
+          pool = all.slice();
+        }
+
+        // Parallel health, preserve config order for pick
         const results = await Promise.all(
           pool.map(async (ep) => ({ ep, ok: await this.healthCheck(ep.address, 5000) }))
         );
-        // Pick the first healthy candidate in config order.
         const healthy = results.find((r) => r.ok);
-        if (healthy && healthy.ep.address !== current) {
-          console.info(`[explorer] RPC fallback: ${current} -> ${healthy.ep.address}`);
+
+        if (healthy) {
+          const switched = healthy.ep.address !== current;
+          console.info(
+            `[explorer] RPC auto-fallback (${opts.reason || 'auto'}): ${current || '∅'} -> ${healthy.ep.address}`
+          );
           this.connErr = '';
-          await this.setRestEndpoint(healthy.ep);
-          // Re-run chain init so stores that already gave up (or never started
-          // because the old RPC was dead) get a fresh shot — no manual refresh.
-          this.initial();
+          this.connPhase = 'ok';
+          this.fallbackAttempts = 0;
+          if (switched) {
+            this.justRecovered = true;
+            await this.setRestEndpoint(healthy.ep);
+            // Re-run chain init so stores that already gave up get a fresh shot — no manual refresh.
+            this.initial();
+            // Auto-clear "Back online" chip
+            setTimeout(() => {
+              if (this.justRecovered) this.justRecovered = false;
+            }, 6000);
+          }
+          return;
+        }
+
+        // All candidates failed — stay on current, show non-technical degraded state.
+        // Schedule one more silent retry (no user action required).
+        this.connPhase = 'degraded';
+        this.connErr =
+          "We're having trouble reaching the network. We'll keep trying — or tap Try again.";
+        console.warn(`[explorer] RPC auto-fallback exhausted (${opts.reason || 'auto'}); all peers unhealthy`);
+        if (!opts.force) {
+          setTimeout(() => {
+            // Only retry if still degraded (don't stomp a later recovery)
+            if (this.connPhase === 'degraded' && !this.fallbackInProgress) {
+              this.fallbackEndpoint({ reason: 'auto-retry' });
+            }
+          }, 8000);
         }
       } finally {
         this.fallbackInProgress = false;

@@ -112,11 +112,18 @@ export const useBaseStore = defineStore('baseStore', {
           }
           this.connected = true;
           this.hasConnectedOnce = true;
+          // Clear degraded UI once blocks flow again
+          if (this.blockchain.connPhase !== 'ok') {
+            this.blockchain.connPhase = 'ok';
+            this.blockchain.connErr = '';
+            this.blockchain.fallbackAttempts = 0;
+          }
         }
       } catch (error) {
         console.error('Error fetching latest block:', error);
         this.connected = false;
-        this.blockchain.fallbackEndpoint();
+        // Silent auto-rotate — user never picks an RPC
+        this.blockchain.fallbackEndpoint({ reason: 'latest-fail' });
       }
       if (!this.earliest?.block?.header?.height || this.earliest?.block?.header?.chain_id != this.latest?.block?.header?.chain_id) {
         //reset earliest and recents
@@ -188,7 +195,8 @@ export const useBaseStore = defineStore('baseStore', {
         console.error('Error fetching block:', error);
         this.connected = false;
         // Liveness fallback only — archive walk already tried above.
-        this.blockchain.fallbackEndpoint();
+        // Auto-rotate; never ask the user to pick an endpoint.
+        this.blockchain.fallbackEndpoint({ reason: 'block-fail' });
       }
       return {} as Block;
     },
