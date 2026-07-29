@@ -14,6 +14,9 @@ const props = defineProps(['address', 'chain']);
 const blockchain = useBlockchain();
 const stakingStore = useStakingStore();
 const format = useFormatter();
+const isGno = computed(
+  () => blockchain.current?.engine === 'gno' || blockchain.current?.engine === 'tm2'
+);
 const account = ref({} as AuthAccount);
 const delegations = ref([] as Delegation[]);
 const rewards = ref({} as DelegatorRewards);
@@ -89,15 +92,23 @@ watch(
 // Single source of truth — every place in the template that prints the
 // staking denom goes through this so chains with dual-token economics
 // (atomone: ATONE + PHOTON) stay consistent.
-const bondSymbol = computed(
-  () => format.tokenDisplayDenom(stakingStore.params.bond_denom)?.toUpperCase() ||
+const bondSymbol = computed(() => {
+  if (isGno.value) {
+    // Account balances are ugnot → display as GNOT
+    return 'GNOT';
+  }
+  return format.tokenDisplayDenom(stakingStore.params.bond_denom)?.toUpperCase() ||
     stakingStore.params.bond_denom ||
-    ''
-);
+    '';
+});
 
 // Non-bond-denom balances shown as a secondary strip (e.g. PHOTON on
 // atomone). Most chains have a single native denom — this list stays empty.
 const otherBalances = computed(() => {
+  if (isGno.value) {
+    // Everything that isn't ugnot (GRC20 path denoms etc.)
+    return (balances.value || []).filter((c) => c.denom !== 'ugnot');
+  }
   const bond = stakingStore.params.bond_denom;
   return (balances.value || []).filter((c) => c.denom !== bond);
 });
@@ -106,6 +117,9 @@ const otherBalances = computed(() => {
 // On dual-token chains (atomone) this means ATONE-only; PHOTON shows up
 // separately in `otherBalances` so it doesn't pollute the staking pie.
 const bondBalances = computed(() => {
+  if (isGno.value) {
+    return (balances.value || []).filter((c) => c.denom === 'ugnot');
+  }
   const bond = stakingStore.params.bond_denom;
   return (balances.value || []).filter((c) => c.denom === bond);
 });
@@ -115,6 +129,10 @@ const totalsRaw = computed(() => {
   const fin = (n: number) => (Number.isFinite(n) ? n : 0);
   let sumBal = 0;
   bondBalances.value?.forEach((x) => (sumBal += fin(format.tokenAmountNumber(x))));
+  if (isGno.value) {
+    // No staking/rewards/unbonding on Gno — portfolio is available balance only
+    return { available: fin(sumBal), delegated: 0, rewards: 0, unbonding: 0 };
+  }
   let sumDel = 0;
   delegations.value?.forEach((x) => (sumDel += fin(format.tokenAmountNumber(x.balance))));
   // Rewards portfolio slice is BOND-DENOM only. Other reward denoms (IBC
@@ -150,16 +168,24 @@ const totalAmount = computed(() => {
   const s = t.available + t.delegated + t.rewards + t.unbonding;
   return Number.isFinite(s) ? s : 0;
 });
-const totalAmountByCategory = computed(() => [
-  totalsRaw.value.available,
-  totalsRaw.value.delegated,
-  totalsRaw.value.rewards,
-  totalsRaw.value.unbonding,
-]);
-const labels = ['Available', 'Delegated', 'Rewards', 'Unbonding'];
+const totalAmountByCategory = computed(() =>
+  isGno.value
+    ? [totalsRaw.value.available]
+    : [
+        totalsRaw.value.available,
+        totalsRaw.value.delegated,
+        totalsRaw.value.rewards,
+        totalsRaw.value.unbonding,
+      ]
+);
+const labels = computed(() =>
+  isGno.value ? ['Available'] : ['Available', 'Delegated', 'Rewards', 'Unbonding']
+);
 // Slice colors MUST match `labels` order — they are applied positionally by
 // ApexCharts. Kept in lockstep with the breakdown rows (--acc-tone-*).
-const donutColors = ['#16d97e', '#3fb6ff', '#b892ff', '#ff9d5c'];
+const donutColors = computed(() =>
+  isGno.value ? ['#16d97e'] : ['#16d97e', '#3fb6ff', '#b892ff', '#ff9d5c']
+);
 
 const totalValue = computed(() => {
   let value = 0;
@@ -184,14 +210,24 @@ const totalValue = computed(() => {
 });
 
 function loadAccount(address: string) {
-  blockchain.rpc.getAuthAccount(address).then((x) => (account.value = x.account));
-  // Tx history is loaded separately by loadTxHistory() (called below) so
-  // the chain LCD's limit/offset can be honored (or sliced client-side).
+  // Reset so SPA nav doesn't keep previous totals
+  unbondingTotal.value = 0;
+  account.value = {} as any;
+  balances.value = [];
+  delegations.value = [];
+  rewards.value = {} as any;
+  unbonding.value = [];
+
+  blockchain.rpc.getAuthAccount(address).then((x) => (account.value = x.account || ({} as any)));
+  blockchain.rpc.getBankBalances(address).then((x) => (balances.value = x.balances || []));
+
+  // Gno/TM2: no staking / distribution modules — skip empty Cosmos calls
+  if (isGno.value) return;
+
   blockchain.rpc.getDistributionDelegatorRewards(address).then((x) => (rewards.value = x));
   blockchain.rpc.getStakingDelegations(address).then(
     (x) => (delegations.value = x.delegation_responses)
   );
-  blockchain.rpc.getBankBalances(address).then((x) => (balances.value = x.balances));
   blockchain.rpc.getStakingDelegatorUnbonding(address).then((x) => {
     unbonding.value = x.unbonding_responses;
     x.unbonding_responses?.forEach((y) =>
@@ -385,21 +421,28 @@ function findTokenAmount(
 
         <!-- total value -->
         <div class="sz-acc-value">
-          <div class="sz-section-kicker mb-1">Total Value</div>
-          <div class="sz-acc-value-num">${{ totalValue }}</div>
-          <div class="sz-acc-value-sub" v-if="totalAmount > 0">
+          <div class="sz-section-kicker mb-1">{{ isGno ? 'Balance' : 'Total Value' }}</div>
+          <div v-if="isGno" class="sz-acc-value-num">
+            {{ totalAmount.toLocaleString(undefined, { maximumFractionDigits: 6 }) }}
+            <span class="text-base font-semibold opacity-80">{{ bondSymbol }}</span>
+          </div>
+          <div v-else class="sz-acc-value-num">${{ totalValue }}</div>
+          <div class="sz-acc-value-sub" v-if="!isGno && totalAmount > 0">
             {{ totalAmount.toLocaleString(undefined, { maximumFractionDigits: 2 }) }} {{ bondSymbol }} · total portfolio
+          </div>
+          <div class="sz-acc-value-sub" v-else-if="isGno">
+            Liquid ugnot via TM2 auth/accounts · no staking modules
           </div>
         </div>
       </div>
     </section>
 
-    <!-- ====== PORTFOLIO COMPOSITION (includes Available/Delegated/Rewards/Unbonding) ====== -->
+    <!-- ====== PORTFOLIO COMPOSITION ====== -->
     <section class="sz-section sz-glass overflow-hidden mb-4">
       <div class="sz-section-head">
         <div>
           <div class="sz-section-kicker">Portfolio</div>
-          <div class="sz-section-title">Composition</div>
+          <div class="sz-section-title">{{ isGno ? 'Balances' : 'Composition' }}</div>
         </div>
       </div>
       <div class="sz-acc-comp">
@@ -411,7 +454,7 @@ function findTokenAmount(
           />
         </div>
         <div class="sz-acc-comp-list">
-          <div class="sz-acc-comp-row" v-for="(amt, i) in totalAmountByCategory" :key="i" :data-tone="['available','delegated','rewards','unbonding'][i]">
+          <div class="sz-acc-comp-row" v-for="(amt, i) in totalAmountByCategory" :key="i" :data-tone="(isGno ? ['available'] : ['available','delegated','rewards','unbonding'])[i]">
             <span class="sz-acc-comp-swatch"></span>
             <div class="flex-1 min-w-0">
               <div class="sz-acc-comp-name">{{ labels[i] }}</div>
@@ -464,8 +507,8 @@ function findTokenAmount(
       </div>
     </section>
 
-    <!-- ====== DELEGATIONS ====== -->
-    <section class="sz-section sz-glass overflow-hidden mb-4">
+    <!-- ====== DELEGATIONS (Cosmos only) ====== -->
+    <section v-if="!isGno" class="sz-section sz-glass overflow-hidden mb-4">
       <div class="sz-section-head">
         <div>
           <div class="sz-section-kicker">Staking</div>

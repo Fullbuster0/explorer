@@ -5,6 +5,7 @@ import { useStakingStore, useBaseStore, useBlockchain, useFormatter } from '@/st
 import UptimeBar from '@/components/UptimeBar.vue';
 import type { SlashingParam, SigningInfo, Block, Validator } from '@/types';
 import { consensusPubkeyToHexAddress, valconsToBase64 } from '@/libs';
+import { gnoMoniker } from '@/libs/gno/valopers';
 
 const props = defineProps(['chain']);
 
@@ -72,8 +73,13 @@ function mapValidator(v: Validator, status: BondStatus): Omit<ValidatorUnit, 'bl
     hex = consensusPubkeyToHexAddress(v.consensus_pubkey);
     base64 = hex ? toBase64(fromHex(hex)) : '';
   }
+  // Prefer valopers registry moniker for Gno (tm2ValidatorToStaking uses shortAddr on purpose for list page)
+  const moniker =
+    gnoMoniker(op, v.description?.moniker || '') ||
+    v.description?.moniker ||
+    v.operator_address;
   return {
-    moniker: v.description?.moniker || v.operator_address,
+    moniker,
     hex,
     base64,
     status,

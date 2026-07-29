@@ -129,7 +129,7 @@ export const useParamStore = defineStore('paramstore', {
           .then(([poolRes, valsRes]) => {
             const bonded = poolRes?.pool?.bonded_tokens || '0';
             const active = Array.isArray(valsRes?.validators) ? valsRes.validators.length : 0;
-            const maxV = Math.max(Number(p.max_validators || 100), active || 0);
+            // No invented max — Topaz has no on-chain max_validators.
             const bondedAndSupply = this.chain.items.findIndex(
               (x) => x.subtitle === 'bonded_and_supply' || x.subtitle === 'total_voting_power'
             );
@@ -142,8 +142,12 @@ export const useParamStore = defineStore('paramstore', {
             );
             if (bondedRatio > -1) {
               this.chain.items[bondedRatio].subtitle = 'active_set';
-              this.chain.items[bondedRatio].value = active ? `${active} / ${maxV}` : `max ${maxV}`;
+              this.chain.items[bondedRatio].value = active ? `${active} active` : '—';
             }
+            // Drop fake max_validators row on Gno params
+            this.staking.items = this.staking.items.filter(
+              (it: any) => it.subtitle !== 'max_validators' || Number(it.value) > 0
+            );
             const infl = this.chain.items.findIndex(
               (x) => x.subtitle === 'inflation' || x.subtitle === 'engine'
             );

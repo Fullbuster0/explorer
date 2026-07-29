@@ -60,6 +60,9 @@ const chainPretty = computed(
   () => blockStore.current?.prettyName || blockStore.current?.chainName || '—'
 );
 const bech32Prefix = computed(() => blockStore.current?.bech32Prefix || '');
+const isGno = computed(
+  () => blockStore.current?.engine === 'gno' || blockStore.current?.engine === 'tm2'
+);
 
 function loadRecent() {
   try {
@@ -250,6 +253,26 @@ function isHexHash(key: string): string | null {
   return null;
 }
 
+/** Gno/TM2 native tx hash is base64 (32 bytes → ~44 chars with padding). */
+function isGnoBase64Hash(key: string): string | null {
+  const s = key.trim();
+  // Keep padding; compactKey may strip spaces but not '='
+  if (!/^[A-Za-z0-9+/]{40,48}={0,2}$/.test(s)) return null;
+  // Reject pure hex masquerading
+  if (/^[0-9a-fA-F]{64}$/.test(s)) return null;
+  try {
+    // validate decodes to 32 bytes ideally
+    const bin =
+      typeof atob !== 'undefined'
+        ? atob(s)
+        : Buffer.from(s, 'base64').toString('binary');
+    if (bin.length < 16 || bin.length > 64) return null;
+    return s;
+  } catch {
+    return null;
+  }
+}
+
 function isHexPrefix(key: string): string | null {
   const hex = key.replace(/^0x/i, '');
   if (/^[A-Fa-f0-9]{8,63}$/.test(hex)) return hex.toUpperCase();
@@ -275,7 +298,8 @@ function buildHits(raw: string): SearchHit[] {
   };
 
   // --- Proposal explicit: #1050 / prop 1050 ---
-  const propExplicit = parseProposalQuery(display);
+  // Gno has no Cosmos gov module — skip proposal hits entirely.
+  const propExplicit = !isGno.value ? parseProposalQuery(display) : null;
   if (propExplicit != null && Number.isFinite(propExplicit)) {
     push({
       kind: 'proposal',
@@ -291,7 +315,7 @@ function buildHits(raw: string): SearchHit[] {
     }
   }
 
-  // --- Pure digits: Block + Proposal dual hit ---
+  // --- Pure digits: Block (+ Proposal on Cosmos only) ---
   if (/^\d+$/.test(keyCompact)) {
     const n = Number(keyCompact);
     push({
@@ -302,18 +326,35 @@ function buildHits(raw: string): SearchHit[] {
       subtitle: chainPretty.value,
       score: 970,
     });
-    push({
-      kind: 'proposal',
-      query: keyCompact,
-      path: `/${current}/gov/${keyCompact}`,
-      title: `Proposal #${n.toLocaleString()}`,
-      subtitle: 'Governance · ' + chainPretty.value,
-      score: 960,
-    });
+    if (!isGno.value) {
+      push({
+        kind: 'proposal',
+        query: keyCompact,
+        path: `/${current}/gov/${keyCompact}`,
+        title: `Proposal #${n.toLocaleString()}`,
+        subtitle: 'Governance · ' + chainPretty.value,
+        score: 960,
+      });
+    }
     return results.sort((a, b) => (b.score || 0) - (a.score || 0));
   }
 
-  // --- Full tx hash ---
+  // --- Gno base64 tx hash (native TM2 form) ---
+  // Use raw display (compactKey strips non-alnum and would break base64 +/=)
+  const gnoB64 = isGnoBase64Hash(display.replace(/\s+/g, ''));
+  if (gnoB64) {
+    push({
+      kind: 'tx',
+      query: gnoB64,
+      path: `/${current}/tx/${encodeURIComponent(gnoB64)}`,
+      title: `${gnoB64.slice(0, 10)}…${gnoB64.slice(-6)}`,
+      subtitle: (isGno.value ? 'Gno tx (base64) · ' : 'Tx · ') + chainPretty.value,
+      score: 995,
+    });
+    return results;
+  }
+
+  // --- Full tx hash (hex / 0x-hex) ---
   const fullHash = isHexHash(keyCompact);
   if (fullHash) {
     push({
@@ -321,7 +362,7 @@ function buildHits(raw: string): SearchHit[] {
       query: fullHash,
       path: `/${current}/tx/${fullHash}`,
       title: `${fullHash.slice(0, 10)}…${fullHash.slice(-8)}`,
-      subtitle: 'Transaction · ' + chainPretty.value,
+      subtitle: (isGno.value ? 'Gno tx · ' : 'Transaction · ') + chainPretty.value,
       score: 990,
     });
     return results;
@@ -346,7 +387,9 @@ function buildHits(raw: string): SearchHit[] {
         query: hashPrefix,
         path: `/${current}/tx/${hashPrefix}`,
         title: `${hashPrefix.slice(0, 12)}${hashPrefix.length > 12 ? '…' : ''}`,
-        subtitle: 'Tx hash prefix — paste full 64-char hash to open',
+        subtitle: isGno.value
+          ? 'Tx hash prefix — paste full 64-hex or base64 hash'
+          : 'Tx hash prefix — paste full 64-char hash to open',
         score: 200,
       });
     }
@@ -356,6 +399,33 @@ function buildHits(raw: string): SearchHit[] {
   // --- Full bech32 ---
   if (isFullBech32(keyCompact)) {
     const lower = keyLower;
+    // Gno: no valoper/valcons HRP — g1… is both account AND signing/validator address
+    if (isGno.value) {
+      const asVal =
+        (staking.validators || []).find(
+          (v) => (v.operator_address || '').toLowerCase() === lower
+        ) || null;
+      if (asVal) {
+        push(
+          validatorHit(
+            asVal,
+            990,
+            `Active validator · ${chainPretty.value}`
+          )
+        );
+      }
+      push({
+        kind: 'account',
+        query: lower,
+        path: `/${current}/account/${lower}`,
+        title: shortAddr(lower),
+        subtitle: asVal
+          ? `Account (also signing addr) · ${chainPretty.value}`
+          : `Account · ${chainPretty.value}`,
+        score: asVal ? 970 : 980,
+      });
+      return results.sort((a, b) => (b.score || 0) - (a.score || 0));
+    }
     if (lower.includes('valoper')) {
       const v = findValidatorByOper(lower);
       const moniker = v?.description?.moniker || 'Validator';
@@ -572,7 +642,9 @@ function confirm() {
   const list = hits.value;
   if (!list.length) {
     errorMessage.value =
-      'No results. Try address, tx hash, block height, #proposal, or validator name.';
+      isGno.value
+        ? 'No results. Try g1 address, tx hash (hex or base64), block height, or validator moniker.'
+        : 'No results. Try address, tx hash, block height, #proposal, or validator name.';
     return;
   }
   const pick = list[Math.min(highlight.value, list.length - 1)];
@@ -627,7 +699,11 @@ onUnmounted(() => {
       aria-label="Search by address, tx hash, or height"
     >
       <Icon icon="mdi:magnify" class="text-lg text-secondary shrink-0" />
-      <span class="sz-search-placeholder">Search address, hash, height, moniker…</span>
+      <span class="sz-search-placeholder">{{
+        isGno
+          ? 'Search g1 address, tx hash, height, moniker…'
+          : 'Search address, hash, height, moniker…'
+      }}</span>
       <kbd class="sz-search-kbd">⌘K</kbd>
     </button>
 
@@ -659,7 +735,11 @@ onUnmounted(() => {
               ref="inputRef"
               v-model="query"
               class="sz-search-input"
-              placeholder="Address, hash, height, #proposal, or moniker…"
+              :placeholder="
+                isGno
+                  ? 'g1 address, tx hash (hex/base64), height, or moniker…'
+                  : 'Address, hash, height, #proposal, or moniker…'
+              "
               autocomplete="off"
               spellcheck="false"
               @keydown.enter.prevent="confirm"
@@ -668,7 +748,13 @@ onUnmounted(() => {
           </div>
 
           <p class="sz-search-hint">
-            Address / prefix · tx hash · height · #proposal · validator moniker or identity.
+            <template v-if="isGno">
+              g1 address · tx hash (hex or base64) · block height · validator moniker.
+              No Cosmos gov/valoper on Gno.
+            </template>
+            <template v-else>
+              Address / prefix · tx hash · height · #proposal · validator moniker or identity.
+            </template>
           </p>
 
           <!-- tabs -->
@@ -709,7 +795,12 @@ onUnmounted(() => {
               Select a chain first to search.
             </div>
             <div v-else-if="!normalizeQuery(query)" class="sz-search-empty">
-              Start typing an address, tx hash, block height, #proposal, or validator moniker.
+              <template v-if="isGno">
+                Start typing a g1 address, tx hash (hex/base64), block height, or moniker.
+              </template>
+              <template v-else>
+                Start typing an address, tx hash, block height, #proposal, or validator moniker.
+              </template>
             </div>
             <div v-else-if="!hits.length" class="sz-search-empty">
               No results found.

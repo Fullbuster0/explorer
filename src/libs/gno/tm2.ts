@@ -181,13 +181,11 @@ export function normalizeTm2PubKey(pub: any): { '@type': string; key: string } {
 }
 
 /** TM2 `/validators` row → Cosmos staking Validator (synthetic).
- *  Moniker policy (matches gnoscan validators page):
- *    moniker = shortAddr(signingAddress)
- *  Do NOT overlay the valopers realm moniker here. Valopers maps the
- *  signing address → operator moniker, and those same monikers appear as
- *  PENDING candidates on the indexer. Overlaying them makes the Active
- *  tab look identical to Pending even though addresses are disjoint.
- *  Valopers is still used for website/identity metadata only.
+ *  Moniker policy:
+ *    Prefer valopers registry moniker (signing→operator Keybase match).
+ *    Fall back to shortAddr only when registry has no entry.
+ *  Uptime/consensus must show human monikers; list page still uses registry
+ *  for website/identity and gnoMoniker() for display overrides.
  */
 export function tm2ValidatorToStaking(v: any): Validator {
   // TM2 validator address == signing/consensus address (bech32 g1…)
@@ -197,8 +195,11 @@ export function tm2ValidatorToStaking(v: any): Validator {
   const power = String(v.voting_power ?? v.power ?? '0');
   const pub = normalizeTm2PubKey(v.pub_key);
   const meta = lookupGnoValoper(address);
-  const moniker =
+  const short =
     address.length > 16 ? `${address.slice(0, 10)}…${address.slice(-4)}` : address || 'validator';
+  // Prefer real moniker from valopers (Keybase identity match via cron).
+  // shortAddr is last resort so uptime/consensus never show bare g1… as title.
+  const moniker = (meta?.moniker || '').trim() || short;
   // Don't dump full application essay into details — list UI uses website line.
   const details = meta?.serverType
     ? `Gnoland validator · ${meta.serverType}`
@@ -317,7 +318,10 @@ export function gnoStakingParams(): StakingParam {
   return {
     params: {
       unbonding_time: '0s',
-      max_validators: 100,
+      // NO invented cap. Topaz genesis consensus_params.Validator only lists
+      // PubKeyTypeURLs — no max_validators. UI must not show a fake "100".
+      // Client may raise this to live set size so "active/max" never underflows.
+      max_validators: 0,
       max_entries: 0,
       historical_entries: 0,
       // NOT ugnot — TM2 voting_power is unitless. Using a denom absent from

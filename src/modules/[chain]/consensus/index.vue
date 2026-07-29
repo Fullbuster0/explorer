@@ -3,7 +3,7 @@ import fetch from 'cross-fetch';
 import { onMounted, ref, computed, onUnmounted, watch } from 'vue';
 import { useBlockchain, useStakingStore, useBaseStore } from '@/stores';
 import { consensusPubkeyToHexAddress } from '@/libs';
-import { gnoMoniker } from '@/libs/gno/valopers';
+import { gnoMoniker, lookupGnoValoper } from '@/libs/gno/valopers';
 
 const chainStore = useBlockchain();
 const stakingStore = useStakingStore();
@@ -270,8 +270,8 @@ const rows = computed<Row[]>(() => {
       consensusIndex: i,
       rank: 0,
       address: addr,
-      moniker: val?.description?.moniker || gnoMoniker(addr) || addr.slice(0, 14),
-      identity: val?.description?.identity || '',
+      moniker: gnoMoniker(addr, val?.description?.moniker) || addr.slice(0, 14),
+      identity: val?.description?.identity || lookupGnoValoper(addr)?.identity || '',
       votingPower: Number(p.voting_power || 0),
       vpPercent: totalVP > 0 ? (Number(p.voting_power || 0) / totalVP) * 100 : 0,
       prevote,

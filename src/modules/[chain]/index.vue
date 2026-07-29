@@ -66,6 +66,10 @@ function shortName(name: string, id: string) {
   return name.toLowerCase().startsWith('ibc/') || name.toLowerCase().startsWith('0x') ? id : name;
 }
 
+const heroAbout = computed(
+  () => store.aboutHtml || coinInfo.value?.description?.en || ''
+);
+
 const comLinks = computed(() => {
   return [
     {
@@ -82,6 +86,11 @@ const comLinks = computed(() => {
       name: 'Telegram',
       icon: 'mdi-telegram',
       href: store.telegram,
+    },
+    {
+      name: 'Discord',
+      icon: 'mdi-discord',
+      href: store.discord,
     },
     {
       name: 'Github',
@@ -257,7 +266,10 @@ const tokenomics = computed(() => {
   const apr = !gno && bondedRatio > 0 ? ((1 - communityTaxN) * inflationN) / bondedRatio : 0;
   const bondedPct = Math.max(0, Math.min(100, bondedRatio * 100));
   const activeVals = stakingStore.validators?.length || 0;
-  const maxVals = Number(stakingStore.params?.max_validators || 0) || 100;
+  // Gno/TM2: genesis has NO max_validators — the hard-coded 100 was a dummy
+  // leftover. Never invent a cap; show active count only.
+  const rawMax = Number(stakingStore.params?.max_validators || 0);
+  const maxVals = gno ? 0 : rawMax || 0;
 
   const formatPower = (n: number) => {
     if (!n) return '—';
@@ -289,10 +301,11 @@ const tokenomics = computed(() => {
           (store.communityPool || []).filter((x: any) => x.denom === denom)
         ) || '—',
     unbonding: gno ? 'n/a' : formatSeconds(stakingStore.params?.unbonding_time) || '—',
-    maxValidators: stakingStore.params?.max_validators || '—',
+    maxValidators: gno ? null : stakingStore.params?.max_validators || '—',
     // Gno-only extras for the network card
     activeValidators: activeVals,
-    validatorSlots: `${activeVals} / ${maxVals}`,
+    // No invented "/ 100" on Gno — just the live active count
+    validatorSlots: gno ? String(activeVals || '—') : `${activeVals} / ${maxVals || '—'}`,
     engine: gno ? 'Tendermint2' : 'Cosmos SDK',
     chainId: blockchain.current?.chainId || '—',
   };
@@ -355,16 +368,16 @@ const amount = computed({
                   <span>{{ item?.name }}</span>
                 </a>
               </div>
-              <!-- chain description (moved from Market card) -->
+              <!-- chain description: CoinGecko or manual chain config (testnets) -->
               <div
-                v-if="coinInfo.description?.en"
+                v-if="heroAbout"
                 class="sz-hero-about mt-4 max-w-3xl text-sm leading-relaxed text-secondary"
                 :class="{ 'sz-hero-about--clamped': !aboutExpanded }"
               >
-                <MdEditor :model-value="coinInfo.description?.en" previewOnly no-mermaid no-katex no-iconfont />
+                <MdEditor :model-value="heroAbout" previewOnly no-mermaid no-katex no-iconfont />
               </div>
               <button
-                v-if="coinInfo.description?.en"
+                v-if="heroAbout"
                 class="sz-hero-about-toggle mt-1.5 text-xs font-semibold text-primary"
                 type="button"
                 @click="aboutExpanded = !aboutExpanded"
@@ -449,27 +462,15 @@ const amount = computed({
         </div>
       </div>
 
-      <!-- Gno: validator-slot fill bar (active / max) -->
+      <!-- Gno: live active-set summary (no invented max_validators) -->
       <div v-else class="px-4 pt-4">
         <div class="mb-1.5 flex items-center justify-between gap-2 text-xs">
-          <span class="text-secondary font-semibold uppercase tracking-wider">Validator set</span>
-          <span class="font-mono font-semibold text-main">{{ tokenomics.validatorSlots }}</span>
-        </div>
-        <div class="sz-tok-track" aria-hidden="true">
-          <div
-            class="sz-tok-fill"
-            :style="{
-              width:
-                Math.min(
-                  100,
-                  (Number(tokenomics.activeValidators) / Math.max(1, Number(tokenomics.maxValidators) || 100)) * 100
-                ) + '%',
-            }"
-          ></div>
+          <span class="text-secondary font-semibold uppercase tracking-wider">Active set</span>
+          <span class="font-mono font-semibold text-main">{{ tokenomics.validatorSlots }} validators</span>
         </div>
         <div class="mt-1.5 flex justify-between text-[11px] text-secondary font-mono">
           <span>Total power {{ tokenomics.bonded }}</span>
-          <span>Max {{ tokenomics.maxValidators }}</span>
+          <span>{{ tokenomics.engine }}</span>
         </div>
       </div>
 
@@ -510,7 +511,7 @@ const amount = computed({
         </div>
       </div>
 
-      <!-- Gno network grid — only real TM2 facts, no dead Cosmos metrics -->
+      <!-- Gno network grid — only real TM2 facts (no invented max_validators) -->
       <div v-else class="grid grid-cols-2 gap-3 p-4 sm:grid-cols-3 lg:grid-cols-4">
         <div class="sz-wallet-cell">
           <div class="sz-stat-label">Total voting power</div>
@@ -519,10 +520,6 @@ const amount = computed({
         <div class="sz-wallet-cell">
           <div class="sz-stat-label">Active validators</div>
           <div class="mt-1 truncate font-mono text-lg font-semibold text-main">{{ tokenomics.validatorSlots }}</div>
-        </div>
-        <div class="sz-wallet-cell">
-          <div class="sz-stat-label">Max validators</div>
-          <div class="mt-1 truncate font-mono text-lg font-semibold text-main">{{ tokenomics.maxValidators }}</div>
         </div>
         <div class="sz-wallet-cell">
           <div class="sz-stat-label">Engine</div>

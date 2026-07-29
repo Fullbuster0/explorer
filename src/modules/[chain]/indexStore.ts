@@ -119,23 +119,47 @@ export const useIndexModule = defineStore('module-index', {
       return useBankStore();
     },
     twitter(): string {
-      if (!this.coinInfo?.links?.twitter_screen_name) return '';
-      return `https://twitter.com/${this.coinInfo?.links.twitter_screen_name}`;
+      if (this.coinInfo?.links?.twitter_screen_name) {
+        return `https://twitter.com/${this.coinInfo.links.twitter_screen_name}`;
+      }
+      // Manual chain config (testnets without CoinGecko)
+      // @ts-ignore
+      const manual = this.blockchain?.twitter || '';
+      return manual;
     },
     homepage(): string {
-      if (!this.coinInfo?.links?.homepage) return '';
-      const [page1, page2, page3] = this.coinInfo?.links?.homepage;
-      return page1 || page2 || page3;
+      if (this.coinInfo?.links?.homepage?.length) {
+        const [page1, page2, page3] = this.coinInfo.links.homepage;
+        return page1 || page2 || page3 || '';
+      }
+      // @ts-ignore
+      return this.blockchain?.website || '';
     },
     github(): string {
-      if (!this.coinInfo?.links?.repos_url) return '';
-      const [page1, page2, page3] = this.coinInfo?.links?.repos_url?.github;
-      return page1 || page2 || page3;
+      if (this.coinInfo?.links?.repos_url?.github?.length) {
+        const [page1, page2, page3] = this.coinInfo.links.repos_url.github;
+        if (page1 || page2 || page3) return page1 || page2 || page3;
+      }
+      // @ts-ignore
+      return this.blockchain?.github || '';
     },
     telegram(): string {
       const id = this.coinInfo?.links?.telegram_channel_identifier;
-      if (!id) return '';
-      return `https://t.me/${id}`;
+      if (id) return `https://t.me/${id}`;
+      // @ts-ignore
+      return this.blockchain?.telegram || '';
+    },
+    /** Discord from manual chain config (CoinGecko rarely has this). */
+    discord(): string {
+      // @ts-ignore
+      return this.blockchain?.discord || '';
+    },
+    /** Hero about text: CoinGecko description.en, else manual chain description. */
+    aboutHtml(): string {
+      const en = this.coinInfo?.description?.en || '';
+      if (en) return en;
+      // @ts-ignore
+      return this.blockchain?.description || '';
     },
 
     priceChange(): string {
@@ -243,6 +267,9 @@ export const useIndexModule = defineStore('module-index', {
     async loadDashboard() {
       this.$reset();
       this.initCoingecko();
+      // Seed hero from manual chain meta so testnets without CoinGecko
+      // still show description + socials (CoinGecko overwrites when present).
+      this.seedManualHero();
       // kick github early; coingecko may refine repo URL after coinInfo loads
       this.loadGithubActivity();
       useMintStore().fetchInflation();
@@ -265,6 +292,29 @@ export const useIndexModule = defineStore('module-index', {
     tickerColor(color: string) {
       return colorMap(color);
     },
+    seedManualHero() {
+      // @ts-ignore
+      const chain: any = this.blockchain || {};
+      const desc = chain.description || '';
+      if (desc && !this.coinInfo?.description?.en) {
+        this.coinInfo.description = { en: desc };
+      }
+      // Homepage / twitter / github getters already fall back to chain.* —
+      // only fill coinInfo slots when empty so CoinGecko can still win later.
+      if (chain.website && !(this.coinInfo.links.homepage || []).some(Boolean)) {
+        this.coinInfo.links.homepage = [chain.website];
+      }
+      if (chain.twitter && !this.coinInfo.links.twitter_screen_name) {
+        // Accept full URL or bare handle
+        const m = String(chain.twitter).match(/(?:twitter\.com|x\.com)\/@?([A-Za-z0-9_]+)/i);
+        if (m) this.coinInfo.links.twitter_screen_name = m[1];
+      }
+      if (chain.github && !(this.coinInfo.links.repos_url?.github || []).some(Boolean)) {
+        this.coinInfo.links.repos_url = this.coinInfo.links.repos_url || { github: [] };
+        this.coinInfo.links.repos_url.github = [chain.github];
+      }
+    },
+
     initCoingecko() {
       this.tickerIndex = 0;
       const [firstAsset] = this.blockchain?.assets || [];

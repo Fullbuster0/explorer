@@ -18,10 +18,152 @@ import {
   tm2Status,
   tm2Validators,
   tm2ValidatorToStaking,
+  tm2HashToHex,
 } from './tm2';
+import { fromBase64, toHex } from '@cosmjs/encoding';
 
 function emptyPage() {
   return { next_key: undefined as string | undefined, total: '0' };
+}
+
+/** TM2 abci_query ResponseBase.Data is base64 JSON (Value is often null). */
+async function tm2AbciJson(endpoint: string, path: string): Promise<any | null> {
+  try {
+    const data = await tm2Get(endpoint, `/abci_query?path=${encodeURIComponent(path)}`);
+    const resp = data?.result?.response || data?.response || data;
+    const rb = resp?.ResponseBase || resp?.response_base || {};
+    const b64 = rb.Data || rb.data || resp?.Value || resp?.value || null;
+    if (!b64) return null;
+    const text = new TextDecoder().decode(fromBase64(b64));
+    try {
+      return JSON.parse(text);
+    } catch {
+      return text;
+    }
+  } catch {
+    return null;
+  }
+}
+
+/** Parse Gno coins string "123ugnot,456foo" → Coin[]. */
+function parseGnoCoins(coins: string | null | undefined): { denom: string; amount: string }[] {
+  if (!coins || typeof coins !== 'string') return [];
+  const out: { denom: string; amount: string }[] = [];
+  for (const part of coins.split(',').map((s) => s.trim()).filter(Boolean)) {
+    const m = part.match(/^(-?\d+)([a-zA-Z][a-zA-Z0-9/:._-]*)$/);
+    if (m) out.push({ amount: m[1], denom: m[2] });
+  }
+  return out;
+}
+
+/**
+ * Normalize a user-supplied Gno tx hash into forms TM2 accepts.
+ * Accepts: base64 (with/without padding), 0x-hex, bare hex.
+ */
+function normalizeGnoTxHash(input: string): { hex: string; b64: string; raw: string } {
+  const s = String(input || '').trim();
+  // base64 (TM2 native) — 44 chars with padding for 32-byte hash
+  if (/^[A-Za-z0-9+/]{40,}={0,2}$/.test(s) && !/^[0-9a-fA-F]{64}$/.test(s)) {
+    try {
+      const bytes = fromBase64(s);
+      const hex = toHex(bytes).toLowerCase();
+      return { hex, b64: s, raw: s };
+    } catch {
+      /* fall through */
+    }
+  }
+  const hex = s.replace(/^0x/i, '').toLowerCase();
+  if (/^[0-9a-f]{64}$/.test(hex)) {
+    // build standard base64 from hex for alternate try
+    try {
+      const bytes = new Uint8Array(hex.match(/.{1,2}/g)!.map((b) => parseInt(b, 16)));
+      // browser/node btoa of binary
+      let bin = '';
+      bytes.forEach((b) => (bin += String.fromCharCode(b)));
+      const b64 =
+        typeof btoa !== 'undefined'
+          ? btoa(bin)
+          : Buffer.from(bytes).toString('base64');
+      return { hex, b64, raw: s };
+    } catch {
+      return { hex, b64: '', raw: s };
+    }
+  }
+  return { hex: s.replace(/^0x/i, ''), b64: s, raw: s };
+}
+
+/** Adapt TM2 /tx result → Cosmos {tx, tx_response} shape for detail page. */
+function adaptTm2Tx(result: any, preferHash?: string): { tx: any; tx_response: any } | null {
+  if (!result) return null;
+  // unwrap jsonrpc
+  const r = result.result || result;
+  if (!r || (!r.hash && !r.tx && !r.height)) return null;
+
+  const hashB64 = r.hash || '';
+  const hashHex = tm2HashToHex(hashB64) || (preferHash || '').replace(/^0x/i, '').toUpperCase();
+  const height = String(r.height ?? '');
+  const tr = r.tx_result || r.tx_response || {};
+  const rb = tr.ResponseBase || tr.response_base || {};
+  const err = rb.Error || rb.error;
+  const code = err ? 1 : 0;
+  const log = rb.Log || rb.log || '';
+  const gasWanted = String(tr.GasWanted ?? tr.gas_wanted ?? '0');
+  const gasUsed = String(tr.GasUsed ?? tr.gas_used ?? '0');
+
+  // Best-effort decode of amino/proto bytes for display
+  let messages: any[] = [];
+  let rawTx: any = { '@type': '/tm2.Tx', body: { messages: [] as any[] }, auth_info: { fee: { amount: [], gas_limit: gasWanted }, signer_infos: [] }, signatures: [] };
+  try {
+    if (r.tx) {
+      const bytes = fromBase64(r.tx);
+      const text = new TextDecoder('utf-8', { fatal: false } as any).decode(bytes);
+      // Pull ASCII type URLs + g1 addresses + amounts for a minimal message view
+      const typeMatch = text.match(/\/[a-zA-Z][a-zA-Z0-9_.]*\.[A-Za-z][A-Za-z0-9_]*/g) || [];
+      const addrs = text.match(/g1[a-z0-9]{38,60}/g) || [];
+      const amounts = text.match(/\d+ugnot/g) || [];
+      const typeUrl = typeMatch[0] || '/tm2.Unknown';
+      const msg: any = { '@type': typeUrl };
+      if (addrs[0]) msg.from_address = addrs[0];
+      if (addrs[1]) msg.to_address = addrs[1];
+      if (amounts[0]) {
+        const m = amounts[0].match(/^(\d+)(ugnot)$/);
+        if (m) msg.amount = [{ amount: m[1], denom: m[2] }];
+      }
+      // fee often second ugnot amount
+      if (amounts[1]) {
+        const m = amounts[1].match(/^(\d+)(ugnot)$/);
+        if (m) {
+          rawTx.auth_info.fee.amount = [{ amount: m[1], denom: m[2] }];
+        }
+      }
+      messages = [msg];
+      rawTx.body.messages = messages;
+      rawTx._raw_b64 = r.tx;
+    }
+  } catch {
+    /* keep empty messages */
+  }
+
+  const tx_response = {
+    height,
+    txhash: hashHex || hashB64,
+    codespace: '',
+    code,
+    data: rb.Data || '',
+    raw_log: log,
+    logs: [],
+    info: rb.Info || '',
+    gas_wanted: gasWanted,
+    gas_used: gasUsed,
+    tx: rawTx,
+    timestamp: '',
+    events: [],
+    // Gno extras for UI
+    _gno_hash_b64: hashB64,
+    _gno_index: r.index,
+  };
+
+  return { tx: rawTx, tx_response };
 }
 
 export class GnoTm2Client {
@@ -98,7 +240,9 @@ export class GnoTm2Client {
   }
   async getStakingParams() {
     const p = gnoStakingParams();
-    if (this._vals.length) p.params.max_validators = Math.max(p.params.max_validators, this._vals.length);
+    // Mirror live set size only — never invent a higher cap than reality.
+    // UI on Gno hides "max validators" entirely when this would mislead.
+    if (this._vals.length) p.params.max_validators = this._vals.length;
     return p;
   }
   async getStakingPool() {
@@ -140,8 +284,15 @@ export class GnoTm2Client {
   async getBankSupply() {
     return { supply: [], pagination: emptyPage() };
   }
-  async getBankBalances(_address: string) {
-    return { balances: [], pagination: emptyPage() };
+  async getBankBalances(address: string) {
+    const raw = await tm2AbciJson(this.endpoint, `auth/accounts/${address}`);
+    const coinsStr =
+      raw?.BaseAccount?.coins ??
+      raw?.base_account?.coins ??
+      raw?.coins ??
+      null;
+    const balances = parseGnoCoins(coinsStr);
+    return { balances, pagination: emptyPage() };
   }
   async getBankParams() {
     return { params: {} };
@@ -152,8 +303,23 @@ export class GnoTm2Client {
   async getAuthAccounts() {
     return { accounts: [], pagination: emptyPage() };
   }
-  async getAuthAccount(_address: string) {
-    return { account: null };
+  async getAuthAccount(address: string) {
+    const raw = await tm2AbciJson(this.endpoint, `auth/accounts/${address}`);
+    if (!raw) return { account: null };
+    const ba = raw.BaseAccount || raw.base_account || raw;
+    const coins = parseGnoCoins(ba.coins);
+    // Shape close enough for account page (Cosmos BaseAccount fields)
+    const account = {
+      '@type': '/gno.BaseAccount',
+      address: ba.address || address,
+      pub_key: ba.public_key || ba.pub_key || null,
+      account_number: String(ba.account_number ?? '0'),
+      sequence: String(ba.sequence ?? '0'),
+      // extras used by our UI / debug
+      coins,
+      raw: ba,
+    };
+    return { account };
   }
   async getMintParam() {
     return { params: {} };
@@ -236,14 +402,28 @@ export class GnoTm2Client {
     return { txs: [], tx_responses: [], pagination: emptyPage() };
   }
   async getTx(_hash: string) {
-    // TM2: /tx?hash=0x...  (may 400 if tx_index=off — most public Gno RPCs have tx_index off)
-    try {
-      const raw = String(_hash || '').replace(/^0x/i, '');
-      const data = await tm2Get(this.endpoint, `/tx?hash=0x${raw}`);
-      return data?.result || data;
-    } catch {
-      return { tx: null, tx_response: null };
+    // TM2 /tx accepts base64 hash OR 0x+hex. Bare hex often fails.
+    // Status may report tx_index=off but /tx still works on Topaz RPCs.
+    const n = normalizeGnoTxHash(_hash);
+    const attempts: string[] = [];
+    if (n.b64) attempts.push(`/tx?hash=${encodeURIComponent(n.b64)}`);
+    if (n.hex && n.hex.length === 64) {
+      attempts.push(`/tx?hash=0x${n.hex}`);
+      attempts.push(`/tx?hash=${encodeURIComponent(n.b64 || n.hex)}`);
     }
+    if (n.raw && !attempts.length) attempts.push(`/tx?hash=${encodeURIComponent(n.raw)}`);
+
+    for (const path of attempts) {
+      try {
+        const data = await tm2Get(this.endpoint, path);
+        if (data?.error) continue;
+        const adapted = adaptTm2Tx(data, n.hex);
+        if (adapted?.tx_response?.txhash || adapted?.tx_response?.height) return adapted;
+      } catch {
+        /* try next form */
+      }
+    }
+    return { tx: null, tx_response: null };
   }
   async getTxsBySender(_sender: string, _page?: PageRequest, _limit?: number) {
     return { txs: [], tx_responses: [], pagination: emptyPage() };

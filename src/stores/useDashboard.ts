@@ -79,6 +79,12 @@ export function convertFromLocal(lc: LocalChainConfig): ChainConfig {
   conf.themeColor = lc.theme_color;
   conf.faucet = lc.faucet;
   if (lc.github) conf.github = lc.github;
+  // Manual hero/social meta (CoinGecko substitute for unlisted / testnet chains)
+  if (lc.description) conf.description = lc.description;
+  if (lc.website) conf.website = lc.website;
+  if (lc.twitter) conf.twitter = lc.twitter;
+  if (lc.discord) conf.discord = lc.discord;
+  if (lc.telegram) conf.telegram = lc.telegram;
   return conf;
 }
 

@@ -334,10 +334,37 @@ export const useBlockchain = defineStore('blockchain', {
      * 1) try active endpoint
      * 2) on miss/404/pruned error, walk REST list archive-first
      * Never permanently switches the live endpoint.
+     *
+     * Gno/TM2: use the live GnoTm2Client directly (RPC /tx) — do NOT walk
+     * Cosmos REST endpoints (they don't exist on TM2).
      */
     async fetchTx(hash: string): Promise<{ tx: any; tx_response: any } | null> {
       const clean = (hash || '').trim();
       if (!clean) return null;
+
+      // Gno path — single RPC client, multi-format hash inside getTx
+      if (this.current && isGnoChain(this.current as any)) {
+        try {
+          if (this.rpc && typeof (this.rpc as any).getTx === 'function') {
+            const res = await (this.rpc as any).getTx(clean);
+            if (res && (res as any).tx_response && ((res as any).tx_response.txhash || (res as any).tx_response.height)) {
+              return res as any;
+            }
+          }
+          // Rebuild client from active endpoint if store rpc not ready
+          const active = this.endpoint?.address;
+          if (active) {
+            const client = GnoTm2Client.new(active);
+            const res = await client.getTx(clean);
+            if (res && (res as any).tx_response && ((res as any).tx_response.txhash || (res as any).tx_response.height)) {
+              return res as any;
+            }
+          }
+        } catch (e: any) {
+          console.info(`[explorer] gno tx miss: ${e?.message || e}`);
+        }
+        return null;
+      }
 
       const tryOne = async (base: string) => {
         const client = CosmosRestClient.newStrategy(base, this.current);

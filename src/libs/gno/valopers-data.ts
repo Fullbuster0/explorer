@@ -1,7 +1,7 @@
 /** Auto-generated Gnoland valoper moniker registry.
  * Source: https://topaz.testnets.gno.land/r/gnops/valopers
  * Identity: AtomOne mainnet moniker match → Keybase (for logos)
- * Generated: 2026-07-29T17:28:13.414Z
+ * Generated: 2026-07-29T21:02:12.042Z
  * Do not hand-edit — run: node scripts/refresh-gno-valopers.mjs
  */
 export interface GnoValoperRow {
@@ -504,15 +504,15 @@ const registry: GnoValoperRow[] = [
     "moniker": "GATA HUB",
     "signingAddress": "g15e6xjjhnqyp3r0vdsg84kv5sewpp9alp5c9er2",
     "operatorAddress": "g12e22uqd4jjvvsk6g95re3a44sxuephd5kkrt7m",
-    "website": "",
+    "website": "https://gatahub.zone",
     "identity": "44937E3DA9AA699A",
     "serverType": "data-center",
-    "description": "Networks validating: AtomOne, CosmosHub, Akash, Osmosis, Passage, Nomic, Juno.",
+    "description": "We have built our DAO and infrastructure across multiple Cosmos SDK chains and see Gno.land as the natural next step. Its transparent, community-driven on-chain design aligns directly with what GATA already stands for.",
     "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqe4n342l8ghgd8g7xld0mfcy4fqy9kt25yyyg0vkgz9e63fv35ca39xypc",
-    "twitter": "",
+    "twitter": "https://x.com/GataHubZone",
     "github": "",
     "telegram": "",
-    "discord": "",
+    "discord": "https://discord.com/invite/4MCrtaCetp",
     "email": "support@gatahub.zone",
     "networks": []
   },
@@ -943,7 +943,7 @@ const registry: GnoValoperRow[] = [
     "website": "https://nodeist.net",
     "identity": "A2E180C6914F7F87",
     "serverType": "data-center",
-    "description": "Nodeist is the trusted staking service provider for blockchain projects. 100% refund for downtime slash. Contact us at  /cdn-cgi/l/email-protection#ec8489808083ac82838889859f98c2828998  [email protected]\n\nWhy gno.land: We've been following Gno.land's development with great enthusiasm since its early days. The platform's unique approach to smart contracts through the Gno language presents one of the most innovative solutions in the blockchain space today. Its modular, community-driven architecture aligns perfectly with our vision for decentralized infrastructure.\n\nContributions: Early Network Participation · Educational Resources · Community Support · Planned Infrastructure: Committed to launching public RPC endpoints and maintaining daily snapshots to enhance network accessibility",
+    "description": "Nodeist is the trusted staking service provider for blockchain projects. 100% refund for downtime slash. Contact us at  /cdn-cgi/l/email-protection#29414c4545466947464d4c405a5d07474c5d  [email protected]\n\nWhy gno.land: We've been following Gno.land's development with great enthusiasm since its early days. The platform's unique approach to smart contracts through the Gno language presents one of the most innovative solutions in the blockchain space today. Its modular, community-driven architecture aligns perfectly with our vision for decentralized infrastructure.\n\nContributions: Early Network Participation · Educational Resources · Community Support · Planned Infrastructure: Committed to launching public RPC endpoints and maintaining daily snapshots to enhance network accessibility",
     "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpxkc940hdu7nsch7gpsnhdn9pynm7pj458zmwruprak7ewhws84dvn5n75",
     "twitter": "https://x.com/Nodeistt",
     "github": "https://github.com/Nodeist",

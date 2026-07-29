@@ -214,7 +214,11 @@ const secondsSinceLastFetch = computed(() => {
                 </RouterLink>
               </td>
               <td>
-                <span class="sz-hash sz-hash-mono" :title="tx.txHash">{{ shortHash(tx.txHash) }}</span>
+                <RouterLink
+                  class="sz-hash sz-hash-mono text-primary hover:underline"
+                  :to="`/${props.chain}/tx/${encodeURIComponent(tx.txHash)}`"
+                  :title="tx.txHash"
+                >{{ shortHash(tx.txHash) }}</RouterLink>
               </td>
               <td>
                 <div class="sz-msg-pills">
@@ -226,7 +230,13 @@ const secondsSinceLastFetch = computed(() => {
                 </div>
               </td>
               <td>
-                <span class="font-mono text-xs" :title="tx.fromAddress">{{ shortAddr(tx.fromAddress) }}</span>
+                <RouterLink
+                  v-if="tx.fromAddress"
+                  class="font-mono text-xs text-primary hover:underline"
+                  :to="`/${props.chain}/account/${tx.fromAddress}`"
+                  :title="tx.fromAddress"
+                >{{ shortAddr(tx.fromAddress) }}</RouterLink>
+                <span v-else class="font-mono text-xs">—</span>
                 <div v-if="tx.fromName" class="text-[10px] text-slate-400">{{ tx.fromName }}</div>
               </td>
               <td>

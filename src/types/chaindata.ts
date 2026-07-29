@@ -71,6 +71,15 @@ export interface LocalChainConfig {
   registry_name?: string;
   /** Optional chain codebase repo (used by dashboard GitHub activity card). */
   github?: string;
+  /**
+   * Manual chain meta for dashboard hero when CoinGecko is unavailable
+   * (testnets / unlisted chains). Copied through convertFromLocal.
+   */
+  description?: string;
+  website?: string;
+  twitter?: string;
+  discord?: string;
+  telegram?: string;
   features?: string[];
   keplr_price_step?: {
     low: number;
@@ -148,6 +157,12 @@ export interface ChainConfig {
   logo: string;
   /** Optional GitHub repo URL for dashboard activity card. */
   github?: string;
+  /** Manual hero meta when CoinGecko is empty (testnets). */
+  description?: string;
+  website?: string;
+  twitter?: string;
+  discord?: string;
+  telegram?: string;
   versions: {
     application?: string;
     cosmosSdk?: string;

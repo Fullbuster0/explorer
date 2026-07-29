@@ -15,8 +15,12 @@
     "parameters"
   ],
   "registry_name": "gnoland",
-  "coingecko": "",
+  "description": "Gno.land is a next-generation smart contract platform using Gno, an interpreted version of the general-purpose Go programming language. On Gno.land, smart contracts can be uploaded on-chain only by publishing their full source code, making it trivial to verify the contract or fork it into an improved version. With a system to publish reusable code libraries on-chain, Gno.land serves as the \u201cGitHub\u201d of the ecosystem, with realms built using fully transparent, auditable code that anyone can inspect and reuse.",
+  "website": "https://gno.land",
+  "twitter": "https://x.com/_gnoland",
+  "discord": "https://discord.gg/S8nKUqwkPn",
   "github": "https://github.com/gnolang/gno",
+  "coingecko": "",
   "api": [
     {
       "address": "https://gnoland-testnet-rpc.shazoes.xyz",
