@@ -537,16 +537,6 @@ const amount = computed({
           <div class="mt-1 truncate font-mono text-lg font-semibold text-main">VP</div>
           <div class="mt-0.5 text-[11px] text-secondary">unitless TM2 power</div>
         </div>
-        <div class="sz-wallet-cell">
-          <div class="sz-stat-label">Wallet</div>
-          <div class="mt-1 truncate font-mono text-lg font-semibold text-main">Adena</div>
-          <div class="mt-0.5 text-[11px] text-secondary">connect later</div>
-        </div>
-        <div class="sz-wallet-cell">
-          <div class="sz-stat-label">LCD / bank</div>
-          <div class="mt-1 truncate font-mono text-lg font-semibold text-main">n/a</div>
-          <div class="mt-0.5 text-[11px] text-secondary">RPC-only chain</div>
-        </div>
       </div>
     </section>
 

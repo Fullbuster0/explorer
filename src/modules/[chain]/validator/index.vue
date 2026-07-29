@@ -241,13 +241,6 @@ const gnoCounts = computed(() => {
   return { ACTIVE, INACTIVE, PENDING };
 });
 
-/** Sum of voting power across ACTIVE set (from indexer, not RPC). */
-const gnoTotalVp = computed(() =>
-  gnoValidators.value
-    .filter((g) => g.status === 'ACTIVE')
-    .reduce((s, g) => s + Number(g.votingPower || 0), 0),
-);
-
 onMounted(() => {
   // Soft-fail: unbonding/inactive lists + slashing params are nice-to-have.
   // Some LCDs 500 on historical validatorsets / custom modules — must not
@@ -547,7 +540,7 @@ loadAvatars();
         </span>
       </div>
       <div class="mt-2 text-[11px] text-secondary/80">
-        Auto-refreshes every 60s from the onbloc indexer · toast on new register / activate / inactivate.
+        Auto-refreshes every 60s from the indexer · toast on new register / activate / inactivate.
       </div>
     </div>
 
@@ -568,24 +561,6 @@ loadAvatars();
       <div class="sz-stat" style="--stat-hue: var(--sz-warn)">
         <div class="sz-stat-head"><i class="sz-stat-tick"></i><span class="sz-stat-label">{{ $t('staking.downtime_slashing') }}</span></div>
         <div class="sz-stat-value">{{ format.percent(slashing.slash_fraction_downtime) }}</div>
-      </div>
-    </div>
-    <div v-else class="grid grid-cols-2 gap-3 xl:!grid-cols-4">
-      <div class="sz-stat" style="--stat-hue: var(--sz-success)">
-        <div class="sz-stat-head"><i class="sz-stat-tick"></i><span class="sz-stat-label">Active</span></div>
-        <div class="sz-stat-value">{{ gnoCounts.ACTIVE || list.length }}</div>
-      </div>
-      <div class="sz-stat" style="--stat-hue: var(--sz-warn)">
-        <div class="sz-stat-head"><i class="sz-stat-tick"></i><span class="sz-stat-label">Pending</span></div>
-        <div class="sz-stat-value">{{ gnoCounts.PENDING || 0 }}</div>
-      </div>
-      <div class="sz-stat" style="--stat-hue: var(--sz-danger)">
-        <div class="sz-stat-head"><i class="sz-stat-tick"></i><span class="sz-stat-label">Inactive</span></div>
-        <div class="sz-stat-value">{{ gnoCounts.INACTIVE || 0 }}</div>
-      </div>
-      <div class="sz-stat" style="--stat-hue: var(--sz-accent)">
-        <div class="sz-stat-head"><i class="sz-stat-tick"></i><span class="sz-stat-label">Total VP</span></div>
-        <div class="sz-stat-value">{{ Number(gnoTotalVp || staking.totalPower || 0).toLocaleString() }}</div>
       </div>
     </div>
 

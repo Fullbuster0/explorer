@@ -159,7 +159,7 @@ const secondsSinceLastFetch = computed(() => {
         <div class="sz-page-sub flex items-center gap-2">
           <span class="sz-live-dot" :class="{ 'sz-live-dot--errored': errored, 'sz-live-dot--loading': loading }"></span>
           <span v-if="hasIndexer">
-            {{ txs.length }} txs · via onbloc indexer
+            {{ txs.length }} txs · via indexer
             <span v-if="secondsSinceLastFetch !== null" class="opacity-60">· updated {{ secondsSinceLastFetch }}s ago</span>
           </span>
           <span v-else class="text-amber-500">No indexer configured for this chain</span>
@@ -186,7 +186,7 @@ const secondsSinceLastFetch = computed(() => {
         <div class="sz-empty-title">Indexer not configured</div>
         <div class="sz-empty-sub">
           Gno public RPC has <code>tx_index=off</code>. Set <code>indexer_api</code> in chain config
-          (e.g. <code>https://topaz.api.onbloc.xyz/v1</code>).
+          to a Gno indexer REST base URL.
         </div>
       </div>
     </div>
