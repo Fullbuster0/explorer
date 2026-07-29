@@ -2,7 +2,7 @@
 import { useBlockchain, useFormatter, useStakingStore } from '@/stores';
 import DonutChart from '@/components/charts/DonutChart.vue';
 import { computed, ref } from '@vue/reactivity';
-import { onMounted } from 'vue';
+import { onMounted, watch } from 'vue';
 
 import { PageRequest } from '@/types';
 import type { AuthAccount, Delegation, TxResponse, DelegatorRewards, UnbondingResponses } from '@/types';
@@ -73,6 +73,17 @@ onMounted(() => {
   loadAccount(props.address);
   loadTxHistory();
 });
+
+// SPA navigation: reload when address changes (e.g., search → account A → account B)
+watch(
+  () => props.address,
+  (newAddr: string, oldAddr: string) => {
+    if (newAddr && newAddr !== oldAddr) {
+      loadAccount(newAddr);
+      loadTxHistory();
+    }
+  }
+);
 
 // Display-friendly bond-denom symbol (e.g. 'ATONE' instead of 'uatone').
 // Single source of truth — every place in the template that prints the

@@ -32,7 +32,8 @@ const blockchain = useBlockchain();
 const format = useFormatter();
 const dialog = useTxDialog();
 
-const validator: string = props.validator;
+// Reactive validator address — updates on SPA navigation
+const validator = computed(() => props.validator || '');
 
 const v = ref({} as Validator);
 const cache = JSON.parse(localStorage.getItem('avatars') || '{}');
@@ -147,21 +148,21 @@ const pePageNum = ref(1);
 const PE_PAGE_SIZE = 20;
 const POWER_MAX = 500;
 
-addresses.value.account = operatorAddressToAccount(validator);
+addresses.value.account = operatorAddressToAccount(validator.value);
 
 // self bond — refetched via the rpc watch below. Setup runs before the chain's
 // REST client exists on slow-connecting chains (e.g. CosmosHub); rpc?. would
 // otherwise resolve undefined silently and leave this stuck at "—".
 function loadSelfBond(force = false) {
-  if (!blockchain.rpc || !validator) return;
+  if (!blockchain.rpc || !validator.value) return;
   // Keep account derivation in sync (valoper → account) every call.
   if (!addresses.value.account) {
-    addresses.value.account = operatorAddressToAccount(validator);
+    addresses.value.account = operatorAddressToAccount(validator.value);
   }
   if (!addresses.value.account) return;
   if (!force && selfBonded.value.balance?.amount) return; // already loaded
   staking
-    .fetchValidatorDelegation(validator, addresses.value.account)
+    .fetchValidatorDelegation(validator.value, addresses.value.account)
     .then((x) => {
       if (x?.delegation_response) selfBonded.value = x.delegation_response;
     })
@@ -170,7 +171,7 @@ function loadSelfBond(force = false) {
       // scanning the first page of validator delegations for this account.
       console.warn('[val] self-bond direct path failed:', e?.message || e);
       return blockchain.rpc
-        .getStakingValidatorsDelegations(validator, (() => {
+        .getStakingValidatorsDelegations(validator.value, (() => {
           const pr = new PageRequest();
           pr.limit = 100;
           pr.count_total = true;
@@ -247,7 +248,7 @@ const bondDenomDisplay = computed(() => {
 
 const rank = computed(() => {
   const list = staking.validators || [];
-  const idx = list.findIndex((x) => x.operator_address === validator);
+  const idx = list.findIndex((x) => x.operator_address === validator.value);
   if (idx >= 0) return idx + 1;
   // inactive / not in active set
   return null;
@@ -301,7 +302,7 @@ async function fetchDelPage(pr: PageRequest, page: number, token: number) {
     if (token !== delLoadToken) return null; // aborted
     try {
       pr.setPage(page);
-      return await blockchain.rpc.getStakingValidatorsDelegations(validator, pr);
+      return await blockchain.rpc.getStakingValidatorsDelegations(validator.value, pr);
     } catch {
       if (attempt < 2) await new Promise((r) => setTimeout(r, 800));
     }
@@ -310,7 +311,7 @@ async function fetchDelPage(pr: PageRequest, page: number, token: number) {
 }
 
 async function loadAllDelegations() {
-  if (!blockchain.rpc || !validator) return;
+  if (!blockchain.rpc || !validator.value) return;
   // already loading or already have data — skip
   if (delegationsLoading.value) return;
   const token = ++delLoadToken; // invalidate any previous loop
@@ -391,9 +392,9 @@ function loadPowerEvents(_p: number, type: EventType) {
   }
 
   const tmpl = eventTypeQuery[type][0];
-  const q = tmpl.replace('{validator}', validator);
+  const q = tmpl.replace('{validator}', validator.value);
   blockchain
-    .fetchPowerEventsTxs(`?${q}`, { validator }, powerPage, ACTIVITY_LIMIT)
+    .fetchPowerEventsTxs(`?${q}`, { validator: validator.value }, powerPage, ACTIVITY_LIMIT)
     .then((res: any) => {
       events.value = capPowerEvents(res);
     })
@@ -420,13 +421,13 @@ function capPowerEvents(res: any): PaginatedTxs {
 async function fetchRedelegateCombined() {
   pePageNum.value = 1;
   const [inQ, outQ] = eventTypeQuery[EventType.Redelegate].map((t) =>
-    `?${t.replace('{validator}', validator)}`
+    `?${t.replace('{validator}', validator.value)}`
   );
 
   // Run both archive-first walks in parallel; tag rows by which side matched.
   const [inRes, outRes] = await Promise.all([
-    blockchain.fetchPowerEventsTxs(inQ, { validator }, powerPage, ACTIVITY_LIMIT),
-    blockchain.fetchPowerEventsTxs(outQ, { validator }, powerPage, ACTIVITY_LIMIT),
+    blockchain.fetchPowerEventsTxs(inQ, { validator: validator.value }, powerPage, ACTIVITY_LIMIT),
+    blockchain.fetchPowerEventsTxs(outQ, { validator: validator.value }, powerPage, ACTIVITY_LIMIT),
   ]);
 
   const inRows = ((inRes as any)?.tx_responses || []).map((r: any) => ({
@@ -657,7 +658,7 @@ function mapEvents(evts: { type: string; attributes: { key: string; value: strin
     .filter(
       (x) =>
         x.attributes.findIndex(
-          (attr) => attr.value === validator || attr.value === toBase64(stringToUint8Array(validator))
+          (attr) => attr.value === validator.value || attr.value === toBase64(stringToUint8Array(validator.value))
         ) >= 0
     )
     .map((x) => {
@@ -720,10 +721,11 @@ const sortedDelegations = computed(() => {
  *  v / rewards / commission empty — which also zeroes the self-rate tile,
  *  since selfRate = calculatePercent(selfBond, v.tokens). */
 function loadValidatorCore() {
-  if (!blockchain.rpc || !validator) return;
+  const valAddr = validator.value;
+  if (!blockchain.rpc || !valAddr) return;
   if (!v.value.operator_address) {
     staking
-      .fetchValidator(validator)
+      .fetchValidator(valAddr)
       .then((res) => {
         v.value = res.validator;
         identity.value = res.validator?.description?.identity || '';
@@ -740,7 +742,7 @@ function loadValidatorCore() {
   }
   if (!rewards.value?.length) {
     blockchain.rpc
-      .getDistributionValidatorOutstandingRewards(validator)
+      .getDistributionValidatorOutstandingRewards(valAddr)
       .then((res) => {
         rewards.value = res.rewards?.rewards?.sort((a, b) => Number(b.amount) - Number(a.amount));
         res.rewards?.rewards?.forEach((x) => {
@@ -751,7 +753,7 @@ function loadValidatorCore() {
   }
   if (!commission.value?.length) {
     blockchain.rpc
-      .getDistributionValidatorCommission(validator)
+      .getDistributionValidatorCommission(valAddr)
       .then((res) => {
         commission.value = res.commission?.commission?.sort((a, b) => Number(b.amount) - Number(a.amount));
         res.commission?.commission?.forEach((x) => {
@@ -763,7 +765,7 @@ function loadValidatorCore() {
 }
 
 onMounted(() => {
-  if (!validator) return;
+  if (!validator.value) return;
 
   loadValidatorCore();
 
@@ -801,8 +803,25 @@ watch(
 
 watch(
   () => props.validator,
-  () => {
-    // hard reload path — route param change remounts typically; keep safe
+  (newVal: string, oldVal: string) => {
+    if (newVal && newVal !== oldVal) {
+      // SPA navigation: reload all data for the new validator
+      v.value = {} as Validator;
+      identity.value = '';
+      rewards.value = [];
+      commission.value = [];
+      delegations.value = {} as PaginatedDelegations;
+      allDelegations.value = [];
+      delegationsLoading.value = false;
+      events.value = { tx_responses: [], pagination: { total: '0', next_key: null } } as PaginatedTxs;
+      selfBonded.value = {} as Delegation;
+      loadValidatorCore();
+      if (blockchain.rpc) {
+        loadAllDelegations();
+        loadPowerEvents(1, EventType.Delegate);
+      }
+      loadVotes(1);
+    }
   }
 );
 </script>
@@ -829,7 +848,7 @@ watch(
             <div class="sz-section-kicker mb-1">Validator</div>
             <div class="flex flex-wrap items-center gap-2 mb-1">
               <h1 class="sz-page-title !mb-0 !text-[1.55rem] sm:!text-[1.75rem] truncate max-w-full">
-                {{ v.description?.moniker || shortAddr(validator) }}
+                {{ v.description?.moniker || shortAddr(validator.value) }}
               </h1>
               <span v-if="rank" class="sz-chip sz-chip--info font-mono">#{{ rank }}</span>
               <span class="sz-chip" :class="statusChip">{{ statusLabel }}</span>
@@ -883,7 +902,7 @@ watch(
               </span>
               <button type="button"
                 class="btn btn-primary btn-sm ml-auto sm:!ml-0"
-                @click="dialog.open('delegate', { validator_address: v.operator_address || validator })"
+                @click="dialog.open('delegate', { validator_address: v.operator_address || validator.value })"
               >
                 <Icon icon="mdi-handshake-outline" class="text-base mr-1" />
                 {{ $t('account.btn_delegate') }}
@@ -984,7 +1003,7 @@ watch(
             </div>
             <button type="button"
               class="btn btn-primary btn-sm w-full mt-auto"
-              @click="dialog.open('withdraw_commission', { validator_address: v.operator_address || validator })"
+              @click="dialog.open('withdraw_commission', { validator_address: v.operator_address || validator.value })"
             >{{ $t('account.btn_withdraw') }}</button>
           </div>
         </div>
@@ -1023,7 +1042,7 @@ watch(
                 @click="copyWebsite(v.operator_address || '')"
               />
             </div>
-            <div class="sz-hash text-[12px] break-all">{{ v.operator_address || validator }}</div>
+            <div class="sz-hash text-[12px] break-all">{{ v.operator_address || validator.value }}</div>
           </div>
           <div>
             <div class="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-secondary mb-0.5">

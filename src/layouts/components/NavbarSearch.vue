@@ -1,10 +1,26 @@
 <script lang="ts" setup>
+/**
+ * Global search (⌘K).
+ *
+ * Style rule: NO generic category icons (wallet/shield/cube). Rows are
+ * text + kind badge only. The only image allowed is a moniker Keybase
+ * avatar when already cached in localStorage (`avatars`) — same source
+ * as validators / blocks pages.
+ *
+ * Matching (A+B):
+ *  - exact: full bech32, 64-hex tx, block height
+ *  - prefix: partial bech32 (≥8), valoper/account, identity hex
+ *  - moniker: startsWith > includes > fuzzy (Levenshtein ≤2), rank boost
+ *  - gov: pure digits dual-hit Block + Proposal; `#1050` / `prop 1050`
+ *  - short hash: match Recent full hash; otherwise soft hint (no LCD)
+ */
 import { Icon } from '@iconify/vue';
+import { fromBech32, toBech32 } from '@cosmjs/encoding';
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useBlockchain, useStakingStore } from '@/stores';
 
-type SearchKind = 'account' | 'validator' | 'tx' | 'block' | 'unknown';
+type SearchKind = 'account' | 'validator' | 'tx' | 'block' | 'proposal' | 'unknown';
 
 interface SearchHit {
   kind: SearchKind;
@@ -12,7 +28,10 @@ interface SearchHit {
   path: string;
   title: string;
   subtitle: string;
-  icon: string;
+  /** Keybase moniker avatar only — never a generic glyph. */
+  logo?: string;
+  /** Sort key (higher first). */
+  score?: number;
 }
 
 interface RecentItem extends SearchHit {
@@ -21,6 +40,8 @@ interface RecentItem extends SearchHit {
 
 const RECENT_KEY = 'sz-search-recent';
 const RECENT_MAX = 12;
+const PREFIX_MIN = 8;
+const MONIKER_MIN = 2;
 
 const router = useRouter();
 const blockStore = useBlockchain();
@@ -38,6 +59,7 @@ const chainName = computed(() => blockStore.current?.chainName || '');
 const chainPretty = computed(
   () => blockStore.current?.prettyName || blockStore.current?.chainName || '—'
 );
+const bech32Prefix = computed(() => blockStore.current?.bech32Prefix || '');
 
 function loadRecent() {
   try {
@@ -62,118 +84,436 @@ function clearRecent() {
 }
 
 function normalizeQuery(raw: string) {
-  // collapse whitespace + common paste noise (0x prefix, surrounding quotes)
   return String(raw || '')
     .trim()
     .replace(/^['"]+|['"]+$/g, '')
-    .replace(/\s+/g, '');
+    .replace(/\s+/g, ' ');
 }
 
-function classify(raw: string): SearchHit | null {
-  let key = normalizeQuery(raw);
-  if (!key) return null;
+/** Collapse inner spaces for address/hash classifiers (keep one space for "prop 1050"). */
+function compactKey(raw: string) {
+  return normalizeQuery(raw).replace(/\s+/g, '');
+}
+
+function shortAddr(a: string): string {
+  if (!a) return '';
+  return a.length > 22 ? `${a.slice(0, 12)}…${a.slice(-6)}` : a;
+}
+
+/** Cached Keybase avatar only — empty string if unknown (no placeholder icon). */
+function avatarForIdentity(identity?: string): string {
+  const id = (identity || '').trim();
+  if (!id) return '';
+  try {
+    const cache = JSON.parse(localStorage.getItem('avatars') || '{}') as Record<string, string>;
+    const url = cache[id] || '';
+    if (!url) return '';
+    return url.startsWith('http')
+      ? url
+      : `https://s3.amazonaws.com/keybase_processed_uploads/${url}`;
+  } catch {
+    return '';
+  }
+}
+
+function valoperToAccount(valoper: string): string {
+  try {
+    const { prefix, data } = fromBech32(valoper);
+    if (!prefix.includes('valoper')) return '';
+    return toBech32(prefix.replace('valoper', ''), data);
+  } catch {
+    return '';
+  }
+}
+
+function findValidatorByOper(oper: string) {
+  const lower = oper.toLowerCase();
+  return staking.validators?.find((v) => v.operator_address?.toLowerCase() === lower);
+}
+
+function findValidatorByAccount(acc: string) {
+  const lower = acc.toLowerCase();
+  return staking.validators?.find((v) => {
+    const a = valoperToAccount(v.operator_address || '');
+    return a && a.toLowerCase() === lower;
+  });
+}
+
+/** Levenshtein with early exit when distance > max. */
+function levenshtein(a: string, b: string, max = 2): number {
+  if (Math.abs(a.length - b.length) > max) return max + 1;
+  const m = a.length;
+  const n = b.length;
+  let prev = new Array(n + 1);
+  let curr = new Array(n + 1);
+  for (let j = 0; j <= n; j++) prev[j] = j;
+  for (let i = 1; i <= m; i++) {
+    curr[0] = i;
+    let rowMin = curr[0];
+    for (let j = 1; j <= n; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      curr[j] = Math.min(prev[j] + 1, curr[j - 1] + 1, prev[j - 1] + cost);
+      if (curr[j] < rowMin) rowMin = curr[j];
+    }
+    if (rowMin > max) return max + 1;
+    [prev, curr] = [curr, prev];
+  }
+  return prev[n];
+}
+
+function monikerScore(moniker: string, q: string): number {
+  const m = (moniker || '').toLowerCase().trim();
+  if (!m || !q) return 0;
+  if (m === q) return 1000;
+  if (m.startsWith(q)) return 900 - Math.min(m.length, 80);
+  // word-boundary startsWith
+  const words = m.split(/[\s\-_/|]+/);
+  if (words.some((w) => w.startsWith(q))) return 750;
+  const idx = m.indexOf(q);
+  if (idx >= 0) return 500 - Math.min(idx, 40);
+  if (q.length >= 3 && m.length <= 48) {
+    // compare against moniker head of similar length
+    const window = m.slice(0, Math.min(m.length, q.length + 3));
+    const d = levenshtein(window, q, 2);
+    if (d <= 2) return 280 - d * 60;
+    const dFull = m.length <= 24 ? levenshtein(m, q, 2) : 99;
+    if (dFull <= 2) return 220 - dFull * 50;
+  }
+  return 0;
+}
+
+function identityScore(identity: string, q: string): number {
+  const id = (identity || '').toLowerCase();
+  const k = q.toLowerCase().replace(/^0x/, '');
+  if (!id || k.length < 4) return 0;
+  if (id === k) return 950;
+  if (id.startsWith(k) || k.startsWith(id)) return 700;
+  if (id.includes(k)) return 400;
+  return 0;
+}
+
+function websiteScore(website: string, q: string): number {
+  if (!website || q.length < 3) return 0;
+  try {
+    const host = website
+      .replace(/^https?:\/\//i, '')
+      .split('/')[0]
+      .toLowerCase();
+    if (host.includes(q)) return 350;
+  } catch {
+    /* ignore */
+  }
+  return 0;
+}
+
+function validatorHit(v: {
+  operator_address: string;
+  description?: { moniker?: string; identity?: string; website?: string };
+  delegator_shares?: string;
+}, score: number, reason: string): SearchHit {
+  const moniker = v.description?.moniker || shortAddr(v.operator_address);
+  const rankBoost = 0; // rank applied by caller via score already
+  return {
+    kind: 'validator',
+    query: v.operator_address,
+    path: `/${chainName.value}/validator/${v.operator_address}`,
+    title: moniker,
+    subtitle: reason,
+    logo: avatarForIdentity(v.description?.identity),
+    score: score + rankBoost,
+  };
+}
+
+function parseProposalQuery(raw: string): number | null {
+  const s = normalizeQuery(raw);
+  // #1050 | prop 1050 | proposal #1050 | prop1050
+  const m = s.match(/^(?:#|prop(?:osal)?\s*#?)(\d+)$/i);
+  if (m) return Number(m[1]);
+  return null;
+}
+
+function isFullBech32(key: string): boolean {
+  return /^[a-z0-9]{2,32}1[a-z0-9]{38,90}$/i.test(key);
+}
+
+function isPartialBech32(key: string): boolean {
+  // prefix-friendly: hrp1 + at least a few data chars, not necessarily complete
+  if (key.length < PREFIX_MIN) return false;
+  if (isFullBech32(key)) return false;
+  // More lenient: allow shorter data part (≥3 chars after "1")
+  return /^[a-z0-9]{2,32}1[a-z0-9]{3,}$/i.test(key);
+}
+
+function isHexHash(key: string): string | null {
+  const hex = key.replace(/^0x/i, '');
+  if (/^[A-Fa-f0-9]{64}$/.test(hex)) return hex.toUpperCase();
+  return null;
+}
+
+function isHexPrefix(key: string): string | null {
+  const hex = key.replace(/^0x/i, '');
+  if (/^[A-Fa-f0-9]{8,63}$/.test(hex)) return hex.toUpperCase();
+  return null;
+}
+
+function buildHits(raw: string): SearchHit[] {
+  const display = normalizeQuery(raw);
+  if (!display) return [];
   const current = chainName.value;
-  if (!current) return null;
+  if (!current) return [];
 
-  // height: pure digits
-  if (/^\d+$/.test(key)) {
-    return {
+  const keyCompact = compactKey(display);
+  const keyLower = keyCompact.toLowerCase();
+  const results: SearchHit[] = [];
+  const seen = new Set<string>();
+
+  const push = (hit: SearchHit) => {
+    const k = `${hit.kind}:${hit.path}`;
+    if (seen.has(k)) return;
+    seen.add(k);
+    results.push(hit);
+  };
+
+  // --- Proposal explicit: #1050 / prop 1050 ---
+  const propExplicit = parseProposalQuery(display);
+  if (propExplicit != null && Number.isFinite(propExplicit)) {
+    push({
+      kind: 'proposal',
+      query: String(propExplicit),
+      path: `/${current}/gov/${propExplicit}`,
+      title: `Proposal #${propExplicit.toLocaleString()}`,
+      subtitle: 'Governance · ' + chainPretty.value,
+      score: 980,
+    });
+    // If bare #N only proposal; if also pure digits handled below for dual
+    if (/^#/.test(display.trim()) || /^prop/i.test(display.trim())) {
+      return results.sort((a, b) => (b.score || 0) - (a.score || 0));
+    }
+  }
+
+  // --- Pure digits: Block + Proposal dual hit ---
+  if (/^\d+$/.test(keyCompact)) {
+    const n = Number(keyCompact);
+    push({
       kind: 'block',
-      query: key,
-      path: `/${current}/block/${key}`,
-      title: `Block #${Number(key).toLocaleString()}`,
+      query: keyCompact,
+      path: `/${current}/block/${keyCompact}`,
+      title: `Block #${n.toLocaleString()}`,
       subtitle: chainPretty.value,
-      icon: 'mdi:cube-outline',
-    };
+      score: 970,
+    });
+    push({
+      kind: 'proposal',
+      query: keyCompact,
+      path: `/${current}/gov/${keyCompact}`,
+      title: `Proposal #${n.toLocaleString()}`,
+      subtitle: 'Governance · ' + chainPretty.value,
+      score: 960,
+    });
+    return results.sort((a, b) => (b.score || 0) - (a.score || 0));
   }
 
-  // tx hash: 64 hex, optional 0x prefix (EVM-style paste)
-  const hexKey = key.replace(/^0x/i, '');
-  if (/^[A-Fa-f0-9]{64}$/.test(hexKey)) {
-    const hash = hexKey.toUpperCase();
-    return {
+  // --- Full tx hash ---
+  const fullHash = isHexHash(keyCompact);
+  if (fullHash) {
+    push({
       kind: 'tx',
-      query: hash,
-      path: `/${current}/tx/${hash}`,
-      title: `${hash.slice(0, 10)}…${hash.slice(-8)}`,
+      query: fullHash,
+      path: `/${current}/tx/${fullHash}`,
+      title: `${fullHash.slice(0, 10)}…${fullHash.slice(-8)}`,
       subtitle: 'Transaction · ' + chainPretty.value,
-      icon: 'mdi:swap-horizontal',
-    };
+      score: 990,
+    });
+    return results;
   }
 
-  // bech32-ish
-  if (/^[a-z0-9]{2,32}1[a-z0-9]{38,90}$/i.test(key)) {
-    const lower = key.toLowerCase();
+  // --- Short / truncated hash: Recent full-hash match only ---
+  const hashPrefix = isHexPrefix(keyCompact);
+  if (hashPrefix) {
+    const fromRecent = recent.value.filter(
+      (r) => r.kind === 'tx' && r.query?.toUpperCase().startsWith(hashPrefix)
+    );
+    fromRecent.forEach((r) =>
+      push({
+        ...r,
+        subtitle: 'From recent · ' + chainPretty.value,
+        score: 880,
+      })
+    );
+    if (!fromRecent.length) {
+      push({
+        kind: 'tx',
+        query: hashPrefix,
+        path: `/${current}/tx/${hashPrefix}`,
+        title: `${hashPrefix.slice(0, 12)}${hashPrefix.length > 12 ? '…' : ''}`,
+        subtitle: 'Tx hash prefix — paste full 64-char hash to open',
+        score: 200,
+      });
+    }
+    // continue — may also match identity hex on validators
+  }
+
+  // --- Full bech32 ---
+  if (isFullBech32(keyCompact)) {
+    const lower = keyLower;
     if (lower.includes('valoper')) {
-      // Try resolve moniker from loaded validators
-      const moniker =
-        staking.validators?.find((v) => v.operator_address?.toLowerCase() === lower)
-          ?.description?.moniker || 'Validator';
-      return {
+      const v = findValidatorByOper(lower);
+      const moniker = v?.description?.moniker || 'Validator';
+      push({
         kind: 'validator',
         query: lower,
         path: `/${current}/validator/${lower}`,
         title: moniker,
         subtitle: 'Validator · ' + chainPretty.value,
-        icon: 'mdi:shield-account-outline',
-      };
-    }
-    if (lower.includes('valcons')) {
-      return {
+        logo: avatarForIdentity(v?.description?.identity),
+        score: 990,
+      });
+    } else if (lower.includes('valcons')) {
+      push({
         kind: 'account',
         query: lower,
         path: `/${current}/account/${lower}`,
-        title: `${lower.slice(0, 12)}…${lower.slice(-6)}`,
+        title: shortAddr(lower),
         subtitle: 'Consensus address · ' + chainPretty.value,
-        icon: 'mdi:identifier',
-      };
+        score: 900,
+      });
+    } else {
+      // account — also surface self-validator if this is a val self-bond addr
+      const asVal = findValidatorByAccount(lower);
+      push({
+        kind: 'account',
+        query: lower,
+        path: `/${current}/account/${lower}`,
+        title: shortAddr(lower),
+        subtitle: 'Account · ' + chainPretty.value,
+        score: 980,
+      });
+      if (asVal) {
+        push(
+          validatorHit(
+            asVal,
+            970,
+            `Operator for this account · ${chainPretty.value}`
+          )
+        );
+      }
     }
-    return {
-      kind: 'account',
-      query: lower,
-      path: `/${current}/account/${lower}`,
-      title: `${lower.slice(0, 12)}…${lower.slice(-6)}`,
-      subtitle: 'Account · ' + chainPretty.value,
-      icon: 'mdi:wallet-outline',
-    };
+    return results.sort((a, b) => (b.score || 0) - (a.score || 0));
   }
 
-  return null;
+  // --- Partial bech32 prefix ---
+  if (isPartialBech32(keyCompact)) {
+    const lower = keyLower;
+    const pref = bech32Prefix.value?.toLowerCase() || '';
+
+    // Prefer chain-local HRP when known
+    const looksLocal =
+      !pref ||
+      lower.startsWith(pref + '1') ||
+      lower.startsWith(pref + 'valoper1') ||
+      lower.startsWith(pref + 'valcons1');
+
+    if (lower.includes('valoper')) {
+      // Match loaded validators by operator prefix
+      const vals = (staking.validators || []).filter((v) =>
+        (v.operator_address || '').toLowerCase().startsWith(lower)
+      );
+      vals.slice(0, 8).forEach((v, i) => {
+        push(
+          validatorHit(
+            v,
+            850 - i,
+            `Operator prefix · ${shortAddr(v.operator_address)} · ${chainPretty.value}`
+          )
+        );
+      });
+      // Still offer direct navigate with typed prefix (user may complete later)
+      if (!vals.length && looksLocal) {
+        push({
+          kind: 'validator',
+          query: lower,
+          path: `/${current}/validator/${lower}`,
+          title: shortAddr(lower),
+          subtitle: 'Validator prefix · open when complete · ' + chainPretty.value,
+          score: 400,
+        });
+      }
+    } else {
+      // Account prefix — match validators whose account form starts with query
+      const vals = (staking.validators || []).filter((v) => {
+        const acc = valoperToAccount(v.operator_address || '');
+        return acc && acc.toLowerCase().startsWith(lower);
+      });
+      if (looksLocal) {
+        push({
+          kind: 'account',
+          query: lower,
+          path: `/${current}/account/${lower}`,
+          title: shortAddr(lower),
+          subtitle: 'Account prefix · ' + chainPretty.value,
+          score: 820,
+        });
+      }
+      vals.slice(0, 6).forEach((v, i) => {
+        push(
+          validatorHit(
+            v,
+            800 - i,
+            `Account prefix match · ${shortAddr(valoperToAccount(v.operator_address))} · ${chainPretty.value}`
+          )
+        );
+      });
+    }
+  }
+
+  // --- Moniker / identity / website (text search) ---
+  const qText = normalizeQuery(display).toLowerCase();
+  // skip pure hex-prefix-only already handled unless also moniker-like
+  const skipMoniker = !!fullHash || /^\d+$/.test(keyCompact);
+  if (!skipMoniker && qText.length >= MONIKER_MIN && staking.validators?.length) {
+    const ranked: SearchHit[] = [];
+    staking.validators.forEach((v, rankIdx) => {
+      const moniker = v.description?.moniker || '';
+      const identity = v.description?.identity || '';
+      const website = v.description?.website || '';
+      let s = monikerScore(moniker, qText);
+      s = Math.max(s, identityScore(identity, keyLower));
+      s = Math.max(s, websiteScore(website, qText));
+      if (s <= 0) return;
+      // slight boost for higher-ranked (lower index) validators
+      s += Math.max(0, 40 - Math.min(rankIdx, 40));
+      ranked.push(
+        validatorHit(
+          v,
+          s,
+          [
+            rankIdx < 200 ? `#${rankIdx + 1}` : null,
+            identity && identityScore(identity, keyLower) > 0 ? 'identity' : null,
+            monikerScore(moniker, qText) > 0 ? 'moniker' : null,
+            chainPretty.value,
+          ]
+            .filter(Boolean)
+            .join(' · ')
+        )
+      );
+    });
+    ranked
+      .sort((a, b) => (b.score || 0) - (a.score || 0))
+      .slice(0, 10)
+      .forEach((h) => push(h));
+  }
+
+  return results.sort((a, b) => (b.score || 0) - (a.score || 0)).slice(0, 12);
 }
 
-const primaryHit = computed(() => classify(query.value));
-
-const monikerHits = computed<SearchHit[]>(() => {
-  const key = normalizeQuery(query.value);
-  if (!key || key.length < 2) return [];
-  // skip if already classified as address/tx/height
-  if (primaryHit.value) return [];
-  const current = chainName.value;
-  if (!current || !staking.validators?.length) return [];
-  const q = key.toLowerCase();
-  return staking.validators
-    .filter((v) => (v.description?.moniker || '').toLowerCase().includes(q))
-    .slice(0, 8)
-    .map((v) => ({
-      kind: 'validator' as const,
-      query: v.operator_address,
-      path: `/${current}/validator/${v.operator_address}`,
-      title: v.description?.moniker || v.operator_address,
-      subtitle: 'Validator · ' + chainPretty.value,
-      icon: 'mdi:shield-account-outline',
-    }));
-});
-
-const hits = computed<SearchHit[]>(() => {
-  if (primaryHit.value) return [primaryHit.value];
-  return monikerHits.value;
-});
+const hits = computed<SearchHit[]>(() => buildHits(query.value));
 
 const kindBadge: Record<SearchKind, { label: string; cls: string }> = {
   account: { label: 'Account', cls: 'sz-badge-account' },
   validator: { label: 'Validator', cls: 'sz-badge-validator' },
   tx: { label: 'Tx', cls: 'sz-badge-tx' },
   block: { label: 'Block', cls: 'sz-badge-block' },
+  proposal: { label: 'Gov', cls: 'sz-badge-gov' },
   unknown: { label: '?', cls: '' },
 };
 
@@ -189,6 +529,13 @@ function openModal() {
   loadRecent();
   activeTab.value = normalizeQuery(query.value) ? 'result' : 'recent';
   nextTick(() => inputRef.value?.focus());
+  
+  // Ensure validators are loaded for search (moniker/prefix matching)
+  if (chainName.value && (!staking.validators || staking.validators.length === 0)) {
+    staking.fetchValidators('BOND_STATUS_BONDED', 500).catch(() => {
+      // Silent fail — search still works for exact address/tx/hash
+    });
+  }
 }
 
 function closeModal() {
@@ -198,7 +545,14 @@ function closeModal() {
 
 function go(hit: SearchHit) {
   if (!hit?.path) return;
-  saveRecent({ ...hit, ts: Date.now() });
+  // Don't save soft "prefix tip" tx rows that aren't real full hashes
+  const saveable =
+    hit.kind !== 'tx' ||
+    (hit.query && hit.query.length === 64) ||
+    hit.subtitle?.includes('From recent');
+  if (saveable) {
+    saveRecent({ ...hit, ts: Date.now() });
+  }
   router.push({ path: hit.path });
   query.value = '';
   closeModal();
@@ -217,7 +571,8 @@ function confirm() {
   }
   const list = hits.value;
   if (!list.length) {
-    errorMessage.value = 'No results. Enter an address, tx hash, block height, or validator name.';
+    errorMessage.value =
+      'No results. Try address, tx hash, block height, #proposal, or validator name.';
     return;
   }
   const pick = list[Math.min(highlight.value, list.length - 1)];
@@ -264,7 +619,7 @@ onUnmounted(() => {
 
 <template>
   <div class="sz-navbar-search">
-    <!-- Desktop trigger -->
+    <!-- Desktop trigger — magnify is chrome chrome, not a result-row category icon -->
     <button
       type="button"
       class="sz-search-trigger hidden md:!inline-flex"
@@ -272,7 +627,7 @@ onUnmounted(() => {
       aria-label="Search by address, tx hash, or height"
     >
       <Icon icon="mdi:magnify" class="text-lg text-secondary shrink-0" />
-      <span class="sz-search-placeholder">Search by address, tx hash…</span>
+      <span class="sz-search-placeholder">Search address, hash, height, moniker…</span>
       <kbd class="sz-search-kbd">⌘K</kbd>
     </button>
 
@@ -304,7 +659,7 @@ onUnmounted(() => {
               ref="inputRef"
               v-model="query"
               class="sz-search-input"
-              placeholder="Search address, hash, height, or validator…"
+              placeholder="Address, hash, height, #proposal, or moniker…"
               autocomplete="off"
               spellcheck="false"
               @keydown.enter.prevent="confirm"
@@ -313,7 +668,7 @@ onUnmounted(() => {
           </div>
 
           <p class="sz-search-hint">
-            Enter address, hash or height to find accounts, validators, transactions, blocks.
+            Address / prefix · tx hash · height · #proposal · validator moniker or identity.
           </p>
 
           <!-- tabs -->
@@ -348,30 +703,37 @@ onUnmounted(() => {
             </button>
           </div>
 
-          <!-- results -->
+          <!-- results: text + badge only; avatar only if moniker Keybase cached -->
           <div v-if="activeTab === 'result'" class="sz-search-list">
             <div v-if="!chainName" class="sz-search-empty">
               Select a chain first to search.
             </div>
             <div v-else-if="!normalizeQuery(query)" class="sz-search-empty">
-              Start typing an address, tx hash, block height, or validator moniker.
+              Start typing an address, tx hash, block height, #proposal, or validator moniker.
             </div>
             <div v-else-if="!hits.length" class="sz-search-empty">
               No results found.
-              <div class="mt-1 text-[12px] opacity-70">Please enter a correct address, hash, height, or name.</div>
+              <div class="mt-1 text-[12px] opacity-70">
+                Try a longer address prefix, full hash, height, or moniker.
+              </div>
             </div>
             <button
               v-for="(hit, i) in hits"
-              :key="hit.kind + hit.path"
+              :key="hit.kind + hit.path + (hit.query || '')"
               type="button"
               class="sz-search-row"
               :class="{ 'is-active': highlight === i }"
               @mouseenter="highlight = i"
               @click="go(hit)"
             >
-              <span class="sz-search-row-icon">
-                <Icon :icon="hit.icon" />
-              </span>
+              <img
+                v-if="hit.logo"
+                :src="hit.logo"
+                alt=""
+                class="sz-search-row-avatar"
+                loading="lazy"
+                @error="($event.target as HTMLImageElement).style.display = 'none'"
+              />
               <span class="sz-search-row-body min-w-0">
                 <span class="sz-search-row-title truncate">{{ hit.title }}</span>
                 <span class="sz-search-row-sub truncate">{{ hit.subtitle }}</span>
@@ -394,9 +756,14 @@ onUnmounted(() => {
               @mouseenter="highlight = i"
               @click="go(hit)"
             >
-              <span class="sz-search-row-icon">
-                <Icon :icon="hit.icon || 'mdi:history'" />
-              </span>
+              <img
+                v-if="hit.logo"
+                :src="hit.logo"
+                alt=""
+                class="sz-search-row-avatar"
+                loading="lazy"
+                @error="($event.target as HTMLImageElement).style.display = 'none'"
+              />
               <span class="sz-search-row-body min-w-0">
                 <span class="sz-search-row-title truncate">{{ hit.title }}</span>
                 <span class="sz-search-row-sub truncate">{{ hit.subtitle }}</span>
@@ -458,7 +825,7 @@ onUnmounted(() => {
   background: color-mix(in srgb, hsl(var(--b2)) 70%, transparent);
 }
 
-/* ---- overlay / panel (nodes.guru-style command palette) ---- */
+/* ---- overlay / panel ---- */
 .sz-search-overlay {
   position: fixed;
   inset: 0;
@@ -608,22 +975,15 @@ onUnmounted(() => {
   background: color-mix(in srgb, hsl(var(--p)) 10%, transparent);
   border-color: color-mix(in srgb, hsl(var(--p)) 22%, transparent);
 }
-.sz-search-row-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.1rem;
-  height: 2.1rem;
-  border-radius: 0.65rem;
-  background: color-mix(in srgb, hsl(var(--b2)) 80%, transparent);
-  border: 1px solid var(--sz-border);
-  color: var(--text-secondary);
-  font-size: 1.1rem;
+/* Moniker Keybase avatar only — no generic icon box */
+.sz-search-row-avatar {
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 999px;
+  object-fit: cover;
   flex-shrink: 0;
-}
-.sz-search-row.is-active .sz-search-row-icon {
-  color: hsl(var(--p));
-  border-color: color-mix(in srgb, hsl(var(--p)) 35%, transparent);
+  border: 1px solid var(--sz-border);
+  background: color-mix(in srgb, hsl(var(--b2)) 60%, transparent);
 }
 .sz-search-row-body {
   display: flex;
@@ -672,6 +1032,11 @@ onUnmounted(() => {
   border-color: color-mix(in srgb, #fbbf24 35%, transparent);
   background: color-mix(in srgb, #fbbf24 12%, transparent);
 }
+.sz-badge-gov {
+  color: #f472b6;
+  border-color: color-mix(in srgb, #f472b6 35%, transparent);
+  background: color-mix(in srgb, #f472b6 12%, transparent);
+}
 .sz-search-error {
   padding: 0.4rem 1rem;
   font-size: 0.78rem;
@@ -687,7 +1052,6 @@ onUnmounted(() => {
   font-size: 0.7rem;
   color: var(--text-secondary);
 }
-/* Keyboard hints are meaningless on touch — hide on mobile */
 @media (max-width: 767px) {
   .sz-search-footer {
     display: none;

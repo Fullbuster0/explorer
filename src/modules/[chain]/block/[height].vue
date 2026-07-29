@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { onMounted, ref } from 'vue';
+import { onMounted, ref, watch } from 'vue';
 import { Icon } from '@iconify/vue';
 import TxsElement from '@/components/dynamic/TxsElement.vue';
 import DynamicComponent from '@/components/dynamic/DynamicComponent.vue';
@@ -69,6 +69,17 @@ async function loadBlock(h: number | string) {
 onMounted(() => {
   loadBlock(target.value);
 });
+
+// SPA navigation: reload when height changes (e.g., search → block A → block B)
+watch(
+  () => props.height,
+  (newHeight: string, oldHeight: string) => {
+    if (newHeight && newHeight !== oldHeight) {
+      target.value = Number(newHeight);
+      loadBlock(target.value);
+    }
+  }
+);
 
 onBeforeRouteUpdate(async (to, from, next) => {
   if (from.path !== to.path) {
