@@ -6,6 +6,7 @@ import { Icon } from '@iconify/vue';
 import type { Key, SlashingParam, Validator } from '@/types';
 import { formatSeconds } from '@/libs/utils';
 import { diff } from 'semver';
+import { getGnoIndexer, type GnoIndexerValidator } from '@/libs/gno/indexer';
 
 const staking = useStakingStore();
 const base = useBaseStore();
@@ -19,6 +20,8 @@ const isGno = computed(
   () => chainStore.current?.engine === 'gno' || chainStore.current?.engine === 'tm2'
 );
 
+const indexerUrl = computed(() => (chainStore.current as any)?.indexer_api || '');
+
 const cache = JSON.parse(localStorage.getItem('avatars') || '{}');
 const avatars = ref(cache || {});
 const latest = ref({} as Record<string, number>);
@@ -26,6 +29,59 @@ const yesterday = ref({} as Record<string, number>);
 const tab = ref('active');
 const unbondList = ref([] as Validator[]);
 const slashing = ref({} as SlashingParam);
+
+// ---- Gno: ACTIVE / INACTIVE / PENDING come from the onbloc indexer ----
+const gnoValidators = ref<GnoIndexerValidator[]>([]);
+const gnoLoading = ref(false);
+
+function shortAddr(a: string): string {
+  if (!a) return '—';
+  return a.length > 18 ? `${a.slice(0, 12)}…${a.slice(-6)}` : a;
+}
+
+/** Build a Validator-shaped object from an onbloc indexer entry. */
+function gnoToValidator(g: GnoIndexerValidator): Validator {
+  return {
+    operator_address: g.address,
+    consensus_pubkey: { '@type': '/cosmos.crypto.ed25519.PubKey', key: '' } as Key,
+    jailed: false,
+    status: g.status === 'ACTIVE' ? 'BOND_STATUS_BONDED' : 'BOND_STATUS_UNBONDED',
+    tokens: g.votingPower || '0',
+    delegator_shares: g.votingPower || '0',
+    description: {
+      moniker: g.monikerName || shortAddr(g.address),
+      identity: '',
+      website: '',
+      security_contact: '',
+      details: '',
+    },
+    unbonding_height: String(g.inActivatedHeight || '0'),
+    unbonding_time: '1970-01-01T00:00:00Z',
+    commission: {
+      commission_rates: { rate: '0', max_rate: '0', max_change_rate: '0' },
+      update_time: '1970-01-01T00:00:00Z',
+    },
+    min_self_delegation: '1',
+  } as Validator;
+}
+
+async function fetchGnoValidators() {
+  if (!isGno.value || !indexerUrl.value) return;
+  gnoLoading.value = true;
+  try {
+    gnoValidators.value = await getGnoIndexer(indexerUrl.value).getAllValidators();
+  } catch (e: any) {
+    console.warn('[validator] gno indexer fetch failed:', e?.message || e);
+  } finally {
+    gnoLoading.value = false;
+  }
+}
+
+const gnoCounts = computed(() => {
+  const c = { ACTIVE: 0, INACTIVE: 0, PENDING: 0 } as Record<string, number>;
+  for (const v of gnoValidators.value) c[v.status] = (c[v.status] || 0) + 1;
+  return c;
+});
 
 onMounted(() => {
   // Soft-fail: unbonding/inactive lists + slashing params are nice-to-have.
@@ -49,6 +105,8 @@ onMounted(() => {
       slashing.value = res.params;
     })
     .catch((e: any) => console.warn('[validator] slashing params:', e?.message || e));
+  // Gno: pull the full ACTIVE/INACTIVE/PENDING set from the indexer
+  fetchGnoValidators();
 });
 
 async function fetchChange(blockWindow: number = 14400) {
@@ -152,9 +210,23 @@ const calculateRank = function (position: number) {
 
 const list = computed(() => {
   if (tab.value === 'active') {
-    return staking.validators.map((x, i) => ({ v: x, rank: calculateRank(i), logo: logo(x.description.identity) }));
+    // Gno: prefer the indexer ACTIVE set (has shareRate + status); fall back to RPC set.
+    if (isGno.value && gnoValidators.value.length) {
+      return gnoValidators.value
+        .filter((g) => g.status === 'ACTIVE')
+        .sort((a, b) => Number(b.votingPower) - Number(a.votingPower))
+        .map((g, i) => ({ v: gnoToValidator(g), rank: calculateRank(i), logo: '', gno: g as GnoIndexerValidator | null }));
+    }
+    return staking.validators.map((x, i) => ({ v: x, rank: calculateRank(i), logo: logo(x.description.identity), gno: null as GnoIndexerValidator | null }));
   }
-  return unbondList.value.map((x, i) => ({ v: x, rank: 'primary', logo: logo(x.description.identity) }));
+  if (isGno.value) {
+    const want = tab.value === 'pending' ? 'PENDING' : 'INACTIVE';
+    return gnoValidators.value
+      .filter((g) => g.status === want)
+      .sort((a, b) => Number(b.votingPower) - Number(a.votingPower))
+      .map((g) => ({ v: gnoToValidator(g), rank: 'primary', logo: '', gno: g as GnoIndexerValidator | null }));
+  }
+  return unbondList.value.map((x, i) => ({ v: x, rank: 'primary', logo: logo(x.description.identity), gno: null as GnoIndexerValidator | null }));
 });
 
 const fetchAvatar = (identity: string) => {
@@ -228,16 +300,27 @@ loadAvatars();
       <div>
         <h1 class="sz-page-title">{{ $t('module.validator') }}</h1>
         <div class="sz-page-sub">
-          <span class="font-mono">{{ list.length }}</span> / {{ staking.params.max_validators }}
-          {{ $t('staking.validator').toLowerCase() }}
+          <span class="font-mono">{{ list.length }}</span>
+          <template v-if="isGno && gnoValidators.length">
+            · {{ gnoCounts.ACTIVE }} active · {{ gnoCounts.PENDING }} pending · {{ gnoCounts.INACTIVE }} inactive
+          </template>
+          <template v-else>
+            / {{ staking.params.max_validators }} {{ $t('staking.validator').toLowerCase() }}
+          </template>
         </div>
       </div>
       <div class="sz-tabs">
         <a class="sz-tab" :class="{ 'sz-tab--active': tab === 'active' }" @click="tab = 'active'">
           {{ $t('staking.active') }}
+          <span v-if="isGno" class="sz-tab-count">{{ gnoCounts.ACTIVE }}</span>
         </a>
         <a class="sz-tab" :class="{ 'sz-tab--active': tab === 'inactive' }" @click="tab = 'inactive'">
           {{ $t('staking.inactive') }}
+          <span v-if="isGno" class="sz-tab-count">{{ gnoCounts.INACTIVE }}</span>
+        </a>
+        <a v-if="isGno" class="sz-tab" :class="{ 'sz-tab--active': tab === 'pending' }" @click="tab = 'pending'">
+          {{ $t('staking.pending') }}
+          <span class="sz-tab-count">{{ gnoCounts.PENDING }}</span>
         </a>
       </div>
     </div>
@@ -263,20 +346,20 @@ loadAvatars();
     </div>
     <div v-else class="grid grid-cols-2 gap-3 xl:!grid-cols-4">
       <div class="sz-stat" style="--stat-hue: var(--sz-success)">
-        <div class="sz-stat-head"><i class="sz-stat-tick"></i><span class="sz-stat-label">Total voting power</span></div>
-        <div class="sz-stat-value">{{ Number(staking.totalPower || 0).toLocaleString() }} VP</div>
-      </div>
-      <div class="sz-stat" style="--stat-hue: var(--sz-accent)">
-        <div class="sz-stat-head"><i class="sz-stat-tick"></i><span class="sz-stat-label">Active set</span></div>
-        <div class="sz-stat-value">{{ list.length }} / {{ staking.params?.max_validators || 100 }}</div>
-      </div>
-      <div class="sz-stat" style="--stat-hue: var(--sz-info, var(--sz-accent))">
-        <div class="sz-stat-head"><i class="sz-stat-tick"></i><span class="sz-stat-label">Engine</span></div>
-        <div class="sz-stat-value">Tendermint2</div>
+        <div class="sz-stat-head"><i class="sz-stat-tick"></i><span class="sz-stat-label">Active</span></div>
+        <div class="sz-stat-value">{{ gnoCounts.ACTIVE || list.length }}</div>
       </div>
       <div class="sz-stat" style="--stat-hue: var(--sz-warn)">
-        <div class="sz-stat-head"><i class="sz-stat-tick"></i><span class="sz-stat-label">Wallet</span></div>
-        <div class="sz-stat-value">Adena</div>
+        <div class="sz-stat-head"><i class="sz-stat-tick"></i><span class="sz-stat-label">Pending</span></div>
+        <div class="sz-stat-value">{{ gnoCounts.PENDING || 0 }}</div>
+      </div>
+      <div class="sz-stat" style="--stat-hue: var(--sz-danger)">
+        <div class="sz-stat-head"><i class="sz-stat-tick"></i><span class="sz-stat-label">Inactive</span></div>
+        <div class="sz-stat-value">{{ gnoCounts.INACTIVE || 0 }}</div>
+      </div>
+      <div class="sz-stat" style="--stat-hue: var(--sz-accent)">
+        <div class="sz-stat-head"><i class="sz-stat-tick"></i><span class="sz-stat-label">Total VP</span></div>
+        <div class="sz-stat-value">{{ Number(staking.totalPower || 0).toLocaleString() }}</div>
       </div>
     </div>
 
@@ -289,13 +372,13 @@ loadAvatars();
               <th style="width: 3.5rem">{{ $t('staking.rank') }}</th>
               <th>{{ $t('staking.validator') }}</th>
               <th class="text-right">{{ $t('staking.voting_power') }}</th>
-              <th class="text-right">{{ $t('staking.24h_changes') }}</th>
-              <th class="text-right">{{ $t('staking.commission') }}</th>
-              <th class="text-center">{{ $t('staking.actions') }}</th>
+              <th class="text-right">{{ isGno ? 'Share' : $t('staking.24h_changes') }}</th>
+              <th class="text-right">{{ isGno ? $t('staking.status') : $t('staking.commission') }}</th>
+              <th class="text-center">{{ isGno ? 'Height' : $t('staking.actions') }}</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="({ v, rank, logo }, i) in list" :key="v.operator_address">
+            <tr v-for="({ v, rank, logo, gno }, i) in list" :key="v.operator_address">
               <!-- rank -->
               <td>
                 <span
@@ -349,25 +432,52 @@ loadAvatars();
                   <span class="text-[10.5px] text-secondary">{{ format.calculatePercent(v.delegator_shares, staking.totalPower) }}</span>
                 </div>
               </td>
-              <!-- 24h change -->
-              <td class="text-right font-mono text-[12px]" :class="change24Color(v)">
-                {{ change24Text(v) || '—' }}
+              <!-- share (Gno) / 24h change (Cosmos) -->
+              <td class="text-right font-mono text-[12px]" :class="gno ? '' : change24Color(v)">
+                <template v-if="gno">{{ gno.shareRate }}%</template>
+                <template v-else>{{ change24Text(v) || '—' }}</template>
               </td>
-              <!-- commission -->
+              <!-- status (Gno) / commission (Cosmos) -->
               <td class="text-right font-mono text-[12px]">
-                {{ format.formatCommissionRate(v.commission?.commission_rates?.rate) }}
+                <template v-if="gno">
+                  <span
+                    class="sz-chip !text-[10px]"
+                    :class="{
+                      'sz-chip--good': gno.status === 'ACTIVE',
+                      'sz-chip--ok': gno.status === 'ACTIVE',
+                      'sz-chip--bad': gno.status === 'INACTIVE',
+                      'sz-chip--warn': gno.status === 'PENDING',
+                    }"
+                  >{{ gno.status }}</span>
+                </template>
+                <template v-else>{{ format.formatCommissionRate(v.commission?.commission_rates?.rate) }}</template>
               </td>
-              <!-- action -->
+              <!-- height (Gno) / action (Cosmos) -->
               <td class="text-center">
-                <span v-if="v.jailed" class="sz-chip sz-chip--bad">{{ $t('staking.jailed') }}</span>
-                <span v-else-if="isGno" class="text-[11px] text-secondary">—</span>
-                <button type="button"
-                  v-else
-                  class="btn btn-xs btn-primary rounded-md capitalize"
-                  @click="dialog.open('delegate', { validator_address: v.operator_address })"
-                >
-                  {{ $t('account.btn_delegate') }}
-                </button>
+                <template v-if="gno">
+                  <span v-if="gno.status === 'INACTIVE' && gno.inActivatedHeight" class="font-mono text-[11px] text-secondary" :title="'Inactivated at'">
+                    #{{ gno.inActivatedHeight }}
+                  </span>
+                  <RouterLink
+                    v-else-if="gno.firstCommittedHeight"
+                    class="sz-height-link font-mono text-[11px]"
+                    :to="`/${$route.params.chain}/block/${gno.firstCommittedHeight}`"
+                  >
+                    <span class="sz-height-hash">#</span>{{ gno.firstCommittedHeight }}
+                  </RouterLink>
+                  <span v-else class="text-[11px] text-secondary">—</span>
+                </template>
+                <template v-else>
+                  <span v-if="v.jailed" class="sz-chip sz-chip--bad">{{ $t('staking.jailed') }}</span>
+                  <span v-else-if="isGno" class="text-[11px] text-secondary">—</span>
+                  <button type="button"
+                    v-else
+                    class="btn btn-xs btn-primary rounded-md capitalize"
+                    @click="dialog.open('delegate', { validator_address: v.operator_address })"
+                  >
+                    {{ $t('account.btn_delegate') }}
+                  </button>
+                </template>
               </td>
             </tr>
           </tbody>

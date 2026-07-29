@@ -16,7 +16,9 @@
     "all_blockchains": "すべてのブロックチェーン",
     "sponsors": "スポンサー",
     "links": "リンク",
-    "validator": "バリデーター"
+    "validator": "バリデーター",
+    "realms": "Realm",
+    "tokens": "トークン"
   },
   "pages": {
     "title": "Shazoes Explorer",
@@ -270,7 +272,8 @@
     "activities": "アクティビティ",
     "power_events": "パワーイベント",
     "votes": "投票",
-    "no_votes": "このバリデータの投票はまだインデックスされていません。"
+    "no_votes": "このバリデータの投票はまだインデックスされていません。",
+    "pending": "保留中"
   },
   "tx": {
     "title": "概要",

@@ -6,7 +6,10 @@
   "features": [
     "dashboard",
     "blocks",
+    "tx",
     "validator",
+    "realms",
+    "tokens",
     "consensus",
     "uptime",
     "parameters"
@@ -135,5 +138,6 @@
     "type": "gno-realm",
     "base_url": "https://topaz.testnets.gno.land/r/gnops/valopers",
     "note": "Official gnops valoper registry. Swap base_url for mainnet."
-  }
+  },
+  "indexer_api": "https://topaz.api.onbloc.xyz/v1"
 }

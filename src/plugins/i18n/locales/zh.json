@@ -15,7 +15,9 @@
     "all_blockchains": "全部区块链",
     "sponsors": "赞助商",
     "links": "链接",
-    "validator": "验证人"
+    "validator": "验证人",
+    "realms": "Realm",
+    "tokens": "代币"
   },
   "pages": {
     "title": "Shazoes Explorer",
@@ -259,7 +261,8 @@
     "activities": "活动",
     "power_events": "投票权事件",
     "votes": "投票",
-    "no_votes": "该验证人暂无已索引的投票。"
+    "no_votes": "该验证人暂无已索引的投票。",
+    "pending": "待定"
   },
   "tx": {
     "title": "概要",

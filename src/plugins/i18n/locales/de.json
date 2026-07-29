@@ -16,7 +16,9 @@
     "all_blockchains": "Alle Blockchains",
     "sponsors": "Sponsoren",
     "links": "Links",
-    "validator": "Validatoren"
+    "validator": "Validatoren",
+    "realms": "Realms",
+    "tokens": "Tokens"
   },
   "pages": {
     "title": "Shazoes Explorer",
@@ -270,7 +272,8 @@
     "activities": "Aktivitäten",
     "power_events": "Power-Ereignisse",
     "votes": "Stimmen",
-    "no_votes": "Noch keine indexierten Stimmen für diesen Validator."
+    "no_votes": "Noch keine indexierten Stimmen für diesen Validator.",
+    "pending": "Ausstehend"
   },
   "tx": {
     "title": "Zusammenfassung",

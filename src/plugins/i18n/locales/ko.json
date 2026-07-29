@@ -16,7 +16,9 @@
     "all_blockchains": "모든 블록체인",
     "sponsors": "스폰서",
     "links": "링크",
-    "validator": "검증인"
+    "validator": "검증인",
+    "realms": "Realm",
+    "tokens": "토큰"
   },
   "pages": {
     "title": "Shazoes Explorer",
@@ -270,7 +272,8 @@
     "activities": "활동",
     "power_events": "파워 이벤트",
     "votes": "투표",
-    "no_votes": "이 검증인에 대한 인덱싱된 투표가 아직 없습니다."
+    "no_votes": "이 검증인에 대한 인덱싱된 투표가 아직 없습니다.",
+    "pending": "대기"
   },
   "tx": {
     "title": "요약",

@@ -946,6 +946,22 @@ html[data-theme='dark'] .sz-card {
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12), 0 0 0 1px color-mix(in srgb, hsl(var(--p)) 22%, transparent);
   font-weight: 700;
 }
+.sz-tab-count {
+  display: inline-block;
+  margin-left: 0.4rem;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 700;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  background: color-mix(in srgb, hsl(var(--bc)) 10%, transparent);
+  color: var(--text-secondary);
+  vertical-align: 1px;
+}
+.sz-tab--active .sz-tab-count {
+  background: color-mix(in srgb, hsl(var(--p)) 18%, transparent);
+  color: hsl(var(--p));
+}
 
 /* ---- data table ---- */
 .sz-table {

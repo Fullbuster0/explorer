@@ -123,13 +123,15 @@ export const useBlockchain = defineStore('blockchain', {
           parameters: 'mdi-cog-outline',
           consensus: 'mdi-radar',
           nft: 'mdi-image-outline',
+          realms: 'mdi-package-variant-closed',
+          tokens: 'mdi-circle-multiple-outline',
         };
 
         // Section grouping — signature of Fluxen / GnoLens style explorers
         const groups: { heading: string; keys: string[] }[] = [
           {
             heading: 'Explorer',
-            keys: ['dashboard', 'governance', 'staking', 'blocks', 'tx', 'validator', 'uptime', 'account'],
+            keys: ['dashboard', 'governance', 'staking', 'blocks', 'tx', 'validator', 'uptime', 'account', 'realms', 'tokens'],
           },
           {
             heading: 'Advanced',
@@ -140,6 +142,8 @@ export const useBlockchain = defineStore('blockchain', {
         // Prefer explicit nav routes (meta.order set). Detail routes like
         // /ibc/connection/chain/:chain_id also carry meta.i18n but have no
         // order — picking them would put a literal ":chain_id" in the sidebar.
+        const isGnoEngine =
+          this.current?.engine === 'gno' || this.current?.engine === 'tm2';
         const available = routes
           .filter((x) => x.meta.i18n)
           .filter(
@@ -147,6 +151,12 @@ export const useBlockchain = defineStore('blockchain', {
               !this.current?.features ||
               this.current.features.includes(String(x.meta.i18n))
           )
+          // Gno-only modules (realms/tokens + any /gno-* page) show only on Gno chains
+          .filter((x) => {
+            const key = String(x.meta.i18n);
+            const gnoOnly = key === 'realms' || key === 'tokens' || x.path.includes('/gno-');
+            return gnoOnly ? isGnoEngine : true;
+          })
           .map((x) => ({
             key: String(x.meta.i18n),
             title: `module.${x.meta.i18n}`,
@@ -158,18 +168,24 @@ export const useBlockchain = defineStore('blockchain', {
             i18n: true,
             order: Number(x.meta.order || 100),
             _hasOrder: x.meta.order !== undefined,
+            _gno: x.path.includes('/gno-'),
           }));
 
-        // One nav entry per module key — the route with explicit meta.order
-        // wins; only fall back to the lowest-order route if none is marked.
+        // One nav entry per module key. On Gno chains prefer the /gno-* route
+        // (e.g. gno-tx over the Cosmos LCD tx page); on Cosmos chains prefer
+        // the non-gno route. Otherwise the explicit meta.order wins.
         const byKey = new Map<string, (typeof available)[number]>();
         for (const a of available) {
           const prev = byKey.get(a.key);
           if (!prev) {
             byKey.set(a.key, a);
-          } else if (a._hasOrder && !prev._hasOrder) {
+          } else if (isGnoEngine && a._gno && !prev._gno) {
             byKey.set(a.key, a);
-          } else if (a._hasOrder === prev._hasOrder && a.order < prev.order) {
+          } else if (!isGnoEngine && !a._gno && prev._gno) {
+            byKey.set(a.key, a);
+          } else if (a._gno === prev._gno && a._hasOrder && !prev._hasOrder) {
+            byKey.set(a.key, a);
+          } else if (a._gno === prev._gno && a._hasOrder === prev._hasOrder && a.order < prev.order) {
             byKey.set(a.key, a);
           }
         }

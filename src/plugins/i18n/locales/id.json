@@ -14,7 +14,10 @@
     "all_blockchains": "All Blockchain",
     "sponsors": "Sponsors",
     "links": "Tautan",
-    "validator": "Validator"
+    "validator": "Validator",
+    "realms": "Realm",
+    "tokens": "Token",
+    "tx": "Transaksi"
   },
   "pages": {
     "title": "Shazoes Explorer",
@@ -258,7 +261,8 @@
     "activities": "Aktivitas",
     "power_events": "Peristiwa Power",
     "votes": "Vote",
-    "no_votes": "Belum ada vote terindeks untuk validator ini."
+    "no_votes": "Belum ada vote terindeks untuk validator ini.",
+    "pending": "Pending"
   },
   "tx": {
     "title": "Rangkuman",
