@@ -111,7 +111,9 @@ const CHAINS = {
   'gnoland-testnet': {
     'pretty': 'gnoland',
     'chain_id': 'topaz-1',
-    'logo': 'https://shazoes-explorer.vercel.app/logos/gno.svg'
+    'logo': 'https://shazoes-explorer.vercel.app/logos/gno.png',
+    'card': 'summary_large_image',
+    'description': 'Gnoland Tendermint2 testnet (topaz-1) · 89 validators · RPC-only block explorer by Shazoes.'
   },
   'hippo-testnet': {
     'pretty': 'Hippo Protocol (testnet)',
@@ -185,9 +187,10 @@ function parsePath(pathname) {
   if (segs.length === 1) {
     return {
       title: `${pretty} — ${SITE_NAME}`,
-      description: `Explore ${pretty}${chainId}: blocks, transactions, validators, governance and accounts on Shazoes Explorer.`,
+      description: chain?.description || `Explore ${pretty}${chainId}: blocks, transactions, validators, governance and accounts on Shazoes Explorer.`,
       image: chainImg,
       type: 'website',
+      card: chain?.card || 'summary',
     };
   }
 
@@ -282,12 +285,13 @@ function parsePath(pathname) {
   }
 }
 
-function renderHtml({ title, description, image, type, url }) {
+function renderHtml({ title, description, image, type, url, card }) {
   const t = esc(title);
   const d = esc(description);
   const img = esc(image || DEFAULT_IMAGE);
   const u = esc(url);
   const ty = esc(type || 'website');
+  const twCard = esc(card || 'summary');
   // Minimal bot page: OG tags + noscript link. No SPA bundle needed.
   return `<!DOCTYPE html>
 <html lang="en">
@@ -304,7 +308,7 @@ function renderHtml({ title, description, image, type, url }) {
   <meta property="og:url" content="${u}" />
   <meta property="og:image" content="${img}" />
   <meta property="og:image:alt" content="${t}" />
-  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:card" content="${twCard}" />
   <meta name="twitter:title" content="${t}" />
   <meta name="twitter:description" content="${d}" />
   <meta name="twitter:image" content="${img}" />

@@ -183,7 +183,18 @@ export class GnoTm2Client {
     return { slashes: [], pagination: emptyPage() };
   }
   async getSlashingParams() {
-    return { params: {} };
+    // Gno has no slashing module. Return synthetic params so the uptime page
+    // renders a window size + uptime % instead of "—". The window matches the
+    // heatmap depth (50 blocks). min_signed = 0 (no jail threshold on Gno).
+    return {
+      params: {
+        signed_blocks_window: '50',
+        min_signed_per_window: '0',
+        downtime_jail_duration: '0s',
+        slash_fraction_double_sign: '0',
+        slash_fraction_downtime: '0',
+      },
+    };
   }
   async getSlashingSigningInfos() {
     return { info: [], pagination: emptyPage() };

@@ -290,11 +290,16 @@ export async function tm2Health(endpoint: string, timeoutMs = 6000): Promise<boo
     });
     clearTimeout(timer);
     if (!res.ok) return false;
+    // Readable JSON = CORS OK (opaque/cors-blocked would throw or not parse)
     const data = await res.json();
     const height = data?.result?.sync_info?.latest_block_height;
     const network = data?.result?.node_info?.network;
+    const catchingUp = data?.result?.sync_info?.catching_up;
+    // Reject nodes that are still syncing
+    if (catchingUp === true) return false;
     return !!(height && network);
   } catch {
+    // TypeError / AbortError = CORS block, timeout, or network fail
     return false;
   }
 }

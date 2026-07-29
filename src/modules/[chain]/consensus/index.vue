@@ -19,6 +19,7 @@ const roundState = ref({} as any);
 const height = ref('');
 const round = ref('');
 const step = ref('');
+const tm2Synthetic = ref(false);
 let timer: any = null;
 let loading = false;
 let started = false;
@@ -472,6 +473,9 @@ async function update() {
       (!Array.isArray(hvs) && typeof hvs === 'object' && Object.keys(hvs).length === 0);
     if (hvsEmpty) {
       rs = await synthesizeTm2RoundState(rpc.value);
+      tm2Synthetic.value = true;
+    } else {
+      tm2Synthetic.value = false;
     }
     roundState.value = rs;
     const raw = String(roundState.value?.['height/round/step'] || '').split('/');
@@ -546,6 +550,11 @@ function exportCsv() {
             <span class="text-[11px] font-bold uppercase tracking-[0.22em] text-slate-400">
               Consensus Monitor
             </span>
+            <span
+              v-if="tm2Synthetic"
+              class="inline-flex items-center gap-1 rounded-full border border-amber-700/60 bg-amber-900/30 px-2 py-0.5 text-[10px] font-semibold text-amber-300"
+              title="Gnoland does not expose live prevote/precommit bitarrays. Numbers below = signer coverage of the last committed block."
+            >TM2 · from last commit</span>
             <span v-if="round !== ''" class="hidden sm:inline-flex items-center gap-1 rounded-full border border-slate-700 bg-slate-800/60 px-2 py-0.5 text-[10px] font-semibold text-slate-300">
               Round {{ round }}
             </span>

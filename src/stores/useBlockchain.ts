@@ -21,6 +21,40 @@ import { useBlockModule } from '@/modules/[chain]/block/block';
 import { DEFAULT } from '@/libs';
 import { hexToRgb, rgbToHsl } from '@/libs/utils';
 
+// ---- RPC endpoint health denylist (localStorage-backed) ----
+// Endpoints that fail browser-side (CORS, timeout, lagging) get marked bad.
+// randomEndpoint / fallbackEndpoint skip them for a TTL so users don't
+// repeatedly land on broken hosts.
+const DENY_TTL_MS = 60 * 60 * 1000; // 1 hour
+const LAG_THRESHOLD = 100; // blocks behind → demote
+
+interface DenyEntry { ok: boolean; reason: string; ts: number; lag?: number }
+type DenyMap = Record<string, DenyEntry>;
+
+function denyKey(chain: string) { return `endpoint-health-${chain}`; }
+function readDeny(chain: string): DenyMap {
+  try { return JSON.parse(localStorage.getItem(denyKey(chain)) || '{}'); } catch { return {}; }
+}
+function writeDeny(chain: string, map: DenyMap) {
+  try { localStorage.setItem(denyKey(chain), JSON.stringify(map)); } catch { /* quota */ }
+}
+function markBad(chain: string, addr: string, reason: string, lag?: number) {
+  const m = readDeny(chain);
+  m[addr] = { ok: false, reason, ts: Date.now(), lag };
+  writeDeny(chain, m);
+}
+function markGood(chain: string, addr: string) {
+  const m = readDeny(chain);
+  if (m[addr]) { delete m[addr]; writeDeny(chain, m); }
+}
+function isDenied(chain: string, addr: string): boolean {
+  const e = readDeny(chain)[addr];
+  if (!e) return false;
+  if (e.ok) return false;
+  if (Date.now() - e.ts > DENY_TTL_MS) return false; // TTL expired → retry
+  return true;
+}
+
 export const useBlockchain = defineStore('blockchain', {
   state: () => {
     return {
@@ -199,10 +233,8 @@ export const useBlockchain = defineStore('blockchain', {
         try {
           const saved = JSON.parse(end) as Endpoint;
           // Only trust the cached endpoint if it still belongs to this chain's
-          // current list. A stale/dead cached endpoint (e.g. from an old config
-          // or a node that went down) would otherwise be re-used forever and
-          // freeze the app until the user cleared storage / hard-refreshed.
-          if (saved?.address && all?.some((e) => e.address === saved.address)) {
+          // current list AND is not in the health denylist.
+          if (saved?.address && all?.some((e) => e.address === saved.address) && !isDenied(chainName, saved.address)) {
             return saved;
           }
         } catch {
@@ -210,14 +242,13 @@ export const useBlockchain = defineStore('blockchain', {
         }
       }
       if (all && all.length) {
-        // Weighted toward the front of the config list. Chain JSON is curated
-        // with reliable/CORS-friendly hosts first; pure Math.random() across
-        // 20+ public LCDs often landed on CORS-broken or archive hosts
-        // (citizenweb3, kleomedes, …) and first-paint failed until fallback.
-        // Weight ≈ (n - i): index 0 is n× more likely than the last entry.
-        const n = all.length;
+        // Filter out denied endpoints first
+        const healthy = all.filter((e) => !isDenied(chainName, e.address));
+        const pool = healthy.length > 0 ? healthy : all; // never empty
+        // Weighted toward the front of the config list.
+        const n = pool.length;
         let total = 0;
-        const weights = all.map((_, i) => {
+        const weights = pool.map((_, i) => {
           const w = n - i;
           total += w;
           return w;
@@ -225,9 +256,9 @@ export const useBlockchain = defineStore('blockchain', {
         let r = Math.random() * total;
         for (let i = 0; i < n; i++) {
           r -= weights[i];
-          if (r <= 0) return all[i];
+          if (r <= 0) return pool[i];
         }
-        return all[0];
+        return pool[0];
       }
       return undefined;
     },
@@ -637,7 +668,10 @@ export const useBlockchain = defineStore('blockchain', {
     async healthCheck(address: string, timeoutMs = 6000): Promise<boolean> {
       // Gnoland / TM2 has no Cosmos LCD — probe `/status` on the JSON-RPC host.
       if (isGnoChain(this.current)) {
-        return tm2Health(address, timeoutMs);
+        const ok = await tm2Health(address, timeoutMs);
+        if (ok) markGood(this.chainName, address);
+        else markBad(this.chainName, address, 'tm2-unreachable');
+        return ok;
       }
       try {
         const controller = new AbortController();
@@ -645,10 +679,15 @@ export const useBlockchain = defineStore('blockchain', {
         const url = `${address.replace(/\/$/, '')}/cosmos/base/tendermint/v1beta1/blocks/latest`;
         const res = await fetch(url, { signal: controller.signal });
         clearTimeout(timer);
-        if (!res.ok) return false;
+        if (!res.ok) { markBad(this.chainName, address, `http-${res.status}`); return false; }
         const data = await res.json();
-        return !!(data && data.block && data.block.header && data.block.header.height);
+        const ok = !!(data && data.block && data.block.header && data.block.header.height);
+        if (ok) markGood(this.chainName, address);
+        else markBad(this.chainName, address, 'bad-payload');
+        return ok;
       } catch (e) {
+        // CORS errors land here (TypeError: Failed to fetch)
+        markBad(this.chainName, address, 'cors-or-timeout');
         return false;
       }
     },
@@ -680,9 +719,11 @@ export const useBlockchain = defineStore('blockchain', {
       this.lastFallbackAt = now;
       try {
         const current = this.endpoint?.address;
-        const candidates = all.filter((e) => e.address !== current);
+        // Skip denied endpoints in fallback candidates too
+        const candidates = all.filter((e) => e.address !== current && !isDenied(this.chainName, e.address));
+        const pool = candidates.length > 0 ? candidates : all.filter((e) => e.address !== current);
         const results = await Promise.all(
-          candidates.map(async (ep) => ({ ep, ok: await this.healthCheck(ep.address, 5000) }))
+          pool.map(async (ep) => ({ ep, ok: await this.healthCheck(ep.address, 5000) }))
         );
         // Pick the first healthy candidate in config order.
         const healthy = results.find((r) => r.ok);

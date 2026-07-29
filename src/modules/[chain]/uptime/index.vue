@@ -12,6 +12,9 @@ const stakingStore = useStakingStore();
 const format = useFormatter();
 const baseStore = useBaseStore();
 const chainStore = useBlockchain();
+const isGnoUptime = computed(
+  () => chainStore.current?.engine === 'gno' || chainStore.current?.engine === 'tm2'
+);
 const latest = ref(0);
 const keyword = ref('');
 const tombstonedOnly = ref(false);
@@ -148,7 +151,15 @@ function readMissed(base64: string, signing?: SigningInfo): number | undefined {
 function attachSigning(v: Omit<ValidatorUnit, 'blocks' | 'uptime' | 'missed_blocks_counter' | 'signing'>): ValidatorUnit {
   const window = Number(slashingParam.value.signed_blocks_window || 0);
   const signing = v.base64 ? signingInfo.value[v.base64] : undefined;
-  const missed = v.base64 ? readMissed(v.base64, signing) : undefined;
+  // Prefer live heatmap-derived missed (works on Gno without signing infos).
+  // Fall back to on-chain signing info when available (Cosmos).
+  let missed: number | undefined = v.base64 ? readMissed(v.base64, signing) : undefined;
+  if (missed === undefined && v.base64 && blockColors.value[v.base64]?.length) {
+    // Count red cells in the last `window` blocks of the heatmap
+    const cells = blockColors.value[v.base64] || [];
+    const slice = window > 0 ? cells.slice(-window) : cells;
+    missed = slice.filter((c) => String(c.color || '').includes('red')).length;
+  }
   const uptime =
     missed !== undefined && window > 0
       ? Math.max(0, Math.min(1, (window - missed) / window))
@@ -447,6 +458,11 @@ function changeTab(v: string) {
             · min
             <span class="font-mono">{{ format.percent(slashingParam.min_signed_per_window) }}</span>
           </span>
+          <span
+            v-if="isGnoUptime"
+            class="sz-chip !text-[10px]"
+            title="Gnoland has no on-chain slashing module. Window = last N blocks in the heatmap (explorer-defined)."
+          >explorer window · no on-chain slashing</span>
         </div>
       </div>
       <div class="sz-tabs">
