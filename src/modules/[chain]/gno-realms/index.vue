@@ -3,7 +3,7 @@
  * Gno Realms — on-chain packages published via MsgAddPackage.
  * Data from onbloc indexer API.
  */
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useBlockchain } from '@/stores';
 import { getGnoIndexer, type GnoRealm } from '@/libs/gno/indexer';
 
@@ -70,18 +70,27 @@ async function fetchFirst() {
   if (!hasIndexer.value || loading.value) return;
   loading.value = true;
   errored.value = false;
-  try {
-    const client = getGnoIndexer(indexerUrl.value);
-    const page = await client.getRealms();
-    realms.value = page.items;
-    cursor.value = page.cursor;
-    hasNext.value = page.hasNext;
-  } catch (e) {
-    console.warn('[gno-realms] fetch failed:', e);
-    errored.value = true;
-  } finally {
-    loading.value = false;
+  const maxAttempts = 3;
+  let lastErr: any = null;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    try {
+      const client = getGnoIndexer(indexerUrl.value);
+      const page = await client.getRealms();
+      realms.value = page.items;
+      cursor.value = page.cursor;
+      hasNext.value = page.hasNext;
+      lastErr = null;
+      break;
+    } catch (e) {
+      lastErr = e;
+      console.warn(`[gno-realms] fetch failed (attempt ${attempt + 1}/${maxAttempts}):`, e);
+      if (attempt < maxAttempts - 1) {
+        await new Promise((r) => setTimeout(r, 600 * (attempt + 1)));
+      }
+    }
   }
+  if (lastErr) errored.value = true;
+  loading.value = false;
 }
 
 async function loadMore() {
@@ -116,9 +125,19 @@ watch(
 watch(
   () => indexerUrl.value,
   (url, prev) => {
-    if (url && url !== prev && !realms.value.length) fetchFirst();
+    if (url && url !== prev && (!realms.value.length || errored.value)) fetchFirst();
   }
 );
+// Tab-back resume when list empty/errored (no hard refresh)
+if (typeof document !== 'undefined') {
+  const onVis = () => {
+    if (document.visibilityState === 'visible' && hasIndexer.value && (!realms.value.length || errored.value)) {
+      fetchFirst();
+    }
+  };
+  document.addEventListener('visibilitychange', onVis);
+  onUnmounted(() => document.removeEventListener('visibilitychange', onVis));
+}
 </script>
 
 <template>

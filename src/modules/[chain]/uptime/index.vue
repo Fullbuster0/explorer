@@ -276,8 +276,9 @@ onMounted(() => {
   updateTotalSigningInfo();
   loadAllValidators();
 
+  // Soft-fail: rpc may still be null on first paint (Gno connect race)
   chainStore.rpc
-    .getSlashingParams()
+    ?.getSlashingParams()
     .then((x) => {
       slashingParam.value = x.params;
     })
@@ -304,6 +305,35 @@ watch(
     liveMissed.value = {};
     baseStore.recents?.forEach((b) => fillblock(b, 'start'));
     if (latest.value > 0) preFill();
+  }
+);
+
+// RPC readiness / endpoint swap: re-pull signing infos + slashing without hard refresh
+watch(
+  () => [!!chainStore.rpc, chainStore.endpoint?.address] as const,
+  ([hasRpc, addr], prev) => {
+    if (!hasRpc) return;
+    const rpcJustLanded = !prev?.[0];
+    const endpointSwapped = !!addr && !!prev?.[1] && addr !== prev[1];
+    if (!rpcJustLanded && !endpointSwapped) return;
+    updateTotalSigningInfo();
+    loadAllValidators();
+    chainStore.rpc
+      ?.getSlashingParams()
+      .then((x) => {
+        slashingParam.value = x.params;
+      })
+      .catch(() => undefined);
+    // If active set already present but heatmap empty (missed first recents), rehydrate
+    if (activeSet.value.length && Object.keys(blockColors.value).length < 5) {
+      uptimeHydrated = false;
+      appliedHeights.value = {};
+      blockColors.value = {};
+      liveMissed.value = {};
+      baseStore.recents?.forEach((b) => fillblock(b, 'start'));
+      if (latest.value > 0) preFill();
+      uptimeHydrated = true;
+    }
   }
 );
 
@@ -396,6 +426,7 @@ let signingFetchQueued = false;
 
 function updateTotalSigningInfo() {
   // coalesce concurrent refreshes (every-block polling)
+  if (!chainStore.rpc) return;
   if (signingFetchInFlight) {
     signingFetchQueued = true;
     return;

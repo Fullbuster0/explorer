@@ -2,7 +2,7 @@
 /**
  * Gno Tokens (GRC20) — from onbloc indexer API.
  */
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useBlockchain } from '@/stores';
 import { getGnoIndexer, type GnoToken } from '@/libs/gno/indexer';
 
@@ -58,16 +58,25 @@ async function fetchTokens() {
   if (!hasIndexer.value || loading.value) return;
   loading.value = true;
   errored.value = false;
-  try {
-    const client = getGnoIndexer(indexerUrl.value);
-    const page = await client.getTokens();
-    tokens.value = page.items;
-  } catch (e) {
-    console.warn('[gno-tokens] fetch failed:', e);
-    errored.value = true;
-  } finally {
-    loading.value = false;
+  const maxAttempts = 3;
+  let lastErr: any = null;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    try {
+      const client = getGnoIndexer(indexerUrl.value);
+      const page = await client.getTokens();
+      tokens.value = page.items;
+      lastErr = null;
+      break;
+    } catch (e) {
+      lastErr = e;
+      console.warn(`[gno-tokens] fetch failed (attempt ${attempt + 1}/${maxAttempts}):`, e);
+      if (attempt < maxAttempts - 1) {
+        await new Promise((r) => setTimeout(r, 600 * (attempt + 1)));
+      }
+    }
   }
+  if (lastErr) errored.value = true;
+  loading.value = false;
 }
 
 onMounted(fetchTokens);
@@ -81,9 +90,19 @@ watch(
 watch(
   () => indexerUrl.value,
   (url, prev) => {
-    if (url && url !== prev && !tokens.value.length) fetchTokens();
+    if (url && url !== prev && (!tokens.value.length || errored.value)) fetchTokens();
   }
 );
+// Tab-back resume when empty/errored
+if (typeof document !== 'undefined') {
+  const onVis = () => {
+    if (document.visibilityState === 'visible' && hasIndexer.value && (!tokens.value.length || errored.value)) {
+      fetchTokens();
+    }
+  };
+  document.addEventListener('visibilitychange', onVis);
+  onUnmounted(() => document.removeEventListener('visibilitychange', onVis));
+}
 </script>
 
 <template>
