@@ -7,6 +7,7 @@ import type { Key, SlashingParam, Validator } from '@/types';
 import { formatSeconds } from '@/libs/utils';
 import { diff } from 'semver';
 import { getGnoIndexer, type GnoIndexerValidator } from '@/libs/gno/indexer';
+import { lookupGnoValoper, initGnoValopers } from '@/libs/gno/valopers';
 
 const staking = useStakingStore();
 const base = useBaseStore();
@@ -33,6 +34,7 @@ const slashing = ref({} as SlashingParam);
 // ---- Gno: ACTIVE / INACTIVE / PENDING come from the onbloc indexer ----
 const gnoValidators = ref<GnoIndexerValidator[]>([]);
 const gnoLoading = ref(false);
+const gnoError = ref('');
 
 function shortAddr(a: string): string {
   if (!a) return '—';
@@ -40,14 +42,23 @@ function shortAddr(a: string): string {
 }
 
 /** Build a Validator-shaped object from an onbloc indexer entry.
- *  Moniker rule matches gnoscan exactly: `monikerName || shortAddr(address)`.
- *  We deliberately do NOT overlay the valopers realm registry here — doing so
- *  maps ACTIVE signing addresses onto operator monikers that ALSO appear in the
- *  PENDING set, making the two tabs look like duplicates even though the counts
- *  (87 active / 86 pending / 2 inactive) and addresses are correct & disjoint.
+ *  Moniker resolution: valopers realm registry first (covers ACTIVE signing
+ *  addresses → operator moniker, and PENDING operator addresses), then onbloc
+ *  monikerName, then short address.
+ *
+ *  NOTE on double-counting: onbloc lists an operator TWICE once they're voted
+ *  in — once as ACTIVE (by signing address) and once as PENDING (by operator
+ *  address, the original registration record). The validators page dedupes the
+ *  PENDING tab against the ACTIVE set (see activeOperatorAddrs) so a validator
+ *  that is already signing only shows under Active.
  */
 function gnoToValidator(g: GnoIndexerValidator): Validator {
-  const moniker = (g.monikerName || '').trim() || shortAddr(g.address);
+  const meta = lookupGnoValoper(g.address);
+  const moniker = meta?.moniker || (g.monikerName || '').trim() || shortAddr(g.address);
+  let website = (meta?.website || '').trim();
+  if (website && (!/^https?:\/\//i.test(website) || /\]\(|discord\.gg|t\.me\//i.test(website))) {
+    website = '';
+  }
   return {
     operator_address: g.address,
     consensus_pubkey: { '@type': '/cosmos.crypto.ed25519.PubKey', key: '' } as Key,
@@ -57,10 +68,10 @@ function gnoToValidator(g: GnoIndexerValidator): Validator {
     delegator_shares: g.votingPower || '0',
     description: {
       moniker,
-      identity: '',
-      website: '',
+      identity: meta?.identity || '',
+      website,
       security_contact: '',
-      details: '',
+      details: meta?.serverType ? `Gnoland validator · ${meta.serverType}` : '',
     },
     unbonding_height: String(g.inActivatedHeight || '0'),
     unbonding_time: '1970-01-01T00:00:00Z',
@@ -84,18 +95,63 @@ async function fetchGnoValidators() {
   }
   gnoLoading.value = true;
   try {
+    // Ensure valopers registry is loaded (moniker + signing↔operator link for dedupe)
+    await initGnoValopers().catch(() => undefined);
     gnoValidators.value = await getGnoIndexer(indexerUrl.value).getAllValidators();
   } catch (e: any) {
     console.warn('[validator] gno indexer fetch failed:', e?.message || e);
+    gnoError.value = e?.message || String(e);
   } finally {
     gnoLoading.value = false;
   }
 }
 
+/**
+ * Operator addresses of ACTIVE validators (via valopers signing→operator link).
+ * Used to strip PENDING rows that are just the registration record of a validator
+ * already signing blocks — onbloc keeps both rows, we only show one.
+ */
+const activeOperatorAddrs = computed(() => {
+  const ops = new Set<string>();
+  for (const g of gnoValidators.value) {
+    if (g.status !== 'ACTIVE') continue;
+    const meta = lookupGnoValoper(g.address); // signing address → registry row
+    if (meta?.operatorAddress) ops.add(meta.operatorAddress);
+    // Also treat the ACTIVE address itself as an "operator" for safety (genesis
+    // validators sometimes share the same address for both).
+    ops.add(g.address);
+  }
+  return ops;
+});
+
+/** Dedupe onbloc PENDING against ACTIVE — only true waiting-for-vote candidates. */
+function isTruePending(g: GnoIndexerValidator): boolean {
+  if (g.status !== 'PENDING') return false;
+  // Drop if this operator is already actively signing (onbloc double-entry).
+  if (activeOperatorAddrs.value.has(g.address)) return false;
+  // Also drop if its moniker maps to an ACTIVE signing address's moniker via
+  // registry (covers cases where address link is missing but moniker matches).
+  const mon = (g.monikerName || '').trim().toLowerCase();
+  if (mon) {
+    for (const a of gnoValidators.value) {
+      if (a.status !== 'ACTIVE') continue;
+      const meta = lookupGnoValoper(a.address);
+      if (meta?.moniker && meta.moniker.toLowerCase() === mon) return false;
+    }
+  }
+  return true;
+}
+
 const gnoCounts = computed(() => {
-  const c = { ACTIVE: 0, INACTIVE: 0, PENDING: 0 } as Record<string, number>;
-  for (const v of gnoValidators.value) c[v.status] = (c[v.status] || 0) + 1;
-  return c;
+  let ACTIVE = 0;
+  let INACTIVE = 0;
+  let PENDING = 0;
+  for (const v of gnoValidators.value) {
+    if (v.status === 'ACTIVE') ACTIVE++;
+    else if (v.status === 'INACTIVE') INACTIVE++;
+    else if (v.status === 'PENDING' && isTruePending(v)) PENDING++;
+  }
+  return { ACTIVE, INACTIVE, PENDING };
 });
 
 /** Sum of voting power across ACTIVE set (from indexer, not RPC). */
@@ -245,6 +301,8 @@ const list = computed(() => {
       tab.value === 'active' ? 'ACTIVE' : tab.value === 'pending' ? 'PENDING' : 'INACTIVE';
     return gnoValidators.value
       .filter((g) => g.status === want)
+      // PENDING: drop onbloc double-entries that are already signing (Active tab)
+      .filter((g) => (want === 'PENDING' ? isTruePending(g) : true))
       .sort((a, b) => Number(b.votingPower) - Number(a.votingPower))
       .map((g, i) => ({
         v: gnoToValidator(g),
@@ -340,9 +398,9 @@ loadAvatars();
       <div>
         <h1 class="sz-page-title">{{ $t('module.validator') }}</h1>
         <div class="sz-page-sub">
-          <span class="font-mono">{{ isGno ? (gnoValidators.length || '…') : list.length }}</span>
+          <span class="font-mono">{{ isGno ? (gnoValidators.length ? (gnoCounts.ACTIVE + gnoCounts.PENDING + gnoCounts.INACTIVE) : '…') : list.length }}</span>
           <template v-if="isGno && gnoValidators.length">
-            · {{ gnoCounts.ACTIVE }} active · {{ gnoCounts.PENDING }} pending · {{ gnoCounts.INACTIVE }} inactive
+            validators · {{ gnoCounts.ACTIVE }} active · {{ gnoCounts.PENDING }} pending · {{ gnoCounts.INACTIVE }} inactive
           </template>
           <template v-else-if="isGno && gnoLoading">
             · loading from indexer…
