@@ -7,7 +7,6 @@ import type { Key, SlashingParam, Validator } from '@/types';
 import { formatSeconds } from '@/libs/utils';
 import { diff } from 'semver';
 import { getGnoIndexer, type GnoIndexerValidator } from '@/libs/gno/indexer';
-import { gnoMoniker } from '@/libs/gno/valopers';
 
 const staking = useStakingStore();
 const base = useBaseStore();
@@ -40,10 +39,15 @@ function shortAddr(a: string): string {
   return a.length > 18 ? `${a.slice(0, 12)}…${a.slice(-6)}` : a;
 }
 
-/** Build a Validator-shaped object from an onbloc indexer entry. */
+/** Build a Validator-shaped object from an onbloc indexer entry.
+ *  Moniker rule matches gnoscan exactly: `monikerName || shortAddr(address)`.
+ *  We deliberately do NOT overlay the valopers realm registry here — doing so
+ *  maps ACTIVE signing addresses onto operator monikers that ALSO appear in the
+ *  PENDING set, making the two tabs look like duplicates even though the counts
+ *  (87 active / 86 pending / 2 inactive) and addresses are correct & disjoint.
+ */
 function gnoToValidator(g: GnoIndexerValidator): Validator {
-  // Prefer moniker from official valopers realm (operator address key), then indexer moniker.
-  const moniker = gnoMoniker(g.address, g.monikerName || shortAddr(g.address));
+  const moniker = (g.monikerName || '').trim() || shortAddr(g.address);
   return {
     operator_address: g.address,
     consensus_pubkey: { '@type': '/cosmos.crypto.ed25519.PubKey', key: '' } as Key,
@@ -425,8 +429,9 @@ loadAvatars();
                     >
                       {{ v.description?.moniker }}
                     </RouterLink>
-                    <span class="block truncate text-[11px] text-secondary">
-                      {{ v.description?.website || v.description?.identity || '-' }}
+                    <span class="block truncate font-mono text-[11px] text-secondary">
+                      <template v-if="gno">{{ shortAddr(v.operator_address) }}</template>
+                      <template v-else>{{ v.description?.website || v.description?.identity || '-' }}</template>
                     </span>
                   </div>
                 </div>
