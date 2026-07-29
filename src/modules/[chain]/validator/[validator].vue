@@ -24,7 +24,8 @@ import {
 import PaginationBar from '@/components/PaginationBar.vue';
 import { fromBase64, toBase64 } from '@cosmjs/encoding';
 import { stringToUint8Array, uint8ArrayToString } from '@/libs/utils';
-import { lookupGnoValoper, initGnoValopers } from '@/libs/gno/valopers';
+import { lookupGnoValoper, initGnoValopers, type GnoValoper } from '@/libs/gno/valopers';
+import { getGnoIndexer } from '@/libs/gno/indexer';
 
 const props = defineProps(['validator', 'chain']);
 
@@ -61,6 +62,13 @@ const txs = ref({} as PaginatedTxs);
 const events = ref({} as PaginatedTxs);
 const delegatorTotal = ref(0);
 const delegationsLoading = ref(false);
+
+/** Gno/TM2 — full valoper profile from the official realm registry (Indonode-style). */
+const gnoMeta = ref<GnoValoper | undefined>(undefined);
+/** Gno/TM2 — live on-chain status + voting power from the onbloc indexer. */
+const gnoChain = ref<{ status?: string; votingPower?: string; proposerPriority?: string } | undefined>(
+  undefined
+);
 
 // Activities
 type ActivityTab = 'power' | 'votes' | 'txs';
@@ -745,11 +753,62 @@ function loadValidatorCore() {
       .catch(() => undefined)
       .then(() => {
         const meta = lookupGnoValoper(valAddr);
-        if (meta?.identity) {
+        if (!meta) return;
+        gnoMeta.value = meta;
+        if (meta.identity) {
           identity.value = meta.identity;
           if (!avatars.value[meta.identity]) loadAvatar(meta.identity);
         }
+        // Rich valoper profile (Indonode-style) from the official realm registry:
+        // moniker, description, website, socials, networks, addresses, pubkey, server.
+        const website = (meta.website || '').trim();
+        const cleanWebsite =
+          website && /^https?:\/\//i.test(website) && !/discord\.gg|t\.me\//i.test(website)
+            ? website
+            : '';
+        v.value.description = {
+          ...(v.value.description || {}),
+          moniker: meta.moniker || v.value.description?.moniker,
+          details: meta.description || v.value.description?.details,
+          website: cleanWebsite || v.value.description?.website,
+          identity: meta.identity || v.value.description?.identity,
+          security_contact: meta.email || v.value.description?.security_contact,
+        } as any;
+        v.value.operator_address = meta.operatorAddress || v.value.operator_address;
+        // Gno addresses: signing (account), operator, consensus pubkey (hex slot),
+        // and the g1 signing address also doubles as the "signer" display.
+        addresses.value.account = meta.signingAddress || addresses.value.account;
+        addresses.value.operAddress = meta.operatorAddress || addresses.value.operAddress;
+        addresses.value.hex = meta.pubKey || addresses.value.hex;
+        addresses.value.valCons = meta.signingAddress || addresses.value.valCons;
       });
+    // Live status + voting power from the onbloc indexer (Gno has no LCD validator endpoint).
+    const idxUrl = (blockchain.current as any)?.indexer_api;
+    if (idxUrl) {
+      getGnoIndexer(idxUrl)
+        .getAllValidators()
+        .then((list) => {
+          const match =
+            list.find((x) => x.address === valAddr) ||
+            list.find((x) => x.address === gnoMeta.value?.signingAddress) ||
+            list.find((x) => x.address === gnoMeta.value?.operatorAddress);
+          if (match) {
+            gnoChain.value = {
+              status: match.status,
+              votingPower: match.votingPower,
+            };
+            v.value.tokens = match.votingPower || v.value.tokens;
+            v.value.status =
+              match.status === 'ACTIVE'
+                ? 'BOND_STATUS_BONDED'
+                : match.status === 'INACTIVE'
+                  ? 'BOND_STATUS_UNBONDED'
+                  : 'BOND_STATUS_UNBONDING';
+            v.value.jailed = match.status === 'INACTIVE';
+          }
+        })
+        .catch(() => undefined);
+    }
     return;
   }
   if (!blockchain.rpc) return;
@@ -838,6 +897,8 @@ watch(
       // SPA navigation: reload all data for the new validator
       v.value = {} as Validator;
       identity.value = '';
+      gnoMeta.value = undefined;
+      gnoChain.value = undefined;
       rewards.value = [];
       commission.value = [];
       delegations.value = {} as PaginatedDelegations;
@@ -927,6 +988,43 @@ watch(
                 <span class="sz-hero-link-value">—</span>
               </span>
 
+              <!-- Gno valoper socials (Indonode-style) -->
+              <template v-if="isGno && gnoMeta">
+                <a
+                  v-if="gnoMeta.twitter"
+                  :href="gnoMeta.twitter"
+                  target="_blank"
+                  rel="noopener"
+                  class="sz-hero-link"
+                  title="X / Twitter"
+                >
+                  <Icon icon="mdi-twitter" class="text-base" />
+                  <span class="sz-hero-link-label">X</span>
+                </a>
+                <a
+                  v-if="gnoMeta.telegram"
+                  :href="gnoMeta.telegram"
+                  target="_blank"
+                  rel="noopener"
+                  class="sz-hero-link"
+                  title="Telegram"
+                >
+                  <Icon icon="mdi-send" class="text-base" />
+                  <span class="sz-hero-link-label">Telegram</span>
+                </a>
+                <a
+                  v-if="gnoMeta.github"
+                  :href="gnoMeta.github"
+                  target="_blank"
+                  rel="noopener"
+                  class="sz-hero-link"
+                  title="GitHub"
+                >
+                  <Icon icon="mdi-github" class="text-base" />
+                  <span class="sz-hero-link-label">GitHub</span>
+                </a>
+              </template>
+
               <span v-if="identity" class="sz-chip font-mono !text-[10px] !font-medium text-secondary">
                 {{ identity }}
               </span>
@@ -945,8 +1043,8 @@ watch(
       </div>
     </section>
 
-    <!-- METRIC STRIP (sz-stat instrument tiles) -->
-    <div class="grid grid-cols-2 md:!grid-cols-3 xl:!grid-cols-6 gap-3 mb-4">
+    <!-- METRIC STRIP — Cosmos (bonded / self / delegators / commission / APR / min) -->
+    <div v-if="!isGno" class="grid grid-cols-2 md:!grid-cols-3 xl:!grid-cols-6 gap-3 mb-4">
       <div class="sz-stat" style="--stat-hue: var(--sz-accent)">
         <div class="sz-stat-head"><i class="sz-stat-tick"></i><span class="sz-stat-label">{{ $t('staking.total_bonded') }}</span></div>
         <div class="sz-stat-value">
@@ -995,8 +1093,190 @@ watch(
       </div>
     </div>
 
-    <!-- COMMISSION & EARNINGS (merged) + ADDRESSES -->
-    <div class="grid grid-cols-1 lg:!grid-cols-5 gap-4 mb-4">
+    <!-- METRIC STRIP — Gno/TM2 (VP / status / server / networks) -->
+    <div v-else class="grid grid-cols-2 md:!grid-cols-4 gap-3 mb-4">
+      <div class="sz-stat" style="--stat-hue: var(--sz-accent)">
+        <div class="sz-stat-head"><i class="sz-stat-tick"></i><span class="sz-stat-label">Voting Power</span></div>
+        <div class="sz-stat-value">
+          {{ gnoChain?.votingPower || v.tokens || '—' }}
+        </div>
+        <div class="sz-stat-sub">from indexer</div>
+      </div>
+      <div class="sz-stat" style="--stat-hue: #0ea5e9">
+        <div class="sz-stat-head"><i class="sz-stat-tick"></i><span class="sz-stat-label">Status</span></div>
+        <div class="sz-stat-value !text-base">
+          {{ gnoChain?.status || statusLabel || '—' }}
+        </div>
+        <div class="sz-stat-sub">set membership</div>
+      </div>
+      <div class="sz-stat" style="--stat-hue: #764bc8">
+        <div class="sz-stat-head"><i class="sz-stat-tick"></i><span class="sz-stat-label">Server</span></div>
+        <div class="sz-stat-value !text-base">
+          {{ gnoMeta?.serverType || '—' }}
+        </div>
+        <div class="sz-stat-sub">infrastructure</div>
+      </div>
+      <div class="sz-stat" style="--stat-hue: var(--sz-success)">
+        <div class="sz-stat-head"><i class="sz-stat-tick"></i><span class="sz-stat-label">Networks</span></div>
+        <div class="sz-stat-value">
+          {{ gnoMeta?.networks?.length || 0 }}
+        </div>
+        <div class="sz-stat-sub">also validating</div>
+      </div>
+    </div>
+
+    <!-- GNO PROFILE (Indonode-style) + ADDRESSES -->
+    <div v-if="isGno" class="grid grid-cols-1 lg:!grid-cols-5 gap-4 mb-4">
+      <div class="sz-section overflow-hidden lg:!col-span-3 flex flex-col">
+        <div class="sz-section-head">
+          <div>
+            <div class="sz-section-kicker">Profile</div>
+            <div class="sz-section-title">Valoper Info</div>
+          </div>
+        </div>
+        <div class="px-4 py-3 space-y-4 flex-1">
+          <div v-if="v.description?.details">
+            <div class="text-[11px] font-bold uppercase tracking-wider text-secondary mb-1">Description</div>
+            <p class="text-[13px] leading-relaxed text-base-content/90">{{ v.description.details }}</p>
+          </div>
+          <div v-if="gnoMeta?.networks?.length">
+            <div class="text-[11px] font-bold uppercase tracking-wider text-secondary mb-1.5">Networks</div>
+            <div class="flex flex-wrap gap-1.5">
+              <span
+                v-for="(n, i) in gnoMeta.networks"
+                :key="`net-${i}`"
+                class="sz-chip sz-chip--info !text-[11px]"
+              >{{ n }}</span>
+            </div>
+          </div>
+          <div>
+            <div class="text-[11px] font-bold uppercase tracking-wider text-secondary mb-1.5">Links & Contact</div>
+            <div class="flex flex-wrap gap-2">
+              <a
+                v-if="v.description?.website"
+                :href="v.description.website"
+                target="_blank"
+                rel="noopener"
+                class="sz-hero-link"
+              >
+                <Icon icon="mdi-web" class="text-base" />
+                <span class="sz-hero-link-label">Website</span>
+              </a>
+              <a
+                v-if="gnoMeta?.twitter"
+                :href="gnoMeta.twitter"
+                target="_blank"
+                rel="noopener"
+                class="sz-hero-link"
+              >
+                <Icon icon="mdi-twitter" class="text-base" />
+                <span class="sz-hero-link-label">X</span>
+              </a>
+              <a
+                v-if="gnoMeta?.telegram"
+                :href="gnoMeta.telegram"
+                target="_blank"
+                rel="noopener"
+                class="sz-hero-link"
+              >
+                <Icon icon="mdi-send" class="text-base" />
+                <span class="sz-hero-link-label">Telegram</span>
+              </a>
+              <a
+                v-if="gnoMeta?.github"
+                :href="gnoMeta.github"
+                target="_blank"
+                rel="noopener"
+                class="sz-hero-link"
+              >
+                <Icon icon="mdi-github" class="text-base" />
+                <span class="sz-hero-link-label">GitHub</span>
+              </a>
+              <a
+                v-if="gnoMeta?.email || v.description?.security_contact"
+                :href="'mailto:' + (gnoMeta?.email || v.description?.security_contact)"
+                class="sz-hero-link"
+              >
+                <Icon icon="mdi-email-outline" class="text-base" />
+                <span class="sz-hero-link-label">{{ gnoMeta?.email || v.description?.security_contact }}</span>
+              </a>
+              <span
+                v-if="gnoMeta?.discord"
+                class="sz-hero-link sz-hero-link--muted"
+                :title="'Discord: ' + gnoMeta.discord"
+              >
+                <Icon icon="mdi-discord" class="text-base" />
+                <span class="sz-hero-link-label">{{ gnoMeta.discord }}</span>
+              </span>
+              <span
+                v-if="!v.description?.website && !gnoMeta?.twitter && !gnoMeta?.telegram && !gnoMeta?.github && !gnoMeta?.email && !gnoMeta?.discord && !v.description?.security_contact"
+                class="text-secondary text-xs"
+              >—</span>
+            </div>
+          </div>
+          <div v-if="gnoMeta?.serverType" class="text-[12px] text-secondary">
+            Server type: <span class="font-mono text-base-content">{{ gnoMeta.serverType }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="sz-section overflow-hidden lg:!col-span-2">
+        <div class="sz-section-head">
+          <div>
+            <div class="sz-section-kicker">Identity</div>
+            <div class="sz-section-title">{{ $t('staking.addresses') }}</div>
+          </div>
+        </div>
+        <div class="px-4 py-3 space-y-3">
+          <div>
+            <div class="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-secondary mb-0.5">
+              Signing Address
+              <Icon
+                icon="mdi:content-copy"
+                class="cursor-pointer text-sm opacity-70 hover:opacity-100"
+                v-show="addresses.account"
+                @click="copyWebsite(addresses.account || '')"
+              />
+            </div>
+            <RouterLink
+              class="sz-hash text-primary link link-hover break-all text-[12px]"
+              :to="`/${chain}/account/${addresses.account}`"
+            >{{ addresses.account || '—' }}</RouterLink>
+          </div>
+          <div>
+            <div class="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-secondary mb-0.5">
+              Operator Address
+              <Icon
+                icon="mdi:content-copy"
+                class="cursor-pointer text-sm opacity-70 hover:opacity-100"
+                v-show="addresses.operAddress || v.operator_address"
+                @click="copyWebsite(addresses.operAddress || v.operator_address || '')"
+              />
+            </div>
+            <div class="sz-hash text-[12px] break-all">{{ addresses.operAddress || v.operator_address || '—' }}</div>
+          </div>
+          <div>
+            <div class="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-secondary mb-0.5">
+              Signing PubKey
+              <Icon
+                icon="mdi:content-copy"
+                class="cursor-pointer text-sm opacity-70 hover:opacity-100"
+                v-show="gnoMeta?.pubKey || addresses.hex"
+                @click="copyWebsite(gnoMeta?.pubKey || addresses.hex || '')"
+              />
+            </div>
+            <div class="sz-hash text-[12px] break-all">{{ gnoMeta?.pubKey || addresses.hex || '—' }}</div>
+          </div>
+          <div v-if="identity">
+            <div class="text-[11px] font-bold uppercase tracking-wider text-secondary mb-0.5">Keybase Identity</div>
+            <div class="sz-hash text-[12px] break-all font-mono">{{ identity }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- COMMISSION & EARNINGS (merged) + ADDRESSES — Cosmos only -->
+    <div v-if="!isGno" class="grid grid-cols-1 lg:!grid-cols-5 gap-4 mb-4">
       <div class="sz-section overflow-hidden lg:!col-span-3 flex flex-col">
         <div class="sz-section-head">
           <div>
@@ -1034,12 +1314,10 @@ watch(
               </div>
             </div>
             <button
-              v-if="!isGno"
               type="button"
               class="btn btn-primary btn-sm w-full mt-auto"
               @click="dialog.open('withdraw_commission', { validator_address: v.operator_address || validator.value })"
             >{{ $t('account.btn_withdraw') }}</button>
-            <div v-else class="text-center text-[11px] text-secondary mt-auto pt-2">No commission withdraw on TM2</div>
           </div>
         </div>
       </div>

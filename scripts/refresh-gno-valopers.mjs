@@ -110,28 +110,160 @@ async function fetchListPages() {
   return ops;
 }
 
-// --- detail page ---
+// --- detail page (full valoper profile from <md-renderer>) ---
+/** Decode Cloudflare email-protection hex (data-cfemail). */
+function decodeCfEmail(hex) {
+  try {
+    if (!hex || hex.length < 4) return '';
+    const r = parseInt(hex.slice(0, 2), 16);
+    let out = '';
+    for (let i = 2; i < hex.length; i += 2) {
+      out += String.fromCharCode(parseInt(hex.slice(i, i + 2), 16) ^ r);
+    }
+    return out.includes('@') ? out : '';
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * Parse a single valoper detail HTML page into a rich profile.
+ * Source: https://topaz.testnets.gno.land/r/gnops/valopers:<operator>
+ * Layout is markdown-rendered inside <md-renderer class="c-realm-view">.
+ */
 async function fetchDetail(operatorAddress) {
   const html = await get(`${BASE}:${operatorAddress}`);
-  const signMatch = html.match(/Signing Address:[\s\S]{0,200}?(g1[a-z0-9]{38,45})/i);
-  const serverMatch = html.match(/Server Type:[\s\S]{0,100}?(cloud|on-prem|data-center)/i);
-  const text = html.replace(/<[^>]+>/g, '\n');
-  const lines = text
-    .split('\n')
-    .map((l) => l.trim())
-    .filter((l) => l.length > 20);
-  const descCands = lines.filter(
-    (l) => !/^(Operator|Signing|Server|Moniker|Website|Description|g1|gpub)/i.test(l)
-  );
-  const description = descCands.length
-    ? descCands.reduce((a, b) => (b.length > a.length ? b : a)).slice(0, 200)
-    : '';
-  const wsMatch = description.match(/https?:\/\/[^\s]+/);
+
+  // Prefer the md-renderer body (clean profile), fall back to whole page
+  const mdMatch = html.match(/<md-renderer[^>]*>([\s\S]*?)<\/md-renderer>/i);
+  const body = mdMatch ? mdMatch[1] : html;
+
+  // Strip scripts/styles/svg icons, keep structure for label parsing
+  let clean = body
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<svg[\s\S]*?<\/svg>/gi, '');
+
+  // Pull labeled links before stripping tags
+  const linkByLabel = (labelRe) => {
+    // <li>Website: <a href="URL"> or Website: <a href=...
+    const re = new RegExp(
+      `(?:<li[^>]*>\\s*)?(?:<strong>)?${labelRe}(?:</strong>)?\\s*:?\\s*(?:<a[^>]*href=["']([^"']+)["'][^>]*>)?`,
+      'i'
+    );
+    const m = clean.match(re);
+    if (m && m[1] && /^https?:\/\//i.test(m[1]) && !/cdn-cgi\/l\/email/i.test(m[1])) {
+      return m[1].trim();
+    }
+    return '';
+  };
+
+  const website =
+    linkByLabel('Website') ||
+    linkByLabel('Web\\s*site') ||
+    '';
+  const twitter =
+    linkByLabel('X\\s*\\(?Twitter\\)?') ||
+    linkByLabel('Twitter') ||
+    linkByLabel('X') ||
+    '';
+  const github = linkByLabel('GitHub') || linkByLabel('Github') || '';
+  const telegram = linkByLabel('Telegram') || linkByLabel('TG') || '';
+  const discord =
+    linkByLabel('Discord(?:\\s*Username)?') ||
+    linkByLabel('Discord') ||
+    '';
+
+  // Cloudflare-protected email
+  let email = '';
+  const cf = clean.match(/data-cfemail=["']([0-9a-fA-F]+)["']/);
+  if (cf) email = decodeCfEmail(cf[1]);
+  if (!email) {
+    const em = clean.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
+    if (em && !/newtendermint|example\.com/i.test(em[0])) email = em[0];
+  }
+
+  // Plain-text extraction for addresses / server / description / networks
+  const text = clean
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(p|li|h[1-6]|div|tr)>/gi, '\n')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&#160;/g, ' ')
+    .replace(/\s+\n/g, '\n')
+    .replace(/\n\s+/g, '\n');
+
+  const signMatch = text.match(/Signing Address[:\s]+(g1[a-z0-9]{38,45})/i);
+  const opMatch = text.match(/Operator Address[:\s]+(g1[a-z0-9]{38,45})/i);
+  const pubMatch = text.match(/Signing PubKey[:\s]+(gpub1[a-z0-9]+)/i);
+  const serverMatch = text.match(/Server Type[:\s]+(cloud|on-prem|data-center|bare-?metal|vps|dedicated)/i);
+
+  // Description: first substantial paragraph after "Validator Name" / moniker heading,
+  // before "Networks You Are Currently Validating" / "Links to Your Digital Presence".
+  let description = '';
+  {
+    const afterName = text.split(/Validator Name[:\s]+[^\n]+/i)[1] || text;
+    const beforeLinks = afterName.split(
+      /Networks You Are Currently Validating|Links to Your Digital Presence|Contact Details|Why You Are Interested|Operator Address/i
+    )[0];
+    const paras = beforeLinks
+      .split(/\n+/)
+      .map((l) => l.trim())
+      .filter(
+        (l) =>
+          l.length > 40 &&
+          !/^(Valoper|Validator Name|g1|Profile|On this page)/i.test(l) &&
+          !/^https?:\/\//i.test(l)
+      );
+    if (paras.length) {
+      // Prefer the longest first paragraph (bio), cap at 600 chars
+      description = paras[0].slice(0, 600);
+    }
+  }
+
+  // Networks list (bullet items under "Networks You Are Currently Validating")
+  const networks = [];
+  {
+    const netSec = text.split(/Networks You Are Currently Validating[:\s]*/i)[1] || '';
+    const netBody = netSec.split(
+      /Links to Your Digital Presence|Contact Details|Why You Are Interested|Operator Address|Contributions/i
+    )[0];
+    for (const line of netBody.split(/\n+/)) {
+      const t = line.trim().replace(/^[-*•]\s*/, '');
+      if (!t || t.length < 2 || t.length > 60) continue;
+      if (/^(And Other|Mainnets|Testnets|http)/i.test(t)) continue;
+      if (/^g1|^gpub/i.test(t)) continue;
+      networks.push(t);
+      if (networks.length >= 20) break;
+    }
+  }
+
+  // Discord username (plain text, not always a link)
+  let discordName = '';
+  {
+    const dm = text.match(/Discord(?:\s*Username)?[:\s]+([^\n]{2,40})/i);
+    if (dm) {
+      const raw = dm[1].trim().replace(/^https?:\/\/\S+/i, '').trim();
+      if (raw && !/^g1/i.test(raw) && raw.length < 40) discordName = raw;
+    }
+  }
+
   return {
     signingAddress: signMatch ? signMatch[1] : '',
-    serverType: serverMatch ? serverMatch[1] : '',
+    operatorAddressDetail: opMatch ? opMatch[1] : '',
+    pubKey: pubMatch ? pubMatch[1] : '',
+    serverType: serverMatch ? serverMatch[1].toLowerCase().replace(/baremetal/, 'bare-metal') : '',
     description,
-    website: wsMatch ? wsMatch[0] : '',
+    website,
+    twitter,
+    github,
+    telegram,
+    discord: discord || discordName,
+    email,
+    networks,
   };
 }
 
@@ -228,6 +360,15 @@ async function buildRegistry() {
         identity: prev.identity || '',
         serverType: detail.serverType || prev.serverType || '',
         description: detail.description || prev.description || '',
+        pubKey: detail.pubKey || prev.pubKey || '',
+        twitter: detail.twitter || prev.twitter || '',
+        github: detail.github || prev.github || '',
+        telegram: detail.telegram || prev.telegram || '',
+        discord: detail.discord || prev.discord || '',
+        email: detail.email || prev.email || '',
+        networks: (detail.networks && detail.networks.length)
+          ? detail.networks
+          : (prev.networks || []),
       });
     } catch (e) {
       rows.push({
@@ -238,6 +379,13 @@ async function buildRegistry() {
         identity: prev.identity || '',
         serverType: prev.serverType || '',
         description: prev.description || '',
+        pubKey: prev.pubKey || '',
+        twitter: prev.twitter || '',
+        github: prev.github || '',
+        telegram: prev.telegram || '',
+        discord: prev.discord || '',
+        email: prev.email || '',
+        networks: prev.networks || [],
       });
     }
     if ((i + 1) % 25 === 0) {
@@ -397,6 +545,13 @@ export interface GnoValoperRow {
   identity?: string;
   serverType?: string;
   description?: string;
+  pubKey?: string;
+  twitter?: string;
+  github?: string;
+  telegram?: string;
+  discord?: string;
+  email?: string;
+  networks?: string[];
 }
 
 const registry: GnoValoperRow[] = `;

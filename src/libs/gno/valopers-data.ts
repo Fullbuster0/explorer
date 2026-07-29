@@ -1,7 +1,7 @@
 /** Auto-generated Gnoland valoper moniker registry.
  * Source: https://topaz.testnets.gno.land/r/gnops/valopers
  * Identity: AtomOne mainnet moniker match → Keybase (for logos)
- * Generated: 2026-07-29T13:25:54.653Z
+ * Generated: 2026-07-29T13:47:15.899Z
  * Do not hand-edit — run: node scripts/refresh-gno-valopers.mjs
  */
 export interface GnoValoperRow {
@@ -12,6 +12,13 @@ export interface GnoValoperRow {
   identity?: string;
   serverType?: string;
   description?: string;
+  pubKey?: string;
+  twitter?: string;
+  github?: string;
+  telegram?: string;
+  discord?: string;
+  email?: string;
+  networks?: string[];
 }
 
 const registry: GnoValoperRow[] = [
@@ -22,7 +29,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "",
     "serverType": "data-center",
-    "description": ". We want to validate on gno.land because its on-chain source model, Gno smart contracts, and Proof-of-Contribution governance match our focus on reliable infrastructure, public data access, and long-"
+    "description": "1XP is a validator and infrastructure operator active since 2018, with experience across mainnet and testnet networks including Solana, Berachain, Wormhole, Cosmos Hub, Axelar, Celo, Monad, Mitosis, Pharos, AtomOne, Terra, Akash, and others. Current AUM is about USD 27M. Public links: https://1xp.com, https://x.com/1XP_Inc, https://github.com/1xp-inc. Discord:  @jjangg96     @tedc   . Contact:  [email protected] . We want to validate on gno.land because its on-chain source model, Gno smart contracts, and Proof-of-Contribution governance match our focus on reliable infrastructure, public data a",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpg8z6c2xaujjtnrpkpp9e9sh6x3grf6k2wgx4uyf4tjqd3nvmuavzhyrj4",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "",
+    "email": "hello@1xp.com",
+    "networks": []
   },
   {
     "moniker": "2NH",
@@ -31,7 +45,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "",
     "serverType": "cloud",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "Networks: gno.land testnets (Test13, now Topaz). Testnet validator, no mainnet AuM (testnet tokens have no real value).",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq8ev2nwerxue5zhkkxdsl08lcg5yyx7r0tlvt9pnsh977fc7hfye4e30hf",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "",
+    "email": "nnhoa92@gmail.com",
+    "networks": []
   },
   {
     "moniker": "Apollo",
@@ -40,7 +61,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "6E2F84CACB2817CD",
     "serverType": "cloud",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "Mainnet: AtomOne, Celestia, Bitway, Jackal, Axone, Arkeo, Realio, Massa, Quicksilver, Nomic, Terp etc.",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zp37c8kffv3cgcrec8s0rzzplgj9edf0zgzve6v03rp55kyedn8uzq8rm06",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "zelivsky",
+    "email": "apollo.validator@gmail.com",
+    "networks": []
   },
   {
     "moniker": "AviaOne",
@@ -49,7 +77,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "DCD3D6C0BF61C200",
     "serverType": "data-center",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "AviaOne 🟢 is a trusted professional validator since 2021. Security-focused infrastructure with tokens remaining in delegators' wallets at all times. Ventures & Investors:  [email protected] .",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq4gtpf9f73r47uay94flg46u3aqrq4r7dmxjqenrchltureqdllmpryxuw",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "@AviaOne   .com 🟢",
+    "email": "sales@aviaone.com",
+    "networks": []
   },
   {
     "moniker": "berty-val-01",
@@ -58,7 +93,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "",
     "serverType": "data-center",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "The networks we are currently validating are the following: none",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpy8g42cqrj6dpggep0nwn56p9qa48w78we0jl54umuvxkdexeucllvpc7z",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "handles: rems14, jefft0",
+    "email": "hello@berty.tech",
+    "networks": []
   },
   {
     "moniker": "BlockNth",
@@ -67,7 +109,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "",
     "serverType": "data-center",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "BlockNth operates secure validator infrastructure for growing networks: monitored staking, ecosystem tooling, ops support, and community programs.",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqh7yxkkzq3vsn3kz9nu2tr7shw0mn73kvn3jxxr6s6hrjya97skfd2drc3",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "ronnynth",
+    "email": "staking@blocknth.com",
+    "networks": []
   },
   {
     "moniker": "BonyNode",
@@ -76,16 +125,30 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "C5C24B65139B46BE",
     "serverType": "data-center",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "BonyNode — professional node operator since 2017. A team of DevOps engineers and software developers running enterprise validators and building apps, tools & infrastructure for the Cosmos, EVM and Solana ecosystems. We support 50+ networks (28+ mainnets, 22+ testnets) on dedicated bare-metal servers. Proven track record with high uptime, active on-chain governance participation, coordinated chain upgrades and hard-fork handling, 24/7 monitoring with on-call response, and public infrastructure (RPC endpoints, snapshots and tooling) for operators and developers. https://bonynode.online/",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpl7esxmap4haj97l4zqlr88pal38m3mfc0nm6xcpc4xt6kffgnvaepnch6",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "",
+    "email": "",
+    "networks": []
   },
   {
     "moniker": "BoyGau",
     "signingAddress": "g1chh0qg3nl9lz4fyz470zup2ljrel23yz06vnd8",
     "operatorAddress": "g1lyt8fg7e987jgh7kxa3fn8zlcx295kdzuj7d8d",
-    "website": "",
+    "website": "https://boygau.top",
     "identity": "",
     "serverType": "on-prem",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "Current Networks & AuM: Active infrastructure provider and node operator managing multi-chain systems ( boygau.top   ).",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqwh6rlk26f3wyau3z89clfdxjs3xg6twhah9vu5ec6awy9y25vnu4c7sjp",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "BoyGau",
+    "email": "",
+    "networks": []
   },
   {
     "moniker": "BZE Community",
@@ -94,7 +157,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "F2D4A81476AE8660",
     "serverType": "cloud",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "BZE Community is the team behind BeeZee, a sovereign Cosmos SDK blockchain focused on fast, cost-efficient, and community-driven decentralized services.",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zptlru50g4dv9j5zuy5n9vx5nw4fewrmn58anyk7rwvyw74srtygpgja0ff",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "",
+    "email": "",
+    "networks": []
   },
   {
     "moniker": "cancel",
@@ -103,7 +173,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "",
     "serverType": "data-center",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqf69ag8cw8ne7jggsce33qn0yr69zjy269ujnmvrll0pxs8jldc2whssgn",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "",
+    "email": "",
+    "networks": []
   },
   {
     "moniker": "Chainbase",
@@ -112,7 +189,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "",
     "serverType": "cloud",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "Chainbase Staking is a core service of Chainbase, the leading Hyperdata Network. It pairs staking with rich on-chain data for smarter PoS participation.",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqk9anv8frmf9u99gkahqahe67x4uutp0g8mu4ruugatmlm64997tmczs6x",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "",
+    "email": "staking@chainbase.com",
+    "networks": []
   },
   {
     "moniker": "ChainTools",
@@ -121,7 +205,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "1857FF1BC2EA6A69",
     "serverType": "cloud",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "ChainTools is a blockchain infrastructure operator focused on reliable validator operations, IBC relaying, public endpoint services, monitoring, automation, and open-source tooling for blockchain networks.",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zp3xgcc7h87s89ztheatpz4fz97ekp0wep6j8nwhwhsste782yx37wwfcst",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "qf3l3k_chaintools",
+    "email": "contact@chaintools.tech",
+    "networks": []
   },
   {
     "moniker": "Chicharito",
@@ -130,7 +221,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "",
     "serverType": "data-center",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zp20uczacdezmurhdhl99sy0ak3mceylrgg6ep6z8amhtk8r5kmkf86uwn6",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "0xchicharito",
+    "email": "",
+    "networks": []
   },
   {
     "moniker": "Chiter in Cosmos",
@@ -139,7 +237,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "80546C70A21BB68B",
     "serverType": "cloud",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqu63ype7t2f63yswlu4hgn6w02275k0pzdk48778nu7e8gt0pyytyh57yp",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "",
+    "email": "",
+    "networks": []
   },
   {
     "moniker": "Cogwheel",
@@ -148,7 +253,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "3AB058E3A1912759",
     "serverType": "data-center",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "Cogwheel is blockchain validator that is has been active since 2023. Cogwheel always tries to contribute to the ecosystem by providing documentations for node deployment, writing blogs and how to guides, provide public endpoints such as REST,gRPC,RPC and WSS on Cosmos SDK based networks. Alongside these services we do provide apps and services that are unique and give users a way of interacting with the blockchain such as the Spectra Explorer, Spectra Portal, Dyson Frontend, and in the future probably even more apps and services will come online.",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpjhhhjamnmmtpe0cqhdtjn92zu6ruc8agj939zvvuyxfg8qq2q4nxfy3c7",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "Kamikaza731 | Cogwheel",
+    "email": "info@cogwheel.zone",
+    "networks": []
   },
   {
     "moniker": "coinsspor",
@@ -157,7 +269,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "",
     "serverType": "data-center",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "Professional validator & Web3 security researcher | Cosmos multi-chain operator | Explorer: gnolandexplorer.coinsspor.com | GnoNym: gnonym.coinsspor.com | GitHub: coinsspor",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpkhsxpzc62cqh3gy0c4yj6ap2ca7euqnkc3zgpasxml3lan5jjuttkxphy",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "",
+    "email": "",
+    "networks": []
   },
   {
     "moniker": "Conqueror",
@@ -166,7 +285,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "",
     "serverType": "data-center",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqslyt7dhrd2jfa0vypr76vvgkhcgc52lnt92gpnt08uyak32l34nkv68tv",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "",
+    "email": "",
+    "networks": []
   },
   {
     "moniker": "CoreNode",
@@ -175,7 +301,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "",
     "serverType": "data-center",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "🛠️ https://services.corenodehq.xyz/testnet/gno-land-13",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpsupqp205m9627a28zsud2terl7hxkzgz0c7505ztqdm8llcg3uw4fggjy",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "molla202",
+    "email": "",
+    "networks": []
   },
   {
     "moniker": "CoreStake",
@@ -184,7 +317,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "3A93185C582B666C",
     "serverType": "cloud",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "CoreStake: A high-availability, professionally managed validator.",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zp0n4xaqepxfpka6aljnyh6qlt5at26v4n48uz3ulwluqk3djk7yzewvt66",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "cosmostrack",
+    "email": "",
+    "networks": []
   },
   {
     "moniker": "Cryptech",
@@ -193,7 +333,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "",
     "serverType": "data-center",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "Infrastructure: Personal datacenter + cloud",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpp2k4x9xxh80sav33s37tcfkew28aeua45mz0aajxxlxk7aheju2kcsd9s",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "romashkin_cryptech",
+    "email": "nodes@cryptech.com.ua",
+    "networks": []
   },
   {
     "moniker": "Cumulo",
@@ -202,16 +349,33 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "",
     "serverType": "data-center",
-    "description": "Cumulo is a professional validator operating infrastructure across multiple networks, including Celestia, Espresso Network, Cosmos Hub, Dymension, Axone, Warden, Quicksilver, Seda, Avail, Starknet, Co"
+    "description": "Cumulo is a professional validator operating infrastructure across multiple networks, including Celestia, Espresso Network, Cosmos Hub, Dymension, Axone, Warden, Quicksilver, Seda, Avail, Starknet, Concordium, Fuel, and XRP EVM on mainnet, and Genlayer and IMUA on testnet. Why Gno.land? We see Gno.land as a technically unique project with a strong vision around Go-based smart contracts and Proof of Contribution. As active Cosmos validators, we want to contribute to the strength of this ecosystem and support its growth at an early stage. Contributions: We can contribute through validator infras",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zp2xhcvhdnms2vum8e6vmm9s827897hct4wsxsrump3yzxl7pguqvzsq292",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "mon.cumulo.pro, sami.cumulo.pro",
+    "email": "",
+    "networks": []
   },
   {
     "moniker": "cunum",
     "signingAddress": "g1yxkhzstt05j88ckslxfgkd8nc67r5dj8chz4d3",
     "operatorAddress": "g1y5sclwdy8j6l5m8a5hzsx374k6rvege399zvy9",
-    "website": "",
+    "website": "https://cosmos.cunum.com",
     "identity": "3D2F3F4B1E22F4F2",
     "serverType": "data-center",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "cunum is a small solo validator, validating for NEAR protocol since January 2023, involved in the Cosmos ecosystem as user since 2021, validating for GovGen from genesis till sunset and for AtomOne from week 1 till today.",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zp30znyrsmwm7uml359w5gml5xfc2xgnzk7t5gntj4tmrjdsxkzru9cjym5",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "cunum_04458",
+    "email": "staking@cunum.com",
+    "networks": [
+      "AtomOne (ATONE)",
+      "Near Protocol (NEAR)"
+    ]
   },
   {
     "moniker": "dnsarz",
@@ -220,7 +384,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "7ED45AAE67A1CDD5",
     "serverType": "data-center",
-    "description": "Reliable infrastructure. Secure operations. Long-term commitment.  ---  ## 👋 About Us  DNSARZ Validator is an independent blockchain infrastructure provider with extensive experience operating Cosmos"
+    "description": "Reliable infrastructure. Secure operations. Long-term commitment.  ---  ## 👋 About Us  DNSARZ Validator is an independent blockchain infrastructure provider with extensive experience operating Cosmos SDK validators, RPC services, snapshots, explorers, and developer tools. We are committed to supporting the Gno ecosystem with reliable infrastructure and active community participation.  ---  ## 🌐 Main Networks  - AtomOne — 90,319 ATONE - Axone — 1,167,179 AXONE - DungeonChain — 11,046,548 DGN - Epix — 645,205,966 EPIX - Jay Network — 2,226,258 JAY - Medas Digital — 5,391,530 MEDAS - Realio — 2",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zp6tdt2qg8ljldrqgdk0pcqy2f4lqy79zl5f86nxv7sxpznqyxjgaa7rwa9",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "@dnsarz     ---",
+    "email": "dnsarz@gmail.com",
+    "networks": []
   },
   {
     "moniker": "doresa",
@@ -229,7 +400,17 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "",
     "serverType": "data-center",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq244ltyg9gw2ue9jg9aum2zdmmgtq2n2p6alp5elq9gg6q5j80yu8r38p2",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "doresa0",
+    "email": "contact@doresa.xyz",
+    "networks": [
+      "and your total AuM (assets under management)",
+      "CrossFi (~$220,000 AuM)."
+    ]
   },
   {
     "moniker": "EmberStake",
@@ -238,7 +419,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "",
     "serverType": "data-center",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "EmberStake is a professional staking infrastructure operator focused on performance, automation, and ecosystem contribution.",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqyjy4f2wu5cgdzsh6nqvq5sut5zchlsxe8pttselhc77qam0dt9raask5h",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "@4rash   .",
+    "email": "contact@emberstake.xyz",
+    "networks": []
   },
   {
     "moniker": "EquinoxDao",
@@ -247,7 +435,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "048733E2C6061B87",
     "serverType": "data-center",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "Professional validator and infrastructure provider operating secure nodes across multiple blockchain ecosystems.",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zp0q9xppuq80fujg63890hyw5xgvqrdc3s6jf8jzvl4mr8qysa0atvrztdf",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "kianxxxx",
+    "email": "admin@equinoxdao.xyz",
+    "networks": []
   },
   {
     "moniker": "ESERCKR",
@@ -256,7 +451,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "",
     "serverType": "data-center",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "Professional validator operated by ESERCKR.",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpvregs4ul0kdsc9gd5e8xrd352uq829p4qx5pmm8sdj6uyrdwhr7pj6wds",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "rascolnhawking",
+    "email": "",
+    "networks": []
   },
   {
     "moniker": "Fluxen",
@@ -265,7 +467,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "58527185D1DD91F8",
     "serverType": "data-center",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "Fluxen (formerly Indonode). 2. Validating on 10 mainnets with ~$100,000 AuM: Atomone, Realio, Epix, Lumen, Planq, Source Protocol, Espresso, plus testnets Safrochain and Daodiseo. 3. Website: https://indonode.net, GitHub: https://github.com/elangrr, Discord/TG handle: flux_en. 4. Contact:  [email protected] . 5. I am passionate about decentralization and transparency, and gno.land has embraced those values since the start — I believe my infrastructure and community focus fit well here. 6. I run a dedicated server with 98%+ uptime and full monitoring, and will provide RPC, API, gRPC, and snapsh",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zp3f8mv8ehtys2e6zha7zwm6uu4fn4rnk5u96q3hasnm5slz206uyl2a0lg",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "",
+    "email": "contact@indonode.net",
+    "networks": []
   },
   {
     "moniker": "GATA HUB",
@@ -274,7 +483,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "44937E3DA9AA699A",
     "serverType": "data-center",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "Networks validating: AtomOne, CosmosHub, Akash, Osmosis, Passage, Nomic, Juno.",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqe4n342l8ghgd8g7xld0mfcy4fqy9kt25yyyg0vkgz9e63fv35ca39xypc",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "",
+    "email": "support@gatahub.zone",
+    "networks": []
   },
   {
     "moniker": "gno-core-val-01",
@@ -283,7 +499,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "",
     "serverType": "cloud",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "topaz founding validator (gno-core-val-01)",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqay44wamel8f4zvpjkfzfzpt36xwt8jg8r7zjkfj8x8rx7j6ekwq9ah2r9",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "",
+    "email": "",
+    "networks": []
   },
   {
     "moniker": "gno-core-val-02",
@@ -292,7 +515,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "",
     "serverType": "cloud",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "topaz founding validator (gno-core-val-02)",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zp9m3ga2acvcdk04nrzgezuqc604w0jet7ql2jj0n7rxg2hgcs964ccmwxn",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "",
+    "email": "",
+    "networks": []
   },
   {
     "moniker": "Grand Valley",
@@ -301,7 +531,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "",
     "serverType": "data-center",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "Grand Valley is a fervent Proof of Stake validator delving deep into the intricate web of decentralised networks. Validator: Grand Valley currently validates 0G Mainnet (~$20k AuM), with past validation experience on Story Mainnet (genesis validator, ~$30m) and Namada Mainnet (genesis validator, ~$30k). Digital Presence: Website https://grandvalleys.com, GitHub profile https://github.com/hubofvalley, Gno.land repository https://github.com/hubofvalley/Valley-of-Gnoland-Testnet, X https://x.com/bacvalley, Discord  @baconvalley   . Contact: X  @bacvalley    | Discord  @baconvalley   . Why gno.lan",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqh95hree7j8rpakrwn2a3j4r6cnr3qrcctvlpwxatj0lz8zxz5r5u98k5u",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "@baconvalley   . Contact: X  @bacvalley",
+    "email": "",
+    "networks": []
   },
   {
     "moniker": "HaruNode",
@@ -310,7 +547,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "",
     "serverType": "data-center",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "HaruNode | High-Availability Validator Infrastructure",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqdm9kmz9w39yvnssy4smqrfq3fvupyxg095psqwa3vkn2hdl5gdlt7dtgv",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "",
+    "email": "",
+    "networks": []
   },
   {
     "moniker": "HazenNetworkSolutions",
@@ -319,7 +563,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "7D2F3AADEBDA49A6",
     "serverType": "data-center",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "Hazen Network Solutions is a leading provider of blockchain validation and infrastructure solutions, operating secure, high-performance validator and full node services across multiple networks. We also collaborate with DePIN, AI, and LLM projects.",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq6wg6439h6sxl5naphrltdy2avkj96xd6ec4xzkm0wmft6t6ntsetxf9je",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "hazentr",
+    "email": "haznftofficial@gmail.com",
+    "networks": []
   },
   {
     "moniker": "Huginn",
@@ -328,7 +579,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "",
     "serverType": "data-center",
-    "description": ". Why gno.land: We have spent years running Tendermint-based infrastructure, so the TM2 base feels familiar, but the contribution-first model and the Gno and GnoVM design are what interest us. Keeping"
+    "description": "Huginn Tech is an infrastructure-first validator and tooling operator. Validator: Huginn Networks: We have operated validators and relayers for about three years across several L1s, including Cosmos Hub, Monad, Starknet, Polkadot, Axelar, Initia, Canton and Espresso. Our focus is uptime, secure key management and disciplined day-to-day operations. Production validators carry foundation and community delegations; newer networks are at testnet stage. Total AuM across networks is around $25M. We run our own infrastructure stack behind this: snapshots, public RPC and WS endpoints, addrbooks, live-",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq050n5w70pa5myk9wsc83fau4neqhnaate5sflduw7r76stk49wnq2aeuq",
+    "twitter": "",
+    "github": "",
+    "telegram": "https://topaz.testnets.gno.land/u/sourled",
+    "discord": "gokay5690. Contact: Telegram  @sourled",
+    "email": "gokay@huginn.tech",
+    "networks": []
   },
   {
     "moniker": "HusoNode",
@@ -337,7 +595,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "546C4A18944D2DBE",
     "serverType": "data-center",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "HusoNode LTD — a registered company operating professional validator infrastructure.",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqmsd4csh0qqzuqpc5u35ustfqlhqr6m5ljfpamk04lqekh2n53ae6xj0sn",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "",
+    "email": "contact@husonode.xyz",
+    "networks": []
   },
   {
     "moniker": "Inter Blockchain Services",
@@ -346,7 +611,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "27FD74457A21B020",
     "serverType": "data-center",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "Inter Blockchain Services Dpos validator and top IBC Relayer of COSMOS ecosystem #IBCGANG.",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqxmg6edhz2r6xx25n5hdwrwylpa4lhvg49ay53jg2cu96cmpy4h7tnsx5r",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "",
+    "email": "contact@ibs.team",
+    "networks": []
   },
   {
     "moniker": "ITRocket",
@@ -355,7 +627,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "D36EEB12E5B1B11A",
     "serverType": "data-center",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "ITRocket is a professional validator, infrastructure provider and analytics hub.",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqly43twlnwfvtzkkepwru8z5k556cfl4cdm547fps5ctv4qryleghgsklu",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "itrocket",
+    "email": "sam@itrocket.net",
+    "networks": []
   },
   {
     "moniker": "KaLaMuC",
@@ -364,16 +643,30 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "B6A097CCB9561F6F",
     "serverType": "data-center",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "KaLaMuC as trusted Proof-of-Stake validator across Cosmos universe. Active ecosystem contributor, IBC relayer and chain service provider since 2019, Support the growth of Web3 and the Proof-of-Stake ecosystem with our non-custodial staking services.",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqwmtqskmp585jzhklsc94rlwnw88sr83y880wufukk2hexwfqaey483kqd",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "kalamuc",
+    "email": "fnkaydn@gmail.com",
+    "networks": []
   },
   {
     "moniker": "KalpaTech",
     "signingAddress": "g1r3hst33nz5txj5rp3scvf4uzvcd2kylhyq8lxq",
     "operatorAddress": "g1f363suf6h7trgyshs5gmf80f2ee9lfzjs3hr03",
-    "website": "",
+    "website": "https://kalpatech.co",
     "identity": "2ABCBF8F9F31AF0E",
     "serverType": "data-center",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "GitHub:  https://github.com/kalpatech_team",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpkgy4mx6e3fs0ha7pp0dxmcjhn0csyv83t6ly2mx28znjnsam7pk9nznpv",
+    "twitter": "https://x.com/kalpa_tech",
+    "github": "https://github.com/kalpatech_team",
+    "telegram": "https://t.me/GOLDel_KalpaTech",
+    "discord": "ID: goldelkalpatech",
+    "email": "info@kalpatech.co",
+    "networks": []
   },
   {
     "moniker": "kazzimkoc",
@@ -382,7 +675,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "",
     "serverType": "data-center",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "Hi, I'm Kazim. You know me as kazzimkoc. I'm a validator with a passion for Blockchain technologies and the Cosmos ecosystem. My goal is to support the community with innovative solutions and create a sustainable ecosystem. I also have knowledge of software development, cryptocurrency mining, and data security.",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpks7wa77urhjjuxenq5m0f4hl630wjs98z00kkvsyd3ccg8z0s8j9nurmp",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "",
+    "email": "",
+    "networks": []
   },
   {
     "moniker": "kgnodes",
@@ -391,7 +691,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "",
     "serverType": "on-prem",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "Professional Validator & Infrastructure Provider",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zptjc6st6uckyhtyqtvgrm5f6eatchjn9dsmdmky7za8jk5z3qk82499es8",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "",
+    "email": "",
+    "networks": []
   },
   {
     "moniker": "Kleomedes",
@@ -400,7 +707,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "AD6C05DA12E42B70",
     "serverType": "on-prem",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "Atom One, Shentu, Lumera, Provenance, Fetch Hub, Akash, Seda, Chihuahua, Juno, Persistence, Cheqd, Arkeo, Dungeon, Babylon, Passage, Symphony.",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpzup6c6xcdwygcz736fwv3z355c99q9pyx5vkk8m39g397z4kc23urdeal",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "kleomed.es/discord",
+    "email": "marco@kleomed.es",
+    "networks": []
   },
   {
     "moniker": "KonsorTech",
@@ -409,7 +723,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "2DA657BCEA9489C2",
     "serverType": "data-center",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "I am interested in validating on gno.land because I believe in supporting secure and decentralized blockchain infrastructure. As an experienced validator operator across multiple blockchain testnets and mainnets, I look forward to contributing my operational expertise and becoming a long-term validator for the gno.land ecosystem.",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq67lcgv2qwvkrn2a2540jsv0v3eyff4vc7exdw50fdenlr7cnr0kpf029d",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "@konsortech",
+    "email": "validator@konsortech.com",
+    "networks": []
   },
   {
     "moniker": "Kromo127",
@@ -418,7 +739,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "",
     "serverType": "data-center",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "I am not currently running the Mainnet, but I am currently running testnets on The Interfold and Asentum. Previously, I ran testnets on Union, Mantra, and Covalent.",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqe7t0uhu00q7rage7n3uksv5nncs2usyhgfp2wzj8tmrqyf5tk2gymxut5",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "daminext",
+    "email": "kromo@privatemail.com",
+    "networks": []
   },
   {
     "moniker": "linkednode",
@@ -427,7 +755,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "E6FDC1B9AD669B9B",
     "serverType": "data-center",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "Email:  [email protected] ,  [email protected]",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpvact5jcz75umlv57y3qskey6gazdmg2qun84j3ks9n0adsn2d528u7swn",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "linked.node",
+    "email": "contact@linkednode.xyz",
+    "networks": []
   },
   {
     "moniker": "LuckyStar",
@@ -436,7 +771,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "F2BA212A924EA1F3",
     "serverType": "on-prem",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "Passionate about decentralization and community-driven networks!",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpkdraefdjl8sp7fpu88xzcup4ndv8nj6hy8tmvdk066g5jm5gu6svqrvy9",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "luckystar.asia",
+    "email": "aluckystarasia@gmail.com",
+    "networks": []
   },
   {
     "moniker": "LuckyStar",
@@ -445,7 +787,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "F2BA212A924EA1F3",
     "serverType": "on-prem",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "Passionate about decentralization and community-driven networks!",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zp0gjsewhx5lzwd6fffru6hh334skxlugx4ugjnzygmmwfs7dyg38f93uml",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "luckystar.asia",
+    "email": "aluckystarasia@gmail.com",
+    "networks": []
   },
   {
     "moniker": "MictoNode",
@@ -454,7 +803,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "D5631172371AC1FF",
     "serverType": "data-center",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "We are currently actively validating on the following mainnets:",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpljy22ccrty9upr37tg3fxe5vnfn04ru5j0wrrxjrezy2txs0xns5keflz",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "@mictonorom",
+    "email": "info@mictonode.com",
+    "networks": []
   },
   {
     "moniker": "MIPEnode",
@@ -463,7 +819,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "BCB1274A2AFD7884",
     "serverType": "on-prem",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "Passionate about decentralization and community-driven networks!",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zphnja5m878fe2ph35ax6tj2furzl8yshqj3k902kftzq8wr4upgj6v8xhr",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "mipenode_91470",
+    "email": "anphat1686@gmail.com",
+    "networks": []
   },
   {
     "moniker": "n1stake",
@@ -472,7 +835,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "",
     "serverType": "data-center",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "Professional PoS validator trusted by 70k+ stakers. Reliability, high performance 24/7, best staking experience for users while adding tangible value to partner projects through specialized tools and services.",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpwa883zjwv3dyktaqt7auedkehaap2ukeuhrq6reyjw86dyguh9ev3wzr5",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "handle: vincagame, denvalery",
+    "email": "hello@n1stake.com",
+    "networks": []
   },
   {
     "moniker": "NakoTurk",
@@ -481,7 +851,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "",
     "serverType": "data-center",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "I'm from Turkey. I've been interested in testnets for a long time. And I participated in many tests. I am the first person to open a channel in the Testnet category on Youtube Turkey. Through this, I have helped many people to enter and learn in this sector. I also continue to be and teach by posting videos, guides. I am the founder and manager of Celestia and Autonomys Network projects Telegram channels in Turkey. Along with the Discord of these two projects, I am also moderating the Discord of the Dymension project and am an Ambassador at Autonomys Network. I took part in mainnet and testnet",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpfyz2v3lh23m0537aaxcu6s4czrdsvv92glj24g6h7ta57uexzeg5h629p",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "",
+    "email": "cryptochainnakoturk@gmail.com",
+    "networks": []
   },
   {
     "moniker": "Node39",
@@ -490,7 +867,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "",
     "serverType": "data-center",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "Each block is a heartbeat. We keep it steady, minimizing disruption.",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpvwn6q72s27m5w2awsue6pjhrgaz9r8j0e4dj5v9zllzrdmx2c96m8c97m",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "",
+    "email": "",
+    "networks": []
   },
   {
     "moniker": "Nodedog",
@@ -499,7 +883,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "19F3F14B17601D7D",
     "serverType": "data-center",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "Nodedog delivers reliable staking and validation solutions for next-generation blockchain networks. With a strong focus on security and consistent uptime, we ensure your assets operate efficiently and securely.",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqg5xlwfwmmj82nvecfhvtp3sstegtf9tgrtw9rnzst0n27z3cgua73zhya",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "iron32850",
+    "email": "",
+    "networks": []
   },
   {
     "moniker": "Nodeist",
@@ -508,7 +899,20 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "A2E180C6914F7F87",
     "serverType": "data-center",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "Nodeist is the trusted staking service provider for blockchain projects. 100% refund for downtime slash. Contact us at   [email protected]",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpxkc940hdu7nsch7gpsnhdn9pynm7pj458zmwruprak7ewhws84dvn5n75",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "ID: nodeist",
+    "email": "hello@nodeist.net",
+    "networks": [
+      "Atomone (ATONE)",
+      "Jackal Protocol (JKL)",
+      "Realio Network (RIO)",
+      "Dymension (DYM)",
+      "Lumera Protocol (LUME)"
+    ]
   },
   {
     "moniker": "NODERS",
@@ -517,7 +921,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "B38EBF2F38B998F4",
     "serverType": "cloud",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "Noders LLC is a premier provider of institutional-grade Validator Services and cutting-edge Web3 Development. We guarantee uninterrupted operation, slash protection, 24/7 monitoring, and the most in-demand contributions to foster project community growth.",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqp5r5g6x4x8nmx0d52n5vggdn5ju30py38wlarpn790n9dz52lgr524mss",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "",
+    "email": "",
+    "networks": []
   },
   {
     "moniker": "NodeRuneR",
@@ -526,7 +937,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "D11D6116821283C3",
     "serverType": "data-center",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqc2eywumrsyrj578g2tz4xn9f825p4x9wwtxs9m0hhhv8c0lwgtadgdvdh",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "",
+    "email": "",
+    "networks": []
   },
   {
     "moniker": "NodeSafe",
@@ -535,7 +953,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "",
     "serverType": "on-prem",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "Independent validator and blockchain infrastructure operator focused on monitoring, automation, and long-term participation.",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq20j4rlzq7scq5wpzqnzky2dan5fwwntzufq7lep696anfn22zya8nc3f5",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "cryptogemfunds",
+    "email": "cryptogemfunds@gmail.com",
+    "networks": []
   },
   {
     "moniker": "Nodeshub",
@@ -544,16 +969,30 @@ const registry: GnoValoperRow[] = [
     "website": "https://t.me/V_NodesHub",
     "identity": "57B4BC3293EE88AB",
     "serverType": "data-center",
-    "description": "•Telegram: https://t.me/V_NodesHub •Discord ID: nodeshub Why You Are Interested in Validating on gno.land: We are excited to support Gno.land because of its modular design, developer-first philosophy,"
+    "description": "At NodesHub, we are a professional blockchain infrastructure provider specializing in validator services, RPC endpoints, and IBC relaying. With extensive experience across diverse ecosystems, we deliver robust, secure, and highly available infrastructure for Web3 networks.",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqx2e5zdxddcq08t3dg9df30gqrv6arup5xkufxdvtdrvpjd0acgpkwx0vm",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "",
+    "email": "contact@nodeshub.online",
+    "networks": []
   },
   {
     "moniker": "NODESYNC",
     "signingAddress": "g17awwm2k3s3q9ru0t2hy3f4wqzzuhpu73qgr5d8",
     "operatorAddress": "g1ppvaadzu0smzqyrgvw73hjdrhvlu43l7g7tw3f",
-    "website": "",
+    "website": "https://nodesync.top",
     "identity": "",
     "serverType": "cloud",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "Current Networks and AuM: NodeSync currently validates and supports multiple blockchain networks.",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpwp4v0ks4zue9fq0tsmwjew93lkx59x09rwd2urq5c3mly50yfgc0wxqzr",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "nodesync_top",
+    "email": "info@nodesync.top",
+    "networks": []
   },
   {
     "moniker": "NomadValidator",
@@ -562,7 +1001,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "",
     "serverType": "data-center",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "Why I'm Interested, I enjoy running blockchain infrastructure and participating in early-stage networks. As a validator, I want to contribute reliable infrastructure and test upgrades.",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zql2utx4zdxhqf5qj37arqrcf6pw60kffyxf0xu86kwvd0lqrwuv0h5p5a8",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "nmdval",
+    "email": "nomad@nomadvalidator.com",
+    "networks": []
   },
   {
     "moniker": "nsk1984",
@@ -571,7 +1017,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "",
     "serverType": "data-center",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "Networks Currently Validating & Total AuM:",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zp20j6f39wrffaj0cmzyu49qrw96smmmcwzljs424jpsmuye6clyzszlqhy",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "yayakol",
+    "email": "nusret198438@gmail.com",
+    "networks": []
   },
   {
     "moniker": "NyanCat",
@@ -580,7 +1033,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "09D4624417E37ABD",
     "serverType": "data-center",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "NyanCat is an independent validator and infrastructure provider operating reliable services across the AtomOne ecosystem and Gno.land Test13.",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqtdkxcjmaqyez7t9ayqlpuk5ca0n2r7xhgzgzzzql570mckuwd2usv99gs",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "nyancat007",
+    "email": "support@nyan-cat.net",
+    "networks": []
   },
   {
     "moniker": "offellnode",
@@ -589,7 +1049,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "",
     "serverType": "data-center",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "some of participated in testnets in the past like ternoa, sge, analog, etc.",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpcwwmel6u3cjpfyf6uurjzxrnhgfwer52n6jvq7q7uwundf4x7thxvk4xh",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "azimaxbt",
+    "email": "validator@offellnode.top",
+    "networks": []
   },
   {
     "moniker": "onbloc-val-01",
@@ -598,7 +1065,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "",
     "serverType": "cloud",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpetp8sqzvy404dh3vh8yrtcrwznagxar0shywqu27z245mutrdghpg9d0g",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "",
+    "email": "info@onbloc.xyz",
+    "networks": []
   },
   {
     "moniker": "onbloc-val-01",
@@ -607,7 +1081,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "",
     "serverType": "cloud",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "The networks we are currently validating are the following: none",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpvh9nxhd4nrc4lp547esfxycfftdftucq4yszjruq7azggjrhlztj42uxm",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "handles: dongwon8247, jinoosss, wj5445",
+    "email": "info@onbloc.xyz",
+    "networks": []
   },
   {
     "moniker": "Oneiric Stake",
@@ -616,7 +1097,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "F1288C602793C380",
     "serverType": "on-prem",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpeg7gty6tr900e7dzd73x9x8ckadryul865k7n6u64wejdvne4jxa3wnjc",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "cougarmaster email: [email protected]",
+    "email": "voipster3@gmail.com",
+    "networks": []
   },
   {
     "moniker": "OneNov",
@@ -625,7 +1113,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "",
     "serverType": "cloud",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "OneNov is a multi-network validator focused on secure, reliable, and high-availability node operations. With a strong commitment to decentralization and ecosystem growth, OneNov actively supports multiple blockchain networks across mainnet and testnet environments.",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpek64jr3nh0qds4j2lmdrgapm8j7hayn386g0lpjpk8gsyvafym2rfqjml",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "suryaone",
+    "email": "onenov0209@gmail.com",
+    "networks": []
   },
   {
     "moniker": "OnNode",
@@ -634,7 +1129,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "",
     "serverType": "data-center",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "OnNode is a professional validator operator focused on secure node operations, fast snapshots, and practical infrastructure support across multiple blockchain networks.",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqwsm08y08ymc8nppt4d7fkr3yfuhdj5qd9w3v6yj4jpvj5dew9q8d0qtnk",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "onnode",
+    "email": "huannv@onnode.org",
+    "networks": []
   },
   {
     "moniker": "OshVanK",
@@ -643,7 +1145,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "17E09C468EDFE232",
     "serverType": "data-center",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "OshVanK is a long-term Cosmos and Tendermint ecosystem validator, high-performance infrastructure provider, and active Software Developer. We specialize in maintaining resilient nodes for high-throughput networks and contributing to the decentralization of the Interchain.",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpwpuh36kkk3gaxgkxqfwt7cvq5tau0hgerlgy8tw9xxdlqgqcmydtvsf0m",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "yahya6935",
+    "email": "",
+    "networks": []
   },
   {
     "moniker": "OwlStake",
@@ -652,7 +1161,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "6B73E2068E0C0C4C",
     "serverType": "data-center",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "OwlStake is a professional, infrastructure-first validator focused on enterprise-grade node stability, maximum uptime, and powerful on-chain analytics tools that help delegators make informed staking decisions.",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqpt5mkyygew3wtsrzyeqvpm7z3e32z25el84yclh4pdd8p2chekae0vvc7",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "owlstake",
+    "email": "work@owlstake.com",
+    "networks": []
   },
   {
     "moniker": "Perfect-nodes",
@@ -661,7 +1177,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "",
     "serverType": "data-center",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "Networks We Are Currently Validating & AuM:",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqgchkxwj743tw2004ctyc0jz8rqdx0na4c8tcxuep628rvyjv35kswwau9",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "katekrasv",
+    "email": "",
+    "networks": []
   },
   {
     "moniker": "pi69",
@@ -670,7 +1193,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "",
     "serverType": "data-center",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "pi69 Enterprise-Grade Infrastructure Provider & Statistician (M.Sc.)",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpklevgzj8yzneeztl646387e3tjsz0zpg06ve2lmz4zjzqwzv0xyn556e6",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "@pi69",
+    "email": "bozdemir52@gmail.com",
+    "networks": []
   },
   {
     "moniker": "plantree",
@@ -679,7 +1209,17 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "1F7E6B6D2AD62DCD",
     "serverType": "on-prem",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "PlanTree aims to give back to nature while following modern DevOps practices.",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zql3mf5akh0l60hunpcdqpfv47zsgma0f9wfj5nx04x4rm9tsd74mxj9cvs",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": ".upnp",
+    "email": "contact@plantree.org",
+    "networks": [
+      "AtomOne, Arkeo, Axone, IXO",
+      "AuM: 70 000$"
+    ]
   },
   {
     "moniker": "POSTHUMAN",
@@ -688,7 +1228,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "8A9FC930E1A980D6",
     "serverType": "data-center",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "POSTHUMAN is a decentralized validator operating across 40+ proof-of-stake mainnets and testnets, including Cosmos Hub, Osmosis, Celestia, Monad, Starknet, NEAR, The Graph, AtomOne, and other ecosystems. On AtomOne, POSTHUMAN is currently a top-15 validator by stake, around #13 at the time of this update. Public staking dashboards currently show roughly $4-5M in listed delegated stake/AuM; broader POSTHUMAN public profiles cite $20M+ secured across 50+ networks.",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqeemfvq56ujxk4pfncet0atrewgdujsxeyxezny9mmpdwdk5eyqs5cgqdx",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "",
+    "email": "validator@posthuman.digital",
+    "networks": []
   },
   {
     "moniker": "Primestake",
@@ -697,7 +1244,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "68548CEAA0AD362F",
     "serverType": "data-center",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "We power next-generation blockchain networks with institutional-grade staking and validation infrastructure. Our battle-tested nodes deliver maximum security and consistent uptime so your assets never stop earning.",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zphl53kye00y48jrypcd0d6dy90zwgt0q6ek4899pakemrw0taskfr9q2aa",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "primestake.top",
+    "email": "primestake@gmail.com",
+    "networks": []
   },
   {
     "moniker": "PRO Delegators",
@@ -706,7 +1260,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "44771D06A00DD695",
     "serverType": "data-center",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "Validator on enterprise-grade bare-metal servers, monitored 24/7",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqvsvg6c49upqnzvt96a83j00cjvwl9qwmq4khp250dgztfpdkk5s9fgkux",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "@rafinoo   ,  @ciskos_nuxianlabs",
+    "email": "contact@nuxian.ch",
+    "networks": []
   },
   {
     "moniker": "Provalidator",
@@ -715,7 +1276,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "3A7D5C9B0B88BEA1",
     "serverType": "cloud",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "Mainnets:  Atomone, Agoric, Aptos, Axelar, Bitway, Cosmos, Monad, Osmosis, Noble",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqj2yn9wct7c6d7n2xkc08v9pusvkj7r43l3ycut9cmenjl9f9zk3rqcmx4",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "",
+    "email": "zenon@provalidator.com",
+    "networks": []
   },
   {
     "moniker": "Roomit",
@@ -724,7 +1292,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "B27109E258F7E0D7",
     "serverType": "on-prem",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "Secure, Transparent and Reliable Validator with support 24/7. 100% refund for downtime slashing, Lets stake to our node and get the airdrop",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpyexx343zksnkl6vmml2l5w0ndqdamev20v4nux5mzzwy4mxv6wm6r4jd2",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "",
+    "email": "",
+    "networks": []
   },
   {
     "moniker": "ruangnode",
@@ -733,7 +1308,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "E062AEC8A7C04E40",
     "serverType": "data-center",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "Gno resources: https://gnolesn.ruangnode.com",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqdauveu9alm95cy4qd8xhxpre76pvryr0fe9sc9ysk8w6wq36rhfw65c40",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "@ruangnode   .com",
+    "email": "lh.habibi@ruangnode.com",
+    "networks": []
   },
   {
     "moniker": "samourai-crew-1",
@@ -742,7 +1324,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "",
     "serverType": "cloud",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "Digital presence: https://samourai.world, https://x.com/samouraicoop Discord handles: zo_oma, mikael_vallenet, gh0st.dark, lours14448, davphla",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zplxh7uvdmfhda3lqzm5nfrzlnt36e56rdxnwh7hrazmq2ajzw9tdw6mfxs",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "",
+    "email": "tech@samourai.coop",
+    "networks": []
   },
   {
     "moniker": "Santala-Research",
@@ -751,16 +1340,38 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "",
     "serverType": "on-prem",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "Independent validator, Cosmos ecosystem since 2017. https://santala-research.com",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpwmpj8vv2sd9j2m2ptrmdgxjx8e887vzrc46fyazk4v9t20wlz74fkrws4",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "",
+    "email": "",
+    "networks": []
   },
   {
     "moniker": "Shazoes",
     "signingAddress": "g1ckuv7eqtx7nvqwv24l82wyp2qyy3mxyt5y6ad6",
     "operatorAddress": "g17kuxcnsy7uy6jsm5mlcr8037gsjpz76ru0ddk3",
-    "website": "",
+    "website": "https://services.shazoes.xyz",
     "identity": "7A553496D97AA912",
     "serverType": "data-center",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "Shazoes is a validator that prioritizes stability, security, and maximum performance when supporting blockchain networks. With dependable infrastructure, we ensure that our nodes are constantly operational and provide public services to benefit the blockchain community.",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqhw752sr6cmdc69qznp2h55s6vhkrzsw6p43uevjq52hcsak6mmvhzjz6h",
+    "twitter": "https://x.com/shazoes",
+    "github": "",
+    "telegram": "https://t.me/shazoes",
+    "discord": "shazoes",
+    "email": "hello@shazoes.xyz",
+    "networks": [
+      "Atomone",
+      "Axone",
+      "Hippo Protocol",
+      "Lava",
+      "Shentu",
+      "Terra",
+      "Zetachain"
+    ]
   },
   {
     "moniker": "Sr20de",
@@ -769,7 +1380,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "42CEDE6C4852EE59",
     "serverType": "data-center",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "Sr20de is a professional validator and infrastructure provider.",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zql9r3qlwm23wzvua69l77hy0w8j2eckd7e9emntfufjk2nmrc9kzdx9shw",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "sr20dem",
+    "email": "contact@sr20de.xyz",
+    "networks": []
   },
   {
     "moniker": "StakeUp",
@@ -778,7 +1396,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "9DE3A32AD7EB00B3",
     "serverType": "data-center",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "StakeUp is a staking provider and validator team operating blockchain infrastructure since 2021. We focus on stable validator operations, network participation, infrastructure support, and long-term ecosystem support.",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zquawwwe6ja9hyfn6pmuapx6mj6xfhg8wmv2pegnvvas2mjp954g7fsj3ck",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "landerosua",
+    "email": "contact@stakeup.tech",
+    "networks": []
   },
   {
     "moniker": "Stella",
@@ -787,7 +1412,16 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "504CDDB7126196BE",
     "serverType": "data-center",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "Stella provides secure staking and validator services for blockchain projects.",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpz0r7vl9sh0dz43svqcmarvgpcfpzjq04eg0reuwe77v8y6tttdjm2cl34",
+    "twitter": "https://x.com/StellaNodeX",
+    "github": "https://github.com/StellaNodeX",
+    "telegram": "https://t.me/StellaNodeX",
+    "discord": "ID: stellanode",
+    "email": "",
+    "networks": [
+      "Atomone (ATONE)"
+    ]
   },
   {
     "moniker": "Sychonix",
@@ -796,7 +1430,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "6366E6C36DFCFCA7",
     "serverType": "data-center",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "I currently operate validators across  20+ blockchain networks , covering both mainnets and testnets.",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqgaa7637hrp4c8zmsjt9lf2wedvppsv76waayrqguq85r3nfpaxsr54en4",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "sychonix",
+    "email": "sychonixx@gmail.com",
+    "networks": []
   },
   {
     "moniker": "tanjira",
@@ -805,7 +1446,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "14116C4E6E6A6343",
     "serverType": "cloud",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "About:  Tanjira is the team behind GnoPulse, the indexing and analytics layer for gno.land. We run production infrastructure for the Gno ecosystem and validate across multiple networks.",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpchu7tz2devtcuycm2qv0ghfjmsdx93pyvfwttr46cdmd5ymn554cupsg3",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "@jauziv   ,  @tanjira_58334",
+    "email": "",
+    "networks": []
   },
   {
     "moniker": "Tecnodes",
@@ -814,7 +1462,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "9E7A59BBDC93CC32",
     "serverType": "data-center",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "We are currently validating on multiple blockchain ecosystems including Atomone, Supra, Dymension, Aztec, Somnia, Avail, SEDA, Redbelly, SQD, and several other Cosmos, EVM, and Substrate networks, reflecting our established presence and trusted reputation in the validator ecosystem as a professional security audited company.",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zp4guy6kfml5qncawc3s5y7he0ahzra8e78lvlshk5pc2t3rl8s7tdxwkqn",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "tecnodes",
+    "email": "",
+    "networks": []
   },
   {
     "moniker": "TeoViTeoVi",
@@ -823,7 +1478,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "",
     "serverType": "data-center",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "TeoViTeoVi is an infrastructure-focused blockchain operator participating in multiple Cosmos-SDK and modular blockchain testnets. The team operates validator infrastructure and distributed RPC systems with emphasis on reliability, uptime, and security.",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq4eade3al2s0khetcp3qh0kzh86xumhuz8e9ce8rgl9mdy30rs2x5ldsc2",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "",
+    "email": "listening2009@gmail.com",
+    "networks": []
   },
   {
     "moniker": "testovich",
@@ -832,7 +1494,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "",
     "serverType": "data-center",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "*testovich - Individual Staking Validator",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zquc50zlk0p7chx23kyzvftrje59uzfwe7x6uk5t3gkxdwm3jf485ehwzwc",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "- tstvch Telegram - https://t.me/tstvch",
+    "email": "",
+    "networks": []
   },
   {
     "moniker": "TheGoodEscobar",
@@ -841,7 +1510,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "",
     "serverType": "cloud",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "Validator: TheGoodEscobar. 1) Name: TheGoodEscobar, independent operator. 2) Networks validated / AuM: we run self-hosted node infrastructure (including an Aethir checker node); we validated gno.land test13 as part of its active set (93 validators) with high uptime, and are now migrating to Topaz; no assets under management yet. 3) Digital presence: X/Twitter  @thegoodescobar   ; Discord: thegoodescobar. 4) Contact: Discord thegoodescobar or X/Twitter  @thegoodescobar   . 5) Motivation: contribute to the decentralization and resilience of gno.land from the testnet phase, learn the Gno stack in",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpuhjlf39tg4y29c0rux7hfwk6ymz4me200tcate9rgq7a7cwdcgg0elgf4",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "",
+    "email": "",
+    "networks": []
   },
   {
     "moniker": "Trace",
@@ -850,7 +1526,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "F04B7F842706017A",
     "serverType": "data-center",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "We operate our own proprietary bare-metal servers with full hardware redundancy. This ensures maximum uptime and prevents the centralization risks associated with cloud providers (AWS/GCP).",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqxzzl64f3pm40yn668jw4rlnz2x78gdw4rumxkrvtg2yr96f34xuxjqw8y",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "@vovscorp",
+    "email": "trace.valoper@gmail.com",
+    "networks": []
   },
   {
     "moniker": "Umair_ChainGuard",
@@ -859,7 +1542,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "",
     "serverType": "data-center",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "Networks & Experience: Currently validating Gno.land Topaz testnet (previously ran as Umair_ChainGuard on Test13 with the same",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpvkq2ndrpffyqwz6uts7um4njtxc3zh9fqyufxnsdedcf3v49yax4wy6gk",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "",
+    "email": "umairrajpoot1245@gmail.com",
+    "networks": []
   },
   {
     "moniker": "UTSA",
@@ -868,7 +1558,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "A0B5FF00B5460153",
     "serverType": "data-center",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "UTSA is a multi-network validator and infrastructure provider focused on reliable node operations, public infrastructure and practical ecosystem support.",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpg5aygsyepcpucsnjz9p4jumtpl3j43jmttmdc4kfzazc8lgu30d66yt2f",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "lesnik_utsa",
+    "email": "saribek@utsa.tech",
+    "networks": []
   },
   {
     "moniker": "VALIDARIOS",
@@ -877,7 +1574,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "94603103FEDD65E6",
     "serverType": "on-prem",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "VALIDARIOS is a multi-network validator and content creator and practical ecosystem support.",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zplfvazl6gyv7xuysrt5s5xkvrtp9kq442fefg73jgewwwcpxuu6k6yx5sm",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "lvalidarios",
+    "email": "validarais.com@gmail.com",
+    "networks": []
   },
   {
     "moniker": "validatorsg",
@@ -886,7 +1590,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "",
     "serverType": "data-center",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "Trusted node validator. Dedicated Hetzner bare-metal infrastructure with disaster recovery server in Vietnam. Website: https://www.validatorsg.com",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq4k9g4yujk6xt7wq4kqa3qnpgwr756keym9fzhezkvws3x8kwm4ktu8d3x",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "",
+    "email": "",
+    "networks": []
   },
   {
     "moniker": "Vicky_Pulsican",
@@ -895,7 +1606,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "",
     "serverType": "data-center",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "I have been running validator and public node infrastructure for an extended period, operating dedicated VPS servers. Currently active on: GenesisL1 mainnet validator (~58,000+ L1 self-delegated), Redbelly Network, NexaRail mainnet (150,000 NXRL staked by team, BONDED, zero missed blocks), and gno.land testnets. I also self-host public GL1Infra infrastructure for GenesisL1 (RPC, REST API, EVM RPC, WSS endpoints) used by the wider community. Past experience includes running Humanode and Logos testnet validators.",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpue28a077pfqlt8ap2xa0v6w87m3uuf3fxzs8j7d3m6py0fhqcwwheyv3k",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "vicky_pulsican",
+    "email": "waqas_akram934@gmail.com",
+    "networks": []
   },
   {
     "moniker": "VinjanInc",
@@ -904,7 +1622,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "",
     "serverType": "data-center",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "VinjanInc is a Cosmos Stake Provider & IBC Relayer.",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqgtyyuckkfnfhmvemjeme6x38hmrdtdlmm49u20wv6gl82k0spvu3ngxpy",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "vinjan.",
+    "email": "vinjan.node@gmail.com",
+    "networks": []
   },
   {
     "moniker": "zardozmonopoly",
@@ -913,7 +1638,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "",
     "serverType": "cloud",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "I've been interested in blockchain technology for about 7 years now. I started out as a regular user, then gradually moved to the other side - contributing and actually building.",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqnh25545mx93l5fkfgj2qh224ha5748jr9eugkkdum0y9xddxft35xglwa",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "",
+    "email": "",
+    "networks": []
   },
   {
     "moniker": "ZeycaNode",
@@ -922,7 +1654,14 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "",
     "serverType": "data-center",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
+    "description": "ZeycaNode is an independent validator with over 5 years of experience running blockchain infrastructure. Currently validating NEAR Protocol Mainnet (45,000+ NEAR staked, ~$100,000 TVL), Safrochain Mainnet (900,000+ SAF Foundation delegation), Humanode, Pactus and 0G. Infrastructure is hosted on enterprise-grade dedicated servers with hardened security, SSH key-only authentication, Prometheus/Grafana monitoring and automated alerting to ensure maximum uptime and reliability. Beyond validator operations, ZeycaNode contributes technical documentation, node deployment guides, monitoring tools and ",
+    "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpqvn8g5pqzg5kjgxg9rjqjegs2hpcsgguphhxu0t8n409vgvex35dxulg6",
+    "twitter": "",
+    "github": "",
+    "telegram": "",
+    "discord": "",
+    "email": "",
+    "networks": []
   }
 ];
 
