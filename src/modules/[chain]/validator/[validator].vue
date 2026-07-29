@@ -26,6 +26,7 @@ import { fromBase64, toBase64 } from '@cosmjs/encoding';
 import { stringToUint8Array, uint8ArrayToString } from '@/libs/utils';
 import { lookupGnoValoper, initGnoValopers, type GnoValoper } from '@/libs/gno/valopers';
 import { getGnoIndexer } from '@/libs/gno/indexer';
+import { tm2Get } from '@/libs/gno/tm2';
 
 const props = defineProps(['validator', 'chain']);
 
@@ -69,6 +70,27 @@ const gnoMeta = ref<GnoValoper | undefined>(undefined);
 const gnoChain = ref<{ status?: string; votingPower?: string; proposerPriority?: string } | undefined>(
   undefined
 );
+
+/** Gno/TM2 — live consensus data from TM2 RPC (UTSA-style status panel). */
+const gnoRpc = ref<{
+  height?: string;
+  votingPower?: string;
+  vpShare?: string;
+  proposerPriority?: string;
+  consensusKeyType?: string;
+  consensusPubKey?: string;
+} | undefined>(undefined);
+
+/** Gno/TM2 — signing history from last-N block precommits (UTSA-style). */
+const gnoSigning = ref<{
+  from?: string;
+  to?: string;
+  visible?: number;
+  uptime?: string;
+  health?: string;
+  counts: Record<string, number>;
+  cells: { height: string; color: string }[];
+}>({ counts: {}, cells: [] });
 
 // Activities
 type ActivityTab = 'power' | 'votes' | 'txs';
@@ -781,6 +803,11 @@ function loadValidatorCore() {
         addresses.value.operAddress = meta.operatorAddress || addresses.value.operAddress;
         addresses.value.hex = meta.pubKey || addresses.value.hex;
         addresses.value.valCons = meta.signingAddress || addresses.value.valCons;
+        // The detail route param is the signing address — resolve the moniker
+        // for the hero even when the registry lookup by this address missed.
+        if (!v.value.description?.moniker && meta.moniker) {
+          v.value.description = { ...(v.value.description || {}), moniker: meta.moniker } as any;
+        }
       });
     // Live status + voting power from the onbloc indexer (Gno has no LCD validator endpoint).
     const idxUrl = (blockchain.current as any)?.indexer_api;
@@ -809,6 +836,8 @@ function loadValidatorCore() {
         })
         .catch(() => undefined);
     }
+    loadGnoRpc(valAddr);
+    loadGnoSigning(valAddr);
     return;
   }
   if (!blockchain.rpc) return;
@@ -868,6 +897,99 @@ onMounted(() => {
   loadVotes(1);
 });
 
+/** Gno/TM2 — live consensus status from the chain's own TM2 RPC (UTSA-style):
+ *  indexed height, voting power + share, proposer priority, consensus pubkey. */
+async function loadGnoRpc(valAddr: string) {
+  const ep = (blockchain.current?.endpoints as any)?.rpc?.[0]?.address
+    || (blockchain.current?.endpoints as any)?.rest?.[0]?.address
+    || (blockchain.endpoint as any)?.address;
+  if (!ep) return;
+  try {
+    const [st, vs] = await Promise.all([
+      tm2Get(ep, '/status'),
+      tm2Get(ep, '/validators?per_page=200'),
+    ]);
+    const height = String(st?.result?.sync_info?.latest_block_height || '');
+    const vals: any[] = vs?.result?.validators || [];
+    const me = vals.find((x) => x.address === valAddr);
+    const totalVp = vals.reduce((s, x) => s + Number(x.voting_power || 0), 0);
+    const vp = me ? String(me.voting_power) : '';
+    const share = me && totalVp ? ((Number(me.voting_power) / totalVp) * 100).toFixed(2) + '%' : '';
+    const pk = me?.pub_key || {};
+    gnoRpc.value = {
+      height,
+      votingPower: vp,
+      vpShare: share,
+      proposerPriority: me ? String(me.proposer_priority) : '',
+      consensusKeyType: pk['@type'] || '',
+      consensusPubKey: pk.value || '',
+    };
+    // Prefer live RPC power/status over the indexer snapshot when present.
+    if (me) {
+      v.value.tokens = vp || v.value.tokens;
+      v.value.status = 'BOND_STATUS_BONDED';
+      v.value.jailed = false;
+    }
+  } catch (e: any) {
+    console.warn('[val] gno rpc status failed:', e?.message || e);
+  }
+}
+
+/** Gno/TM2 — signing history: walk the last N committed blocks and check this
+ *  validator's precommit in each last_commit (UTSA-style uptime strip). */
+async function loadGnoSigning(valAddr: string) {
+  const ep = (blockchain.current?.endpoints as any)?.rpc?.[0]?.address
+    || (blockchain.current?.endpoints as any)?.rest?.[0]?.address
+    || (blockchain.endpoint as any)?.address;
+  if (!ep) return;
+  const N = 100;
+  try {
+    const st = await tm2Get(ep, '/status');
+    const tip = Number(st?.result?.sync_info?.latest_block_height || 0);
+    if (!tip) return;
+    const from = tip - N + 1;
+    const heights = Array.from({ length: N }, (_, i) => String(from + i));
+    const blocks = await Promise.all(
+      heights.map((h) => tm2Get(ep, `/block?height=${h}`).catch(() => null))
+    );
+    const cells: { height: string; color: string }[] = [];
+    const counts: Record<string, number> = { commit: 0, absent: 0, nil: 0 };
+    let visible = 0;
+    blocks.forEach((b, i) => {
+      const h = heights[i];
+      const pcs = b?.result?.block?.last_commit?.precommits
+        || b?.result?.block?.last_commit?.signatures
+        || [];
+      if (!pcs.length) return;
+      visible++;
+      const pc = pcs.find((p: any) => p && (p.validator_address === valAddr || p.address === valAddr));
+      let color = 'bg-red-500'; // absent
+      if (pc) {
+        const signed = !!(pc.signature || pc.block_id?.hash);
+        if (signed) { color = 'bg-green-500'; counts.commit++; }
+        else { color = 'bg-yellow-500'; counts.nil++; }
+      } else {
+        counts.absent++;
+      }
+      cells.push({ height: h, color });
+    });
+    const signed = counts.commit;
+    const uptime = visible ? ((signed / visible) * 100).toFixed(2) + '%' : '—';
+    const health = !visible ? '—' : signed / visible >= 0.99 ? 'Healthy' : signed / visible >= 0.9 ? 'Degraded' : 'Unhealthy';
+    gnoSigning.value = {
+      from: String(from),
+      to: String(tip),
+      visible,
+      uptime,
+      health,
+      counts,
+      cells,
+    };
+  } catch (e: any) {
+    console.warn('[val] gno signing history failed:', e?.message || e);
+  }
+}
+
 // Retry delegations + power events once REST client is ready
 watch(
   () => blockchain.rpc,
@@ -899,6 +1021,8 @@ watch(
       identity.value = '';
       gnoMeta.value = undefined;
       gnoChain.value = undefined;
+      gnoRpc.value = undefined;
+      gnoSigning.value = { counts: {}, cells: [] };
       rewards.value = [];
       commission.value = [];
       delegations.value = {} as PaginatedDelegations;
@@ -1093,45 +1217,108 @@ watch(
       </div>
     </div>
 
-    <!-- METRIC STRIP — Gno/TM2 (VP / status / server / networks) -->
-    <div v-else class="grid grid-cols-2 md:!grid-cols-4 gap-3 mb-4">
-      <div class="sz-stat" style="--stat-hue: var(--sz-accent)">
-        <div class="sz-stat-head"><i class="sz-stat-tick"></i><span class="sz-stat-label">Voting Power</span></div>
-        <div class="sz-stat-value">
-          {{ gnoChain?.votingPower || v.tokens || '—' }}
+    <!-- METRIC STRIP — Gno/TM2 Current Status (UTSA-style) -->
+    <div v-else class="sz-section overflow-hidden mb-4">
+      <div class="sz-section-head">
+        <div>
+          <div class="sz-section-kicker">Consensus</div>
+          <div class="sz-section-title">Current Status</div>
         </div>
-        <div class="sz-stat-sub">from indexer</div>
+        <div v-if="gnoSigning.health" class="text-xs font-semibold" :class="{
+          'text-success': gnoSigning.health === 'Healthy',
+          'text-warning': gnoSigning.health === 'Degraded',
+          'text-error': gnoSigning.health === 'Unhealthy',
+        }">{{ gnoSigning.health }}</div>
       </div>
-      <div class="sz-stat" style="--stat-hue: #0ea5e9">
-        <div class="sz-stat-head"><i class="sz-stat-tick"></i><span class="sz-stat-label">Status</span></div>
-        <div class="sz-stat-value !text-base">
-          {{ gnoChain?.status || statusLabel || '—' }}
+      <div class="grid grid-cols-2 md:!grid-cols-3 xl:!grid-cols-6 gap-0 divide-x divide-base-content/10">
+        <div class="px-4 py-3">
+          <div class="text-[11px] font-bold uppercase tracking-wider text-secondary mb-1">Status</div>
+          <div class="text-sm font-semibold">{{ gnoChain?.status || statusLabel || (gnoRpc?.votingPower ? 'ACTIVE' : '—') }}</div>
         </div>
-        <div class="sz-stat-sub">set membership</div>
+        <div class="px-4 py-3">
+          <div class="text-[11px] font-bold uppercase tracking-wider text-secondary mb-1">Indexed Height</div>
+          <div class="text-sm font-mono">{{ gnoRpc?.height || '…' }}</div>
+        </div>
+        <div class="px-4 py-3">
+          <div class="text-[11px] font-bold uppercase tracking-wider text-secondary mb-1">Voting Power</div>
+          <div class="text-sm font-mono">{{ gnoRpc?.votingPower || gnoChain?.votingPower || v.tokens || '—' }}</div>
+          <div v-if="gnoRpc?.vpShare" class="text-[11px] text-secondary mt-0.5">{{ gnoRpc.vpShare }} of set</div>
+        </div>
+        <div class="px-4 py-3">
+          <div class="text-[11px] font-bold uppercase tracking-wider text-secondary mb-1">Proposer Priority</div>
+          <div class="text-sm font-mono">{{ gnoRpc?.proposerPriority || '—' }}</div>
+        </div>
+        <div class="px-4 py-3">
+          <div class="text-[11px] font-bold uppercase tracking-wider text-secondary mb-1">Uptime (100 blks)</div>
+          <div class="text-sm font-semibold">{{ gnoSigning.uptime || '…' }}</div>
+          <div v-if="gnoSigning.visible" class="text-[11px] text-secondary mt-0.5">{{ gnoSigning.counts.commit || 0 }}/{{ gnoSigning.visible }} signed</div>
+        </div>
+        <div class="px-4 py-3">
+          <div class="text-[11px] font-bold uppercase tracking-wider text-secondary mb-1">Server</div>
+          <div class="text-sm">{{ gnoMeta?.serverType || '—' }}</div>
+        </div>
       </div>
-      <div class="sz-stat" style="--stat-hue: #764bc8">
-        <div class="sz-stat-head"><i class="sz-stat-tick"></i><span class="sz-stat-label">Server</span></div>
-        <div class="sz-stat-value !text-base">
-          {{ gnoMeta?.serverType || '—' }}
-        </div>
-        <div class="sz-stat-sub">infrastructure</div>
-      </div>
-      <div class="sz-stat" style="--stat-hue: var(--sz-success)">
-        <div class="sz-stat-head"><i class="sz-stat-tick"></i><span class="sz-stat-label">Networks</span></div>
-        <div class="sz-stat-value">
-          {{ gnoMeta?.networks?.length || 0 }}
-        </div>
-        <div class="sz-stat-sub">also validating</div>
+      <div v-if="gnoRpc?.consensusPubKey" class="px-4 py-2.5 border-t border-base-content/10 flex flex-wrap items-center gap-2 text-[12px]">
+        <span class="text-[11px] font-bold uppercase tracking-wider text-secondary">Consensus Key</span>
+        <span v-if="gnoRpc.consensusKeyType" class="sz-chip sz-chip--info !text-[10px]">{{ gnoRpc.consensusKeyType }}</span>
+        <code class="sz-hash break-all text-[11px] flex-1 min-w-0">{{ gnoRpc.consensusPubKey }}</code>
+        <Icon
+          icon="mdi:content-copy"
+          class="cursor-pointer text-sm opacity-70 hover:opacity-100 shrink-0"
+          @click="copyWebsite(gnoRpc.consensusPubKey || '')"
+        />
       </div>
     </div>
 
-    <!-- GNO PROFILE (Indonode-style) + ADDRESSES -->
+    <!-- GNO SIGNING HISTORY (UTSA-style) -->
+    <div v-if="isGno" class="sz-section overflow-hidden mb-4">
+      <div class="sz-section-head">
+        <div>
+          <div class="sz-section-kicker">Uptime</div>
+          <div class="sz-section-title">Signing History</div>
+        </div>
+        <div v-if="gnoSigning.from" class="text-[11px] text-secondary font-mono">
+          #{{ gnoSigning.from }} → #{{ gnoSigning.to }}
+        </div>
+      </div>
+      <div class="px-4 py-3 space-y-3">
+        <div class="flex flex-wrap gap-3 text-[12px]">
+          <span class="inline-flex items-center gap-1.5">
+            <i class="w-2.5 h-2.5 rounded-sm bg-green-500 inline-block"></i>
+            Commit {{ gnoSigning.counts.commit || 0 }}
+          </span>
+          <span class="inline-flex items-center gap-1.5">
+            <i class="w-2.5 h-2.5 rounded-sm bg-yellow-500 inline-block"></i>
+            Nil {{ gnoSigning.counts.nil || 0 }}
+          </span>
+          <span class="inline-flex items-center gap-1.5">
+            <i class="w-2.5 h-2.5 rounded-sm bg-red-500 inline-block"></i>
+            Absent {{ gnoSigning.counts.absent || 0 }}
+          </span>
+          <span class="text-secondary ml-auto">
+            {{ gnoSigning.visible || 0 }} of last 100 blocks visible
+          </span>
+        </div>
+        <div v-if="gnoSigning.cells.length" class="flex flex-wrap gap-[2px]">
+          <div
+            v-for="c in gnoSigning.cells"
+            :key="c.height"
+            class="w-[7px] h-4 rounded-[1px]"
+            :class="c.color"
+            :title="'#' + c.height"
+          ></div>
+        </div>
+        <div v-else class="text-secondary text-xs py-2">Loading signing history…</div>
+      </div>
+    </div>
+
+    <!-- GNO PROFILE (valopers) + IDENTITY (addresses) — UTSA-style -->
     <div v-if="isGno" class="grid grid-cols-1 lg:!grid-cols-5 gap-4 mb-4">
       <div class="sz-section overflow-hidden lg:!col-span-3 flex flex-col">
         <div class="sz-section-head">
           <div>
-            <div class="sz-section-kicker">Profile</div>
-            <div class="sz-section-title">Valoper Info</div>
+            <div class="sz-section-kicker">Valoper</div>
+            <div class="sz-section-title">Profile</div>
           </div>
         </div>
         <div class="px-4 py-3 space-y-4 flex-1">
@@ -1213,9 +1400,6 @@ watch(
                 class="text-secondary text-xs"
               >—</span>
             </div>
-          </div>
-          <div v-if="gnoMeta?.serverType" class="text-[12px] text-secondary">
-            Server type: <span class="font-mono text-base-content">{{ gnoMeta.serverType }}</span>
           </div>
         </div>
       </div>
