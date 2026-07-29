@@ -2,6 +2,7 @@
 import { parseCoins } from '@cosmjs/stargate';
 import {
   useBankStore,
+  useBaseStore,
   useBlockchain,
   useDistributionStore,
   useFormatter,
@@ -9,7 +10,7 @@ import {
   useStakingStore,
   useTxDialog,
 } from '@/stores';
-import { onMounted, computed, ref, watch } from 'vue';
+import { onMounted, onUnmounted, computed, ref, watch } from 'vue';
 import { Icon } from '@iconify/vue';
 import CommissionRate from '@/components/ValidatorCommissionRate.vue';
 import { consensusPubkeyToHexAddress, operatorAddressToAccount, pubKeyToValcons } from '@/libs';
@@ -32,6 +33,7 @@ const props = defineProps(['validator', 'chain']);
 
 const staking = useStakingStore();
 const blockchain = useBlockchain();
+const baseStore = useBaseStore();
 const format = useFormatter();
 const dialog = useTxDialog();
 
@@ -104,6 +106,15 @@ const gnoTxsError = ref(false);
 const gnoTxsTick = ref(Date.now());
 /** Address whose cursor we paginate (operator preferred). */
 const gnoTxsPrimaryAddr = ref('');
+
+/**
+ * Gno realtime — tip height from baseStore (same source as navbar #height).
+ * When tip advances: refresh Current Status + Signing History (no manual reload).
+ */
+const gnoLastTip = ref(0);
+const gnoSigningBusy = ref(false);
+const gnoProfileExpanded = ref(false);
+let gnoHeightUnwatch: (() => void) | null = null;
 
 /** Official valopers realm profile URL for this validator (Gno only). */
 const gnoValopersUrl = computed(() => {
@@ -673,6 +684,7 @@ onMounted(() => {
 onUnmounted(() => {
   txsObserver?.disconnect();
   delLoadToken++; // abort in-flight delegation streaming
+  stopGnoHeightWatch();
 });
 
 /** Prefer same-origin /vote-api (Vercel rewrite). Override via VITE_VOTE_INDEXER_URL. */
@@ -977,6 +989,7 @@ onMounted(() => {
   if (!validator.value) return;
 
   loadValidatorCore();
+  if (isGno.value) startGnoHeightWatch();
 
   // Delegators — fetch all and sort globally desc.
   // Wait for rpc readiness: onMounted can fire before chain endpoint is set.
@@ -988,34 +1001,97 @@ onMounted(() => {
   loadVotes(1);
 });
 
-/** Gno/TM2 — live consensus status from the chain's own TM2 RPC (UTSA-style):
- *  indexed height, voting power + share, proposer priority, consensus pubkey. */
-async function loadGnoRpc(valAddr: string) {
-  const ep = (blockchain.current?.endpoints as any)?.rpc?.[0]?.address
-    || (blockchain.current?.endpoints as any)?.rest?.[0]?.address
-    || (blockchain.endpoint as any)?.address;
-  if (!ep) return;
+function gnoRpcEndpoint(): string {
+  return (
+    (blockchain.current?.endpoints as any)?.rpc?.[0]?.address ||
+    (blockchain.current?.endpoints as any)?.rest?.[0]?.address ||
+    (blockchain.endpoint as any)?.address ||
+    ''
+  );
+}
+
+/** Prefer navbar tip (baseStore.latest) — same SSOT as header #height. */
+function gnoTipHeight(): number {
+  return Number(baseStore.latest?.block?.header?.height || 0);
+}
+
+function recomputeGnoSigning(
+  cells: { height: string; color: string }[],
+  counts: Record<string, number>,
+  from: number,
+  tip: number,
+) {
+  const visible = cells.length;
+  const signed = counts.commit || 0;
+  const uptime = visible ? ((signed / visible) * 100).toFixed(2) + '%' : '—';
+  const health = !visible
+    ? '—'
+    : signed / visible >= 0.99
+      ? 'Healthy'
+      : signed / visible >= 0.9
+        ? 'Degraded'
+        : 'Unhealthy';
+  gnoSigning.value = {
+    from: String(from),
+    to: String(tip),
+    visible,
+    uptime,
+    health,
+    counts,
+    cells,
+  };
+}
+
+/** Classify one block's precommit for this signing address. */
+function gnoCellFromBlock(b: any, height: string, valAddr: string): { height: string; color: string; kind: 'commit' | 'nil' | 'absent' } | null {
+  const pcs =
+    b?.result?.block?.last_commit?.precommits ||
+    b?.result?.block?.last_commit?.signatures ||
+    b?.block?.last_commit?.precommits ||
+    b?.block?.last_commit?.signatures ||
+    [];
+  if (!pcs.length) return null;
+  const pc = pcs.find((p: any) => p && (p.validator_address === valAddr || p.address === valAddr));
+  if (pc) {
+    const signed = !!(pc.signature || pc.block_id?.hash);
+    if (signed) return { height, color: 'bg-green-500', kind: 'commit' };
+    return { height, color: 'bg-yellow-500', kind: 'nil' };
+  }
+  return { height, color: 'bg-red-500', kind: 'absent' };
+}
+
+/** Gno/TM2 — live consensus status. tipHint = navbar height when known. */
+async function loadGnoRpc(valAddr: string, tipHint?: number) {
+  const ep = gnoRpcEndpoint();
+  if (!ep || !valAddr) return;
   try {
-    const [st, vs] = await Promise.all([
-      tm2Get(ep, '/status'),
-      tm2Get(ep, '/validators?per_page=200'),
-    ]);
-    const height = String(st?.result?.sync_info?.latest_block_height || '');
+    const tipKnown = Number(tipHint || gnoTipHeight() || 0);
+    const jobs: Promise<any>[] = [tm2Get(ep, '/validators?per_page=200')];
+    if (!tipKnown) jobs.unshift(tm2Get(ep, '/status'));
+    const results = await Promise.all(jobs);
+    let height = tipKnown ? String(tipKnown) : '';
+    let vs: any;
+    if (!tipKnown) {
+      const st = results[0];
+      vs = results[1];
+      height = String(st?.result?.sync_info?.latest_block_height || '');
+    } else {
+      vs = results[0];
+    }
     const vals: any[] = vs?.result?.validators || [];
     const me = vals.find((x) => x.address === valAddr);
-    const totalVp = vals.reduce((s, x) => s + Number(x.voting_power || 0), 0);
+    const totalVp = vals.reduce((s: number, x: any) => s + Number(x.voting_power || 0), 0);
     const vp = me ? String(me.voting_power) : '';
     const share = me && totalVp ? ((Number(me.voting_power) / totalVp) * 100).toFixed(2) + '%' : '';
     const pk = me?.pub_key || {};
     gnoRpc.value = {
-      height,
-      votingPower: vp,
-      vpShare: share,
-      proposerPriority: me ? String(me.proposer_priority) : '',
-      consensusKeyType: pk['@type'] || '',
-      consensusPubKey: pk.value || '',
+      height: height || gnoRpc.value?.height || '',
+      votingPower: vp || gnoRpc.value?.votingPower || '',
+      vpShare: share || gnoRpc.value?.vpShare || '',
+      proposerPriority: me ? String(me.proposer_priority) : gnoRpc.value?.proposerPriority || '',
+      consensusKeyType: pk['@type'] || gnoRpc.value?.consensusKeyType || '',
+      consensusPubKey: pk.value || gnoRpc.value?.consensusPubKey || '',
     };
-    // Prefer live RPC power/status over the indexer snapshot when present.
     if (me) {
       v.value.tokens = vp || v.value.tokens;
       v.value.status = 'BOND_STATUS_BONDED';
@@ -1026,59 +1102,120 @@ async function loadGnoRpc(valAddr: string) {
   }
 }
 
-/** Gno/TM2 — signing history: walk the last N committed blocks and check this
- *  validator's precommit in each last_commit (UTSA-style uptime strip). */
-async function loadGnoSigning(valAddr: string) {
-  const ep = (blockchain.current?.endpoints as any)?.rpc?.[0]?.address
-    || (blockchain.current?.endpoints as any)?.rest?.[0]?.address
-    || (blockchain.endpoint as any)?.address;
-  if (!ep) return;
+/**
+ * Gno/TM2 — signing history last-N.
+ * Full walk on first load; on tip advance only fetch the missing new heights
+ * and slide the window (so realtime is cheap and keeps up with navbar).
+ */
+async function loadGnoSigning(valAddr: string, tipHint?: number) {
+  const ep = gnoRpcEndpoint();
+  if (!ep || !valAddr) return;
+  if (gnoSigningBusy.value) return;
   const N = 100;
+  gnoSigningBusy.value = true;
   try {
-    const st = await tm2Get(ep, '/status');
-    const tip = Number(st?.result?.sync_info?.latest_block_height || 0);
+    let tip = Number(tipHint || gnoTipHeight() || 0);
+    if (!tip) {
+      const st = await tm2Get(ep, '/status');
+      tip = Number(st?.result?.sync_info?.latest_block_height || 0);
+    }
     if (!tip) return;
+
+    const prev = gnoSigning.value;
+    const prevTo = Number(prev.to || 0);
+    const prevCells = prev.cells || [];
+
+    // Incremental: tip advanced a little and we already have a full window.
+    if (prevCells.length >= N && prevTo > 0 && tip > prevTo && tip - prevTo <= 20) {
+      const newHeights = Array.from({ length: tip - prevTo }, (_, i) => String(prevTo + 1 + i));
+      const blocks = await Promise.all(
+        newHeights.map((h) => tm2Get(ep, `/block?height=${h}`).catch(() => null)),
+      );
+      const counts: Record<string, number> = {
+        commit: prev.counts.commit || 0,
+        absent: prev.counts.absent || 0,
+        nil: prev.counts.nil || 0,
+      };
+      let cells = prevCells.slice();
+      for (let i = 0; i < newHeights.length; i++) {
+        const cell = gnoCellFromBlock(blocks[i], newHeights[i], valAddr);
+        if (!cell) continue;
+        if (cells.length) {
+          const drop = cells[0];
+          if (drop.color.includes('green')) counts.commit = Math.max(0, (counts.commit || 0) - 1);
+          else if (drop.color.includes('yellow')) counts.nil = Math.max(0, (counts.nil || 0) - 1);
+          else counts.absent = Math.max(0, (counts.absent || 0) - 1);
+          cells = cells.slice(1);
+        }
+        counts[cell.kind] = (counts[cell.kind] || 0) + 1;
+        cells.push({ height: cell.height, color: cell.color });
+      }
+      while (cells.length > N) {
+        const drop = cells.shift()!;
+        if (drop.color.includes('green')) counts.commit = Math.max(0, (counts.commit || 0) - 1);
+        else if (drop.color.includes('yellow')) counts.nil = Math.max(0, (counts.nil || 0) - 1);
+        else counts.absent = Math.max(0, (counts.absent || 0) - 1);
+      }
+      const from = cells.length ? Number(cells[0].height) : tip - N + 1;
+      recomputeGnoSigning(cells, counts, from, tip);
+      return;
+    }
+
+    // Full rebuild
     const from = tip - N + 1;
     const heights = Array.from({ length: N }, (_, i) => String(from + i));
     const blocks = await Promise.all(
-      heights.map((h) => tm2Get(ep, `/block?height=${h}`).catch(() => null))
+      heights.map((h) => tm2Get(ep, `/block?height=${h}`).catch(() => null)),
     );
     const cells: { height: string; color: string }[] = [];
     const counts: Record<string, number> = { commit: 0, absent: 0, nil: 0 };
-    let visible = 0;
     blocks.forEach((b, i) => {
-      const h = heights[i];
-      const pcs = b?.result?.block?.last_commit?.precommits
-        || b?.result?.block?.last_commit?.signatures
-        || [];
-      if (!pcs.length) return;
-      visible++;
-      const pc = pcs.find((p: any) => p && (p.validator_address === valAddr || p.address === valAddr));
-      let color = 'bg-red-500'; // absent
-      if (pc) {
-        const signed = !!(pc.signature || pc.block_id?.hash);
-        if (signed) { color = 'bg-green-500'; counts.commit++; }
-        else { color = 'bg-yellow-500'; counts.nil++; }
-      } else {
-        counts.absent++;
-      }
-      cells.push({ height: h, color });
+      const cell = gnoCellFromBlock(b, heights[i], valAddr);
+      if (!cell) return;
+      counts[cell.kind] = (counts[cell.kind] || 0) + 1;
+      cells.push({ height: cell.height, color: cell.color });
     });
-    const signed = counts.commit;
-    const uptime = visible ? ((signed / visible) * 100).toFixed(2) + '%' : '—';
-    const health = !visible ? '—' : signed / visible >= 0.99 ? 'Healthy' : signed / visible >= 0.9 ? 'Degraded' : 'Unhealthy';
-    gnoSigning.value = {
-      from: String(from),
-      to: String(tip),
-      visible,
-      uptime,
-      health,
-      counts,
-      cells,
-    };
+    recomputeGnoSigning(cells, counts, from, tip);
   } catch (e: any) {
     console.warn('[val] gno signing history failed:', e?.message || e);
+  } finally {
+    gnoSigningBusy.value = false;
   }
+}
+
+/** When navbar tip height advances, refresh consensus + signing history. */
+function onGnoTipAdvance(tip: number) {
+  if (!isGno.value || !tip) return;
+  const valAddr = validator.value;
+  if (!valAddr) return;
+  if (tip === gnoLastTip.value && gnoRpc.value?.height === String(tip) && Number(gnoSigning.value.to || 0) === tip) {
+    return;
+  }
+  const prev = gnoLastTip.value;
+  gnoLastTip.value = tip;
+  // Always keep Indexed Height in lockstep with navbar.
+  if (gnoRpc.value) gnoRpc.value = { ...gnoRpc.value, height: String(tip) };
+  void loadGnoRpc(valAddr, tip);
+  if (!prev || tip > prev || !gnoSigning.value.cells?.length) {
+    void loadGnoSigning(valAddr, tip);
+  }
+}
+
+function startGnoHeightWatch() {
+  if (gnoHeightUnwatch) return;
+  gnoHeightUnwatch = watch(
+    () => Number(baseStore.latest?.block?.header?.height || 0),
+    (tip) => {
+      if (!isGno.value || !tip) return;
+      onGnoTipAdvance(tip);
+    },
+    { immediate: true },
+  );
+}
+
+function stopGnoHeightWatch() {
+  gnoHeightUnwatch?.();
+  gnoHeightUnwatch = null;
 }
 
 /** Gno/TM2 — validator account activity via onbloc indexer.
@@ -1096,7 +1233,7 @@ async function loadGnoTxs() {
     const operator =
       meta?.operatorAddress ||
       addresses.value.operAddress ||
-      (meta?.signingAddress === signing ? meta.operatorAddress : '') ||
+      (meta && meta.signingAddress === signing ? meta.operatorAddress : '') ||
       '';
     const page = await getGnoIndexer(idxUrl).getValidatorTransactions(signing, operator || undefined);
     gnoTxs.value = page.items;
@@ -1163,6 +1300,8 @@ watch(
       gnoChain.value = undefined;
       gnoRpc.value = undefined;
       gnoSigning.value = { counts: {}, cells: [] };
+      gnoLastTip.value = 0;
+      gnoProfileExpanded.value = false;
       gnoTxs.value = [];
       gnoTxsCursor.value = undefined;
       gnoTxsHasNext.value = false;
@@ -1176,6 +1315,7 @@ watch(
       events.value = { tx_responses: [], pagination: { total: '0', next_key: null } } as PaginatedTxs;
       selfBonded.value = {} as Delegation;
       loadValidatorCore();
+      if (isGno.value) startGnoHeightWatch();
       if (blockchain.rpc) {
         loadAllDelegations();
         loadPowerEvents(1, EventType.Delegate);
@@ -1363,7 +1503,7 @@ watch(
         </div>
         <div class="px-4 py-3">
           <div class="text-[11px] font-bold uppercase tracking-wider text-secondary mb-1">Indexed Height</div>
-          <div class="text-sm font-mono">{{ gnoRpc?.height || '…' }}</div>
+          <div class="text-sm font-mono">{{ gnoRpc?.height || (baseStore.latest?.block?.header?.height) || '…' }}</div>
         </div>
         <div class="px-4 py-3">
           <div class="text-[11px] font-bold uppercase tracking-wider text-secondary mb-1">Voting Power</div>
@@ -1447,86 +1587,103 @@ watch(
             <div class="sz-section-title">Profile</div>
           </div>
         </div>
-        <div class="px-4 py-3 space-y-4 flex-1">
-          <div v-if="v.description?.details">
-            <div class="text-[11px] font-bold uppercase tracking-wider text-secondary mb-1">Description</div>
-            <p class="text-[13px] leading-relaxed text-base-content/90">{{ v.description.details }}</p>
-          </div>
-          <div v-if="gnoMeta?.networks?.length">
-            <div class="text-[11px] font-bold uppercase tracking-wider text-secondary mb-1.5">Networks</div>
-            <div class="flex flex-wrap gap-1.5">
-              <span
-                v-for="(n, i) in gnoMeta.networks"
-                :key="`net-${i}`"
-                class="sz-chip sz-chip--info !text-[11px]"
-              >{{ n }}</span>
+        <div class="px-4 py-3 flex-1">
+          <div
+            class="sz-gno-profile space-y-4"
+            :class="{ 'sz-gno-profile--clamped': !gnoProfileExpanded }"
+          >
+            <div v-if="v.description?.moniker || gnoMeta?.moniker">
+              <div class="text-[11px] font-bold uppercase tracking-wider text-secondary mb-1">Validator Name</div>
+              <div class="text-[13px] font-semibold">{{ v.description?.moniker || gnoMeta?.moniker }}</div>
+            </div>
+            <div v-if="v.description?.details || gnoMeta?.description">
+              <div class="text-[11px] font-bold uppercase tracking-wider text-secondary mb-1">Description</div>
+              <p class="text-[13px] leading-relaxed text-base-content/90 whitespace-pre-line">{{ v.description?.details || gnoMeta?.description }}</p>
+            </div>
+            <div v-if="gnoMeta?.networks?.length">
+              <div class="text-[11px] font-bold uppercase tracking-wider text-secondary mb-1.5">Networks</div>
+              <div class="flex flex-wrap gap-1.5">
+                <span
+                  v-for="(n, i) in gnoMeta.networks"
+                  :key="`net-${i}`"
+                  class="sz-chip sz-chip--info !text-[11px]"
+                >{{ n }}</span>
+              </div>
+            </div>
+            <div>
+              <div class="text-[11px] font-bold uppercase tracking-wider text-secondary mb-1.5">Links & Contact</div>
+              <div class="flex flex-wrap gap-2">
+                <a
+                  v-if="v.description?.website || gnoMeta?.website"
+                  :href="v.description?.website || gnoMeta?.website"
+                  target="_blank"
+                  rel="noopener"
+                  class="sz-hero-link"
+                >
+                  <Icon icon="mdi-web" class="text-base" />
+                  <span class="sz-hero-link-label">Website</span>
+                </a>
+                <a
+                  v-if="gnoMeta?.twitter"
+                  :href="gnoMeta.twitter"
+                  target="_blank"
+                  rel="noopener"
+                  class="sz-hero-link"
+                >
+                  <Icon icon="mdi-twitter" class="text-base" />
+                  <span class="sz-hero-link-label">X</span>
+                </a>
+                <a
+                  v-if="gnoMeta?.telegram"
+                  :href="gnoMeta.telegram"
+                  target="_blank"
+                  rel="noopener"
+                  class="sz-hero-link"
+                >
+                  <Icon icon="mdi-send" class="text-base" />
+                  <span class="sz-hero-link-label">Telegram</span>
+                </a>
+                <a
+                  v-if="gnoMeta?.github"
+                  :href="gnoMeta.github"
+                  target="_blank"
+                  rel="noopener"
+                  class="sz-hero-link"
+                >
+                  <Icon icon="mdi-github" class="text-base" />
+                  <span class="sz-hero-link-label">GitHub</span>
+                </a>
+                <a
+                  v-if="gnoMeta?.email || v.description?.security_contact"
+                  :href="'mailto:' + (gnoMeta?.email || v.description?.security_contact)"
+                  class="sz-hero-link"
+                >
+                  <Icon icon="mdi-email-outline" class="text-base" />
+                  <span class="sz-hero-link-label">{{ gnoMeta?.email || v.description?.security_contact }}</span>
+                </a>
+                <span
+                  v-if="gnoMeta?.discord"
+                  class="sz-hero-link sz-hero-link--muted"
+                  :title="'Discord: ' + gnoMeta.discord"
+                >
+                  <Icon icon="mdi-discord" class="text-base" />
+                  <span class="sz-hero-link-label">{{ gnoMeta.discord }}</span>
+                </span>
+                <span
+                  v-if="!(v.description?.website || gnoMeta?.website) && !gnoMeta?.twitter && !gnoMeta?.telegram && !gnoMeta?.github && !gnoMeta?.email && !gnoMeta?.discord && !v.description?.security_contact"
+                  class="text-secondary text-xs"
+                >—</span>
+              </div>
             </div>
           </div>
-          <div>
-            <div class="text-[11px] font-bold uppercase tracking-wider text-secondary mb-1.5">Links & Contact</div>
-            <div class="flex flex-wrap gap-2">
-              <a
-                v-if="v.description?.website"
-                :href="v.description.website"
-                target="_blank"
-                rel="noopener"
-                class="sz-hero-link"
-              >
-                <Icon icon="mdi-web" class="text-base" />
-                <span class="sz-hero-link-label">Website</span>
-              </a>
-              <a
-                v-if="gnoMeta?.twitter"
-                :href="gnoMeta.twitter"
-                target="_blank"
-                rel="noopener"
-                class="sz-hero-link"
-              >
-                <Icon icon="mdi-twitter" class="text-base" />
-                <span class="sz-hero-link-label">X</span>
-              </a>
-              <a
-                v-if="gnoMeta?.telegram"
-                :href="gnoMeta.telegram"
-                target="_blank"
-                rel="noopener"
-                class="sz-hero-link"
-              >
-                <Icon icon="mdi-send" class="text-base" />
-                <span class="sz-hero-link-label">Telegram</span>
-              </a>
-              <a
-                v-if="gnoMeta?.github"
-                :href="gnoMeta.github"
-                target="_blank"
-                rel="noopener"
-                class="sz-hero-link"
-              >
-                <Icon icon="mdi-github" class="text-base" />
-                <span class="sz-hero-link-label">GitHub</span>
-              </a>
-              <a
-                v-if="gnoMeta?.email || v.description?.security_contact"
-                :href="'mailto:' + (gnoMeta?.email || v.description?.security_contact)"
-                class="sz-hero-link"
-              >
-                <Icon icon="mdi-email-outline" class="text-base" />
-                <span class="sz-hero-link-label">{{ gnoMeta?.email || v.description?.security_contact }}</span>
-              </a>
-              <span
-                v-if="gnoMeta?.discord"
-                class="sz-hero-link sz-hero-link--muted"
-                :title="'Discord: ' + gnoMeta.discord"
-              >
-                <Icon icon="mdi-discord" class="text-base" />
-                <span class="sz-hero-link-label">{{ gnoMeta.discord }}</span>
-              </span>
-              <span
-                v-if="!v.description?.website && !gnoMeta?.twitter && !gnoMeta?.telegram && !gnoMeta?.github && !gnoMeta?.email && !gnoMeta?.discord && !v.description?.security_contact"
-                class="text-secondary text-xs"
-              >—</span>
-            </div>
-          </div>
+          <button
+            v-if="v.description?.details || gnoMeta?.description || gnoMeta?.networks?.length"
+            type="button"
+            class="sz-gno-profile-toggle mt-2 text-xs font-semibold text-primary"
+            @click="gnoProfileExpanded = !gnoProfileExpanded"
+          >
+            {{ gnoProfileExpanded ? 'Show less' : 'Read more' }}
+          </button>
         </div>
       </div>
 
@@ -2196,6 +2353,23 @@ watch(
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+/* Gno valoper profile — Cosmos SDK hero-style clamp + read more */
+.sz-gno-profile--clamped {
+  display: -webkit-box;
+  -webkit-line-clamp: 6;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.sz-gno-profile-toggle {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  letter-spacing: 0.02em;
+}
+.sz-gno-profile-toggle:hover {
+  text-decoration: underline;
 }
 .sz-hero-link {
   display: inline-flex;

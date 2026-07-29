@@ -144,47 +144,9 @@ async function fetchDetail(operatorAddress) {
     .replace(/<style[\s\S]*?<\/style>/gi, '')
     .replace(/<svg[\s\S]*?<\/svg>/gi, '');
 
-  // Pull labeled links before stripping tags
-  const linkByLabel = (labelRe) => {
-    // <li>Website: <a href="URL"> or Website: <a href=...
-    const re = new RegExp(
-      `(?:<li[^>]*>\\s*)?(?:<strong>)?${labelRe}(?:</strong>)?\\s*:?\\s*(?:<a[^>]*href=["']([^"']+)["'][^>]*>)?`,
-      'i'
-    );
-    const m = clean.match(re);
-    if (m && m[1] && /^https?:\/\//i.test(m[1]) && !/cdn-cgi\/l\/email/i.test(m[1])) {
-      return m[1].trim();
-    }
-    return '';
-  };
-
-  const website =
-    linkByLabel('Website') ||
-    linkByLabel('Web\\s*site') ||
-    '';
-  const twitter =
-    linkByLabel('X\\s*\\(?Twitter\\)?') ||
-    linkByLabel('Twitter') ||
-    linkByLabel('X') ||
-    '';
-  const github = linkByLabel('GitHub') || linkByLabel('Github') || '';
-  const telegram = linkByLabel('Telegram') || linkByLabel('TG') || '';
-  const discord =
-    linkByLabel('Discord(?:\\s*Username)?') ||
-    linkByLabel('Discord') ||
-    '';
-
-  // Cloudflare-protected email
-  let email = '';
-  const cf = clean.match(/data-cfemail=["']([0-9a-fA-F]+)["']/);
-  if (cf) email = decodeCfEmail(cf[1]);
-  if (!email) {
-    const em = clean.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
-    if (em && !/newtendermint|example\.com/i.test(em[0])) email = em[0];
-  }
-
-  // Plain-text extraction for addresses / server / description / networks
+  // Plain-text extraction — strip tags, keep line structure
   const text = clean
+    .replace(/<a[^>]+href=["']([^"']+)["'][^>]*>/gi, ' $1 ')
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<\/(p|li|h[1-6]|div|tr)>/gi, '\n')
     .replace(/<[^>]+>/g, ' ')
@@ -196,48 +158,107 @@ async function fetchDetail(operatorAddress) {
     .replace(/\s+\n/g, '\n')
     .replace(/\n\s+/g, '\n');
 
-  const signMatch = text.match(/Signing Address[:\s]+(g1[a-z0-9]{38,45})/i);
-  const opMatch = text.match(/Operator Address[:\s]+(g1[a-z0-9]{38,45})/i);
-  const pubMatch = text.match(/Signing PubKey[:\s]+(gpub1[a-z0-9]+)/i);
+  // Cloudflare-protected email
+  let email = '';
+  const cf = clean.match(/data-cfemail=["']([0-9a-fA-F]+)["']/);
+  if (cf) email = decodeCfEmail(cf[1]);
+  if (!email) {
+    const em = text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
+    if (em && !/newtendermint|example\.com/i.test(em[0])) email = em[0];
+  }
+
+  // Line-oriented labeled field pickup (bare URLs; no <a href> required)
+  function pickLabeled(lineRe) {
+    for (const line of text.split("\n")) {
+      const t = line.trim();
+      const m = t.match(lineRe);
+      if (m && m[1]) return m[1].replace(/[),.;]+$/, "").trim();
+    }
+    return '';
+  }
+  let website = pickLabeled(/^Website\s*:\s*(https?:\/\/\S+)/i);
+  let twitter = pickLabeled(/^(?:X\s*\(?Twitter\)?|Twitter)\s*:\s*(https?:\/\/\S+)/i);
+  let github = pickLabeled(/^GitHub\s*:\s*(https?:\/\/\S+)/i);
+  let telegram = pickLabeled(/^Telegram\s*:\s*(https?:\/\/\S+)/i);
+  let discord = '';
+  {
+    const dUrl = pickLabeled(/^Discord(?:\s*Username)?\s*:\s*(https?:\/\/\S+)/i);
+    if (dUrl) discord = dUrl;
+    else {
+      const dName = pickLabeled(/^Discord(?:\s*Username)?\s*:\s*([^\s].{0,39})$/i);
+      if (dName && !/^g1/i.test(dName) && !/^https?:/i.test(dName)) discord = dName;
+    }
+  }
+
+  // Label may be followed by a /u/<addr> profile path before the bare g1/gpub.
+  const signMatch = text.match(/Signing Address[\s\S]{0,120}?\b(g1[a-z0-9]{38,45})\b/i);
+  const opMatch = text.match(/Operator Address[\s\S]{0,120}?\b(g1[a-z0-9]{38,45})\b/i);
+  const pubMatch = text.match(/Signing PubKey[\s\S]{0,80}?\b(gpub1[a-z0-9]+)\b/i);
   const serverMatch = text.match(/Server Type[:\s]+(cloud|on-prem|data-center|bare-?metal|vps|dedicated)/i);
 
-  // Description: first substantial paragraph after "Validator Name" / moniker heading,
-  // before "Networks You Are Currently Validating" / "Links to Your Digital Presence".
+  // Description: bio + optional Why / Contributions narrative (full structured text for UI).
+  // Cap total length; UI collapses with read-more.
   let description = '';
   {
+    const chunks = [];
     const afterName = text.split(/Validator Name[:\s]+[^\n]+/i)[1] || text;
-    const beforeLinks = afterName.split(
-      /Networks You Are Currently Validating|Links to Your Digital Presence|Contact Details|Why You Are Interested|Operator Address/i
+    const bioBody = afterName.split(
+      /Networks (?:You|We) Are Currently Validating|Links to (?:Your|Our) Digital Presence|Contact Details|Why (?:You Are|We're|We Are) Interested|Operator Address|Total AuM/i
     )[0];
-    const paras = beforeLinks
+    const bioParas = bioBody
       .split(/\n+/)
       .map((l) => l.trim())
       .filter(
         (l) =>
-          l.length > 40 &&
-          !/^(Valoper|Validator Name|g1|Profile|On this page)/i.test(l) &&
+          l.length > 20 &&
+          !/^(Valoper|Validator Name|g1|Profile|On this page|Infra\s*&)/i.test(l) &&
           !/^https?:\/\//i.test(l)
       );
-    if (paras.length) {
-      // Prefer the longest first paragraph (bio), cap at 600 chars
-      description = paras[0].slice(0, 600);
+    if (bioParas.length) {
+      const sorted = [...bioParas].sort((a, b) => b.length - a.length);
+      chunks.push(sorted[0].slice(0, 800));
     }
+    const whySec = text.split(/Why (?:You Are|We're|We Are) Interested[^:]*:\s*/i)[1] || '';
+    const whyBody = whySec.split(
+      /Contributions|Operator Address|Signing Address|Server Type|Services Already/i
+    )[0]
+      .split(/\n+/)
+      .map((l) => l.trim())
+      .filter((l) => l.length > 30 && !/^https?:\/\//i.test(l));
+    if (whyBody.length) {
+      chunks.push('Why gno.land: ' + whyBody.slice(0, 3).join(' ').slice(0, 600));
+    }
+    const contribSec = text.split(/Contributions[^:]*:\s*/i)[1] || '';
+    const contribBody = contribSec.split(
+      /Operator Address|Signing Address|Server Type|Profile link/i
+    )[0]
+      .split(/\n+/)
+      .map((l) => l.trim())
+      .filter((l) => l.length > 5 && !/^g1|^gpub/i.test(l));
+    if (contribBody.length) {
+      chunks.push('Contributions: ' + contribBody.slice(0, 8).join(' · ').slice(0, 600));
+    }
+    description = chunks.join('\n\n').slice(0, 1800);
   }
 
-  // Networks list (bullet items under "Networks You Are Currently Validating")
+  // Networks list — accept "You" or "We", and "Name (TICKER)" lines
   const networks = [];
   {
-    const netSec = text.split(/Networks You Are Currently Validating[:\s]*/i)[1] || '';
+    const netSec =
+      text.split(/Networks (?:You|We) Are Currently Validating[:\s]*/i)[1] || '';
     const netBody = netSec.split(
-      /Links to Your Digital Presence|Contact Details|Why You Are Interested|Operator Address|Contributions/i
+      /Links to (?:Your|Our) Digital Presence|Contact Details|Why (?:You Are|We're|We Are)|Operator Address|Contributions|Total AuM/i
     )[0];
     for (const line of netBody.split(/\n+/)) {
-      const t = line.trim().replace(/^[-*•]\s*/, '');
-      if (!t || t.length < 2 || t.length > 60) continue;
-      if (/^(And Other|Mainnets|Testnets|http)/i.test(t)) continue;
+      let t = line.trim().replace(/^[-*•]\s*/, '');
+      // Drop trailing "full list" junk on same line
+      t = t.replace(/\s*[—-]\s*.*$/, '').replace(/\s+https?:\/\/\S+.*$/, '').trim();
+      if (!t || t.length < 2 || t.length > 80) continue;
+      if (/^(And Other|Mainnets|Testnets|http|30\+|Total AuM)/i.test(t)) continue;
       if (/^g1|^gpub/i.test(t)) continue;
+      if (/full list/i.test(t)) continue;
       networks.push(t);
-      if (networks.length >= 20) break;
+      if (networks.length >= 30) break;
     }
   }
 
