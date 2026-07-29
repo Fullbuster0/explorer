@@ -32,6 +32,11 @@ const blockchain = useBlockchain();
 const format = useFormatter();
 const dialog = useTxDialog();
 
+/** Gno/TM2 — no Cosmos staking txs; wallet is Adena (deferred). */
+const isGno = computed(
+  () => blockchain.current?.engine === 'gno' || blockchain.current?.engine === 'tm2'
+);
+
 // Reactive validator address — updates on SPA navigation
 const validator = computed(() => props.validator || '');
 
@@ -242,6 +247,8 @@ const powerPercent = computed(() => {
 });
 
 const bondDenomDisplay = computed(() => {
+  // Gno/TM2 voting power is unitless — never apply ugnot exponent/symbol.
+  if (isGno.value) return 'VP';
   const d = String(staking.params.bond_denom || '');
   return d.replace(/^u/, '').toUpperCase() || d.toUpperCase();
 });
@@ -311,6 +318,8 @@ async function fetchDelPage(pr: PageRequest, page: number, token: number) {
 }
 
 async function loadAllDelegations() {
+  // Gno/TM2 has no Cosmos LCD delegations — skip the multi-page LCD crawl.
+  if (isGno.value) return;
   if (!blockchain.rpc || !validator.value) return;
   // already loading or already have data — skip
   if (delegationsLoading.value) return;
@@ -383,6 +392,11 @@ function onDelPageSizeChange() {
 }
 
 function loadPowerEvents(_p: number, type: EventType) {
+  // Gno/TM2: tx_index=off + no LCD events — skip Cosm power-event queries.
+  if (isGno.value) {
+    selectedEventType.value = type;
+    return;
+  }
   console.info('[val] loadPowerEvents', type, 'rpc=', !!blockchain.rpc, 'current=', !!blockchain.current);
   selectedEventType.value = type;
   pePageNum.value = 1;
@@ -900,13 +914,20 @@ watch(
               <span v-if="identity" class="sz-chip font-mono !text-[10px] !font-medium text-secondary">
                 {{ identity }}
               </span>
-              <button type="button"
+              <button
+                v-if="!isGno"
+                type="button"
                 class="btn btn-primary btn-sm ml-auto sm:!ml-0"
                 @click="dialog.open('delegate', { validator_address: v.operator_address || validator.value })"
               >
                 <Icon icon="mdi-handshake-outline" class="text-base mr-1" />
                 {{ $t('account.btn_delegate') }}
               </button>
+              <span
+                v-else
+                class="sz-chip ml-auto sm:!ml-0 !text-[11px] text-secondary"
+                title="Gno wallet is Adena — connect later"
+              >Adena later</span>
             </div>
           </div>
         </div>
@@ -921,7 +942,7 @@ watch(
           {{ format.formatToken({ amount: v.tokens, denom: staking.params.bond_denom }, false, '0,0') }}
           <span class="sz-stat-unit">{{ bondDenomDisplay }}</span>
         </div>
-        <div class="sz-stat-sub">VP {{ powerPercent }}</div>
+        <div class="sz-stat-sub">{{ powerPercent }} of network</div>
       </div>
 
       <div class="sz-stat" style="--stat-hue: #764bc8">
@@ -1001,10 +1022,13 @@ watch(
                 <span v-if="!rewards?.length" class="text-secondary text-xs">—</span>
               </div>
             </div>
-            <button type="button"
+            <button
+              v-if="!isGno"
+              type="button"
               class="btn btn-primary btn-sm w-full mt-auto"
               @click="dialog.open('withdraw_commission', { validator_address: v.operator_address || validator.value })"
             >{{ $t('account.btn_withdraw') }}</button>
+            <div v-else class="text-center text-[11px] text-secondary mt-auto pt-2">No commission withdraw on TM2</div>
           </div>
         </div>
       </div>
@@ -1088,7 +1112,7 @@ watch(
       </div>
     </div>
     <!-- DELEGATIONS / DELEGATORS -->
-    <section id="sz-delegations" class="sz-section mb-4 overflow-hidden">
+    <section v-if="!isGno" id="sz-delegations" class="sz-section mb-4 overflow-hidden">
       <div class="sz-section-head">
         <div>
           <div class="sz-section-kicker">{{ $t('account.delegations') }}</div>
@@ -1174,8 +1198,8 @@ watch(
       </div>
     </section>
 
-    <!-- ACTIVITIES -->
-    <section class="sz-section mb-4 overflow-hidden">
+    <!-- ACTIVITIES (Cosmos LCD/tx only — Gno tx_index=off) -->
+    <section v-if="!isGno" class="sz-section mb-4 overflow-hidden">
       <div class="sz-section-head flex-wrap gap-3">
         <div>
           <div class="sz-section-kicker">History</div>

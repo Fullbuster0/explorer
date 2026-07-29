@@ -1,5 +1,5 @@
 /**
- * Static Gnoland Topaz valoper moniker registry.
+ * Static Gnoland testnet (topaz-1) valoper moniker registry.
  * Source: Indonode explorer bundle + noderuner validator-dashboard
  * (Gno has no Cosmos staking module → monikers are off-chain).
  *

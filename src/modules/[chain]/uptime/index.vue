@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { ref, onMounted, computed, onUnmounted } from 'vue';
+import { ref, onMounted, computed, onUnmounted, watch } from 'vue';
 import { fromBech32, fromHex, toBase64, toHex } from '@cosmjs/encoding';
 import { useStakingStore, useBaseStore, useBlockchain, useFormatter } from '@/stores';
 import UptimeBar from '@/components/UptimeBar.vue';
@@ -266,6 +266,29 @@ onMounted(() => {
     })
     .catch((e: any) => console.warn('[uptime] slashing params:', e?.message || e));
 });
+
+// Gno/TM2 race: recents often land before staking validators finish loading,
+// so fillblock no-ops (activeSet empty / no base64). When the active set
+// appears, rebuild the heatmap from recents + clear de-dupe so colors stick.
+let uptimeHydrated = false;
+watch(
+  () => activeSet.value.length,
+  (n) => {
+    if (!n || uptimeHydrated) return;
+    // Only rehydrate if we have almost no colored cells yet
+    const colored = Object.values(blockColors.value).reduce((s, arr) => s + (arr?.length || 0), 0);
+    if (colored > 20) {
+      uptimeHydrated = true;
+      return;
+    }
+    uptimeHydrated = true;
+    appliedHeights.value = {};
+    blockColors.value = {};
+    liveMissed.value = {};
+    baseStore.recents?.forEach((b) => fillblock(b, 'start'));
+    if (latest.value > 0) preFill();
+  }
+);
 
 function preFill() {
   if (latest.value > 50 && baseStore.recents.length >= 49) return;

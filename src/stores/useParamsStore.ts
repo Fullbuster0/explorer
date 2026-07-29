@@ -58,6 +58,9 @@ export const useParamStore = defineStore('paramstore', {
     modulesHidden: {
       mint: false,
       gov_tally: false,
+      distribution: false,
+      slashing: false,
+      gov: false,
     },
   }),
   getters: {
@@ -115,26 +118,63 @@ export const useParamStore = defineStore('paramstore', {
       this.staking.items = generalItems;
       this.staking.subGroups = [{ title: 'Bond config', items: bondItems }];
 
-      Promise.all([this.getStakingPool(), this.getBankTotal(bond_denom)])
-        .then((resArr) => {
-          const pool = resArr[0]?.pool;
-          const amount = resArr[1]?.amount?.amount;
-          if (!pool || amount == null) return;
-          const assets = this.blockchain.current?.assets;
-          const bondedAndSupply = this.chain.items.findIndex((x) => x.subtitle === 'bonded_and_supply');
-          if (bondedAndSupply > -1) {
-            this.chain.items[bondedAndSupply].value = `${formatNumber(
-              formatTokenAmount(assets, pool.bonded_tokens, 2, bond_denom, false),
-              true,
-              0
-            )}/${formatNumber(formatTokenAmount(assets, amount, 2, bond_denom, false), true, 0)}`;
-          }
-          const bondedRatio = this.chain.items.findIndex((x) => x.subtitle === 'bonded_ratio');
-          if (bondedRatio > -1) {
-            this.chain.items[bondedRatio].value = useFormatter().calculatePercent(pool.bonded_tokens, amount);
-          }
-        })
-        .catch((e: any) => console.warn('[params] bonded/supply:', e?.message || e));
+      // Gno/TM2: no bank supply. Show total VP instead of bonded/supply + ratio.
+      const isGno =
+        this.blockchain.current?.engine === 'gno' || this.blockchain.current?.engine === 'tm2';
+      if (isGno) {
+        Promise.all([
+          this.getStakingPool(),
+          this.blockchain.rpc?.getStakingValidators?.('BOND_STATUS_BONDED', 500),
+        ])
+          .then(([poolRes, valsRes]) => {
+            const bonded = poolRes?.pool?.bonded_tokens || '0';
+            const active = Array.isArray(valsRes?.validators) ? valsRes.validators.length : 0;
+            const maxV = Math.max(Number(p.max_validators || 100), active || 0);
+            const bondedAndSupply = this.chain.items.findIndex(
+              (x) => x.subtitle === 'bonded_and_supply' || x.subtitle === 'total_voting_power'
+            );
+            if (bondedAndSupply > -1) {
+              this.chain.items[bondedAndSupply].subtitle = 'total_voting_power';
+              this.chain.items[bondedAndSupply].value = `${Number(bonded).toLocaleString()} VP`;
+            }
+            const bondedRatio = this.chain.items.findIndex(
+              (x) => x.subtitle === 'bonded_ratio' || x.subtitle === 'active_set'
+            );
+            if (bondedRatio > -1) {
+              this.chain.items[bondedRatio].subtitle = 'active_set';
+              this.chain.items[bondedRatio].value = active ? `${active} / ${maxV}` : `max ${maxV}`;
+            }
+            const infl = this.chain.items.findIndex(
+              (x) => x.subtitle === 'inflation' || x.subtitle === 'engine'
+            );
+            if (infl > -1) {
+              this.chain.items[infl].subtitle = 'engine';
+              this.chain.items[infl].value = 'Tendermint2';
+            }
+          })
+          .catch((e: any) => console.warn('[params] gno pool:', e?.message || e));
+      } else {
+        Promise.all([this.getStakingPool(), this.getBankTotal(bond_denom)])
+          .then((resArr) => {
+            const pool = resArr[0]?.pool;
+            const amount = resArr[1]?.amount?.amount;
+            if (!pool || amount == null) return;
+            const assets = this.blockchain.current?.assets;
+            const bondedAndSupply = this.chain.items.findIndex((x) => x.subtitle === 'bonded_and_supply');
+            if (bondedAndSupply > -1) {
+              this.chain.items[bondedAndSupply].value = `${formatNumber(
+                formatTokenAmount(assets, pool.bonded_tokens, 2, bond_denom, false),
+                true,
+                0
+              )}/${formatNumber(formatTokenAmount(assets, amount, 2, bond_denom, false), true, 0)}`;
+            }
+            const bondedRatio = this.chain.items.findIndex((x) => x.subtitle === 'bonded_ratio');
+            if (bondedRatio > -1) {
+              this.chain.items[bondedRatio].value = useFormatter().calculatePercent(pool.bonded_tokens, amount);
+            }
+          })
+          .catch((e: any) => console.warn('[params] bonded/supply:', e?.message || e));
+      }
     },
 
     /**
@@ -145,6 +185,11 @@ export const useParamStore = defineStore('paramstore', {
     async handleMintParam() {
       const excludes = this.blockchain.current?.excludes;
       if (excludes && excludes.indexOf('mint') > -1) return;
+      // Gno/TM2 has no mint module
+      if (this.blockchain.current?.engine === 'gno' || this.blockchain.current?.engine === 'tm2') {
+        this.modulesHidden.mint = true;
+        return;
+      }
       try {
         const res = await this.getMintParam();
         if (!res?.params) {
@@ -188,7 +233,10 @@ export const useParamStore = defineStore('paramstore', {
     async handleSlashingParams() {
       try {
         const res = await this.getSlashingParams();
-        if (!res?.params) return;
+        if (!res?.params || !Object.keys(res.params as any).length) {
+          this.modulesHidden.slashing = true;
+          return;
+        }
         const p = res.params as any;
         const tag = (k: string, v: any, kind?: string) => ({ subtitle: k, value: v, kind });
         const windows = [
@@ -223,7 +271,10 @@ export const useParamStore = defineStore('paramstore', {
     async handleDistributionParams() {
       try {
         const res = await this.getDistributionParams();
-        if (!res?.params) return;
+        if (!res?.params || !Object.keys(res.params as any).length) {
+          this.modulesHidden.distribution = true;
+          return;
+        }
         const p = res.params as any;
         const tag = (k: string, v: any, kind?: string) => ({ subtitle: k, value: v, kind });
         const general: any[] = [];
@@ -306,6 +357,7 @@ export const useParamStore = defineStore('paramstore', {
       // Don't keep an empty top-level `items` — render via subGroups only.
       this.gov.items = [];
       this.gov.subGroups = subGroups;
+      if (!subGroups.length) this.modulesHidden.gov = true;
     },
     async handleAbciInfo() {
       try {

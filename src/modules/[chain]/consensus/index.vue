@@ -206,7 +206,14 @@ const vals = computed(() =>
 // ---- helpers ----
 function parseBitArrayRate(s?: string): number {
   if (!s) return 0;
-  const m = String(s).trim().match(/([0-9]*\.?[0-9]+)\s*$/);
+  const raw = String(s).trim();
+  // TM2 synthetic: "87/89" → ratio. Cosmos trailing float: "... 0.97".
+  const frac = raw.match(/^(\d+)\s*\/\s*(\d+)\s*$/);
+  if (frac) {
+    const den = Number(frac[2]);
+    return den > 0 ? Number(frac[1]) / den : 0;
+  }
+  const m = raw.match(/([0-9]*\.?[0-9]+)\s*$/);
   return m ? parseFloat(m[1]) : 0;
 }
 function isSigned(vote?: string): boolean {
@@ -358,6 +365,93 @@ async function fetchPosition() {
     positions.value = [];
   }
 }
+/**
+ * Build a Cosmos-shaped height_vote_set entry from TM2 data.
+ * Gnoland's `/consensus_state` returns `height_vote_set: {}` (empty object)
+ * and `/dump_consensus_state` has empty `votes` — live vote bits aren't
+ * exposed. We synthesize online/offline from the latest committed block's
+ * precommits so the monitor still shows real signer coverage.
+ */
+async function synthesizeTm2RoundState(base: string) {
+  let hrs = '';
+  let proposer: any = null;
+  // Prefer dump for height/round/step + proposer
+  try {
+    const dumpRes = await fetch(`${base}/dump_consensus_state`);
+    if (dumpRes.ok) {
+      const dump = await dumpRes.json();
+      const drs = dump?.result?.round_state || {};
+      if (drs.height != null) {
+        hrs = `${drs.height}/${drs.round ?? 0}/${drs.step ?? 0}`;
+      }
+      proposer = drs?.validators?.proposer || drs?.proposer || null;
+    }
+  } catch {
+    /* fall through */
+  }
+  // Fallback hrs from /status
+  if (!hrs) {
+    try {
+      const st = await fetch(`${base}/status`);
+      if (st.ok) {
+        const s = await st.json();
+        const h = s?.result?.sync_info?.latest_block_height;
+        if (h) hrs = `${h}/0/0`;
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+  // Latest block precommits → synthetic prevotes/precommits arrays aligned to positions[]
+  const prevotes: string[] = [];
+  const precommits: string[] = [];
+  const signed = new Set<string>();
+  try {
+    const br = await fetch(`${base}/block`);
+    if (br.ok) {
+      const bj = await br.json();
+      const block = bj?.result?.block || {};
+      const pcs = block?.last_commit?.precommits || block?.last_commit?.signatures || [];
+      for (const pc of pcs) {
+        if (!pc) continue;
+        const addr = String(pc.validator_address || '');
+        const hasSig = !!(pc.signature || pc.block_id?.hash);
+        if (addr && hasSig) signed.add(addr);
+      }
+      // If hrs still empty, take from block header
+      if (!hrs && block?.header?.height) {
+        hrs = `${block.header.height}/0/2`;
+      }
+      if (!proposer && block?.header?.proposer_address) {
+        proposer = { address: block.header.proposer_address };
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+  for (const p of positions.value) {
+    const addr = String(p.address || '');
+    const ok = signed.has(addr);
+    // Non-nil string → isSigned() true; 'nil-Vote' → false
+    prevotes.push(ok ? 'TM2-COMMIT' : 'nil-Vote');
+    precommits.push(ok ? 'TM2-COMMIT' : 'nil-Vote');
+  }
+  const bit = `${signed.size}/${Math.max(positions.value.length, 1)}`;
+  return {
+    'height/round/step': hrs,
+    proposer,
+    height_vote_set: [
+      {
+        round: 0,
+        prevotes,
+        precommits,
+        prevotes_bit_array: bit,
+        precommits_bit_array: bit,
+      },
+    ],
+  };
+}
+
 async function update() {
   if (!rpc.value) return;
   try {
@@ -369,10 +463,20 @@ async function update() {
       return;
     }
     const res = await data.json();
-    roundState.value = res?.result?.round_state || {};
+    let rs = res?.result?.round_state || {};
+    // TM2: height_vote_set is {} (object) not an array — synthesize from dump+block.
+    const hvs = rs.height_vote_set;
+    const hvsEmpty =
+      !hvs ||
+      (Array.isArray(hvs) && hvs.length === 0) ||
+      (!Array.isArray(hvs) && typeof hvs === 'object' && Object.keys(hvs).length === 0);
+    if (hvsEmpty) {
+      rs = await synthesizeTm2RoundState(rpc.value);
+    }
+    roundState.value = rs;
     const raw = String(roundState.value?.['height/round/step'] || '').split('/');
     height.value = raw[0] || '';
-    round.value = raw[1] || '';
+    round.value = raw[1] || '0';
     step.value = raw[2] || '';
   } catch (err: any) {
     httpstatus.value = 500;

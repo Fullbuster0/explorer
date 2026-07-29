@@ -11,7 +11,9 @@ import type { Block, NodeInfo, PaginatedTendermintValidator } from '@/types';
 import type { PaginatedValdiators, StakingParam, StakingPool, Validator } from '@/types/staking';
 import { gnoMoniker, lookupGnoValoper } from './valopers';
 
-const UA_HEADERS = { 'User-Agent': 'ShazoesExplorer/1.0' };
+// Do NOT set User-Agent here — browsers forbid it ("Refused to set unsafe header")
+// and Node-side callers don't need a custom UA for public RPCs.
+const UA_HEADERS: Record<string, string> = {};
 
 function base(endpoint: string) {
   return String(endpoint || '').replace(/\/+$/, '');
@@ -259,7 +261,9 @@ export function adaptTm2StakingValidators(rpcResult: any): PaginatedValdiators {
 
 export async function tm2Get(endpoint: string, pathAndQuery: string) {
   const url = `${base(endpoint)}${pathAndQuery.startsWith('/') ? '' : '/'}${pathAndQuery}`;
-  return get(url, { headers: UA_HEADERS as any });
+  return Object.keys(UA_HEADERS).length
+    ? get(url, { headers: UA_HEADERS as any })
+    : get(url);
 }
 
 export async function tm2Status(endpoint: string) {

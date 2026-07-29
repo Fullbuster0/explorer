@@ -144,13 +144,25 @@ const appVersionInfo = computed(() => {
     <ParamCard :card="store.staking" :loading="stakingLoading" />
 
     <!-- ============== DISTRIBUTION ============== -->
-    <ParamCard :card="store.distribution" :loading="distributionLoading" />
+    <ParamCard
+      v-if="!store.modulesHidden.distribution"
+      :card="store.distribution"
+      :loading="distributionLoading"
+    />
 
     <!-- ============== SLASHING ============== -->
-    <ParamCard :card="store.slashing" :loading="slashingLoading" />
+    <ParamCard
+      v-if="!store.modulesHidden.slashing"
+      :card="store.slashing"
+      :loading="slashingLoading"
+    />
 
     <!-- ============== GOVERNANCE ============== -->
-    <ParamCard :card="store.gov" :loading="govLoading" />
+    <ParamCard
+      v-if="!store.modulesHidden.gov"
+      :card="store.gov"
+      :loading="govLoading"
+    />
 
     <!-- ============== MINT (hidden when chain disables the module) ============== -->
     <ParamCard

@@ -108,8 +108,8 @@ const CHAINS = {
     'chain_id': 'empe-testnet-2',
     'logo': 'https://shazoes-explorer.vercel.app/logos/empe.png'
   },
-  'gnoland-topaz': {
-    'pretty': 'Gnoland Topaz',
+  'gnoland-testnet': {
+    'pretty': 'gnoland',
     'chain_id': 'topaz-1',
     'logo': 'https://shazoes-explorer.vercel.app/logos/gno.svg'
   },

@@ -1,5 +1,5 @@
 {
-  "chain_name": "gnoland-topaz",
+  "chain_name": "gnoland-testnet",
   "chain_id": "topaz-1",
   "network_type": "testnet",
   "engine": "gno",
@@ -11,7 +11,7 @@
     "uptime",
     "parameters"
   ],
-  "registry_name": "Gnoland Topaz",
+  "registry_name": "gnoland",
   "coingecko": "",
   "github": "https://github.com/gnolang/gno",
   "api": [
@@ -28,10 +28,6 @@
       "provider": "NodeRuneR"
     },
     {
-      "address": "https://gnoland-testnet-rpc.itrocket.net",
-      "provider": "ITRocket"
-    },
-    {
       "address": "https://gnoland-testnet-rpc.sr20de.xyz",
       "provider": "SR20DE"
     },
@@ -40,28 +36,32 @@
       "provider": "Doresa"
     },
     {
-      "address": "https://gnoland-topaz-rpc.oshvank.xyz",
-      "provider": "OshVanK"
-    },
-    {
-      "address": "https://gnoland.test.rpc.nodeshub.online",
-      "provider": "NodesHub"
-    },
-    {
-      "address": "https://lightnode-rpc-gnoland.grandvalleys.com",
-      "provider": "Grand Valley"
+      "address": "https://gnoland-topaz-rpc.hazennetworksolutions.com",
+      "provider": "Hazen"
     },
     {
       "address": "https://gnoland-topaz-rpc.corenodehq.xyz",
       "provider": "Corenode"
     },
     {
-      "address": "https://gnoland-topaz-testnet-rpc.1xp.vc",
-      "provider": "1XP"
+      "address": "https://gnoland-testnet-rpc.itrocket.net",
+      "provider": "ITRocket"
     },
     {
-      "address": "https://gnoland-topaz-rpc.hazennetworksolutions.com",
-      "provider": "Hazen"
+      "address": "https://gnoland.test.rpc.nodeshub.online",
+      "provider": "NodesHub"
+    },
+    {
+      "address": "https://gnoland-topaz-rpc.oshvank.xyz",
+      "provider": "OshVanK"
+    },
+    {
+      "address": "https://lightnode-rpc-gnoland.grandvalleys.com",
+      "provider": "Grand Valley"
+    },
+    {
+      "address": "https://gnoland-topaz-testnet-rpc.1xp.vc",
+      "provider": "1XP"
     }
   ],
   "rpc": [
@@ -78,10 +78,6 @@
       "provider": "NodeRuneR"
     },
     {
-      "address": "https://gnoland-testnet-rpc.itrocket.net",
-      "provider": "ITRocket"
-    },
-    {
       "address": "https://gnoland-testnet-rpc.sr20de.xyz",
       "provider": "SR20DE"
     },
@@ -90,28 +86,32 @@
       "provider": "Doresa"
     },
     {
-      "address": "https://gnoland-topaz-rpc.oshvank.xyz",
-      "provider": "OshVanK"
-    },
-    {
-      "address": "https://gnoland.test.rpc.nodeshub.online",
-      "provider": "NodesHub"
-    },
-    {
-      "address": "https://lightnode-rpc-gnoland.grandvalleys.com",
-      "provider": "Grand Valley"
+      "address": "https://gnoland-topaz-rpc.hazennetworksolutions.com",
+      "provider": "Hazen"
     },
     {
       "address": "https://gnoland-topaz-rpc.corenodehq.xyz",
       "provider": "Corenode"
     },
     {
-      "address": "https://gnoland-topaz-testnet-rpc.1xp.vc",
-      "provider": "1XP"
+      "address": "https://gnoland-testnet-rpc.itrocket.net",
+      "provider": "ITRocket"
     },
     {
-      "address": "https://gnoland-topaz-rpc.hazennetworksolutions.com",
-      "provider": "Hazen"
+      "address": "https://gnoland.test.rpc.nodeshub.online",
+      "provider": "NodesHub"
+    },
+    {
+      "address": "https://gnoland-topaz-rpc.oshvank.xyz",
+      "provider": "OshVanK"
+    },
+    {
+      "address": "https://lightnode-rpc-gnoland.grandvalleys.com",
+      "provider": "Grand Valley"
+    },
+    {
+      "address": "https://gnoland-topaz-testnet-rpc.1xp.vc",
+      "provider": "1XP"
     }
   ],
   "snapshot_provider": "",
