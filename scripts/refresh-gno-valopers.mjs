@@ -136,11 +136,26 @@ async function fetchDetail(operatorAddress) {
  * Pull AtomOne mainnet validators → Map monikerLower → Keybase identity.
  * Exact case-insensitive moniker match only (no fuzzy) to avoid false logos.
  */
+
+// --- moniker normalization (strip emoji/decor, lower, collapse spaces) ---
+const EMOJI_RE = /[\u{1F300}-\u{1F9FF}\u{2600}-\u{27BF}\u{1F000}-\u{1F02F}\u{1F0A0}-\u{1F0FF}\u{1F100}-\u{1F1FF}\u{1F200}-\u{1F2FF}\u{1FA00}-\u{1FAFF}\u{FE00}-\u{FE0F}\u{200D}\u{2640}-\u{2642}]+/gu;
+const DECOR_RE = /[\s★☆✦✧•·|[\]{}()<>«»◆◇■□●○✓✔✕✖♥♡™®©]+/g;
+
+function normalizeMoniker(s) {
+  return (s || '')
+    .replace(EMOJI_RE, '')
+    .replace(DECOR_RE, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+
 async function fetchAtomoneIdentityMap() {
   let lastErr;
   for (const lcd of ATOMONE_LCDS) {
     try {
       const map = new Map(); // monikerLower → { moniker, identity }
+      const normMap = new Map(); // normalized moniker → { moniker, identity }
       let key = null;
       let pages = 0;
       do {
@@ -157,6 +172,9 @@ async function fetchAtomoneIdentityMap() {
           // Prefer first hit; Keybase identities rarely differ across statuses of same moniker
           const k = mon.toLowerCase();
           if (!map.has(k)) map.set(k, { moniker: mon, identity: id });
+          // normalized key (strip emoji/decor)
+          const nk = normalizeMoniker(mon);
+          if (nk && !normMap.has(nk)) normMap.set(nk, { moniker: mon, identity: id });
         }
         key = data.pagination?.next_key || null;
         pages++;
@@ -164,7 +182,7 @@ async function fetchAtomoneIdentityMap() {
         if (key) await sleep(100);
       } while (key);
       console.log(`  AtomOne LCD ${lcd}: ${map.size} monikers with identity`);
-      return map;
+      return { exactMap: map, normMap };
     } catch (e) {
       lastErr = e;
       console.warn(`  AtomOne LCD fail ${lcd}: ${e.message || e}`);
@@ -227,13 +245,45 @@ async function buildRegistry() {
 
   // --- AtomOne moniker → Keybase identity enrichment ---
   if (!skipAtomone) {
-    console.log('Enriching identity from AtomOne mainnet (exact moniker match)…');
+    console.log('Enriching identity from AtomOne mainnet (exact + normalize + contains)…');
     try {
-      const atomMap = await fetchAtomoneIdentityMap();
+      const { exactMap, normMap } = await fetchAtomoneIdentityMap();
       let hit = 0;
       let kept = 0;
       for (const r of rows) {
-        const hitRow = atomMap.get((r.moniker || '').toLowerCase());
+        const mon = r.moniker || '';
+        const monLower = mon.toLowerCase();
+        const monNorm = normalizeMoniker(mon);
+
+        // Tier 1: exact (existing)
+        let hitRow = exactMap.get(monLower);
+
+        // Tier 2: normalize-exact (strip emoji/decor)
+        if (!hitRow?.identity && monNorm) {
+          hitRow = normMap.get(monNorm);
+        }
+
+        // Tier 3: prefix OR contains (shorter ≥60% of longer), UNIQUE identity only.
+        // Prefix covers "Nodeist" ← "Nodeist 🛡️ Slash Protected" (ratio would be 7/23 < 0.6).
+        // Contains+ratio covers "AviaOne" ← "AVIAONE.com 🟢".
+        // UNIQUE identity rejects ambiguous collisions (no fuzzy).
+        if (!hitRow?.identity && monNorm && monNorm.length >= 4) {
+          const cands = [];
+          for (const [nk, val] of normMap) {
+            if (!nk || nk.length < 4) continue;
+            const a = Math.min(monNorm.length, nk.length);
+            const b = Math.max(monNorm.length, nk.length);
+            const isPrefix = nk.startsWith(monNorm) || monNorm.startsWith(nk);
+            const isContains =
+              (monNorm.includes(nk) || nk.includes(monNorm)) && a / b >= 0.6;
+            if (isPrefix || isContains) cands.push(val);
+          }
+          const ids = new Set(cands.map((c) => c.identity));
+          if (ids.size === 1) {
+            hitRow = cands[0];
+          }
+        }
+
         if (hitRow?.identity) {
           if (r.identity !== hitRow.identity) {
             r.identity = hitRow.identity;
