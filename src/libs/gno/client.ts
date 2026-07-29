@@ -61,7 +61,18 @@ function parseGnoCoins(coins: string | null | undefined): { denom: string; amoun
  * Accepts: base64 (with/without padding), 0x-hex, bare hex.
  */
 function normalizeGnoTxHash(input: string): { hex: string; b64: string; raw: string } {
-  const s = String(input || '').trim();
+  // Peel up to 2 layers of URI encoding (%2F / %3D) from route params.
+  let s = String(input || '').trim();
+  for (let i = 0; i < 2; i++) {
+    if (!/%[0-9A-Fa-f]{2}/.test(s)) break;
+    try {
+      const d = decodeURIComponent(s);
+      if (!d || d === s) break;
+      s = d.trim();
+    } catch {
+      break;
+    }
+  }
   // base64 (TM2 native) — 44 chars with padding for 32-byte hash
   if (/^[A-Za-z0-9+/]{40,}={0,2}$/.test(s) && !/^[0-9a-fA-F]{64}$/.test(s)) {
     try {

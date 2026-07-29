@@ -24,23 +24,69 @@ const tx = ref(
 const loading = ref(false);
 const error = ref('');
 
+/** Vue route params are usually decoded once; harden against leftover %2F/%3D
+ *  (and rare double-encoding) so Gno base64 hashes still hit TM2 /tx. */
+function normalizeRouteHash(raw?: string): string {
+  let h = (raw || '').trim();
+  if (!h) return '';
+  for (let i = 0; i < 2; i++) {
+    if (!/%[0-9A-Fa-f]{2}/.test(h)) break;
+    try {
+      const d = decodeURIComponent(h);
+      if (!d || d === h) break;
+      h = d;
+    } catch {
+      break;
+    }
+  }
+  return h.trim();
+}
+
 async function loadTx(hash?: string) {
-  const h = (hash || '').trim();
+  const h = normalizeRouteHash(hash);
   if (!h) return;
   loading.value = true;
   error.value = '';
+  tx.value = {} as any;
   try {
+    // Wait for endpoint / Gno rpc readiness (cold nav race)
     if (!blockchain.endpoint?.address) {
       for (let i = 0; i < 20 && !blockchain.endpoint?.address; i++) {
         await new Promise((r) => setTimeout(r, 150));
       }
     }
-    const res = await blockchain.fetchTx(h);
+    const isGno =
+      blockchain.current?.engine === 'gno' || blockchain.current?.engine === 'tm2';
+    if (isGno && !blockchain.rpc) {
+      for (let i = 0; i < 20 && !blockchain.rpc; i++) {
+        await new Promise((r) => setTimeout(r, 150));
+      }
+    }
+    // Light retry — first tick after endpoint swap can miss
+    let res: any = null;
+    let lastErr: any = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        res = await blockchain.fetchTx(h);
+        if (res && res.tx_response) break;
+        res = null;
+      } catch (e: any) {
+        lastErr = e;
+        res = null;
+      }
+      if (res && res.tx_response) break;
+      await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
+    }
     if (res && res.tx_response) {
       tx.value = res as any;
+      error.value = '';
     } else {
       tx.value = {} as any;
-      error.value = 'Transaction not found on active or archive REST endpoints.';
+      error.value =
+        lastErr?.message ||
+        (isGno
+          ? 'Transaction not found on Gno RPC (tried base64 / 0x-hex forms).'
+          : 'Transaction not found on active or archive REST endpoints.');
     }
   } catch (e: any) {
     tx.value = {} as any;
@@ -51,7 +97,7 @@ async function loadTx(hash?: string) {
 }
 
 watch(
-  () => [props.hash, blockchain.endpoint?.address] as const,
+  () => [props.hash, blockchain.endpoint?.address, !!(blockchain as any).rpc] as const,
   ([h]) => {
     if (h) loadTx(h);
   },

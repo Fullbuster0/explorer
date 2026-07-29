@@ -1272,26 +1272,33 @@ async function loadGnoTxs() {
   if (!idxUrl || !signing) return;
   gnoTxsLoading.value = true;
   gnoTxsError.value = false;
-  try {
-    // Prefer meta already hydrated; fall back to registry lookup.
-    const meta = gnoMeta.value || lookupGnoValoper(signing);
-    const operator =
-      meta?.operatorAddress ||
-      addresses.value.operAddress ||
-      (meta && meta.signingAddress === signing ? meta.operatorAddress : '') ||
-      '';
-    const page = await getGnoIndexer(idxUrl).getValidatorTransactions(signing, operator || undefined);
-    gnoTxs.value = page.items;
-    gnoTxsCursor.value = page.cursor;
-    gnoTxsHasNext.value = page.hasNext;
-    gnoTxsPrimaryAddr.value = page.primaryAddress;
-    gnoTxsTick.value = Date.now();
-  } catch (e: any) {
-    console.warn('[val] gno account txs failed:', e?.message || e);
-    gnoTxsError.value = true;
-  } finally {
-    gnoTxsLoading.value = false;
+  const maxAttempts = 3;
+  let lastErr: any = null;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    try {
+      // Prefer meta already hydrated; fall back to registry lookup.
+      const meta = gnoMeta.value || lookupGnoValoper(signing);
+      const operator =
+        meta?.operatorAddress ||
+        addresses.value.operAddress ||
+        (meta && meta.signingAddress === signing ? meta.operatorAddress : '') ||
+        '';
+      const page = await getGnoIndexer(idxUrl).getValidatorTransactions(signing, operator || undefined);
+      gnoTxs.value = page.items;
+      gnoTxsCursor.value = page.cursor;
+      gnoTxsHasNext.value = page.hasNext;
+      gnoTxsPrimaryAddr.value = page.primaryAddress;
+      gnoTxsTick.value = Date.now();
+      lastErr = null;
+      break;
+    } catch (e: any) {
+      lastErr = e;
+      console.warn(`[val] gno account txs failed (attempt ${attempt + 1}/${maxAttempts}):`, e?.message || e);
+      if (attempt < maxAttempts - 1) await new Promise((r) => setTimeout(r, 600 * (attempt + 1)));
+    }
   }
+  if (lastErr) gnoTxsError.value = true;
+  gnoTxsLoading.value = false;
 }
 
 async function loadMoreGnoTxs() {

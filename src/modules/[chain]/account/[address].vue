@@ -112,11 +112,28 @@ async function loadTxHistory() {
         gnoTxs.value = [];
         return;
       }
-      const page = await getGnoIndexer(idx).getAccountTransactions(props.address);
-      gnoTxs.value = page.items || [];
-      gnoTxsCursor.value = page.cursor;
-      gnoTxsHasNext.value = !!page.hasNext;
-      allTxs.value = []; // Cosmos table unused on Gno
+      const maxAttempts = 3;
+      let lastErr: any = null;
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        try {
+          const page = await getGnoIndexer(idx).getAccountTransactions(props.address);
+          gnoTxs.value = page.items || [];
+          gnoTxsCursor.value = page.cursor;
+          gnoTxsHasNext.value = !!page.hasNext;
+          allTxs.value = []; // Cosmos table unused on Gno
+          lastErr = null;
+          break;
+        } catch (e: any) {
+          lastErr = e;
+          console.warn(`[account] gno tx history failed (attempt ${attempt + 1}/${maxAttempts}):`, e?.message || e);
+          if (attempt < maxAttempts - 1) await new Promise((r) => setTimeout(r, 600 * (attempt + 1)));
+        }
+      }
+      if (lastErr) {
+        gnoTxsError.value = lastErr?.message || String(lastErr);
+        gnoTxs.value = [];
+        allTxs.value = [];
+      }
       return;
     }
     const page = new PageRequest();
@@ -349,34 +366,40 @@ function loadAccount(address: string) {
     return;
   }
 
+  // Atomic assign: do NOT paint account shell before balances land.
+  // Prior race: getAuthAccount resolved first → hero showed "0 GNOT" for
+  // ~500ms until getBankBalances finished (felt like need-refresh / wrong bal).
+  const shellAccount = () =>
+    ({
+      '@type': isGno.value ? '/gno.BaseAccount' : '/cosmos.auth.v1beta1.BaseAccount',
+      address,
+      account_number: '0',
+      sequence: '0',
+    }) as any;
+
   Promise.all([
-    rpc.getAuthAccount(address).then((x) => {
-      if (token !== accountLoadToken.value) return;
-      // Never leave null — empty object fails the template gate and spins forever.
-      account.value = (x?.account as any) || {
-        '@type': isGno.value ? '/gno.BaseAccount' : '/cosmos.auth.v1beta1.BaseAccount',
-        address,
-        account_number: '0',
-        sequence: '0',
-      };
+    rpc.getAuthAccount(address).catch((e: any) => {
+      console.warn('[account] getAuthAccount:', e?.message || e);
+      return null;
     }),
-    rpc.getBankBalances(address).then((x) => {
-      if (token !== accountLoadToken.value) return;
-      balances.value = x?.balances || [];
+    rpc.getBankBalances(address).catch((e: any) => {
+      console.warn('[account] getBankBalances:', e?.message || e);
+      return { balances: [] as any[] };
     }),
   ])
+    .then(([auth, bank]) => {
+      if (token !== accountLoadToken.value) return;
+      account.value = (auth as any)?.account || shellAccount();
+      balances.value = (bank as any)?.balances || [];
+      if (!(auth as any)?.account) {
+        accountLoadError.value = accountLoadError.value || 'account metadata empty';
+      }
+    })
     .catch((e: any) => {
       if (token !== accountLoadToken.value) return;
       accountLoadError.value = e?.message || String(e);
-      // Still show a shell so the page is usable (copy address, etc.)
-      if (!account.value || !(account.value as any)['@type']) {
-        account.value = {
-          '@type': isGno.value ? '/gno.BaseAccount' : '/cosmos.auth.v1beta1.BaseAccount',
-          address,
-          account_number: '0',
-          sequence: '0',
-        } as any;
-      }
+      account.value = shellAccount();
+      balances.value = [];
     })
     .finally(() => {
       if (token !== accountLoadToken.value) return;
