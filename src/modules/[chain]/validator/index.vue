@@ -1,12 +1,13 @@
 <script lang="ts" setup>
 import { useBaseStore, useBlockchain, useFormatter, useMintStore, useStakingStore, useTxDialog } from '@/stores';
 import { computed } from '@vue/reactivity';
-import { onMounted, ref } from 'vue';
+import { onMounted, ref, watch } from 'vue';
 import { Icon } from '@iconify/vue';
 import type { Key, SlashingParam, Validator } from '@/types';
 import { formatSeconds } from '@/libs/utils';
 import { diff } from 'semver';
 import { getGnoIndexer, type GnoIndexerValidator } from '@/libs/gno/indexer';
+import { gnoMoniker } from '@/libs/gno/valopers';
 
 const staking = useStakingStore();
 const base = useBaseStore();
@@ -41,15 +42,17 @@ function shortAddr(a: string): string {
 
 /** Build a Validator-shaped object from an onbloc indexer entry. */
 function gnoToValidator(g: GnoIndexerValidator): Validator {
+  // Prefer moniker from official valopers realm (operator address key), then indexer moniker.
+  const moniker = gnoMoniker(g.address, g.monikerName || shortAddr(g.address));
   return {
     operator_address: g.address,
     consensus_pubkey: { '@type': '/cosmos.crypto.ed25519.PubKey', key: '' } as Key,
-    jailed: false,
+    jailed: g.status === 'INACTIVE',
     status: g.status === 'ACTIVE' ? 'BOND_STATUS_BONDED' : 'BOND_STATUS_UNBONDED',
     tokens: g.votingPower || '0',
     delegator_shares: g.votingPower || '0',
     description: {
-      moniker: g.monikerName || shortAddr(g.address),
+      moniker,
       identity: '',
       website: '',
       security_contact: '',
@@ -66,7 +69,15 @@ function gnoToValidator(g: GnoIndexerValidator): Validator {
 }
 
 async function fetchGnoValidators() {
-  if (!isGno.value || !indexerUrl.value) return;
+  if (!isGno.value) return;
+  // Wait briefly for chain config to settle (indexer_api arrives with current)
+  if (!indexerUrl.value) {
+    await new Promise((r) => setTimeout(r, 400));
+  }
+  if (!indexerUrl.value) {
+    console.warn('[validator] no indexer_api — Active/Inactive/Pending tabs will be empty');
+    return;
+  }
   gnoLoading.value = true;
   try {
     gnoValidators.value = await getGnoIndexer(indexerUrl.value).getAllValidators();
@@ -107,6 +118,10 @@ onMounted(() => {
     .catch((e: any) => console.warn('[validator] slashing params:', e?.message || e));
   // Gno: pull the full ACTIVE/INACTIVE/PENDING set from the indexer
   fetchGnoValidators();
+  // Re-fetch if indexer_api arrives after mount (race with chain init)
+  watch(indexerUrl, (url, prev) => {
+    if (url && url !== prev) fetchGnoValidators();
+  });
 });
 
 async function fetchChange(blockWindow: number = 14400) {
