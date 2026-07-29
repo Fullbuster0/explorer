@@ -730,7 +730,7 @@ const amount = computed({
       </template>
     </section>
 
-    <!-- ===== Wallet (Cosmos only — Gno uses Adena, deferred) ===== -->
+    <!-- ===== Wallet (Cosmos only — Gno has no staking/delegation) ===== -->
     <section v-if="!isGno" class="sz-section sz-dash-wallet">
       <div class="sz-section-head">
         <div class="min-w-0">

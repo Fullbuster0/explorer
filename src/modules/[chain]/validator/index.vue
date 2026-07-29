@@ -16,7 +16,7 @@ const dialog = useTxDialog();
 const chainStore = useBlockchain();
 const mintStore = useMintStore();
 
-/** Gno/TM2 has no Cosmos staking txs — hide Delegate until Adena is wired. */
+/** Gno/TM2 has no Cosmos staking/delegation — hide Delegate CTAs. */
 const isGno = computed(
   () => chainStore.current?.engine === 'gno' || chainStore.current?.engine === 'tm2'
 );

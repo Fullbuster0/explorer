@@ -32,7 +32,7 @@ const blockchain = useBlockchain();
 const format = useFormatter();
 const dialog = useTxDialog();
 
-/** Gno/TM2 — no Cosmos staking txs; wallet is Adena (deferred). */
+/** Gno/TM2 — no Cosmos staking/delegation. Hide all wallet CTAs. */
 const isGno = computed(
   () => blockchain.current?.engine === 'gno' || blockchain.current?.engine === 'tm2'
 );
@@ -923,11 +923,6 @@ watch(
                 <Icon icon="mdi-handshake-outline" class="text-base mr-1" />
                 {{ $t('account.btn_delegate') }}
               </button>
-              <span
-                v-else
-                class="sz-chip ml-auto sm:!ml-0 !text-[11px] text-secondary"
-                title="Gno wallet is Adena — connect later"
-              >Adena later</span>
             </div>
           </div>
         </div>

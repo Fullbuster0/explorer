@@ -31,6 +31,11 @@ if (blockchain.chainName) {
 }
 const baseStore = useBaseStore();
 
+/** Gno has no staking/delegation — hide Wallet Helper (Keplr suggest) too. */
+const isGno = computed(
+  () => blockchain.current?.engine === 'gno' || blockchain.current?.engine === 'tm2'
+);
+
 const current = ref(''); // the current chain
 const temp = ref('');
 blockchain.$subscribe((m, s) => {
@@ -245,7 +250,7 @@ dayjs();
 
         <!-- tools + links -->
         <div class="sz-section-title">Tools</div>
-        <RouterLink to="/wallet/suggest" class="sz-nav-item group">
+        <RouterLink v-if="!isGno" to="/wallet/suggest" class="sz-nav-item group">
           <span class="sz-nav-rail" aria-hidden="true"></span>
           <Icon icon="mdi:frequently-asked-questions" class="text-[18px] mr-2.5 ml-1 sz-nav-icon" />
           <span class="text-[13.5px] capitalize text-slate-300 group-hover:text-slate-100">Wallet Helper</span>

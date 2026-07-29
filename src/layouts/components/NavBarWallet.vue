@@ -9,7 +9,7 @@ const walletStore = useWalletStore();
 const chainStore = useBlockchain();
 const baseStore = useBaseStore();
 const storageStore = useStorageStore();
-/** Gno/TM2 uses Adena (not Keplr) — hide Cosm wallet connect until Adena lands. */
+/** Gno/TM2 has no Cosmos staking/delegation — no wallet chrome at all. */
 const isGno = computed(
   () => chainStore.current?.engine === 'gno' || chainStore.current?.engine === 'tm2'
 );
@@ -56,6 +56,9 @@ const params = computed(() => {
 </script>
 
 <template>
+  <!-- Gno has no staking/delegation, so there is no wallet to connect.
+       Hide the entire wallet chrome (button, dropdown, connect widget). -->
+  <template v-if="!isGno">
   <div class="dropdown dropdown-hover dropdown-end">
     <label
       tabindex="0"
@@ -69,18 +72,12 @@ const params = computed(() => {
       class="dropdown-content menu shadow p-2 bg-base-100 rounded w-52 md:!w-64 overflow-auto"
     >
       <label
-        v-if="!isGno && !walletStore?.currentAddress"
+        v-if="!walletStore?.currentAddress"
         for="PingConnectWallet"
         class="btn btn-sm btn-primary"
       >
         <Icon icon="mdi:wallet" /><span class="ml-1 block">Connect Wallet</span>
       </label>
-      <div
-        v-else-if="isGno && !walletStore?.currentAddress"
-        class="px-2 py-2 text-xs text-secondary leading-snug"
-      >
-        Adena wallet later — Keplr not supported on Gno.
-      </div>
       <div class="px-2 mb-1 text-gray-500 dark:text-gray-400 font-semibold">
         {{ walletStore.connectedWallet?.wallet }}
       </div>
@@ -142,7 +139,7 @@ const params = computed(() => {
       </div>
     </div>
   </div>
-  <Teleport v-if="!isGno" to="body">
+  <Teleport to="body">
     <ping-connect-wallet
       :chain-id="baseStore.currentChainId || 'cosmoshub-4'"
       :hd-path="chainStore.defaultHDPath"
@@ -152,6 +149,7 @@ const params = computed(() => {
       :params="params"
     />
   </Teleport>
+  </template>
 </template>
 
 <style>
