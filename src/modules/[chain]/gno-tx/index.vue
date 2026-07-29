@@ -47,17 +47,25 @@ function formatAmount(v: { value?: string; denom?: string } | null): string {
     if (gnot >= 0.001) return `${gnot.toFixed(4)} GNOT`;
     return `${gnot.toFixed(6)} GNOT`;
   }
-  return `${n.toLocaleString()} ${v.denom || ''}`;
+  // GRC20 / realm path denoms: show short token path + raw amount
+  const denom = v.denom || '';
+  if (denom.includes('/')) {
+    const short = denom.split('/').pop() || denom;
+    return `${n.toLocaleString()} ${short}`;
+  }
+  return `${n.toLocaleString()} ${denom}`;
 }
 
 function funcLabel(tx: GnoTx): { label: string; slug: string } {
   const f = tx.func?.[0];
   if (!f) return { label: '—', slug: 'default' };
   const t = (f.messageType || '').toLowerCase();
-  if (t.includes('bank') || f.funcType === 'Transfer') return { label: f.funcType || 'Transfer', slug: 'bank' };
+  // Prefer funcType for display (Transfer/Approve/Swap…) but color by messageType
+  if (t.includes('bank')) return { label: f.funcType || 'Transfer', slug: 'bank' };
   if (t.includes('m_call') || t.includes('vm.m_call')) return { label: f.funcType || 'Call', slug: 'wasm' };
   if (t.includes('m_addpkg') || t.includes('addpkg')) return { label: 'AddPkg', slug: 'wasm' };
   if (t.includes('m_run') || t.includes('vm.m_run')) return { label: 'Run', slug: 'wasm' };
+  if (f.funcType === 'Transfer') return { label: 'Transfer', slug: 'bank' };
   return { label: f.funcType || f.messageType?.split('.').pop() || 'Tx', slug: 'default' };
 }
 

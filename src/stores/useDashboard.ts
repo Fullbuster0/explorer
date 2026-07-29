@@ -65,6 +65,7 @@ export function convertFromLocal(lc: LocalChainConfig): ChainConfig {
   }
   conf.features = lc.features;
   if (lc.engine) conf.engine = lc.engine;
+  if (lc.indexer_api) conf.indexer_api = lc.indexer_api;
   // Absolute logos as-is; site-local /logos/* stay same-origin; other relatives use ping.pub.
   conf.logo = lc.logo
     ? lc.logo.startsWith('http')

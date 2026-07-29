@@ -56,6 +56,12 @@ export interface LocalChainConfig {
    * explorer then talks JSON-RPC directly via GnoTm2Client.
    */
   engine?: 'cosmos' | 'gno' | 'tm2';
+  /**
+   * Gno/TM2 only: onbloc-style indexer REST base URL (e.g.
+   * https://topaz.api.onbloc.xyz/v1). Public Gno RPC has tx_index=off, so
+   * transactions / realms / tokens / validator statuses come from here.
+   */
+  indexer_api?: string;
   coin_type: string;
   logo: string;
   theme_color?: string;
@@ -130,6 +136,8 @@ export interface ChainConfig {
   features?: string[];
   /** See LocalChainConfig.engine — gno/tm2 → Tendermint2 JSON-RPC client. */
   engine?: 'cosmos' | 'gno' | 'tm2';
+  /** Gno/TM2 indexer REST base URL (tx/realms/tokens/validator status). */
+  indexer_api?: string;
   endpoints: {
     rest?: Endpoint[];
     rpc?: Endpoint[];
