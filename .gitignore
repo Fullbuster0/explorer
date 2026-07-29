@@ -12,3 +12,4 @@ dist
 **/wallet-audit/
 **/.seed
 scripts/tx-audit-*.local.*
+.cache/

@@ -130,5 +130,10 @@
       "logo": "/logos/gno.svg"
     }
   ],
-  "keplr_features": []
+  "keplr_features": [],
+  "valopers_source": {
+    "type": "gno-realm",
+    "base_url": "https://topaz.testnets.gno.land/r/gnops/valopers",
+    "note": "Official gnops valoper registry. Swap base_url for mainnet."
+  }
 }
