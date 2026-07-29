@@ -121,6 +121,7 @@ async function startMonitor() {
     if (rpcList.value.length === 0) {
       httpstatus.value = 0;
       httpStatusText.value = 'No RPC endpoint configured for this chain';
+      started = false; // allow retry when endpoints land
       return;
     }
     // Try each RPC until one supports both /validators and /consensus_state
@@ -144,6 +145,7 @@ async function startMonitor() {
       if (!httpStatusText.value) {
         httpStatusText.value = 'No configured RPC supports consensus endpoints (/validators, /consensus_state)';
       }
+      started = false; // allow re-try after endpoint swap / later readiness
     }
   } finally {
     loading = false;
@@ -177,6 +179,20 @@ onMounted(async () => {
     }, 8000);
   }
 });
+
+// Re-start monitor when active endpoint changes (RPC fallback) without hard refresh
+watch(
+  () => chainStore.endpoint?.address,
+  async (addr, prev) => {
+    if (!addr || addr === prev) return;
+    if (loading) return;
+    clearTime();
+    started = false;
+    positions.value = [];
+    roundState.value = {};
+    await startMonitor();
+  }
+);
 onUnmounted(() => {
   clearTime();
   loading = false;

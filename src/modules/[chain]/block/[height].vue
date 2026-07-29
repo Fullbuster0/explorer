@@ -52,12 +52,38 @@ function updateTarget() {
 async function loadBlock(h: number | string) {
   loading.value = true;
   try {
+    // Wait for base store / chain rpc readiness (Gno cold nav race)
     if (!store.latest?.block?.header?.height) {
-      await store.fetchLatest();
+      for (let i = 0; i < 20; i++) {
+        try {
+          await store.fetchLatest();
+        } catch {
+          /* retry */
+        }
+        if (store.latest?.block?.header?.height) break;
+        await new Promise((r) => setTimeout(r, 150));
+      }
     }
     const latest = store.latest?.block?.header?.height;
     if (latest && Number(h) <= Number(latest)) {
-      current.value = await store.fetchBlock(h);
+      // light retry — first tick after endpoint swap can miss
+      let lastErr: any = null;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          current.value = await store.fetchBlock(h);
+          if (current.value?.block?.header?.height) {
+            lastErr = null;
+            break;
+          }
+        } catch (e: any) {
+          lastErr = e;
+        }
+        await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
+      }
+      if (lastErr && !current.value?.block?.header?.height) {
+        console.warn('[block] fetch failed:', lastErr?.message || lastErr);
+        current.value = {} as Block;
+      }
     } else {
       current.value = {} as Block;
     }
@@ -76,6 +102,16 @@ watch(
   (newHeight: string, oldHeight: string) => {
     if (newHeight && newHeight !== oldHeight) {
       target.value = Number(newHeight);
+      loadBlock(target.value);
+    }
+  }
+);
+
+// Re-fetch when latest lands late (cold race) for current target
+watch(
+  () => store.latest?.block?.header?.height,
+  (h, prev) => {
+    if (h && !prev && target.value && !current.value?.block?.header?.height && !loading.value) {
       loadBlock(target.value);
     }
   }

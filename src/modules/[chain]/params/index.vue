@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { useParamStore, useBlockchain } from '@/stores';
-import { computed, ref, onMounted } from 'vue';
+import { computed, ref, onMounted, watch } from 'vue';
 import ParamCard from '@/components/ParamCard.vue';
 import Loading from '@/components/Loading.vue';
 
@@ -14,16 +14,58 @@ const distributionLoading = ref(true);
 const slashingLoading = ref(true);
 const abciLoading = ref(true);
 const mintLoading = ref(true);
+let loadGen = 0;
+
+async function loadAllParams() {
+  const gen = ++loadGen;
+  chainLoading.value = true;
+  stakingLoading.value = true;
+  govLoading.value = true;
+  distributionLoading.value = true;
+  slashingLoading.value = true;
+  abciLoading.value = true;
+  mintLoading.value = true;
+
+  // Wait briefly for rpc client (cold SPA race — no hard refresh)
+  const isGno =
+    blockchain.current?.engine === 'gno' || blockchain.current?.engine === 'tm2';
+  if (!blockchain.rpc) {
+    for (let i = 0; i < 20 && !blockchain.rpc; i++) {
+      await new Promise((r) => setTimeout(r, 150));
+    }
+  }
+  if (gen !== loadGen) return;
+
+  const mark = (flag: typeof chainLoading) => {
+    if (gen === loadGen) flag.value = false;
+  };
+
+  store.handleBaseBlockLatest().finally(() => mark(chainLoading));
+  store.handleStakingParams().finally(() => mark(stakingLoading));
+  store.handleGovernanceParams().finally(() => mark(govLoading));
+  store.handleDistributionParams().finally(() => mark(distributionLoading));
+  store.handleSlashingParams().finally(() => mark(slashingLoading));
+  store.handleAbciInfo().finally(() => mark(abciLoading));
+  store.handleMintParam().finally(() => mark(mintLoading));
+}
 
 onMounted(() => {
-  store.handleBaseBlockLatest().finally(() => (chainLoading.value = false));
-  store.handleStakingParams().finally(() => (stakingLoading.value = false));
-  store.handleGovernanceParams().finally(() => (govLoading.value = false));
-  store.handleDistributionParams().finally(() => (distributionLoading.value = false));
-  store.handleSlashingParams().finally(() => (slashingLoading.value = false));
-  store.handleAbciInfo().finally(() => (abciLoading.value = false));
-  store.handleMintParam().finally(() => (mintLoading.value = false));
+  loadAllParams();
 });
+
+// Re-fetch when endpoint / rpc lands or swaps (Gno cold race + fallback)
+watch(
+  () => [blockchain.endpoint?.address, !!(blockchain as any).rpc, blockchain.current?.chainName] as const,
+  ([addr, hasRpc], prev) => {
+    if (!addr && !hasRpc) return;
+    const prevAddr = prev?.[0];
+    const prevRpc = prev?.[1];
+    // First land of rpc, or endpoint change
+    if ((hasRpc && !prevRpc) || (addr && addr !== prevAddr)) {
+      loadAllParams();
+    }
+  }
+);
 
 /** Pretty title used in the hero — pulled from the live chain config. */
 const chainName = computed(

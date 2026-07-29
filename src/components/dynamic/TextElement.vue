@@ -5,12 +5,18 @@ import MdEditor from 'md-editor-v3';
 import { computed, onMounted, ref } from 'vue';
 
 import { fromBase64, toHex } from '@cosmjs/encoding';
+import { gnoMoniker } from '@/libs/gno/valopers';
 
 import { registry as nameMatcha } from '@leapwallet/name-matcha';
 
 const chainStore = useBlockchain();
 const props = defineProps(['value']);
 const format = useFormatter();
+
+const isGno = computed(
+  () => chainStore.current?.engine === 'gno' || chainStore.current?.engine === 'tm2'
+);
+
 function isMD() {
   if (props.value && (String(props.value).indexOf('\n') > -1 || String(props.value).indexOf('\\n') > -1)) {
     return true;
@@ -19,6 +25,14 @@ function isMD() {
 }
 
 function isAddress() {
+  // Gno: g1… proposer/operator is a validator identity in block headers —
+  // do NOT auto-link as account; moniker via format.validator / gnoMoniker.
+  if (isGno.value) {
+    const v = String(props.value || '');
+    // signing / operator both g1 — still show moniker text, not account link
+    // (product lock: avoid wrong entity links in raw header dumps)
+    if (v.startsWith('g1') && v.length >= 38) return false;
+  }
   return isBech32Address(props.value) && String(props.value).indexOf('valoper1') === -1;
 }
 
@@ -28,6 +42,10 @@ const text = computed(() => {
   switch (true) {
     case v.length === 28 && v.endsWith('='): {
       return format.validator(v) || v;
+    }
+    // Gno/TM2 proposer is already bech32 g1… — prefer moniker in header dumps
+    case isGno.value && v.startsWith('g1') && v.length >= 38: {
+      return format.validator(v) || gnoMoniker(v) || v;
     }
     // 2023-06-12T03:09:38.253756368Z
     case v.search(/^[1-9]\d{3}-\d{1,2}-\d{1,2}T\d{1,2}:\d{2}:\d{2}[.\d]*Z$/g) > -1: {

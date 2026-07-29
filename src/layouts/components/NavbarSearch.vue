@@ -745,6 +745,15 @@ watch(
     if (g) initGnoValopers().catch(() => undefined);
   }
 );
+// Chain name settles after first paint — warm registry without hard refresh
+watch(
+  () => chainName.value,
+  (name, prev) => {
+    if (name && name !== prev && isGno.value) {
+      initGnoValopers().catch(() => undefined);
+    }
+  }
+);
 onUnmounted(() => {
   window.removeEventListener('keydown', onKeydown);
 });
