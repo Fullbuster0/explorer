@@ -19,6 +19,7 @@ import { fromBech32, toBech32 } from '@cosmjs/encoding';
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useBlockchain, useStakingStore } from '@/stores';
+import { lookupGnoValoper, initGnoValopers, gnoMoniker } from '@/libs/gno/valopers';
 
 type SearchKind = 'account' | 'validator' | 'tx' | 'block' | 'proposal' | 'unknown';
 
@@ -236,15 +237,23 @@ function parseProposalQuery(raw: string): number | null {
 }
 
 function isFullBech32(key: string): boolean {
-  return /^[a-z0-9]{2,32}1[a-z0-9]{38,90}$/i.test(key);
+  // HRP can be 1 char on Gno (`g1…`). Cosmos is usually 3+ (`cosmos1…`).
+  // Prefer cosmjs validation when possible so we don't misclassify base64.
+  try {
+    fromBech32(key);
+    return true;
+  } catch {
+    /* fall through to regex for partial/odd cases */
+  }
+  return /^[a-z0-9]{1,32}1[a-z0-9]{38,90}$/i.test(key);
 }
 
 function isPartialBech32(key: string): boolean {
   // prefix-friendly: hrp1 + at least a few data chars, not necessarily complete
   if (key.length < PREFIX_MIN) return false;
   if (isFullBech32(key)) return false;
-  // More lenient: allow shorter data part (≥3 chars after "1")
-  return /^[a-z0-9]{2,32}1[a-z0-9]{3,}$/i.test(key);
+  // More lenient: allow shorter data part (≥3 chars after "1"); HRP ≥1 (Gno `g1…`)
+  return /^[a-z0-9]{1,32}1[a-z0-9]{3,}$/i.test(key);
 }
 
 function isHexHash(key: string): string | null {
@@ -253,20 +262,36 @@ function isHexHash(key: string): string | null {
   return null;
 }
 
-/** Gno/TM2 native tx hash is base64 (32 bytes → ~44 chars with padding). */
+/** Gno/TM2 native tx hash is base64 (32 bytes → ~44 chars with padding).
+ *  CRITICAL: plain `g1…` addresses also decode as base64 (~30 bytes) — never
+ *  treat valid bech32 / HRP+1 strings as tx hashes. */
 function isGnoBase64Hash(key: string): string | null {
-  const s = key.trim();
+  const s = key.trim().replace(/\s+/g, '');
+  if (!s) return null;
+  // Bech32 always wins over base64 (signing/operator/account g1…)
+  try {
+    fromBech32(s);
+    return null;
+  } catch {
+    /* not bech32 */
+  }
+  // Soft bech32-shaped guard (lowercase hrp1data, no base64 markers)
+  if (/^[a-z0-9]+1[a-z0-9]+$/.test(s) && !/[+/=]/.test(s) && s === s.toLowerCase()) {
+    return null;
+  }
   // Keep padding; compactKey may strip spaces but not '='
   if (!/^[A-Za-z0-9+/]{40,48}={0,2}$/.test(s)) return null;
   // Reject pure hex masquerading
   if (/^[0-9a-fA-F]{64}$/.test(s)) return null;
   try {
-    // validate decodes to 32 bytes ideally
+    // validate decodes to ~32 bytes (TM2 hash)
     const bin =
       typeof atob !== 'undefined'
         ? atob(s)
         : Buffer.from(s, 'base64').toString('binary');
-    if (bin.length < 16 || bin.length > 64) return null;
+    // Real Gno tx hashes are 32 raw bytes; allow 28–40 for padding variance
+    if (bin.length < 28 || bin.length > 40) return null;
+    // Prefer exact 32 when possible, but don't reject 44-char padded forms
     return s;
   } catch {
     return null;
@@ -339,7 +364,110 @@ function buildHits(raw: string): SearchHit[] {
     return results.sort((a, b) => (b.score || 0) - (a.score || 0));
   }
 
-  // --- Gno base64 tx hash (native TM2 form) ---
+  // --- Full bech32 FIRST (before base64 tx) ---
+  // Gno `g1…` is 40 chars of base64-looking alnum and was false-positive as tx.
+  const bechCandidate = isFullBech32(keyCompact)
+    ? keyCompact
+    : isFullBech32(display.replace(/\s+/g, ''))
+      ? display.replace(/\s+/g, '')
+      : '';
+  if (bechCandidate) {
+    const lower = bechCandidate.toLowerCase();
+    // Gno: no valoper/valcons HRP — g1… is account AND may be signing/operator
+    if (isGno.value) {
+      const meta = lookupGnoValoper(lower);
+      const asVal =
+        (staking.validators || []).find(
+          (v) => (v.operator_address || '').toLowerCase() === lower
+        ) || null;
+      if (meta) {
+        // Prefer validator detail via signing address (route param convention)
+        const sign = meta.signingAddress || lower;
+        push({
+          kind: 'validator',
+          query: sign,
+          path: `/${current}/validator/${sign}`,
+          title: meta.moniker || gnoMoniker(sign) || shortAddr(sign),
+          subtitle:
+            meta.signingAddress?.toLowerCase() === lower
+              ? `Signing address · validator · ${chainPretty.value}`
+              : meta.operatorAddress?.toLowerCase() === lower
+                ? `Operator address · validator · ${chainPretty.value}`
+                : `Validator · ${chainPretty.value}`,
+          logo: avatarForIdentity(meta.identity),
+          score: 995,
+        });
+      } else if (asVal) {
+        push(
+          validatorHit(
+            asVal,
+            990,
+            `Active validator · ${chainPretty.value}`
+          )
+        );
+      }
+      push({
+        kind: 'account',
+        query: lower,
+        path: `/${current}/account/${lower}`,
+        title: shortAddr(lower),
+        subtitle: meta
+          ? meta.signingAddress?.toLowerCase() === lower
+            ? `Account (signing) · ${chainPretty.value}`
+            : `Account (operator) · ${chainPretty.value}`
+          : asVal
+            ? `Account (also signing addr) · ${chainPretty.value}`
+            : `Account · ${chainPretty.value}`,
+        score: meta || asVal ? 970 : 980,
+      });
+      return results.sort((a, b) => (b.score || 0) - (a.score || 0));
+    }
+    if (lower.includes('valoper')) {
+      const v = findValidatorByOper(lower);
+      const moniker = v?.description?.moniker || 'Validator';
+      push({
+        kind: 'validator',
+        query: lower,
+        path: `/${current}/validator/${lower}`,
+        title: moniker,
+        subtitle: 'Validator · ' + chainPretty.value,
+        logo: avatarForIdentity(v?.description?.identity),
+        score: 990,
+      });
+    } else if (lower.includes('valcons')) {
+      push({
+        kind: 'account',
+        query: lower,
+        path: `/${current}/account/${lower}`,
+        title: shortAddr(lower),
+        subtitle: 'Consensus address · ' + chainPretty.value,
+        score: 900,
+      });
+    } else {
+      // account — also surface self-validator if this is a val self-bond addr
+      const asVal = findValidatorByAccount(lower);
+      push({
+        kind: 'account',
+        query: lower,
+        path: `/${current}/account/${lower}`,
+        title: shortAddr(lower),
+        subtitle: 'Account · ' + chainPretty.value,
+        score: 980,
+      });
+      if (asVal) {
+        push(
+          validatorHit(
+            asVal,
+            970,
+            `Operator for this account · ${chainPretty.value}`
+          )
+        );
+      }
+    }
+    return results.sort((a, b) => (b.score || 0) - (a.score || 0));
+  }
+
+  // --- Gno base64 tx hash (native TM2 form) — AFTER bech32 ---
   // Use raw display (compactKey strips non-alnum and would break base64 +/=)
   const gnoB64 = isGnoBase64Hash(display.replace(/\s+/g, ''));
   if (gnoB64) {
@@ -394,81 +522,6 @@ function buildHits(raw: string): SearchHit[] {
       });
     }
     // continue — may also match identity hex on validators
-  }
-
-  // --- Full bech32 ---
-  if (isFullBech32(keyCompact)) {
-    const lower = keyLower;
-    // Gno: no valoper/valcons HRP — g1… is both account AND signing/validator address
-    if (isGno.value) {
-      const asVal =
-        (staking.validators || []).find(
-          (v) => (v.operator_address || '').toLowerCase() === lower
-        ) || null;
-      if (asVal) {
-        push(
-          validatorHit(
-            asVal,
-            990,
-            `Active validator · ${chainPretty.value}`
-          )
-        );
-      }
-      push({
-        kind: 'account',
-        query: lower,
-        path: `/${current}/account/${lower}`,
-        title: shortAddr(lower),
-        subtitle: asVal
-          ? `Account (also signing addr) · ${chainPretty.value}`
-          : `Account · ${chainPretty.value}`,
-        score: asVal ? 970 : 980,
-      });
-      return results.sort((a, b) => (b.score || 0) - (a.score || 0));
-    }
-    if (lower.includes('valoper')) {
-      const v = findValidatorByOper(lower);
-      const moniker = v?.description?.moniker || 'Validator';
-      push({
-        kind: 'validator',
-        query: lower,
-        path: `/${current}/validator/${lower}`,
-        title: moniker,
-        subtitle: 'Validator · ' + chainPretty.value,
-        logo: avatarForIdentity(v?.description?.identity),
-        score: 990,
-      });
-    } else if (lower.includes('valcons')) {
-      push({
-        kind: 'account',
-        query: lower,
-        path: `/${current}/account/${lower}`,
-        title: shortAddr(lower),
-        subtitle: 'Consensus address · ' + chainPretty.value,
-        score: 900,
-      });
-    } else {
-      // account — also surface self-validator if this is a val self-bond addr
-      const asVal = findValidatorByAccount(lower);
-      push({
-        kind: 'account',
-        query: lower,
-        path: `/${current}/account/${lower}`,
-        title: shortAddr(lower),
-        subtitle: 'Account · ' + chainPretty.value,
-        score: 980,
-      });
-      if (asVal) {
-        push(
-          validatorHit(
-            asVal,
-            970,
-            `Operator for this account · ${chainPretty.value}`
-          )
-        );
-      }
-    }
-    return results.sort((a, b) => (b.score || 0) - (a.score || 0));
   }
 
   // --- Partial bech32 prefix ---
@@ -683,7 +736,15 @@ function preventClick(e: Event) {
 onMounted(() => {
   window.addEventListener('keydown', onKeydown);
   loadRecent();
+  // Warm Gno valopers so signing/operator search resolves moniker immediately
+  if (isGno.value) initGnoValopers().catch(() => undefined);
 });
+watch(
+  () => isGno.value,
+  (g) => {
+    if (g) initGnoValopers().catch(() => undefined);
+  }
+);
 onUnmounted(() => {
   window.removeEventListener('keydown', onKeydown);
 });
