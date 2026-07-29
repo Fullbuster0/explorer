@@ -1,12 +1,9 @@
 /**
- * Gnoland valoper moniker registry — hybrid static + live.
+ * Gnoland valoper moniker registry — static JSON file only.
  *
- * Static bundle (valopers-data.ts) provides instant lookup on first paint.
- * On init, fires an async fetch to /api/gno-valopers (Vercel serverless
- * proxy for the official gnops realm) and merges live data over static.
- *
- * No cron. No git push for data updates. Config-driven via chain JSON
- * valopers_source.base_url (read by the serverless function).
+ * No Vercel. No SPA. No browser.
+ * Cron writes public/data/gno-valopers.json every 30 min.
+ * This module just reads that file (or falls back to bundled static).
  *
  * Lookup key is the Tendermint2 signing address (/validators address,
  * block proposer, precommit validator_address) — NOT the operator address.
@@ -25,31 +22,25 @@ for (const row of staticRegistry) {
   if (row.operatorAddress) byOperator.set(row.operatorAddress, row);
 }
 
-let liveLoaded = false;
-let livePromise: Promise<void> | null = null;
-
 /**
- * Fetch live registry from /api/gno-valopers and merge over static.
- * Fire-and-forget on app init; lookups work immediately from static.
- * Safe to call multiple times — dedupes via livePromise.
+ * Optional: load from public/data/gno-valopers.json if available.
+ * Called once on Gno chain init. Fire-and-forget.
+ * File is written by cron every 30 min — no git, no Vercel.
  */
-export function initGnoValopers(chain = 'gnoland-testnet'): Promise<void> {
-  if (liveLoaded || livePromise) return livePromise || Promise.resolve();
-  livePromise = (async () => {
+export function initGnoValopers(_chain = 'gnoland-testnet'): Promise<void> {
+  return (async () => {
     try {
-      const res = await fetch(`/api/gno-valopers?chain=${encodeURIComponent(chain)}`, {
-        signal: AbortSignal.timeout(15000),
+      const res = await fetch('/data/gno-valopers.json', {
+        signal: AbortSignal.timeout(5000),
       });
       if (!res.ok) return;
-      const json = await res.json();
-      const rows: GnoValoperRow[] = json.valopers || [];
+      const rows: GnoValoperRow[] = await res.json();
       let updated = 0;
       for (const row of rows) {
         if (!row.signingAddress && !row.operatorAddress) continue;
-        // Live wins over static
         if (row.signingAddress) {
           const existing = bySigning.get(row.signingAddress);
-          if (!existing || existing.moniker !== row.moniker || existing.serverType !== row.serverType) {
+          if (!existing || existing.moniker !== row.moniker) {
             bySigning.set(row.signingAddress, row);
             updated++;
           }
@@ -58,15 +49,13 @@ export function initGnoValopers(chain = 'gnoland-testnet'): Promise<void> {
           byOperator.set(row.operatorAddress, row);
         }
       }
-      liveLoaded = true;
       if (updated > 0) {
-        console.info(`[gno-valopers] live merge: ${updated} updated, ${rows.length} total from realm`);
+        console.info(`[gno-valopers] loaded ${rows.length} from /data/gno-valopers.json (${updated} updated)`);
       }
     } catch {
       // Silent — static fallback is fine
     }
   })();
-  return livePromise;
 }
 
 export function lookupGnoValoper(address?: string): GnoValoper | undefined {

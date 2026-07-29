@@ -13,3 +13,4 @@ dist
 **/.seed
 scripts/tx-audit-*.local.*
 .cache/
+public/data/gno-valopers.json
