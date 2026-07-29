@@ -171,6 +171,8 @@ async function fetchGnoValidators(opts: { silent?: boolean } = {}) {
     diffAndToast(gnoValidators.value, next);
     gnoValidators.value = next;
     gnoError.value = '';
+    // Kick avatar fetch for AtomOne-enriched identities (no-op if already cached)
+    loadAvatars();
   } catch (e: any) {
     console.warn('[validator] gno indexer fetch failed:', e?.message || e);
     if (!opts.silent) gnoError.value = e?.message || String(e);
@@ -399,14 +401,19 @@ const list = computed(() => {
     return gnoValidators.value
       .filter((g) => g.status === want)
       // PENDING: drop onbloc double-entries that are already signing (Active tab)
+      // or formerly active (Inactive tab) — residual Roomit/Provalidator case
       .filter((g) => (want === 'PENDING' ? isTruePending(g) : true))
       .sort((a, b) => Number(b.votingPower) - Number(a.votingPower))
-      .map((g, i) => ({
-        v: gnoToValidator(g),
-        rank: want === 'ACTIVE' ? calculateRank(i) : 'primary',
-        logo: '',
-        gno: g as GnoIndexerValidator | null,
-      }));
+      .map((g, i) => {
+        const v = gnoToValidator(g);
+        return {
+          v,
+          rank: want === 'ACTIVE' ? calculateRank(i) : 'primary',
+          // AtomOne-enriched Keybase identity → same logo() path as Cosmos
+          logo: logo(v.description?.identity),
+          gno: g as GnoIndexerValidator | null,
+        };
+      });
   }
   if (tab.value === 'active') {
     return staking.validators.map((x, i) => ({
@@ -456,7 +463,11 @@ const loadAvatar = (identity: string) => {
 
 const loadAvatars = () => {
   // fetches all avatars from keybase and stores it in localStorage
-  const promises = staking.validators.map((validator) => {
+  // Gno: pull identities from the mapped validator list (AtomOne-enriched)
+  const source = isGno.value
+    ? list.value.map((row) => row.v)
+    : staking.validators;
+  const promises = source.map((validator) => {
     const identity = validator.description?.identity;
 
     // Here we also check whether we haven't already fetched the avatar

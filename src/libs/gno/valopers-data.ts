@@ -1,6 +1,7 @@
 /** Auto-generated Gnoland valoper moniker registry.
  * Source: https://topaz.testnets.gno.land/r/gnops/valopers
- * Generated: 2026-07-29T05:52:13.855Z
+ * Identity: AtomOne mainnet moniker match → Keybase (for logos)
+ * Generated: 2026-07-29T11:43:48.218Z
  * Do not hand-edit — run: node scripts/refresh-gno-valopers.mjs
  */
 export interface GnoValoperRow {
@@ -37,7 +38,7 @@ const registry: GnoValoperRow[] = [
     "signingAddress": "g1sgu52u6hfffg9tyck7v3zgd27hhv2paf9rgamr",
     "operatorAddress": "g1z360harzpshhdnlrdgj5ljkx2aeckzavkyl9g0",
     "website": "",
-    "identity": "",
+    "identity": "6E2F84CACB2817CD",
     "serverType": "cloud",
     "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
   },
@@ -91,7 +92,7 @@ const registry: GnoValoperRow[] = [
     "signingAddress": "g1rfu5paz2dt3pz77de6wgpg9wtuhdtlhnv42fem",
     "operatorAddress": "g14ymnmcklzc8zlr7q5hzc370jv433ltx0aq90np",
     "website": "",
-    "identity": "",
+    "identity": "F2D4A81476AE8660",
     "serverType": "cloud",
     "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
   },
@@ -118,7 +119,7 @@ const registry: GnoValoperRow[] = [
     "signingAddress": "g1r9e239zxfdxwywyru8twpyh8dze5z0xh8kyt7s",
     "operatorAddress": "g18u6htlfee0hyhlqs7dv9y3mdrtz4sn3hmj3n07",
     "website": "",
-    "identity": "",
+    "identity": "1857FF1BC2EA6A69",
     "serverType": "cloud",
     "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
   },
@@ -181,7 +182,7 @@ const registry: GnoValoperRow[] = [
     "signingAddress": "g1yejlcasz0c6yhfyupkkwfya9jerjej6skj9p9k",
     "operatorAddress": "g1222c3qnzny0e6spfdhr59386tlfhlatnre3ew7",
     "website": "",
-    "identity": "",
+    "identity": "3A93185C582B666C",
     "serverType": "cloud",
     "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
   },
@@ -208,7 +209,7 @@ const registry: GnoValoperRow[] = [
     "signingAddress": "g1yxkhzstt05j88ckslxfgkd8nc67r5dj8chz4d3",
     "operatorAddress": "g1y5sclwdy8j6l5m8a5hzsx374k6rvege399zvy9",
     "website": "",
-    "identity": "",
+    "identity": "3D2F3F4B1E22F4F2",
     "serverType": "data-center",
     "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
   },
@@ -217,7 +218,7 @@ const registry: GnoValoperRow[] = [
     "signingAddress": "g1a6e4xxlvcln5q045qrdnvl5zxnmugcegjh0taz",
     "operatorAddress": "g1etf3rd7dqghksj8r5yunkgmvpupdfszdjhuzju",
     "website": "",
-    "identity": "",
+    "identity": "7ED45AAE67A1CDD5",
     "serverType": "data-center",
     "description": "Reliable infrastructure. Secure operations. Long-term commitment.  ---  ## 👋 About Us  DNSARZ Validator is an independent blockchain infrastructure provider with extensive experience operating Cosmos"
   },
@@ -244,7 +245,7 @@ const registry: GnoValoperRow[] = [
     "signingAddress": "g1udmcn8z3w3jfsa92ff6ceqmvxtvkeg0vt0xfk2",
     "operatorAddress": "g1x4n02j4q9pk6mp5gpz5ags4ta2kvq4du9k6wmc",
     "website": "",
-    "identity": "",
+    "identity": "048733E2C6061B87",
     "serverType": "data-center",
     "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
   },
@@ -271,7 +272,7 @@ const registry: GnoValoperRow[] = [
     "signingAddress": "g15e6xjjhnqyp3r0vdsg84kv5sewpp9alp5c9er2",
     "operatorAddress": "g12e22uqd4jjvvsk6g95re3a44sxuephd5kkrt7m",
     "website": "",
-    "identity": "",
+    "identity": "44937E3DA9AA699A",
     "serverType": "data-center",
     "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
   },
@@ -316,7 +317,7 @@ const registry: GnoValoperRow[] = [
     "signingAddress": "g17xcnthzcvhpjq6wt2zmr7ljk3geqrr0xpp5dwv",
     "operatorAddress": "g1vcwp9c4yqjxuxqtfaq3ehx8czrqam2k9c83w9d",
     "website": "",
-    "identity": "",
+    "identity": "7D2F3AADEBDA49A6",
     "serverType": "data-center",
     "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
   },
@@ -334,7 +335,7 @@ const registry: GnoValoperRow[] = [
     "signingAddress": "g15vxxaene4xzlehumn8qwpz4le43lpqvhpvf0tf",
     "operatorAddress": "g12q9wd2vqsy40qh2nvsz6km6r8ac94y0j6r4ca9",
     "website": "",
-    "identity": "",
+    "identity": "546C4A18944D2DBE",
     "serverType": "data-center",
     "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
   },
@@ -343,7 +344,7 @@ const registry: GnoValoperRow[] = [
     "signingAddress": "g1veqx5xm2ssx9dfvw6s89fg8nwaprxgx5l2wwkr",
     "operatorAddress": "g1p2av3saw8h3s37w4d0cplcemmeqmmnxhpezx2g",
     "website": "",
-    "identity": "",
+    "identity": "27FD74457A21B020",
     "serverType": "data-center",
     "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
   },
@@ -352,7 +353,7 @@ const registry: GnoValoperRow[] = [
     "signingAddress": "g1a5nsknqz603w8tq6us6pdhqq0yjs0k59hs9e0j",
     "operatorAddress": "g1y4l44w8fwl8tj473y49l3ay3k2nad0pdhchn3d",
     "website": "",
-    "identity": "",
+    "identity": "D36EEB12E5B1B11A",
     "serverType": "data-center",
     "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
   },
@@ -361,7 +362,7 @@ const registry: GnoValoperRow[] = [
     "signingAddress": "g1dzlt62x2u56hzlpm3j9n05shr6h0ucfp397hrf",
     "operatorAddress": "g1uzxyk9fvtk0zfsl20kswvatt2da67sjjh4fud0",
     "website": "",
-    "identity": "",
+    "identity": "B6A097CCB9561F6F",
     "serverType": "data-center",
     "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
   },
@@ -388,7 +389,7 @@ const registry: GnoValoperRow[] = [
     "signingAddress": "g18rrrqz8tuls2m9lh06y3luw3r2epvwy8mezvqw",
     "operatorAddress": "g1c5z9tqmcjendp46l8v6c2lu8xmrdyrk0tp5vn3",
     "website": "",
-    "identity": "",
+    "identity": "AD6C05DA12E42B70",
     "serverType": "on-prem",
     "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
   },
@@ -397,7 +398,7 @@ const registry: GnoValoperRow[] = [
     "signingAddress": "g1yd75tc52xfm8zyllngzvul9cdum6med2par6h4",
     "operatorAddress": "g1sxvcr9xp0tqcqjheaeqmzjw3tqt6nm2gsv0n9e",
     "website": "",
-    "identity": "",
+    "identity": "2DA657BCEA9489C2",
     "serverType": "data-center",
     "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
   },
@@ -415,7 +416,7 @@ const registry: GnoValoperRow[] = [
     "signingAddress": "g1enh9jhxm0tcda6me75j59sprjlh506q2vdnu9j",
     "operatorAddress": "g1hnl50flwq7t4urmwzkuc629xpvxdwd4zvl0kmy",
     "website": "",
-    "identity": "",
+    "identity": "E6FDC1B9AD669B9B",
     "serverType": "data-center",
     "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
   },
@@ -424,7 +425,7 @@ const registry: GnoValoperRow[] = [
     "signingAddress": "g1z35znjrdxr5znpzejyqeuuy3w4ezpenaq6wg7t",
     "operatorAddress": "g1pskxvnzkawh4hze3tdn8u7jj59pcs4ukku7fv5",
     "website": "",
-    "identity": "",
+    "identity": "F2BA212A924EA1F3",
     "serverType": "on-prem",
     "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
   },
@@ -433,7 +434,7 @@ const registry: GnoValoperRow[] = [
     "signingAddress": "g1y09t98nvqcsc05gyd3dn7lxj3t6y3w8nx0e9nz",
     "operatorAddress": "g1snfprhltu9c9us70ly8j9mu5ate5z8u6ulrdd4",
     "website": "",
-    "identity": "",
+    "identity": "F2BA212A924EA1F3",
     "serverType": "on-prem",
     "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
   },
@@ -442,7 +443,7 @@ const registry: GnoValoperRow[] = [
     "signingAddress": "g1d8zrfvtfh60r4gpsp0qqksught5p3nuhssdx6e",
     "operatorAddress": "g13tx3jp4spy90dtpyxr7gjp2mfgvjnfxr7kt3ue",
     "website": "",
-    "identity": "",
+    "identity": "D5631172371AC1FF",
     "serverType": "data-center",
     "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
   },
@@ -451,7 +452,7 @@ const registry: GnoValoperRow[] = [
     "signingAddress": "g1u53swh7gr8ckxmjyqpr6vrhcsl4tnyy9s0j4wc",
     "operatorAddress": "g1e3vld469ekks28mhtd4aqua3mdaz64qgdtz29k",
     "website": "",
-    "identity": "",
+    "identity": "BCB1274A2AFD7884",
     "serverType": "on-prem",
     "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
   },
@@ -514,7 +515,7 @@ const registry: GnoValoperRow[] = [
     "signingAddress": "g1h3frgrjsr9kqugysqcrws2zlg2w4f2nmuvemzr",
     "operatorAddress": "g1aa5jpnyafdhlsy973ygdlx3qp05mfve6mksez2",
     "website": "",
-    "identity": "",
+    "identity": "D11D6116821283C3",
     "serverType": "data-center",
     "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
   },
@@ -532,7 +533,7 @@ const registry: GnoValoperRow[] = [
     "signingAddress": "g1khdhzh58un5qnp7kj249ljt3f0d2vv9ax8vfwa",
     "operatorAddress": "g12aswqv64lg0x8ng9uzczaed8e4yn8ta9d8xr5v",
     "website": "https://t.me/V_NodesHub",
-    "identity": "",
+    "identity": "57B4BC3293EE88AB",
     "serverType": "data-center",
     "description": "•Telegram: https://t.me/V_NodesHub •Discord ID: nodeshub Why You Are Interested in Validating on gno.land: We are excited to support Gno.land because of its modular design, developer-first philosophy,"
   },
@@ -568,7 +569,7 @@ const registry: GnoValoperRow[] = [
     "signingAddress": "g1zql5jwmtj0cn3xrkedacm4q79v7a7v2eux930l",
     "operatorAddress": "g1apx2ktj0tc7gqzaqtgl9xluflnqehgpqla0anv",
     "website": "",
-    "identity": "",
+    "identity": "09D4624417E37ABD",
     "serverType": "data-center",
     "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
   },
@@ -604,7 +605,7 @@ const registry: GnoValoperRow[] = [
     "signingAddress": "g1svwt7l54jmg0dq0wkzr8u09mn5pp9yyx3kgsj9",
     "operatorAddress": "g14m0n559xdj00qwvp6ck0xesprrq26kgprgjt4j",
     "website": "",
-    "identity": "",
+    "identity": "F1288C602793C380",
     "serverType": "on-prem",
     "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
   },
@@ -640,7 +641,7 @@ const registry: GnoValoperRow[] = [
     "signingAddress": "g1fnycs89p0k3y4z5a5cm6a2l8ps80kc8fv79xyy",
     "operatorAddress": "g1vvls2tn7zk544fuzt49hgk6k2mdgzrpkwcesnf",
     "website": "",
-    "identity": "",
+    "identity": "6B73E2068E0C0C4C",
     "serverType": "data-center",
     "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
   },
@@ -667,7 +668,7 @@ const registry: GnoValoperRow[] = [
     "signingAddress": "g1vepmlczxgau2c6kmns6nj5ntyhudgzm8zycxcr",
     "operatorAddress": "g1ujtcuq6xuttkjyhcxse07gp6lzu4h6gmx978yc",
     "website": "",
-    "identity": "",
+    "identity": "1F7E6B6D2AD62DCD",
     "serverType": "on-prem",
     "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
   },
@@ -694,7 +695,7 @@ const registry: GnoValoperRow[] = [
     "signingAddress": "g1re5g2h0mzwg8keladjvqu75l7ee8c0a6qc985v",
     "operatorAddress": "g1plf3fmy0h4395jcxxh63g7mzeypr06f9yrdk4d",
     "website": "",
-    "identity": "",
+    "identity": "44771D06A00DD695",
     "serverType": "data-center",
     "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
   },
@@ -703,7 +704,7 @@ const registry: GnoValoperRow[] = [
     "signingAddress": "g17mte58ns4fah9agcd3euyhhq8cm789durkjedm",
     "operatorAddress": "g1n68pkpxxd8klsdv8c3pmu6h9t0uys7fkpspau0",
     "website": "",
-    "identity": "",
+    "identity": "3A7D5C9B0B88BEA1",
     "serverType": "cloud",
     "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
   },
@@ -712,7 +713,7 @@ const registry: GnoValoperRow[] = [
     "signingAddress": "g1j93css700f79yjsjy4pgad462tlljt74mcquvr",
     "operatorAddress": "g14zqhmnv6mv7h9qle9n2f9wwr4shc73sakr5ssk",
     "website": "",
-    "identity": "",
+    "identity": "B27109E258F7E0D7",
     "serverType": "on-prem",
     "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
   },
@@ -721,7 +722,7 @@ const registry: GnoValoperRow[] = [
     "signingAddress": "g10za9rhjd2j2qhtpl84t4x3tya8q4ra5mvf3fmt",
     "operatorAddress": "g1l3fmz59rw8l6h29hslxt6gtna3th8s7m5vl88d",
     "website": "",
-    "identity": "",
+    "identity": "E062AEC8A7C04E40",
     "serverType": "data-center",
     "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
   },
@@ -748,7 +749,7 @@ const registry: GnoValoperRow[] = [
     "signingAddress": "g1ckuv7eqtx7nvqwv24l82wyp2qyy3mxyt5y6ad6",
     "operatorAddress": "g17kuxcnsy7uy6jsm5mlcr8037gsjpz76ru0ddk3",
     "website": "",
-    "identity": "",
+    "identity": "7A553496D97AA912",
     "serverType": "data-center",
     "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
   },
@@ -757,7 +758,7 @@ const registry: GnoValoperRow[] = [
     "signingAddress": "g199xlvxssqjumdr6trmfmsxkkvcqe89n8z28jrw",
     "operatorAddress": "g1yvkqqrzkdlp07nup2strr3n4p2m9upn9ec7wpz",
     "website": "",
-    "identity": "",
+    "identity": "42CEDE6C4852EE59",
     "serverType": "data-center",
     "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
   },
@@ -766,7 +767,7 @@ const registry: GnoValoperRow[] = [
     "signingAddress": "g1j246592ysshyufyqfvqv33cjer0m4r569d6wk5",
     "operatorAddress": "g1pau0v59hme9hnvf63gsfpdm3xc3pkkawu6jpu7",
     "website": "",
-    "identity": "",
+    "identity": "9DE3A32AD7EB00B3",
     "serverType": "data-center",
     "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
   },
@@ -784,7 +785,7 @@ const registry: GnoValoperRow[] = [
     "signingAddress": "g1ga53qdl40c96rcv4gdf2zd00jlmlr97f9k7vny",
     "operatorAddress": "g1px2y5wuj8y0tfq59unwy90qrw7j5evsa9zs3vk",
     "website": "",
-    "identity": "",
+    "identity": "6366E6C36DFCFCA7",
     "serverType": "data-center",
     "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
   },
@@ -793,7 +794,7 @@ const registry: GnoValoperRow[] = [
     "signingAddress": "g15vs6ghwtz80wa044te8lyqr4scjsxvpfyll8p2",
     "operatorAddress": "g138mdf0gqzue3ra2r335upclngn8t8r0n72cn3h",
     "website": "",
-    "identity": "",
+    "identity": "14116C4E6E6A6343",
     "serverType": "cloud",
     "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
   },
@@ -802,7 +803,7 @@ const registry: GnoValoperRow[] = [
     "signingAddress": "g15xm8yph0wdjhkq4cjnvfnucqax3g0gkl32jses",
     "operatorAddress": "g1m33nveedpgxuz67y35lvhd90grv70a7vj9tnh5",
     "website": "",
-    "identity": "",
+    "identity": "9E7A59BBDC93CC32",
     "serverType": "data-center",
     "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
   },
@@ -856,7 +857,7 @@ const registry: GnoValoperRow[] = [
     "signingAddress": "g1k6zz4jup7cdl0r9xcv5eg8kcm4qtsk3h4vrxs5",
     "operatorAddress": "g16mldrfu90pe5r97cjm3xk02m7a3d0z8g9g3r75",
     "website": "",
-    "identity": "",
+    "identity": "A0B5FF00B5460153",
     "serverType": "data-center",
     "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
   },
@@ -865,7 +866,7 @@ const registry: GnoValoperRow[] = [
     "signingAddress": "g1k86n3hwdnfpffsam6hwsdxpk99x6lzn37n9ra5",
     "operatorAddress": "g19r7z72ap3kjkfwrqw587twjvllq6gjc94nxyqu",
     "website": "",
-    "identity": "",
+    "identity": "94603103FEDD65E6",
     "serverType": "on-prem",
     "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B"
   },

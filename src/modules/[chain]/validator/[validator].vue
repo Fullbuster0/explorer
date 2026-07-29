@@ -24,6 +24,7 @@ import {
 import PaginationBar from '@/components/PaginationBar.vue';
 import { fromBase64, toBase64 } from '@cosmjs/encoding';
 import { stringToUint8Array, uint8ArrayToString } from '@/libs/utils';
+import { lookupGnoValoper, initGnoValopers } from '@/libs/gno/valopers';
 
 const props = defineProps(['validator', 'chain']);
 
@@ -736,7 +737,22 @@ const sortedDelegations = computed(() => {
  *  since selfRate = calculatePercent(selfBond, v.tokens). */
 function loadValidatorCore() {
   const valAddr = validator.value;
-  if (!blockchain.rpc || !valAddr) return;
+  if (!valAddr) return;
+  // Gno/TM2: no Cosmos LCD validator endpoint — pull identity/logo from the
+  // valopers registry (AtomOne-enriched Keybase identity) instead.
+  if (isGno.value) {
+    initGnoValopers()
+      .catch(() => undefined)
+      .then(() => {
+        const meta = lookupGnoValoper(valAddr);
+        if (meta?.identity) {
+          identity.value = meta.identity;
+          if (!avatars.value[meta.identity]) loadAvatar(meta.identity);
+        }
+      });
+    return;
+  }
+  if (!blockchain.rpc) return;
   if (!v.value.operator_address) {
     staking
       .fetchValidator(valAddr)
