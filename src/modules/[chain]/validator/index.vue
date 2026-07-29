@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { useBaseStore, useBlockchain, useFormatter, useMintStore, useStakingStore, useTxDialog } from '@/stores';
 import { computed } from '@vue/reactivity';
-import { onMounted, ref, watch } from 'vue';
+import { onMounted, onUnmounted, ref, watch } from 'vue';
 import { Icon } from '@iconify/vue';
 import type { Key, SlashingParam, Validator } from '@/types';
 import { formatSeconds } from '@/libs/utils';
@@ -35,6 +35,12 @@ const slashing = ref({} as SlashingParam);
 const gnoValidators = ref<GnoIndexerValidator[]>([]);
 const gnoLoading = ref(false);
 const gnoError = ref('');
+/** Toast for real set changes (new pending register / activated / inactivated). */
+const gnoToast = ref('');
+let gnoToastTimer: ReturnType<typeof setTimeout> | null = null;
+let gnoPollTimer: ReturnType<typeof setInterval> | null = null;
+/** First successful fetch is baseline — don't toast on initial load. */
+let gnoBaselineReady = false;
 
 function shortAddr(a: string): string {
   if (!a) return '—';
@@ -83,7 +89,71 @@ function gnoToValidator(g: GnoIndexerValidator): Validator {
   } as Validator;
 }
 
-async function fetchGnoValidators() {
+/**
+ * Fingerprint a validator for set-diff: status + address + moniker.
+ * Used to detect real changes between polls (not every poll → toast).
+ */
+function gnoFingerprint(g: GnoIndexerValidator): string {
+  return `${g.status}|${g.address}|${(g.monikerName || '').trim()}`;
+}
+
+function showGnoToast(msg: string) {
+  gnoToast.value = msg;
+  if (gnoToastTimer) clearTimeout(gnoToastTimer);
+  gnoToastTimer = setTimeout(() => {
+    gnoToast.value = '';
+    gnoToastTimer = null;
+  }, 6000);
+}
+
+/**
+ * Diff previous vs next raw onbloc set, then toast only meaningful changes
+ * after dedupe (true pending / active / inactive). Quiet if nothing changed.
+ */
+function diffAndToast(prev: GnoIndexerValidator[], next: GnoIndexerValidator[]) {
+  if (!gnoBaselineReady) {
+    gnoBaselineReady = true;
+    return;
+  }
+  const prevFp = new Set(prev.map(gnoFingerprint));
+  const nextFp = new Set(next.map(gnoFingerprint));
+  const added = next.filter((g) => !prevFp.has(gnoFingerprint(g)));
+  const removed = prev.filter((g) => !nextFp.has(gnoFingerprint(g)));
+  if (!added.length && !removed.length) return;
+
+  // Classify using post-dedupe semantics so we don't toast for onbloc double-entries.
+  // Temporarily use next as source for settled sets (caller assigns after toast).
+  const msgs: string[] = [];
+  for (const g of added) {
+    const mon =
+      lookupGnoValoper(g.address)?.moniker ||
+      (g.monikerName || '').trim() ||
+      shortAddr(g.address);
+    if (g.status === 'PENDING') {
+      // Only toast if it would survive isTruePending against the NEW set.
+      // We'll re-check after assignment; for toast we approximate: not matching
+      // any ACTIVE/INACTIVE moniker in the new set.
+      const settled = next.some(
+        (x) =>
+          (x.status === 'ACTIVE' || x.status === 'INACTIVE') &&
+          ((lookupGnoValoper(x.address)?.moniker || '').toLowerCase() === mon.toLowerCase() ||
+            (x.monikerName || '').trim().toLowerCase() === mon.toLowerCase() ||
+            x.address === g.address ||
+            lookupGnoValoper(x.address)?.operatorAddress === g.address),
+      );
+      if (!settled) msgs.push(`New pending: ${mon}`);
+    } else if (g.status === 'ACTIVE') {
+      msgs.push(`Activated: ${mon}`);
+    } else if (g.status === 'INACTIVE') {
+      msgs.push(`Inactivated: ${mon}`);
+    }
+  }
+  // Status flips (same operator moved ACTIVE→INACTIVE etc.) show as remove+add;
+  // the add branch already covers the new status. Skip pure removals to avoid noise.
+  if (msgs.length) showGnoToast(msgs.slice(0, 3).join(' · '));
+}
+
+async function fetchGnoValidators(opts: { silent?: boolean } = {}) {
   if (!isGno.value) return;
   // Wait briefly for chain config to settle (indexer_api arrives with current)
   if (!indexerUrl.value) {
@@ -93,16 +163,19 @@ async function fetchGnoValidators() {
     console.warn('[validator] no indexer_api — Active/Inactive/Pending tabs will be empty');
     return;
   }
-  gnoLoading.value = true;
+  if (!opts.silent) gnoLoading.value = true;
   try {
     // Ensure valopers registry is loaded (moniker + signing↔operator link for dedupe)
     await initGnoValopers().catch(() => undefined);
-    gnoValidators.value = await getGnoIndexer(indexerUrl.value).getAllValidators();
+    const next = await getGnoIndexer(indexerUrl.value).getAllValidators();
+    diffAndToast(gnoValidators.value, next);
+    gnoValidators.value = next;
+    gnoError.value = '';
   } catch (e: any) {
     console.warn('[validator] gno indexer fetch failed:', e?.message || e);
-    gnoError.value = e?.message || String(e);
+    if (!opts.silent) gnoError.value = e?.message || String(e);
   } finally {
-    gnoLoading.value = false;
+    if (!opts.silent) gnoLoading.value = false;
   }
 }
 
@@ -203,6 +276,23 @@ onMounted(() => {
   watch(indexerUrl, (url, prev) => {
     if (url && url !== prev) fetchGnoValidators();
   });
+  // Near-realtime: poll every 60s while this page is open. Toast only on real
+  // set changes (new pending register / activated / inactivated) — not every tick.
+  // Same idea as TX page polling, but validators change rarely so toast is useful.
+  if (isGno.value) {
+    gnoPollTimer = setInterval(() => fetchGnoValidators({ silent: true }), 60_000);
+  }
+});
+
+onUnmounted(() => {
+  if (gnoPollTimer) {
+    clearInterval(gnoPollTimer);
+    gnoPollTimer = null;
+  }
+  if (gnoToastTimer) {
+    clearTimeout(gnoToastTimer);
+    gnoToastTimer = null;
+  }
 });
 
 async function fetchChange(blockWindow: number = 14400) {
@@ -456,6 +546,9 @@ loadAvatars();
           Left the active set (jailed / removed).
         </span>
       </div>
+      <div class="mt-2 text-[11px] text-secondary/80">
+        Auto-refreshes every 60s from the onbloc indexer · toast on new register / activate / inactivate.
+      </div>
     </div>
 
     <!-- network staking vitals — Gno has no mint/slashing modules -->
@@ -639,8 +732,35 @@ loadAvatars();
         <span class="hidden text-[11.5px] text-secondary md:!inline">{{ $t('staking.description') }}</span>
       </div>
     </div>
+
+    <!-- Gno realtime toast — fires only on real validator set changes -->
+    <Transition name="gno-toast">
+      <div
+        v-if="gnoToast"
+        class="fixed bottom-5 right-5 z-50 flex max-w-sm items-center gap-3 rounded-xl border border-base-content/10 bg-base-100 px-4 py-3 shadow-lg"
+      >
+        <span class="sz-chip sz-chip--ok !text-[10px]">LIVE</span>
+        <span class="text-[13px] font-medium text-base-content">{{ gnoToast }}</span>
+        <button
+          class="ml-1 text-base-content/40 hover:text-base-content"
+          @click="gnoToast = ''"
+        >✕</button>
+      </div>
+    </Transition>
   </div>
 </template>
+
+<style scoped>
+.gno-toast-enter-active,
+.gno-toast-leave-active {
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+.gno-toast-enter-from,
+.gno-toast-leave-to {
+  opacity: 0;
+  transform: translateY(12px);
+}
+</style>
 
 <route>
   {
