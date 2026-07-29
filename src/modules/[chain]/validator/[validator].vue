@@ -89,6 +89,7 @@ const gnoBalances = ref<{
   operator?: { amount: string; denom: string }[];
   loading: boolean;
 }>({ loading: false });
+const gnoBalancesToken = ref(0);
 
 function formatGnoBal(coins?: { amount: string; denom: string }[]): string {
   if (!coins?.length) return '0 GNOT';
@@ -105,22 +106,25 @@ async function loadGnoBalances() {
   const signing = addresses.value.account || validator.value;
   const operator = addresses.value.operAddress || v.value.operator_address || '';
   if (!signing && !operator) return;
-  // Skip re-entry only while in-flight; always allow re-run after meta fills.
-  if (gnoBalances.value.loading) return;
+  const token = ++gnoBalancesToken.value;
   gnoBalances.value = { ...gnoBalances.value, loading: true };
   try {
     const [s, o] = await Promise.all([
-      signing ? blockchain.rpc.getBankBalances(signing).catch(() => ({ balances: [] })) : Promise.resolve({ balances: [] }),
+      signing
+        ? blockchain.rpc.getBankBalances(signing).catch(() => ({ balances: [] as any[] }))
+        : Promise.resolve({ balances: [] as any[] }),
       operator && operator !== signing
-        ? blockchain.rpc.getBankBalances(operator).catch(() => ({ balances: [] }))
-        : Promise.resolve({ balances: [] }),
+        ? blockchain.rpc.getBankBalances(operator).catch(() => ({ balances: [] as any[] }))
+        : Promise.resolve({ balances: [] as any[] }),
     ]);
+    if (token !== gnoBalancesToken.value) return; // stale — a newer load started
     gnoBalances.value = {
       signing: s.balances || [],
       operator: o.balances || [],
       loading: false,
     };
   } catch {
+    if (token !== gnoBalancesToken.value) return;
     gnoBalances.value = { ...gnoBalances.value, loading: false };
   }
 }
