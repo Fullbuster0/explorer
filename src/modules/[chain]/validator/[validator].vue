@@ -25,7 +25,7 @@ import PaginationBar from '@/components/PaginationBar.vue';
 import { fromBase64, toBase64 } from '@cosmjs/encoding';
 import { stringToUint8Array, uint8ArrayToString } from '@/libs/utils';
 import { lookupGnoValoper, initGnoValopers, type GnoValoper } from '@/libs/gno/valopers';
-import { getGnoIndexer } from '@/libs/gno/indexer';
+import { getGnoIndexer, type GnoTx } from '@/libs/gno/indexer';
 import { tm2Get } from '@/libs/gno/tm2';
 
 const props = defineProps(['validator', 'chain']);
@@ -91,6 +91,70 @@ const gnoSigning = ref<{
   counts: Record<string, number>;
   cells: { height: string; color: string }[];
 }>({ counts: {}, cells: [] });
+
+/** Gno/TM2 — account transactions from the indexer (per signing address). */
+const gnoTxs = ref<GnoTx[]>([]);
+const gnoTxsCursor = ref<string | undefined>();
+const gnoTxsHasNext = ref(false);
+const gnoTxsLoading = ref(false);
+const gnoTxsLoadingMore = ref(false);
+const gnoTxsError = ref(false);
+const gnoTxsTick = ref(Date.now());
+
+/** Official valopers realm profile URL for this validator (Gno only). */
+const gnoValopersUrl = computed(() => {
+  if (!isGno.value) return '';
+  const op = gnoMeta.value?.operatorAddress || addresses.value.operAddress || '';
+  if (!op) return 'https://topaz.testnets.gno.land/r/gnops/valopers';
+  return `https://topaz.testnets.gno.land/r/gnops/valopers:${op}`;
+});
+
+function gnoTxFuncLabel(tx: GnoTx): { label: string; slug: string } {
+  const f = tx.func?.[0];
+  if (!f) return { label: '—', slug: 'default' };
+  const t = (f.messageType || '').toLowerCase();
+  if (t.includes('bank')) return { label: f.funcType || 'Transfer', slug: 'bank' };
+  if (t.includes('m_call') || t.includes('vm.m_call')) return { label: f.funcType || 'Call', slug: 'wasm' };
+  if (t.includes('m_addpkg') || t.includes('addpkg')) return { label: 'AddPkg', slug: 'wasm' };
+  if (t.includes('m_run') || t.includes('vm.m_run')) return { label: 'Run', slug: 'wasm' };
+  if (f.funcType === 'Transfer') return { label: 'Transfer', slug: 'bank' };
+  return { label: f.funcType || f.messageType?.split('.').pop() || 'Tx', slug: 'default' };
+}
+
+function gnoTxAmount(v: { value?: string; denom?: string } | null): string {
+  if (!v || !v.value || v.value === '0') return '—';
+  const n = Number(v.value);
+  if (!Number.isFinite(n)) return `${v.value} ${v.denom || ''}`;
+  if (v.denom === 'ugnot') {
+    const gnot = n / 1e6;
+    if (gnot >= 1000) return `${gnot.toLocaleString(undefined, { maximumFractionDigits: 2 })} GNOT`;
+    if (gnot >= 1) return `${gnot.toFixed(2)} GNOT`;
+    if (gnot >= 0.001) return `${gnot.toFixed(4)} GNOT`;
+    return `${gnot.toFixed(6)} GNOT`;
+  }
+  const denom = v.denom || '';
+  if (denom.includes('/')) {
+    const short = denom.split('/').pop() || denom;
+    return `${n.toLocaleString()} ${short}`;
+  }
+  return `${n.toLocaleString()} ${denom}`;
+}
+
+function gnoTxAge(iso: string): string {
+  if (!iso) return '';
+  const ts = new Date(iso).getTime();
+  const diff = Math.max(0, gnoTxsTick.value - ts) / 1000;
+  if (diff < 5) return 'just now';
+  if (diff < 60) return `${Math.floor(diff)}s ago`;
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return `${Math.floor(diff / 86400)}d ago`;
+}
+
+function shortTxHash(h: string): string {
+  if (!h) return '';
+  return h.length > 16 ? `${h.slice(0, 8)}…${h.slice(-6)}` : h;
+}
 
 // Activities
 type ActivityTab = 'power' | 'votes' | 'txs';
@@ -271,6 +335,22 @@ const statusChip = computed(() => {
   if (s === 'BOND_STATUS_UNBONDED') return 'sz-chip--info';
   return '';
 });
+
+/** Gno status chip — ACTIVE / PENDING / INACTIVE (not Cosmos BONDED). */
+const gnoStatusLabel = computed(() => {
+  if (!isGno.value) return statusLabel.value;
+  return gnoChain.value?.status || (gnoRpc.value?.votingPower ? 'ACTIVE' : statusLabel.value) || '—';
+});
+const gnoStatusChip = computed(() => {
+  if (!isGno.value) return statusChip.value;
+  const s = String(gnoStatusLabel.value || '').toUpperCase();
+  if (s === 'ACTIVE') return 'sz-chip--ok';
+  if (s === 'PENDING') return 'sz-chip--warn';
+  if (s === 'INACTIVE') return 'sz-chip--bad';
+  return 'sz-chip--info';
+});
+
+
 
 const powerPercent = computed(() => {
   if (!v.value.tokens || !staking.totalPower) return '—';
@@ -838,6 +918,7 @@ function loadValidatorCore() {
     }
     loadGnoRpc(valAddr);
     loadGnoSigning(valAddr);
+    loadGnoTxs();
     return;
   }
   if (!blockchain.rpc) return;
@@ -990,6 +1071,45 @@ async function loadGnoSigning(valAddr: string) {
   }
 }
 
+/** Gno/TM2 — account transactions for this validator's signing address via
+ *  the onbloc indexer (RPC has tx_index=off). */
+async function loadGnoTxs() {
+  const idxUrl = (blockchain.current as any)?.indexer_api;
+  const addr = validator.value;
+  if (!idxUrl || !addr) return;
+  gnoTxsLoading.value = true;
+  gnoTxsError.value = false;
+  try {
+    const page = await getGnoIndexer(idxUrl).getAccountTransactions(addr);
+    gnoTxs.value = page.items;
+    gnoTxsCursor.value = page.cursor;
+    gnoTxsHasNext.value = page.hasNext;
+    gnoTxsTick.value = Date.now();
+  } catch (e: any) {
+    console.warn('[val] gno account txs failed:', e?.message || e);
+    gnoTxsError.value = true;
+  } finally {
+    gnoTxsLoading.value = false;
+  }
+}
+
+async function loadMoreGnoTxs() {
+  const idxUrl = (blockchain.current as any)?.indexer_api;
+  if (!idxUrl || !gnoTxsHasNext.value || !gnoTxsCursor.value || gnoTxsLoadingMore.value) return;
+  gnoTxsLoadingMore.value = true;
+  try {
+    const page = await getGnoIndexer(idxUrl).getAccountTransactionsAfter(validator.value, gnoTxsCursor.value);
+    const seen = new Set(gnoTxs.value.map((t) => t.txHash));
+    for (const t of page.items) if (!seen.has(t.txHash)) gnoTxs.value.push(t);
+    gnoTxsCursor.value = page.cursor;
+    gnoTxsHasNext.value = page.hasNext;
+  } catch (e: any) {
+    console.warn('[val] gno account txs more failed:', e?.message || e);
+  } finally {
+    gnoTxsLoadingMore.value = false;
+  }
+}
+
 // Retry delegations + power events once REST client is ready
 watch(
   () => blockchain.rpc,
@@ -1023,6 +1143,10 @@ watch(
       gnoChain.value = undefined;
       gnoRpc.value = undefined;
       gnoSigning.value = { counts: {}, cells: [] };
+      gnoTxs.value = [];
+      gnoTxsCursor.value = undefined;
+      gnoTxsHasNext.value = false;
+      gnoTxsError.value = false;
       rewards.value = [];
       commission.value = [];
       delegations.value = {} as PaginatedDelegations;
@@ -1066,18 +1190,37 @@ watch(
                 {{ v.description?.moniker || shortAddr(validator.value) }}
               </h1>
               <span v-if="rank" class="sz-chip sz-chip--info font-mono">#{{ rank }}</span>
-              <span class="sz-chip" :class="statusChip">{{ statusLabel }}</span>
-              <span v-if="v.jailed" class="sz-chip sz-chip--bad">JAILED</span>
+              <span class="sz-chip" :class="isGno ? gnoStatusChip : statusChip">{{ isGno ? gnoStatusLabel : statusLabel }}</span>
+              <span v-if="v.jailed && !isGno" class="sz-chip sz-chip--bad">JAILED</span>
             </div>
 
-            <p v-if="v.description?.details" class="sz-val-details text-secondary text-[13px] leading-relaxed mt-1 mb-3">
-              {{ v.description.details }}
-            </p>
-            <p v-else class="text-secondary text-[12.5px] italic mt-1 mb-3">
-              {{ $t('staking.no_description') }}
-            </p>
+            <!-- Cosmos: description + links live in the hero -->
+            <template v-if="!isGno">
+              <p v-if="v.description?.details" class="sz-val-details text-secondary text-[13px] leading-relaxed mt-1 mb-3">
+                {{ v.description.details }}
+              </p>
+              <p v-else class="text-secondary text-[12.5px] italic mt-1 mb-3">
+                {{ $t('staking.no_description') }}
+              </p>
+            </template>
 
-            <div class="flex flex-wrap items-center gap-2">
+            <!-- Gno: hero stays lean (profile lives in the Valoper card) — just the
+                 official valopers realm profile link -->
+            <div v-if="isGno" class="flex flex-wrap items-center gap-2 mt-2">
+              <a
+                :href="gnoValopersUrl"
+                target="_blank"
+                rel="noopener"
+                class="sz-hero-link"
+                title="Official valoper profile on gno.land"
+              >
+                <Icon icon="mdi-account-card-details-outline" class="text-base" />
+                <span class="sz-hero-link-label">Valoper Profile</span>
+                <span class="sz-hero-link-value">gnops/valopers</span>
+              </a>
+            </div>
+
+            <div v-if="!isGno" class="flex flex-wrap items-center gap-2">
               <a
                 v-if="v.description?.website"
                 :href="v.description.website.startsWith('http') ? v.description.website : `https://${v.description.website}`"
@@ -1112,48 +1255,10 @@ watch(
                 <span class="sz-hero-link-value">—</span>
               </span>
 
-              <!-- Gno valoper socials (Indonode-style) -->
-              <template v-if="isGno && gnoMeta">
-                <a
-                  v-if="gnoMeta.twitter"
-                  :href="gnoMeta.twitter"
-                  target="_blank"
-                  rel="noopener"
-                  class="sz-hero-link"
-                  title="X / Twitter"
-                >
-                  <Icon icon="mdi-twitter" class="text-base" />
-                  <span class="sz-hero-link-label">X</span>
-                </a>
-                <a
-                  v-if="gnoMeta.telegram"
-                  :href="gnoMeta.telegram"
-                  target="_blank"
-                  rel="noopener"
-                  class="sz-hero-link"
-                  title="Telegram"
-                >
-                  <Icon icon="mdi-send" class="text-base" />
-                  <span class="sz-hero-link-label">Telegram</span>
-                </a>
-                <a
-                  v-if="gnoMeta.github"
-                  :href="gnoMeta.github"
-                  target="_blank"
-                  rel="noopener"
-                  class="sz-hero-link"
-                  title="GitHub"
-                >
-                  <Icon icon="mdi-github" class="text-base" />
-                  <span class="sz-hero-link-label">GitHub</span>
-                </a>
-              </template>
-
               <span v-if="identity" class="sz-chip font-mono !text-[10px] !font-medium text-secondary">
                 {{ identity }}
               </span>
               <button
-                v-if="!isGno"
                 type="button"
                 class="btn btn-primary btn-sm ml-auto sm:!ml-0"
                 @click="dialog.open('delegate', { validator_address: v.operator_address || validator.value })"
@@ -1668,6 +1773,88 @@ watch(
           :limit="delPageSize"
           :callback="pageload"
         />
+      </div>
+    </section>
+
+    <!-- GNO TRANSACTIONS (indexer — RPC has tx_index=off) -->
+    <section v-if="isGno" class="sz-section mb-4 overflow-hidden">
+      <div class="sz-section-head flex-wrap gap-3">
+        <div>
+          <div class="sz-section-kicker">History</div>
+          <div class="sz-section-title">Transactions</div>
+        </div>
+        <div class="flex items-center gap-2 text-[11.5px] text-secondary">
+          <span class="font-mono" :title="validator.value">{{ shortAddr(validator.value) }}</span>
+          <span class="opacity-60">·</span>
+          <span>via indexer</span>
+        </div>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="sz-table">
+          <thead>
+            <tr>
+              <th style="width: 9%">Block</th>
+              <th style="width: 17%">Tx Hash</th>
+              <th style="width: 15%">Function</th>
+              <th style="width: 17%">From</th>
+              <th style="width: 13%">Amount</th>
+              <th style="width: 10%">Fee</th>
+              <th style="width: 8%">Status</th>
+              <th style="width: 11%" class="text-right">Time</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-if="gnoTxsLoading && !gnoTxs.length">
+              <td colspan="8" class="text-center text-secondary py-8 text-sm">Loading transactions…</td>
+            </tr>
+            <tr v-else-if="gnoTxsError && !gnoTxs.length">
+              <td colspan="8" class="text-center text-secondary py-8 text-sm">Failed to load transactions — indexer may be temporarily unavailable.</td>
+            </tr>
+            <tr v-else-if="!gnoTxs.length">
+              <td colspan="8" class="text-center text-secondary py-8 text-sm">No transactions for this address yet.</td>
+            </tr>
+            <tr v-for="(tx, i) in gnoTxs" :key="tx.txHash || i">
+              <td>
+                <RouterLink class="font-mono text-[12px] text-primary link link-hover" :to="`/${chain}/block/${tx.blockHeight}`">
+                  #{{ tx.blockHeight }}
+                </RouterLink>
+              </td>
+              <td class="max-w-[180px]">
+                <span class="sz-hash font-mono text-[11.5px]" :title="tx.txHash">{{ shortTxHash(tx.txHash) }}</span>
+              </td>
+              <td>
+                <span class="sz-chip !text-[10px]" :class="gnoTxFuncLabel(tx).slug === 'bank' ? 'sz-chip--ok' : 'sz-chip--info'">
+                  {{ gnoTxFuncLabel(tx).label }}
+                </span>
+                <div
+                  v-if="tx.func?.[0]?.pkgPath && tx.func[0].pkgPath !== 'GNOT Transfer'"
+                  class="text-[10px] text-secondary font-mono mt-0.5 truncate max-w-[150px]"
+                  :title="tx.func[0].pkgPath"
+                >{{ tx.func[0].pkgPath.replace(/^gno\.land\//, '') }}</div>
+              </td>
+              <td>
+                <span class="font-mono text-[11.5px]" :title="tx.fromAddress">{{ shortAddr(tx.fromAddress) }}</span>
+                <div v-if="tx.fromName" class="text-[10px] text-secondary">{{ tx.fromName }}</div>
+              </td>
+              <td><span class="font-mono text-[11.5px]">{{ gnoTxAmount(tx.amount) }}</span></td>
+              <td><span class="font-mono text-[11px] text-secondary">{{ gnoTxAmount(tx.fee) }}</span></td>
+              <td>
+                <span v-if="tx.successYn" class="sz-chip sz-chip--ok !text-[10px]">OK</span>
+                <span v-else class="sz-chip sz-chip--bad !text-[10px]">FAIL</span>
+              </td>
+              <td class="text-right">
+                <span class="font-mono text-[11.5px] text-secondary whitespace-nowrap" :title="tx.timestamp">
+                  {{ gnoTxAge(tx.timestamp) }}
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div v-if="gnoTxsHasNext" class="p-3 flex justify-center border-t border-base-content/10">
+        <button type="button" class="btn btn-primary btn-sm min-w-[180px]" :disabled="gnoTxsLoadingMore" @click="loadMoreGnoTxs">
+          {{ gnoTxsLoadingMore ? 'Loading…' : 'Load more' }}
+        </button>
       </div>
     </section>
 

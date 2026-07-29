@@ -128,6 +128,35 @@ export class GnoIndexerClient {
     };
   }
 
+  /** Transactions involving a specific address (newest first).
+   *  onbloc exposes this under /accounts/{addr}/transactions (CORS-safe).
+   *  The generic /transactions endpoint ignores address filters, so this
+   *  dedicated route is the only way to get per-account history. */
+  async getAccountTransactions(address: string): Promise<GnoPage<GnoTx>> {
+    const data = await this.get<{ items: GnoTx[]; page?: { cursor?: string; hasNext?: boolean } }>(
+      `/accounts/${address}/transactions`,
+      { page: 1 }
+    );
+    return {
+      items: data.items || [],
+      cursor: data.page?.cursor,
+      hasNext: !!data.page?.hasNext,
+    };
+  }
+
+  /** Next page of account transactions via opaque cursor. */
+  async getAccountTransactionsAfter(address: string, cursor: string): Promise<GnoPage<GnoTx>> {
+    const data = await this.get<{ items: GnoTx[]; page?: { cursor?: string; hasNext?: boolean } }>(
+      `/accounts/${address}/transactions`,
+      { cursor }
+    );
+    return {
+      items: data.items || [],
+      cursor: data.page?.cursor,
+      hasNext: !!data.page?.hasNext,
+    };
+  }
+
   async getRealms(): Promise<GnoPage<GnoRealm>> {
     const data = await this.get<{ items: GnoRealm[]; page?: { cursor?: string; hasNext?: boolean } }>(
       '/realms',
