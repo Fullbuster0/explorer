@@ -19,115 +19,125 @@ const DEFAULT_IMAGE = `${SITE}/logo.png`;
 // when adding a new chain (or regenerate — see scripts/gen-og-chains.mjs).
 const CHAINS = {
   'CosmosHub-mainnet': {
-    pretty: 'Cosmos Hub',
-    chain_id: 'cosmoshub-4',
-    logo: 'https://raw.githubusercontent.com/cosmos/chain-registry/master/cosmoshub/images/atom.png',
+    'pretty': 'Cosmos Hub',
+    'chain_id': 'cosmoshub-4',
+    'logo': 'https://raw.githubusercontent.com/cosmos/chain-registry/master/cosmoshub/images/atom.png'
   },
   'atomone-mainnet': {
-    pretty: 'AtomOne',
-    chain_id: 'atomone-1',
-    logo: 'https://raw.githubusercontent.com/cosmos/chain-registry/master/atomone/images/atomone.png',
+    'pretty': 'AtomOne',
+    'chain_id': 'atomone-1',
+    'logo': 'https://raw.githubusercontent.com/cosmos/chain-registry/master/atomone/images/atomone.png'
   },
   'axone-mainnet': {
-    pretty: 'Axone',
-    chain_id: 'axone-1',
-    logo: 'https://raw.githubusercontent.com/cosmos/chain-registry/master/axone/images/chain.png',
+    'pretty': 'Axone',
+    'chain_id': 'axone-1',
+    'logo': 'https://raw.githubusercontent.com/cosmos/chain-registry/master/axone/images/chain.png'
   },
   'babylon-mainnet': {
-    pretty: 'Babylon Genesis',
-    chain_id: 'bbn-1',
-    logo: 'https://raw.githubusercontent.com/cosmos/chain-registry/master/babylon/images/logo.svg',
+    'pretty': 'Babylon Genesis',
+    'chain_id': 'bbn-1',
+    'logo': 'https://raw.githubusercontent.com/cosmos/chain-registry/master/babylon/images/logo.svg'
   },
   'hippo-mainnet': {
-    pretty: 'Hippo Protocol',
-    chain_id: 'hippo-protocol-1',
-    logo: `${SITE}/logos/hippo-protocol.png`,
+    'pretty': 'Hippo',
+    'chain_id': 'hippo-protocol-1',
+    'logo': 'https://shazoes-explorer.vercel.app/logos/hippo-protocol.png'
+  },
+  'lava-mainnet': {
+    'pretty': 'Lava',
+    'chain_id': 'lava-mainnet-1',
+    'logo': 'https://raw.githubusercontent.com/cosmos/chain-registry/master/lava/images/lava.png'
   },
   'mantra-mainnet': {
-    pretty: 'MANTRA',
-    chain_id: 'mantra-1',
-    logo: 'https://raw.githubusercontent.com/cosmos/chain-registry/master/mantrachain/images/OM-Prim-Col.png',
+    'pretty': 'MANTRA',
+    'chain_id': 'mantra-1',
+    'logo': 'https://raw.githubusercontent.com/cosmos/chain-registry/master/mantrachain/images/OM-Prim-Col.png'
   },
   'nillion-mainnet': {
-    pretty: 'Nillion',
-    chain_id: 'nillion-1',
-    logo: 'https://raw.githubusercontent.com/cosmos/chain-registry/master/nillion/images/nil.png',
+    'pretty': 'Nillion',
+    'chain_id': 'nillion-1',
+    'logo': 'https://raw.githubusercontent.com/cosmos/chain-registry/master/nillion/images/nil.png'
   },
   'provenance-mainnet': {
-    pretty: 'Provenance',
-    chain_id: 'pio-mainnet-1',
-    logo: 'https://raw.githubusercontent.com/cosmos/chain-registry/master/provenance/images/prov.png',
+    'pretty': 'Provenance',
+    'chain_id': 'pio-mainnet-1',
+    'logo': 'https://raw.githubusercontent.com/cosmos/chain-registry/master/provenance/images/prov.png'
   },
   'seda-mainnet': {
-    pretty: 'SEDA',
-    chain_id: 'seda-1',
-    logo: 'https://raw.githubusercontent.com/cosmos/chain-registry/master/seda/images/seda.png',
+    'pretty': 'SEDA',
+    'chain_id': 'seda-1',
+    'logo': 'https://raw.githubusercontent.com/cosmos/chain-registry/master/seda/images/seda.png'
   },
   'shentu-mainnet': {
-    pretty: 'Shentu',
-    chain_id: 'shentu-2.2',
-    logo: 'https://raw.githubusercontent.com/cosmos/chain-registry/master/shentu/images/ctk.png',
+    'pretty': 'Shentu',
+    'chain_id': 'shentu-2.2',
+    'logo': 'https://raw.githubusercontent.com/cosmos/chain-registry/master/shentu/images/ctk.png'
   },
   'tellor-mainnet': {
-    pretty: 'Tellor',
-    chain_id: 'tellor-1',
-    logo: `${SITE}/logos/tellor.png`,
+    'pretty': 'Tellor',
+    'chain_id': 'tellor-1',
+    'logo': 'https://shazoes-explorer.vercel.app/logos/tellor.png'
   },
   'terra-mainnet': {
-    pretty: 'Terra',
-    chain_id: 'phoenix-1',
-    logo: 'https://raw.githubusercontent.com/cosmos/chain-registry/master/terra2/images/luna.png',
+    'pretty': 'Terra',
+    'chain_id': 'phoenix-1',
+    'logo': 'https://raw.githubusercontent.com/cosmos/chain-registry/master/terra2/images/luna.png'
   },
   'union-mainnet': {
-    pretty: 'Union',
-    chain_id: 'union-1',
-    logo: 'https://raw.githubusercontent.com/cosmos/chain-registry/master/union/images/u.png',
+    'pretty': 'Union',
+    'chain_id': 'union-1',
+    'logo': 'https://raw.githubusercontent.com/cosmos/chain-registry/master/union/images/u.png'
   },
   'zetachain-mainnet': {
-    pretty: 'ZetaChain',
-    chain_id: 'zetachain_7000-1',
-    logo: 'https://raw.githubusercontent.com/cosmos/chain-registry/master/zetachain/images/zetachain.png',
+    'pretty': 'ZetaChain',
+    'chain_id': 'zetachain_7000-1',
+    'logo': 'https://raw.githubusercontent.com/cosmos/chain-registry/master/zetachain/images/zetachain.png'
   },
   'airchain-testnet': {
-    pretty: 'Airchain (testnet)',
-    chain_id: 'varanasi-1',
-    logo: `${SITE}/logos/airchain.png`,
+    'pretty': 'Airchain (testnet)',
+    'chain_id': 'varanasi-1',
+    'logo': 'https://shazoes-explorer.vercel.app/logos/airchain.png'
   },
   'atomone-testnet': {
-    pretty: 'AtomOne (testnet)',
-    chain_id: 'atomone-testnet-1',
-    logo: 'https://raw.githubusercontent.com/cosmos/chain-registry/master/atomone/images/atomone.png',
+    'pretty': 'AtomOne (testnet)',
+    'chain_id': 'atomone-testnet-1',
+    'logo': 'https://raw.githubusercontent.com/cosmos/chain-registry/master/atomone/images/atomone.png'
   },
   'empeiria-testnet': {
-    pretty: 'Empeiria (testnet)',
-    chain_id: 'empe-testnet-2',
-    logo: `${SITE}/logos/empe.png`,
+    'pretty': 'Empeiria (testnet)',
+    'chain_id': 'empe-testnet-2',
+    'logo': 'https://shazoes-explorer.vercel.app/logos/empe.png'
+  },
+  'gnoland-topaz': {
+    'pretty': 'Gnoland Topaz',
+    'chain_id': 'topaz-1',
+    'logo': 'https://shazoes-explorer.vercel.app/logos/gno.svg'
   },
   'hippo-testnet': {
-    pretty: 'Hippo Protocol (testnet)',
-    chain_id: 'hippo-protocol-testnet-1',
-    logo: `${SITE}/logos/hippo-protocol.png`,
+    'pretty': 'Hippo Protocol (testnet)',
+    'chain_id': 'hippo-protocol-testnet-1',
+    'logo': 'https://shazoes-explorer.vercel.app/logos/hippo-protocol.png'
   },
   'pushchain-testnet': {
-    pretty: 'Push Chain (testnet)',
-    chain_id: 'push_42101-1',
-    logo: `${SITE}/logos/pchain.png`,
+    'pretty': 'pushchain-testnet (testnet)',
+    'chain_id': 'push_42101-1',
+    'logo': 'https://shazoes-explorer.vercel.app/logos/pchain.png'
   },
   'seda-testnet': {
-    pretty: 'SEDA (testnet)',
-    chain_id: 'seda-1-testnet',
-    logo: 'https://raw.githubusercontent.com/cosmos/chain-registry/master/seda/images/seda.png',
+    'pretty': 'SEDA (testnet)',
+    'chain_id': 'seda-1-testnet',
+    'logo': 'https://raw.githubusercontent.com/cosmos/chain-registry/master/seda/images/seda.png'
   },
   'structs-testnet': {
-    pretty: 'Structs (testnet)',
-    chain_id: 'structstestnet-111',
-    logo: `${SITE}/logos/structs.jpg`,
+    'pretty': 'Structs (testnet)',
+    'chain_id': 'structstestnet-111',
+    'logo': 'https://shazoes-explorer.vercel.app/logos/structs.jpg'
   },
   'tellor-testnet': {
-    pretty: 'Tellor (testnet)',
-    chain_id: 'layertest-5',
-    logo: `${SITE}/logos/tellor.png`,
-  },
+    'pretty': 'Tellor (testnet)',
+    'chain_id': 'layertest-5',
+    'logo': 'https://shazoes-explorer.vercel.app/logos/tellor.png'
+  }
 };
 
 function esc(s) {
