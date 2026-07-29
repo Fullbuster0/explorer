@@ -107,38 +107,52 @@ async function fetchGnoValidators() {
 }
 
 /**
- * Operator addresses of ACTIVE validators (via valopers signing→operator link).
+ * Operator addresses of ACTIVE + INACTIVE validators (via valopers signing→operator).
  * Used to strip PENDING rows that are just the registration record of a validator
- * already signing blocks — onbloc keeps both rows, we only show one.
+ * already in (or formerly in) the set — onbloc keeps both rows, we only show one.
+ *
+ * Priority: ACTIVE > INACTIVE > PENDING (registration-only).
+ * Roomit / Provalidator: INACTIVE by signing addr + PENDING by operator addr →
+ * show only under Inactive (they left the set at inActivatedHeight).
  */
-const activeOperatorAddrs = computed(() => {
+const settledOperatorAddrs = computed(() => {
   const ops = new Set<string>();
   for (const g of gnoValidators.value) {
-    if (g.status !== 'ACTIVE') continue;
+    if (g.status !== 'ACTIVE' && g.status !== 'INACTIVE') continue;
     const meta = lookupGnoValoper(g.address); // signing address → registry row
     if (meta?.operatorAddress) ops.add(meta.operatorAddress);
-    // Also treat the ACTIVE address itself as an "operator" for safety (genesis
-    // validators sometimes share the same address for both).
+    // Also treat the signing address itself as settled (genesis / same-key cases).
     ops.add(g.address);
   }
   return ops;
 });
 
-/** Dedupe onbloc PENDING against ACTIVE — only true waiting-for-vote candidates. */
+/** Monikers of ACTIVE + INACTIVE (registry + onbloc monikerName), lowercased. */
+const settledMonikers = computed(() => {
+  const mons = new Set<string>();
+  for (const g of gnoValidators.value) {
+    if (g.status !== 'ACTIVE' && g.status !== 'INACTIVE') continue;
+    const meta = lookupGnoValoper(g.address);
+    if (meta?.moniker) mons.add(meta.moniker.toLowerCase());
+    const onbloc = (g.monikerName || '').trim().toLowerCase();
+    if (onbloc) mons.add(onbloc);
+  }
+  return mons;
+});
+
+/**
+ * True PENDING = registered, not yet (and never was) in the validator set.
+ * Drop if this operator is already ACTIVE or INACTIVE (onbloc double-entry).
+ */
 function isTruePending(g: GnoIndexerValidator): boolean {
   if (g.status !== 'PENDING') return false;
-  // Drop if this operator is already actively signing (onbloc double-entry).
-  if (activeOperatorAddrs.value.has(g.address)) return false;
-  // Also drop if its moniker maps to an ACTIVE signing address's moniker via
-  // registry (covers cases where address link is missing but moniker matches).
+  // Drop if operator address already settled (Active or Inactive).
+  if (settledOperatorAddrs.value.has(g.address)) return false;
+  // Drop if moniker matches a settled validator (covers missing address link).
   const mon = (g.monikerName || '').trim().toLowerCase();
-  if (mon) {
-    for (const a of gnoValidators.value) {
-      if (a.status !== 'ACTIVE') continue;
-      const meta = lookupGnoValoper(a.address);
-      if (meta?.moniker && meta.moniker.toLowerCase() === mon) return false;
-    }
-  }
+  if (mon && settledMonikers.value.has(mon)) return false;
+  const meta = lookupGnoValoper(g.address);
+  if (meta?.moniker && settledMonikers.value.has(meta.moniker.toLowerCase())) return false;
   return true;
 }
 
