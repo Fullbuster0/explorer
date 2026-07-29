@@ -276,19 +276,25 @@ export class GnoIndexerClient {
     };
   }
 
-  /** Fetch all validators across ACTIVE / INACTIVE / PENDING (cursor-paginated). */
-  async getAllValidators(): Promise<GnoIndexerValidator[]> {
+  /** Fetch all validators across ACTIVE / INACTIVE / PENDING (cursor-paginated).
+   *  Optional onPage fires after each page so UI can paint progressively
+   *  (first ~20 rows in <1s instead of waiting ~5s for full set). */
+  async getAllValidators(
+    onPage?: (itemsSoFar: GnoIndexerValidator[], done: boolean) => void
+  ): Promise<GnoIndexerValidator[]> {
     const out: GnoIndexerValidator[] = [];
     let cursor: string | undefined;
     for (let i = 0; i < 30; i++) {
       const params: Record<string, string | number> = cursor ? { cursor } : { page: 1 };
-      const data = await this.get<{ items: GnoIndexerValidator[]; page?: { cursor?: string; hasNext?: boolean } }>(
-        '/validators',
-        params
-      );
+      const data = await this.get<{
+        items: GnoIndexerValidator[];
+        page?: { cursor?: string; hasNext?: boolean };
+      }>('/validators', params);
       out.push(...(data.items || []));
-      if (!data.page?.hasNext || !data.page?.cursor) break;
-      cursor = data.page.cursor;
+      const done = !data.page?.hasNext || !data.page?.cursor;
+      onPage?.(out.slice(), done);
+      if (done) break;
+      cursor = data.page!.cursor;
     }
     return out;
   }

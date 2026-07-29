@@ -161,23 +161,85 @@ async function fetchGnoValidators(opts: { silent?: boolean } = {}) {
   }
   if (!indexerUrl.value) {
     console.warn('[validator] no indexer_api — Active/Inactive/Pending tabs will be empty');
+    // Soft fallback: ACTIVE set from TM2 RPC so the page is never blank forever.
+    await fetchGnoValidatorsFromRpc();
     return;
   }
   if (!opts.silent) gnoLoading.value = true;
+  const maxAttempts = opts.silent ? 1 : 3;
+  let lastErr: any = null;
+  // Snapshot for silent poll toast (progressive assign would otherwise make prev===next)
+  const prevSnapshot = opts.silent ? gnoValidators.value.slice() : null;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    try {
+      // Ensure valopers registry is loaded (moniker + signing↔operator link for dedupe)
+      await initGnoValopers().catch(() => undefined);
+      // Progressive paint: first page (~20) lands immediately; rest appends.
+      const next = await getGnoIndexer(indexerUrl.value).getAllValidators((partial, done) => {
+        gnoValidators.value = partial;
+        if (done) gnoError.value = '';
+        if (partial.length && !opts.silent) loadAvatars();
+      });
+      if (opts.silent && prevSnapshot) {
+        diffAndToast(prevSnapshot, next);
+      } else if (!gnoBaselineReady) {
+        gnoBaselineReady = true;
+      }
+      gnoValidators.value = next;
+      gnoError.value = '';
+      loadAvatars();
+      lastErr = null;
+      break;
+    } catch (e: any) {
+      lastErr = e;
+      console.warn(
+        `[validator] gno indexer fetch failed (attempt ${attempt + 1}/${maxAttempts}):`,
+        e?.message || e
+      );
+      if (attempt < maxAttempts - 1) {
+        await new Promise((r) => setTimeout(r, 800 * (attempt + 1)));
+      }
+    }
+  }
+  if (lastErr) {
+    if (!opts.silent) gnoError.value = lastErr?.message || String(lastErr);
+    // Indexer down: keep existing rows if any; else RPC ACTIVE fallback.
+    if (!gnoValidators.value.length) {
+      await fetchGnoValidatorsFromRpc();
+    }
+  }
+  if (!opts.silent) gnoLoading.value = false;
+}
+
+/** TM2 /validators ACTIVE-only fallback when indexer is missing/down. */
+async function fetchGnoValidatorsFromRpc() {
+  const rpc = chainStore.rpc as any;
+  if (!rpc?.getStakingValidators) return;
   try {
-    // Ensure valopers registry is loaded (moniker + signing↔operator link for dedupe)
     await initGnoValopers().catch(() => undefined);
-    const next = await getGnoIndexer(indexerUrl.value).getAllValidators();
-    diffAndToast(gnoValidators.value, next);
-    gnoValidators.value = next;
-    gnoError.value = '';
-    // Kick avatar fetch for AtomOne-enriched identities (no-op if already cached)
-    loadAvatars();
+    const res = await rpc.getStakingValidators('BOND_STATUS_BONDED');
+    const vals = (res?.validators || []) as Validator[];
+    // Map to indexer shape so list/tabs keep working (ACTIVE only).
+    const mapped: GnoIndexerValidator[] = vals.map((v, i) => ({
+      id: i,
+      monikerName: v.description?.moniker || '',
+      status: 'ACTIVE',
+      address: v.operator_address,
+      votingPower: v.tokens || '0',
+      shareRate: '0',
+      firstCommittedHeight: 0,
+      inActivatedHeight: null,
+      firstCommittedTime: null,
+      proposalId: null,
+    }));
+    if (mapped.length) {
+      gnoValidators.value = mapped;
+      gnoError.value = gnoError.value || 'Indexer unavailable — showing RPC active set';
+      if (!gnoBaselineReady) gnoBaselineReady = true;
+      loadAvatars();
+    }
   } catch (e: any) {
-    console.warn('[validator] gno indexer fetch failed:', e?.message || e);
-    if (!opts.silent) gnoError.value = e?.message || String(e);
-  } finally {
-    if (!opts.silent) gnoLoading.value = false;
+    console.warn('[validator] RPC active-set fallback failed:', e?.message || e);
   }
 }
 
@@ -287,6 +349,28 @@ onMounted(() => {
         chainStore.rpc
           ?.getSlashingParams()
           .then((res) => {
+            slashing.value = res.params;
+          })
+          .catch(() => undefined);
+      }
+      // Gno: if rpc lands late and we still have zero rows (indexer miss), try again
+      if (gno && hasRpc && !gnoValidators.value.length && !gnoLoading.value) {
+        fetchGnoValidators();
+      }
+    }
+  );
+  // After RPC fallback swaps endpoint, re-pull active set / soft params without refresh
+  watch(
+    () => chainStore.endpoint?.address,
+    (addr, prev) => {
+      if (!isGno.value || !addr || addr === prev) return;
+      // Don't clear rows — just refresh; progressive will repaint
+      fetchGnoValidators({ silent: !!gnoValidators.value.length });
+      const rpc = chainStore.rpc as any;
+      if (rpc?.getSlashingParams) {
+        rpc
+          .getSlashingParams()
+          .then((res: any) => {
             slashing.value = res.params;
           })
           .catch(() => undefined);
@@ -538,9 +622,14 @@ loadAvatars();
           <span class="font-mono">{{ isGno ? (gnoValidators.length ? (gnoCounts.ACTIVE + gnoCounts.PENDING + gnoCounts.INACTIVE) : '…') : list.length }}</span>
           <template v-if="isGno && gnoValidators.length">
             validators · {{ gnoCounts.ACTIVE }} active · {{ gnoCounts.PENDING }} pending · {{ gnoCounts.INACTIVE }} inactive
+            <span v-if="gnoLoading" class="opacity-60"> · loading…</span>
+            <span v-else-if="gnoError" class="text-amber-500"> · {{ gnoError }}</span>
           </template>
           <template v-else-if="isGno && gnoLoading">
             · loading from indexer…
+          </template>
+          <template v-else-if="isGno && gnoError">
+            · <span class="text-amber-500">{{ gnoError }}</span>
           </template>
           <template v-else-if="!isGno">
             / {{ staking.params.max_validators }} {{ $t('staking.validator').toLowerCase() }}
