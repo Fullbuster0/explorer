@@ -83,7 +83,45 @@ const gnoRpc = ref<{
   consensusPubKey?: string;
 } | undefined>(undefined);
 
-/** Gno/TM2 — signing history from last-N block precommits (UTSA-style). */
+/** Gno/TM2 liquid balances for the signing + operator addresses (no staking). */
+const gnoBalances = ref<{
+  signing?: { amount: string; denom: string }[];
+  operator?: { amount: string; denom: string }[];
+  loading: boolean;
+}>({ loading: false });
+
+function formatGnoBal(coins?: { amount: string; denom: string }[]): string {
+  if (!coins?.length) return '0 GNOT';
+  const ugnot = coins.find((c) => c.denom === 'ugnot') || coins[0];
+  if (!ugnot) return '0 GNOT';
+  const raw = Number(ugnot.amount);
+  if (!Number.isFinite(raw)) return '0 GNOT';
+  const gnot = raw / 1e6;
+  return `${gnot.toLocaleString(undefined, { maximumFractionDigits: 6 })} GNOT`;
+}
+
+async function loadGnoBalances() {
+  if (!isGno.value || !blockchain.rpc) return;
+  const signing = addresses.value.account || validator.value;
+  const operator = addresses.value.operAddress || v.value.operator_address || '';
+  if (!signing && !operator) return;
+  gnoBalances.value = { ...gnoBalances.value, loading: true };
+  try {
+    const [s, o] = await Promise.all([
+      signing ? blockchain.rpc.getBankBalances(signing).catch(() => ({ balances: [] })) : Promise.resolve({ balances: [] }),
+      operator && operator !== signing
+        ? blockchain.rpc.getBankBalances(operator).catch(() => ({ balances: [] }))
+        : Promise.resolve({ balances: [] }),
+    ]);
+    gnoBalances.value = {
+      signing: s.balances || [],
+      operator: o.balances || [],
+      loading: false,
+    };
+  } catch {
+    gnoBalances.value = { loading: false };
+  }
+}
 const gnoSigning = ref<{
   from?: string;
   to?: string;
@@ -911,6 +949,7 @@ function loadValidatorCore() {
         }
         // TX history needs operator — load only after meta is set.
         loadGnoTxs();
+        loadGnoBalances();
       });
     // Live status + voting power from the onbloc indexer (Gno has no LCD validator endpoint).
     const idxUrl = (blockchain.current as any)?.indexer_api;
@@ -1272,16 +1311,22 @@ watch(
   () => blockchain.rpc,
   (rpc) => {
     console.info('[val] rpc watch fired, rpc=', !!rpc, 'events=', events.value?.tx_responses?.length);
-    if (rpc && !allDelegations.value.length && !delegationsLoading.value) {
+    if (!rpc) return;
+    if (isGno.value) {
+      // Gno: liquid balances once RPC is ready (auth/accounts)
+      if (!gnoBalances.value.signing && !gnoBalances.value.loading) loadGnoBalances();
+      return;
+    }
+    if (!allDelegations.value.length && !delegationsLoading.value) {
       loadAllDelegations();
     }
-    if (rpc && !selfBonded.value.balance?.amount) {
+    if (!selfBonded.value.balance?.amount) {
       loadSelfBond();
     }
-    if (rpc && !v.value.operator_address) {
+    if (!v.value.operator_address) {
       loadValidatorCore();
     }
-    if (rpc && !events.value?.tx_responses?.length) {
+    if (!events.value?.tx_responses?.length) {
       console.info('[val] calling loadPowerEvents');
       loadPowerEvents(1, selectedEventType.value || EventType.Delegate);
     }
@@ -1307,6 +1352,7 @@ watch(
       gnoTxsHasNext.value = false;
       gnoTxsError.value = false;
       gnoTxsPrimaryAddr.value = '';
+      gnoBalances.value = { loading: false };
       rewards.value = [];
       commission.value = [];
       delegations.value = {} as PaginatedDelegations;
@@ -1706,9 +1752,16 @@ watch(
               />
             </div>
             <RouterLink
+              v-if="addresses.account"
               class="sz-hash text-primary link link-hover break-all text-[12px]"
               :to="`/${chain}/account/${addresses.account}`"
-            >{{ addresses.account || '—' }}</RouterLink>
+            >{{ addresses.account }}</RouterLink>
+            <div v-else class="sz-hash text-[12px] break-all">—</div>
+            <div class="mt-1 text-[11px] text-secondary">
+              Balance:
+              <span class="font-mono text-base-content">{{ gnoBalances.loading ? '…' : formatGnoBal(gnoBalances.signing) }}</span>
+              <span class="opacity-60"> · liquid ugnot</span>
+            </div>
           </div>
           <div>
             <div class="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-secondary mb-0.5">
@@ -1720,7 +1773,17 @@ watch(
                 @click="copyWebsite(addresses.operAddress || v.operator_address || '')"
               />
             </div>
-            <div class="sz-hash text-[12px] break-all">{{ addresses.operAddress || v.operator_address || '—' }}</div>
+            <RouterLink
+              v-if="addresses.operAddress || v.operator_address"
+              class="sz-hash text-primary link link-hover break-all text-[12px]"
+              :to="`/${chain}/account/${addresses.operAddress || v.operator_address}`"
+            >{{ addresses.operAddress || v.operator_address }}</RouterLink>
+            <div v-else class="sz-hash text-[12px] break-all">—</div>
+            <div class="mt-1 text-[11px] text-secondary">
+              Balance:
+              <span class="font-mono text-base-content">{{ gnoBalances.loading ? '…' : formatGnoBal(gnoBalances.operator) }}</span>
+              <span class="opacity-60"> · valoper activity</span>
+            </div>
           </div>
           <div>
             <div class="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-secondary mb-0.5">
@@ -2000,7 +2063,13 @@ watch(
                 </RouterLink>
               </td>
               <td class="max-w-[180px]">
-                <span class="sz-hash font-mono text-[11.5px]" :title="tx.txHash">{{ shortTxHash(tx.txHash) }}</span>
+                <RouterLink
+                  v-if="tx.txHash"
+                  class="sz-hash font-mono text-[11.5px] text-primary link link-hover"
+                  :to="`/${chain}/tx/${encodeURIComponent(tx.txHash)}`"
+                  :title="tx.txHash"
+                >{{ shortTxHash(tx.txHash) }}</RouterLink>
+                <span v-else class="sz-hash font-mono text-[11.5px]">—</span>
               </td>
               <td>
                 <span class="sz-chip !text-[10px]" :class="gnoTxFuncLabel(tx).slug === 'bank' ? 'sz-chip--ok' : 'sz-chip--info'">
@@ -2013,7 +2082,13 @@ watch(
                 >{{ tx.func[0].pkgPath.replace(/^gno\.land\//, '') }}</div>
               </td>
               <td>
-                <span class="font-mono text-[11.5px]" :title="tx.fromAddress">{{ shortAddr(tx.fromAddress) }}</span>
+                <RouterLink
+                  v-if="tx.fromAddress"
+                  class="font-mono text-[11.5px] text-primary link link-hover"
+                  :to="`/${chain}/account/${tx.fromAddress}`"
+                  :title="tx.fromAddress"
+                >{{ shortAddr(tx.fromAddress) }}</RouterLink>
+                <span v-else class="font-mono text-[11.5px]">—</span>
                 <div v-if="tx.fromName" class="text-[10px] text-secondary">{{ tx.fromName }}</div>
               </td>
               <td><span class="font-mono text-[11.5px]">{{ gnoTxAmount(tx.amount) }}</span></td>

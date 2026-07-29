@@ -305,17 +305,30 @@ export class GnoTm2Client {
   }
   async getAuthAccount(address: string) {
     const raw = await tm2AbciJson(this.endpoint, `auth/accounts/${address}`);
-    if (!raw) return { account: null };
+    // Always return a BaseAccount-shaped object so the account page never
+    // infinite-spins on "Loading account…" for never-used / zero-activity g1s.
+    if (!raw) {
+      return {
+        account: {
+          '@type': '/gno.BaseAccount',
+          address,
+          pub_key: null,
+          account_number: '0',
+          sequence: '0',
+          coins: [] as { denom: string; amount: string }[],
+          raw: null,
+          _empty: true,
+        },
+      };
+    }
     const ba = raw.BaseAccount || raw.base_account || raw;
     const coins = parseGnoCoins(ba.coins);
-    // Shape close enough for account page (Cosmos BaseAccount fields)
     const account = {
       '@type': '/gno.BaseAccount',
       address: ba.address || address,
       pub_key: ba.public_key || ba.pub_key || null,
       account_number: String(ba.account_number ?? '0'),
       sequence: String(ba.sequence ?? '0'),
-      // extras used by our UI / debug
       coins,
       raw: ba,
     };

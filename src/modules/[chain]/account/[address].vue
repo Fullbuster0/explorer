@@ -18,6 +18,8 @@ const isGno = computed(
   () => blockchain.current?.engine === 'gno' || blockchain.current?.engine === 'tm2'
 );
 const account = ref({} as AuthAccount);
+const accountLoaded = ref(false);
+const accountLoadError = ref('');
 const delegations = ref([] as Delegation[]);
 const rewards = ref({} as DelegatorRewards);
 const balances = ref([] as Coin[]);
@@ -84,6 +86,16 @@ watch(
     if (newAddr && newAddr !== oldAddr) {
       loadAccount(newAddr);
       loadTxHistory();
+    }
+  }
+);
+
+// Retry once the chain RPC client becomes available (Gno endpoint pick).
+watch(
+  () => blockchain.rpc,
+  (rpc) => {
+    if (rpc && props.address && !accountLoaded.value) {
+      loadAccount(props.address);
     }
   }
 );
@@ -213,22 +225,57 @@ function loadAccount(address: string) {
   // Reset so SPA nav doesn't keep previous totals
   unbondingTotal.value = 0;
   account.value = {} as any;
+  accountLoaded.value = false;
+  accountLoadError.value = '';
   balances.value = [];
   delegations.value = [];
   rewards.value = {} as any;
   unbonding.value = [];
 
-  blockchain.rpc.getAuthAccount(address).then((x) => (account.value = x.account || ({} as any)));
-  blockchain.rpc.getBankBalances(address).then((x) => (balances.value = x.balances || []));
+  const rpc = blockchain.rpc;
+  if (!rpc) {
+    // Wait for endpoint — watch below will retry
+    return;
+  }
+
+  Promise.all([
+    rpc.getAuthAccount(address).then((x) => {
+      // Never leave null — empty object fails the template gate and spins forever.
+      account.value = (x?.account as any) || {
+        '@type': isGno.value ? '/gno.BaseAccount' : '/cosmos.auth.v1beta1.BaseAccount',
+        address,
+        account_number: '0',
+        sequence: '0',
+      };
+    }),
+    rpc.getBankBalances(address).then((x) => {
+      balances.value = x?.balances || [];
+    }),
+  ])
+    .catch((e: any) => {
+      accountLoadError.value = e?.message || String(e);
+      // Still show a shell so the page is usable (copy address, etc.)
+      if (!account.value || !(account.value as any)['@type']) {
+        account.value = {
+          '@type': isGno.value ? '/gno.BaseAccount' : '/cosmos.auth.v1beta1.BaseAccount',
+          address,
+          account_number: '0',
+          sequence: '0',
+        } as any;
+      }
+    })
+    .finally(() => {
+      accountLoaded.value = true;
+    });
 
   // Gno/TM2: no staking / distribution modules — skip empty Cosmos calls
   if (isGno.value) return;
 
-  blockchain.rpc.getDistributionDelegatorRewards(address).then((x) => (rewards.value = x));
-  blockchain.rpc.getStakingDelegations(address).then(
+  rpc.getDistributionDelegatorRewards?.(address).then((x) => (rewards.value = x));
+  rpc.getStakingDelegations?.(address).then(
     (x) => (delegations.value = x.delegation_responses)
   );
-  blockchain.rpc.getStakingDelegatorUnbonding(address).then((x) => {
+  rpc.getStakingDelegatorUnbonding?.(address).then((x) => {
     unbonding.value = x.unbonding_responses;
     x.unbonding_responses?.forEach((y) =>
       y.entries.forEach((z) => (unbondingTotal.value += Number(z.balance)))
@@ -704,8 +751,13 @@ function findTokenAmount(
   </div>
   <div v-else>
     <div class="sz-section sz-glass p-6 text-center">
-      <div class="sz-acc-loading-spinner mx-auto mb-3"></div>
-      <div class="sz-acc-loading-text">{{ $t('account.error') || 'Loading account…' }}</div>
+      <div v-if="!accountLoaded" class="sz-acc-loading-spinner mx-auto mb-3"></div>
+      <div class="sz-acc-loading-text">
+        <template v-if="!accountLoaded">{{ $t('account.error') || 'Loading account…' }}</template>
+        <template v-else-if="accountLoadError">Failed to load account: {{ accountLoadError }}</template>
+        <template v-else>Account not found on this chain.</template>
+      </div>
+      <div v-if="accountLoaded" class="mt-3 font-mono text-xs break-all text-secondary">{{ address }}</div>
     </div>
   </div>
 
