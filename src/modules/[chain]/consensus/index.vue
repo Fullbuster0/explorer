@@ -582,9 +582,14 @@ function exportCsv() {
               {{ height ? Number(height).toLocaleString() : '—' }}
             </div>
             <div class="mt-1.5 flex items-center gap-3 text-[11px] text-slate-400">
-              <span>Step <b class="font-mono text-slate-200">{{ step || '—' }}</b>/4</span>
+              <!-- Cosmos tendermint: steps 0–3 (NewHeight…Commit). TM2 dump uses 1-based ints — don't hardcode /4. -->
+              <span>
+                Step
+                <b class="font-mono text-slate-200">{{ step || '—' }}</b>
+                <span v-if="!tm2Synthetic">/4</span>
+              </span>
               <span class="hidden sm:inline text-slate-600">·</span>
-              <span class="hidden sm:inline">Proposing now</span>
+              <span class="hidden sm:inline">{{ tm2Synthetic ? 'Last commit coverage' : 'Proposing now' }}</span>
             </div>
           </div>
 

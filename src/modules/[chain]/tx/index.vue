@@ -12,6 +12,22 @@ const base = useBaseStore();
 const chainStore = useBlockchain();
 const format = useFormatter();
 
+/** Gno/TM2: public RPC has tx_index=off — Cosmos LCD feed always stalls. Prefer indexer page. */
+const isGnoEngine = computed(
+  () => chainStore.current?.engine === 'gno' || chainStore.current?.engine === 'tm2'
+);
+
+function redirectGnoTxListIfNeeded(): boolean {
+  if (!isGnoEngine.value) return false;
+  const chain = String(props.chain || chainStore.chainName || '').trim();
+  if (!chain) return false;
+  // Only the list route (`/tx` or `/tx/`) — keep `/tx/:hash` for detail.
+  const path = String(vueRouters.currentRoute.value.path || '');
+  if (!/\/tx\/?$/.test(path)) return false;
+  vueRouters.replace({ path: `/${chain}/gno-tx` });
+  return true;
+}
+
 const hashReg = /^[A-Z\d]{64}$/;
 const hash = ref('');
 const current = chainStore?.current?.chainName || '';
@@ -29,6 +45,8 @@ let pollTimer: number | undefined;
 let tickTimer: number | undefined;
 
 onMounted(() => {
+  // Gno chains: bounce bare /tx → /gno-tx before spinning the LCD poller.
+  if (redirectGnoTxListIfNeeded()) return;
   tab.value = String(vueRouters.currentRoute.value.query.tab || 'recent');
   // initial fetch + short polling loop
   fetchRecent(true);
@@ -55,11 +73,20 @@ watch(
   () => chainStore.chainName,
   (name, prev) => {
     if (name !== prev) {
+      if (redirectGnoTxListIfNeeded()) return;
       recentTxs.value = [];
       knownHashes.value = new Set();
       freshHashes.value = new Set();
       fetchRecent(true);
     }
+  }
+);
+
+// Engine may resolve after first paint (async setCurrent) — catch late Gno.
+watch(
+  () => chainStore.current?.engine,
+  () => {
+    redirectGnoTxListIfNeeded();
   }
 );
 

@@ -138,8 +138,19 @@ const rawType = computed(() => String((tx.value.tx as any)?.['@type'] || '/cosmo
   <div class="sz-tx-detail">
     <!-- header / tabs -->
     <div class="sz-tabs mb-4">
-      <RouterLink class="sz-tab" :to="`/${chain}/tx/?tab=recent`">{{ $t('block.recent') }}</RouterLink>
-      <RouterLink class="sz-tab" :to="`/${chain}/tx/?tab=search`">Search</RouterLink>
+      <RouterLink
+        class="sz-tab"
+        :to="
+          blockchain.current?.engine === 'gno' || blockchain.current?.engine === 'tm2'
+            ? `/${chain}/gno-tx`
+            : `/${chain}/tx/?tab=recent`
+        "
+      >{{ $t('block.recent') }}</RouterLink>
+      <RouterLink
+        v-if="!(blockchain.current?.engine === 'gno' || blockchain.current?.engine === 'tm2')"
+        class="sz-tab"
+        :to="`/${chain}/tx/?tab=search`"
+      >Search</RouterLink>
       <span class="sz-tab sz-tab--active cursor-default">Transaction</span>
     </div>
 

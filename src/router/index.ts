@@ -44,9 +44,16 @@ function titleFor(to: { path: string; params: Record<string, any> }) {
         ? `Account ${shortAddr(id)} · ${pretty} — ${SITE}`
         : `Accounts · ${pretty} — ${SITE}`;
     case 'tx':
+    case 'gno-tx':
       return id
         ? `Tx ${shortAddr(id, 12, 8)} · ${pretty} — ${SITE}`
         : `Transactions · ${pretty} — ${SITE}`;
+    case 'gno-realms':
+    case 'realms':
+      return `Realms · ${pretty} — ${SITE}`;
+    case 'gno-tokens':
+    case 'tokens':
+      return `Tokens · ${pretty} — ${SITE}`;
     case 'block':
       return id ? `Block #${id} · ${pretty} — ${SITE}` : `Blocks · ${pretty} — ${SITE}`;
     case 'gov':
@@ -57,7 +64,10 @@ function titleFor(to: { path: string; params: Record<string, any> }) {
     case 'uptime':
       return `Uptime · ${pretty} — ${SITE}`;
     case 'parameters':
+    case 'params':
       return `Parameters · ${pretty} — ${SITE}`;
+    case 'consensus':
+      return `Consensus · ${pretty} — ${SITE}`;
     case 'ibc':
       return `IBC · ${pretty} — ${SITE}`;
     default:
