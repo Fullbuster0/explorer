@@ -6,6 +6,7 @@ import { useRouter } from 'vue-router';
 import { CosmosRestClient } from '@/libs/client';
 import { GnoTm2Client } from '@/libs/gno/client';
 import { isGnoChain, tm2Health } from '@/libs/gno/tm2';
+import { initGnoValopers } from '@/libs/gno/valopers';
 import { PageRequest, type PaginatedTxs, type TxResponse } from '@/types';
 import {
   useBankStore,
@@ -706,6 +707,8 @@ export const useBlockchain = defineStore('blockchain', {
       // health / fallback keep working without a parallel code path).
       if (isGnoChain(this.current)) {
         this.rpc = GnoTm2Client.new(endpoint.address) as unknown as CosmosRestClient;
+        // Fire-and-forget: merge live valoper registry from official realm
+        initGnoValopers(this.chainName).catch(() => {});
       } else {
         this.rpc = CosmosRestClient.newStrategy(endpoint.address, this.current);
       }
