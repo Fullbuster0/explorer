@@ -18,6 +18,9 @@ export interface GnoTx {
   toAddress: string;
   toName: string;
   amount: { value: string; denom: string };
+  /** Account-endpoint shape (valoper activity) — prefer over amount when set. */
+  amountIn?: { value: string; denom: string };
+  amountOut?: { value: string; denom: string };
   fee: { value: string; denom: string };
   storageDeposit: { value: string; denom: string };
   maxDeposit: { value: string; denom: string };
@@ -27,6 +30,38 @@ export interface GnoTx {
   successYn: boolean;
   timestamp: string;
   storageUsage: number;
+}
+
+/** Normalize account-tx payload (amountIn/Out) onto the shared GnoTx shape. */
+function normalizeAccountTx(raw: any): GnoTx {
+  const amountIn = raw?.amountIn;
+  const amountOut = raw?.amountOut;
+  const amount =
+    raw?.amount ||
+    (amountOut && amountOut.value && amountOut.value !== '0' ? amountOut : null) ||
+    (amountIn && amountIn.value && amountIn.value !== '0' ? amountIn : null) ||
+    amountOut ||
+    amountIn ||
+    { value: '0', denom: 'ugnot' };
+  return {
+    txHash: raw?.txHash || '',
+    fromAddress: raw?.fromAddress || raw?.callerAddress || '',
+    fromName: raw?.fromName || '',
+    toAddress: raw?.toAddress || '',
+    toName: raw?.toName || '',
+    amount,
+    amountIn,
+    amountOut,
+    fee: raw?.fee || { value: '0', denom: 'ugnot' },
+    storageDeposit: raw?.storageDeposit || { value: '0', denom: 'ugnot' },
+    maxDeposit: raw?.maxDeposit || { value: '0', denom: 'ugnot' },
+    func: Array.isArray(raw?.func) ? raw.func : [],
+    blockHeight: Number(raw?.blockHeight) || 0,
+    messageCount: Number(raw?.messageCount) || 0,
+    successYn: !!raw?.successYn,
+    timestamp: raw?.timestamp || '',
+    storageUsage: Number(raw?.storageUsage) || 0,
+  };
 }
 
 export interface GnoRealm {
@@ -131,14 +166,21 @@ export class GnoIndexerClient {
   /** Transactions involving a specific address (newest first).
    *  onbloc exposes this under /accounts/{addr}/transactions (CORS-safe).
    *  The generic /transactions endpoint ignores address filters, so this
-   *  dedicated route is the only way to get per-account history. */
+   *  dedicated route is the only way to get per-account history.
+   *
+   *  Note: account txs use amountIn/amountOut (not amount). We normalize
+   *  onto GnoTx so UI helpers stay shared with the global /transactions feed.
+   *
+   *  For Gno validators, valoper realm activity (Register / UpdateDescription)
+   *  is signed by the **operator** address, not the Tendermint2 signing address.
+   *  Query the operator for history; merge signing only when different. */
   async getAccountTransactions(address: string): Promise<GnoPage<GnoTx>> {
-    const data = await this.get<{ items: GnoTx[]; page?: { cursor?: string; hasNext?: boolean } }>(
+    const data = await this.get<{ items: any[]; page?: { cursor?: string; hasNext?: boolean } }>(
       `/accounts/${address}/transactions`,
       { page: 1 }
     );
     return {
-      items: data.items || [],
+      items: (data.items || []).map(normalizeAccountTx),
       cursor: data.page?.cursor,
       hasNext: !!data.page?.hasNext,
     };
@@ -146,14 +188,54 @@ export class GnoIndexerClient {
 
   /** Next page of account transactions via opaque cursor. */
   async getAccountTransactionsAfter(address: string, cursor: string): Promise<GnoPage<GnoTx>> {
-    const data = await this.get<{ items: GnoTx[]; page?: { cursor?: string; hasNext?: boolean } }>(
+    const data = await this.get<{ items: any[]; page?: { cursor?: string; hasNext?: boolean } }>(
       `/accounts/${address}/transactions`,
       { cursor }
     );
     return {
-      items: data.items || [],
+      items: (data.items || []).map(normalizeAccountTx),
       cursor: data.page?.cursor,
       hasNext: !!data.page?.hasNext,
+    };
+  }
+
+  /**
+   * Validator-detail helper: fetch txs for operator (primary) + signing
+   * (secondary if distinct), merge by txHash, sort newest first.
+   * Pagination cursor tracks the operator stream only (where activity lives).
+   */
+  async getValidatorTransactions(
+    signingAddress: string,
+    operatorAddress?: string
+  ): Promise<GnoPage<GnoTx> & { primaryAddress: string }> {
+    const primary = operatorAddress || signingAddress;
+    const secondary =
+      signingAddress && operatorAddress && signingAddress !== operatorAddress
+        ? signingAddress
+        : '';
+
+    const primaryPage = await this.getAccountTransactions(primary);
+    let items = primaryPage.items.slice();
+    if (secondary) {
+      try {
+        const sec = await this.getAccountTransactions(secondary);
+        const seen = new Set(items.map((t) => t.txHash));
+        for (const t of sec.items) if (t.txHash && !seen.has(t.txHash)) items.push(t);
+      } catch {
+        // secondary is best-effort
+      }
+    }
+    items.sort((a, b) => {
+      const hb = Number(b.blockHeight) || 0;
+      const ha = Number(a.blockHeight) || 0;
+      if (hb !== ha) return hb - ha;
+      return String(b.timestamp || '').localeCompare(String(a.timestamp || ''));
+    });
+    return {
+      items,
+      cursor: primaryPage.cursor,
+      hasNext: primaryPage.hasNext,
+      primaryAddress: primary,
     };
   }
 

@@ -92,7 +92,9 @@ const gnoSigning = ref<{
   cells: { height: string; color: string }[];
 }>({ counts: {}, cells: [] });
 
-/** Gno/TM2 — account transactions from the indexer (per signing address). */
+/** Gno/TM2 — account transactions from the indexer.
+ *  Valoper activity (Register / UpdateDescription) is on the **operator** address.
+ *  Route param is still the signing address — we resolve operator from valopers meta. */
 const gnoTxs = ref<GnoTx[]>([]);
 const gnoTxsCursor = ref<string | undefined>();
 const gnoTxsHasNext = ref(false);
@@ -100,6 +102,8 @@ const gnoTxsLoading = ref(false);
 const gnoTxsLoadingMore = ref(false);
 const gnoTxsError = ref(false);
 const gnoTxsTick = ref(Date.now());
+/** Address whose cursor we paginate (operator preferred). */
+const gnoTxsPrimaryAddr = ref('');
 
 /** Official valopers realm profile URL for this validator (Gno only). */
 const gnoValopersUrl = computed(() => {
@@ -855,7 +859,11 @@ function loadValidatorCore() {
       .catch(() => undefined)
       .then(() => {
         const meta = lookupGnoValoper(valAddr);
-        if (!meta) return;
+        if (!meta) {
+          // Still try txs with route address only — operator may be unknown.
+          loadGnoTxs();
+          return;
+        }
         gnoMeta.value = meta;
         if (meta.identity) {
           identity.value = meta.identity;
@@ -879,6 +887,7 @@ function loadValidatorCore() {
         v.value.operator_address = meta.operatorAddress || v.value.operator_address;
         // Gno addresses: signing (account), operator, consensus pubkey (hex slot),
         // and the g1 signing address also doubles as the "signer" display.
+        // SoT (topaz valopers): Signing Address ≠ Operator Address — do not swap.
         addresses.value.account = meta.signingAddress || addresses.value.account;
         addresses.value.operAddress = meta.operatorAddress || addresses.value.operAddress;
         addresses.value.hex = meta.pubKey || addresses.value.hex;
@@ -888,6 +897,8 @@ function loadValidatorCore() {
         if (!v.value.description?.moniker && meta.moniker) {
           v.value.description = { ...(v.value.description || {}), moniker: meta.moniker } as any;
         }
+        // TX history needs operator — load only after meta is set.
+        loadGnoTxs();
       });
     // Live status + voting power from the onbloc indexer (Gno has no LCD validator endpoint).
     const idxUrl = (blockchain.current as any)?.indexer_api;
@@ -918,7 +929,6 @@ function loadValidatorCore() {
     }
     loadGnoRpc(valAddr);
     loadGnoSigning(valAddr);
-    loadGnoTxs();
     return;
   }
   if (!blockchain.rpc) return;
@@ -1071,19 +1081,28 @@ async function loadGnoSigning(valAddr: string) {
   }
 }
 
-/** Gno/TM2 — account transactions for this validator's signing address via
- *  the onbloc indexer (RPC has tx_index=off). */
+/** Gno/TM2 — validator account activity via onbloc indexer.
+ *  RPC has tx_index=off. Valoper realm txs are signed by the **operator**
+ *  address (not the Tendermint2 signing address used in the route). */
 async function loadGnoTxs() {
   const idxUrl = (blockchain.current as any)?.indexer_api;
-  const addr = validator.value;
-  if (!idxUrl || !addr) return;
+  const signing = validator.value;
+  if (!idxUrl || !signing) return;
   gnoTxsLoading.value = true;
   gnoTxsError.value = false;
   try {
-    const page = await getGnoIndexer(idxUrl).getAccountTransactions(addr);
+    // Prefer meta already hydrated; fall back to registry lookup.
+    const meta = gnoMeta.value || lookupGnoValoper(signing);
+    const operator =
+      meta?.operatorAddress ||
+      addresses.value.operAddress ||
+      (meta?.signingAddress === signing ? meta.operatorAddress : '') ||
+      '';
+    const page = await getGnoIndexer(idxUrl).getValidatorTransactions(signing, operator || undefined);
     gnoTxs.value = page.items;
     gnoTxsCursor.value = page.cursor;
     gnoTxsHasNext.value = page.hasNext;
+    gnoTxsPrimaryAddr.value = page.primaryAddress;
     gnoTxsTick.value = Date.now();
   } catch (e: any) {
     console.warn('[val] gno account txs failed:', e?.message || e);
@@ -1095,12 +1114,13 @@ async function loadGnoTxs() {
 
 async function loadMoreGnoTxs() {
   const idxUrl = (blockchain.current as any)?.indexer_api;
-  if (!idxUrl || !gnoTxsHasNext.value || !gnoTxsCursor.value || gnoTxsLoadingMore.value) return;
+  const primary = gnoTxsPrimaryAddr.value || addresses.value.operAddress || validator.value;
+  if (!idxUrl || !gnoTxsHasNext.value || !gnoTxsCursor.value || gnoTxsLoadingMore.value || !primary) return;
   gnoTxsLoadingMore.value = true;
   try {
-    const page = await getGnoIndexer(idxUrl).getAccountTransactionsAfter(validator.value, gnoTxsCursor.value);
+    const page = await getGnoIndexer(idxUrl).getAccountTransactionsAfter(primary, gnoTxsCursor.value);
     const seen = new Set(gnoTxs.value.map((t) => t.txHash));
-    for (const t of page.items) if (!seen.has(t.txHash)) gnoTxs.value.push(t);
+    for (const t of page.items) if (t.txHash && !seen.has(t.txHash)) gnoTxs.value.push(t);
     gnoTxsCursor.value = page.cursor;
     gnoTxsHasNext.value = page.hasNext;
   } catch (e: any) {
@@ -1147,6 +1167,7 @@ watch(
       gnoTxsCursor.value = undefined;
       gnoTxsHasNext.value = false;
       gnoTxsError.value = false;
+      gnoTxsPrimaryAddr.value = '';
       rewards.value = [];
       commission.value = [];
       delegations.value = {} as PaginatedDelegations;
@@ -1784,9 +1805,11 @@ watch(
           <div class="sz-section-title">Transactions</div>
         </div>
         <div class="flex items-center gap-2 text-[11.5px] text-secondary">
-          <span class="font-mono" :title="validator">{{ shortAddr(validator) }}</span>
+          <span class="font-mono" :title="gnoTxsPrimaryAddr || addresses.operAddress || validator">
+            {{ shortAddr(gnoTxsPrimaryAddr || addresses.operAddress || validator) }}
+          </span>
           <span class="opacity-60">·</span>
-          <span>via indexer</span>
+          <span>operator · via indexer</span>
         </div>
       </div>
       <div class="overflow-x-auto">
