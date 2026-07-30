@@ -22,27 +22,11 @@
   "github": "https://github.com/tellor-io/layer",
   "api": [
     {
-      "address": "https://tellor-testnet-api.shazoes.xyz",
-      "provider": "Shazoes"
-    },
-    {
-      "address": "https://rest.cosmos.directory/tellor",
-      "provider": "cosmos.directory"
-    },
-    {
       "address": "https://mainnet.tellorlayer.com",
       "provider": "Tellor Layer"
     }
   ],
   "rpc": [
-    {
-      "address": "https://tellor-testnet-rpc.shazoes.xyz",
-      "provider": "Shazoes"
-    },
-    {
-      "address": "https://rpc.cosmos.directory/tellor",
-      "provider": "cosmos.directory"
-    },
     {
       "address": "https://mainnet.tellorlayer.com/rpc",
       "provider": "Tellor Layer"

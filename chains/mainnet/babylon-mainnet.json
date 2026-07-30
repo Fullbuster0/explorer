@@ -22,86 +22,46 @@
   "github": "https://github.com/babylonlabs-io/babylon",
   "api": [
     {
-      "address": "https://babylon-archive.nodes.guru/api",
-      "provider": "unknown"
-    },
-    {
-      "address": "https://babylon.nodes.guru/api",
-      "provider": "Nodes.Guru"
-    },
-    {
       "address": "https://babylon-api.polkachu.com",
       "provider": "Polkachu"
     },
     {
-      "address": "https://babylon-rest.publicnode.com",
-      "provider": "Allnodes ⚡️ Nodes & Staking"
-    },
-    {
-      "address": "https://rest.cosmos.directory/babylon",
-      "provider": "cosmos.directory"
-    },
-    {
-      "address": "https://babylon-mainnet-lcd.autostake.com:443",
-      "provider": "AutoStake 🛡️ Slash Protected"
+      "address": "https://rest.lavenderfive.com:443/babylon",
+      "provider": "Lavenderfive"
     },
     {
       "address": "https://api.babylon.validatus.com",
       "provider": "Validatus"
     },
     {
-      "address": "https://babylon-mainnet-api.itrocket.net",
-      "provider": "ITRocket"
+      "address": "https://rest.cosmos.directory/babylon",
+      "provider": "cosmos.directory"
     },
     {
-      "address": "https://rest.lavenderfive.com:443/babylon",
-      "provider": "Lavenderfive"
+      "address": "https://babylon-mainnet-api.itrocket.net",
+      "provider": "ITRocket"
     }
   ],
   "rpc": [
-    {
-      "address": "https://babylon-mainnet-rpc.shazoes.xyz",
-      "provider": "Shazoes"
-    },
-    {
-      "address": "https://babylon.nodes.guru/rpc",
-      "provider": "Nodes.Guru"
-    },
-    {
-      "address": "https://babylon-archive.nodes.guru/rpc",
-      "provider": "Nodes.Guru"
-    },
     {
       "address": "https://babylon-rpc.polkachu.com",
       "provider": "Polkachu"
     },
     {
       "address": "https://babylon-archive-rpc.polkachu.com",
-      "provider": "Polkachu"
+      "provider": "Polkachu (Archive)"
+    },
+    {
+      "address": "https://babylon-mainnet-rpc.itrocket.net",
+      "provider": "ITRocket"
     },
     {
       "address": "https://babylon-rpc.publicnode.com:443",
       "provider": "Allnodes ⚡️ Nodes & Staking"
     },
     {
-      "address": "https://babylon-rpc.polkachu.com:443",
-      "provider": "Polkachu"
-    },
-    {
       "address": "https://rpc.cosmos.directory/babylon",
       "provider": "cosmos.directory"
-    },
-    {
-      "address": "https://babylon-mainnet-rpc.autostake.com:443",
-      "provider": "AutoStake 🛡️ Slash Protected"
-    },
-    {
-      "address": "https://rpc.babylon.validatus.com",
-      "provider": "Validatus"
-    },
-    {
-      "address": "https://babylon-mainnet-rpc.itrocket.net",
-      "provider": "ITRocket"
     }
   ],
   "snapshot_provider": "",
@@ -124,5 +84,11 @@
     "ibc-go",
     "ibc-transfer",
     "no-legacy-stdTx"
+  ],
+  "archived_api": [
+    {
+      "address": "https://babylon-archive.nodes.guru/api",
+      "provider": "unknown"
+    }
   ]
 }

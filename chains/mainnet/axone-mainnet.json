@@ -22,40 +22,20 @@
   "github": "https://github.com/axone-protocol/axoned",
   "api": [
     {
-      "address": "https://rest.cosmos.directory/axone",
-      "provider": "cosmos.directory"
-    },
-    {
-      "address": "https://api.axone.cumulo.com.es",
-      "provider": "Cumulo"
-    },
-    {
-      "address": "https://axone.lcd.bccnodes.com",
-      "provider": "BccNodes"
+      "address": "https://api.axone.citizenweb3.com",
+      "provider": "Citizen Web3"
     },
     {
       "address": "https://axone-api.highstakes.ch",
       "provider": "High Stakes 🇨🇭"
     },
     {
-      "address": "https://rest.cros-nest.com:443/axone",
-      "provider": "crosnest"
+      "address": "https://api.axone.cumulo.com.es",
+      "provider": "Cumulo"
     },
     {
-      "address": "https://api.axone.citizenweb3.com",
-      "provider": "Citizen Web3"
-    },
-    {
-      "address": "https://api.axone-archive.citizenweb3.com",
-      "provider": "Citizen Web3"
-    },
-    {
-      "address": "https://axone-mainnet-api.shazoes.xyz",
-      "provider": "Shazoes"
-    },
-    {
-      "address": "https://api.axone.nodestake.org",
-      "provider": "NodeStake"
+      "address": "https://rest.cosmos.directory/axone",
+      "provider": "cosmos.directory"
     }
   ],
   "rpc": [
@@ -64,36 +44,20 @@
       "provider": "cosmos.directory"
     },
     {
-      "address": "https://rpc.axone.cumulo.com.es",
-      "provider": "Cumulo"
-    },
-    {
-      "address": "https://axone.rpc.bccnodes.com",
-      "provider": "BccNodes"
+      "address": "https://rpc.axone.citizenweb3.com",
+      "provider": "Citizen Web3"
     },
     {
       "address": "https://axone-rpc.highstakes.ch",
       "provider": "High Stakes 🇨🇭"
     },
     {
+      "address": "https://rpc.axone.cumulo.com.es",
+      "provider": "Cumulo"
+    },
+    {
       "address": "https://rpc.cros-nest.com:443/axone",
       "provider": "crosnest"
-    },
-    {
-      "address": "https://rpc.axone.citizenweb3.com",
-      "provider": "Citizen Web3"
-    },
-    {
-      "address": "https://rpc.axone-archive.citizenweb3.com",
-      "provider": "Citizen Web3"
-    },
-    {
-      "address": "https://axone-mainnet-rpc.shazoes.xyz",
-      "provider": "Shazoes"
-    },
-    {
-      "address": "https://rpc.axone.nodestake.org",
-      "provider": "NodeStake"
     }
   ],
   "snapshot_provider": "",
@@ -115,5 +79,11 @@
     "ibc-go",
     "ibc-transfer",
     "no-legacy-stdTx"
+  ],
+  "archived_api": [
+    {
+      "address": "https://api.axone-archive.citizenweb3.com",
+      "provider": "Citizen Web3"
+    }
   ]
 }

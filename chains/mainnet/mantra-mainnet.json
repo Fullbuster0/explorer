@@ -22,26 +22,18 @@
   "github": "https://github.com/MANTRA-Chain/mantrachain",
   "api": [
     {
-      "address": "https://mantra.api.m.stavr.tech",
-      "provider": "stavr"
-    },
-    {
       "address": "https://mantra-api.polkachu.com",
       "provider": "polkachu"
     },
     {
-      "address": "https://mantra-rest.publicnode.com",
-      "provider": "publicnode"
+      "address": "https://mantra.api.m.stavr.tech",
+      "provider": "stavr"
     }
   ],
   "rpc": [
     {
       "address": "https://mantra-rpc.polkachu.com",
       "provider": "polkachu"
-    },
-    {
-      "address": "https://mantra-rpc.publicnode.com",
-      "provider": "publicnode"
     }
   ],
   "snapshot_provider": "",

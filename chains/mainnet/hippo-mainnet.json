@@ -32,20 +32,12 @@
     {
       "address": "https://hippo.api.nodeshub.online",
       "provider": "NodesHub"
-    },
-    {
-      "address": "https://rest.cosmos.directory/hippo",
-      "provider": "cosmos.directory"
     }
   ],
   "rpc": [
     {
       "address": "https://hippo-mainnet-rpc.shazoes.xyz",
       "provider": "Shazoes"
-    },
-    {
-      "address": "https://rpc.cosmos.directory/hippo",
-      "provider": "cosmos.directory"
     }
   ],
   "snapshot_provider": "",

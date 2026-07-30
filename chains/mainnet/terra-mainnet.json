@@ -30,20 +30,8 @@
       "provider": "Allnodes ⚡️ Nodes & Staking"
     },
     {
-      "address": "https://terra-api.polkachu.com",
-      "provider": "Polkachu"
-    },
-    {
       "address": "https://rest.cosmos.directory/terra2",
       "provider": "cosmos.directory"
-    },
-    {
-      "address": "https://phoenix-lcd.terra.dev:443",
-      "provider": "Terraform Labs"
-    },
-    {
-      "address": "https://api-terra-01.stakeflow.io",
-      "provider": "Stakeflow"
     },
     {
       "address": "https://terra2.tdrsys.com",
@@ -52,22 +40,6 @@
     {
       "address": "https://terra-api.cosmosrescue.dev:8443",
       "provider": "cosmosrescue"
-    },
-    {
-      "address": "https://terra-api.chainroot.io",
-      "provider": "Chainroot"
-    },
-    {
-      "address": "https://terra-api.node39.top",
-      "provider": "Node39"
-    },
-    {
-      "address": "https://terra-m-api.onnode.org",
-      "provider": "OnNode"
-    },
-    {
-      "address": "https://terra-phoenix-api.highstakes.ch",
-      "provider": "High Stakes 🇨🇭"
     }
   ],
   "rpc": [
@@ -76,48 +48,20 @@
       "provider": "Shazoes"
     },
     {
-      "address": "https://terra-rpc.publicnode.com:443",
-      "provider": "Allnodes ⚡️ Nodes & Staking"
-    },
-    {
-      "address": "https://terra-rpc.polkachu.com:443",
-      "provider": "Polkachu"
-    },
-    {
-      "address": "https://rpc.cosmos.directory/terra2",
-      "provider": "cosmos.directory"
-    },
-    {
       "address": "https://rpc.lavenderfive.com:443/terra2",
       "provider": "Lavender.Five Nodes 🐝"
-    },
-    {
-      "address": "https://terra-rpc.stakely.io:443",
-      "provider": "stakely"
-    },
-    {
-      "address": "https://rpc-terra-01.stakeflow.io",
-      "provider": "Stakeflow"
-    },
-    {
-      "address": "https://terra-phoenix-rpc.highstakes.ch",
-      "provider": "High Stakes 🇨🇭"
     },
     {
       "address": "https://terra2.tdrsys.com:2053",
       "provider": "TdrSys"
     },
     {
-      "address": "https://terra-rpc.cosmosrescue.dev:8443",
-      "provider": "cosmosrescue"
+      "address": "https://terra-rpc.polkachu.com:443",
+      "provider": "Polkachu"
     },
     {
-      "address": "https://terra-rpc.node39.top",
-      "provider": "Node39"
-    },
-    {
-      "address": "https://terra-m-rpc.onnode.org",
-      "provider": "OnNode"
+      "address": "https://terra-rpc.stakely.io:443",
+      "provider": "stakely"
     }
   ],
   "snapshot_provider": "",

@@ -22,146 +22,46 @@
   "github": "https://github.com/sedaprotocol/seda-chain",
   "api": [
     {
-      "address": "https://seda-api.polkachu.com",
-      "provider": "Polkachu"
+      "address": "https://seda-rest.cosmos-apis.com:443",
+      "provider": "RHINO 🦏"
     },
     {
       "address": "https://lcd.mainnet.seda.xyz",
       "provider": "SEDA"
     },
     {
-      "address": "https://rest.cosmos.directory/seda",
-      "provider": "cosmos.directory"
-    },
-    {
-      "address": "https://seda-rest.cosmos-apis.com:443",
-      "provider": "RHINO 🦏"
-    },
-    {
-      "address": "https://rest.lavenderfive.com:443/seda",
-      "provider": "Lavender.Five Nodes 🐝"
-    },
-    {
-      "address": "https://seda.api.cumulo.org.es",
-      "provider": "Cumulo"
-    },
-    {
-      "address": "https://rest.seda.tcnetwork.io",
-      "provider": "TC Network"
-    },
-    {
       "address": "https://seda-api.stakeandrelax.net",
       "provider": "Stake&Relax 🦥"
     },
     {
-      "address": "https://rest.cros-nest.com/seda",
-      "provider": "Crosnest"
+      "address": "https://rest.cosmos.directory/seda",
+      "provider": "cosmos.directory"
     },
     {
-      "address": "https://seda.api.pocket.network",
-      "provider": "Pocket Network"
-    },
-    {
-      "address": "https://seda-api.kleomedes.network",
-      "provider": "Kleomedes"
-    },
-    {
-      "address": "https://seda-mainnet-api.shazoes.xyz",
-      "provider": "Shazoes"
-    },
-    {
-      "address": "https://seda.api.kjnodes.com",
-      "provider": "kjnodes"
-    },
-    {
-      "address": "https://seda.ibs.team:443/api",
-      "provider": "Inter Blockchain Services"
-    },
-    {
-      "address": "https://lcd.seda.bronbro.io:443",
-      "provider": "Bro_n_Bro"
-    },
-    {
-      "address": "https://seda_mainnet_api.chain.whenmoonwhenlambo.money",
-      "provider": "🚀 WHEN MOON 🌕 WHEN LAMBO 🔥"
-    },
-    {
-      "address": "https://seda-api.node39.top:443",
-      "provider": "Node39.TOP"
+      "address": "https://rest.seda.tcnetwork.io",
+      "provider": "TC Network"
     }
   ],
   "rpc": [
     {
-      "address": "https://seda-mainnet-rpc.shazoes.xyz",
-      "provider": "Shazoes"
-    },
-    {
-      "address": "https://seda.rpc.kjnodes.com",
-      "provider": "kjnodes"
-    },
-    {
-      "address": "https://seda-rpc.polkachu.com:443",
-      "provider": "Polkachu"
+      "address": "https://seda-rpc.cosmos-apis.com:443",
+      "provider": "RHINO 🦏"
     },
     {
       "address": "https://rpc.cosmos.directory/seda",
       "provider": "cosmos.directory"
     },
     {
-      "address": "https://rpc.mainnet.seda.xyz",
-      "provider": "SEDA"
-    },
-    {
-      "address": "https://rpc.lavenderfive.com:443/seda",
-      "provider": "Lavender.Five Nodes 🐝"
-    },
-    {
-      "address": "https://seda.ibs.team:443/rpc",
-      "provider": "Inter Blockchain Services"
-    },
-    {
-      "address": "https://rpc.seda.bronbro.io:443",
-      "provider": "Bro_n_Bro"
-    },
-    {
-      "address": "https://seda_mainnet_rpc.chain.whenmoonwhenlambo.money:443",
-      "provider": "🚀 WHEN MOON 🌕 WHEN LAMBO 🔥"
-    },
-    {
-      "address": "https://seda-rpc.node39.top:443",
-      "provider": "Node39.TOP"
-    },
-    {
-      "address": "https://seda-rpc.cosmos-apis.com:443",
-      "provider": "RHINO 🦏"
-    },
-    {
-      "address": "https://seda.rpc.cumulo.org.es",
-      "provider": "Cumulo"
-    },
-    {
       "address": "https://rpc.seda.tcnetwork.io",
       "provider": "TC Network"
     },
     {
-      "address": "https://seda-rpc.stakeandrelax.net",
-      "provider": "Stake&Relax 🦥"
+      "address": "https://rpc.mainnet.seda.xyz",
+      "provider": "SEDA"
     },
     {
-      "address": "https://rpc.cros-nest.com/seda",
-      "provider": "Crosnest"
-    },
-    {
-      "address": "https://seda.api.pocket.network",
-      "provider": "Pocket Network"
-    },
-    {
-      "address": "https://seda-rpc.kleomedes.network",
-      "provider": "Kleomedes"
-    },
-    {
-      "address": "https://seda-rpc.polkachu.com",
-      "provider": "Polkachu"
+      "address": "https://seda.rpc.cumulo.org.es",
+      "provider": "Cumulo"
     }
   ],
   "snapshot_provider": "",
