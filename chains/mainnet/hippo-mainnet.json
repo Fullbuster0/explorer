@@ -45,6 +45,14 @@
     {
       "address": "https://rpc.hippo.polkachu.com",
       "provider": "Polkachu"
+    },
+    {
+      "address": "https://rpc.hippo.protocol.com",
+      "provider": "Hippo Protocol"
+    },
+    {
+      "address": "https://rpc.hippo.nodeshub.online",
+      "provider": "NodesHub"
     }
   ],
   "archived_api": [],
