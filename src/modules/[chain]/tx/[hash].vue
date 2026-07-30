@@ -51,7 +51,10 @@ function isGnoEngine(): boolean {
 }
 
 function indexerBase(): string {
-  return String((blockchain.current as any)?.indexer?.api || 'https://topaz.api.onbloc.xyz/v1');
+  // ChainConfig field is indexer_api (convertFromLocal). NOT indexer.api.
+  return String(
+    (blockchain.current as any)?.indexer_api || 'https://topaz.api.onbloc.xyz/v1'
+  );
 }
 
 /** Merge onbloc detail + events onto RPC-adapted tx (time/fee/events enrichment). */

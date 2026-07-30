@@ -416,10 +416,32 @@ export const useBlockchain = defineStore('blockchain', {
 
     /**
      * Fetch a block by height with archive REST fallback (same policy as fetchTx).
+     *
+     * Gno/TM2: use GnoTm2Client.getBaseBlockAt (JSON-RPC /block) — do NOT walk
+     * Cosmos LCD against TM2 hosts.
      */
     async fetchHistoricalBlock(height: string | number): Promise<any | null> {
       const h = String(height);
       if (!h) return null;
+
+      // Gno path — single RPC client
+      if (this.current && isGnoChain(this.current as any)) {
+        try {
+          if (this.rpc && typeof (this.rpc as any).getBaseBlockAt === 'function') {
+            const res = await (this.rpc as any).getBaseBlockAt(h);
+            if (res && (res as any).block?.header?.height) return res;
+          }
+          const active = this.endpoint?.address;
+          if (active) {
+            const client = GnoTm2Client.new(active);
+            const res = await client.getBaseBlockAt(h);
+            if (res && (res as any).block?.header?.height) return res;
+          }
+        } catch (e: any) {
+          console.info(`[explorer] gno block ${h} miss: ${e?.message || e}`);
+        }
+        return null;
+      }
 
       const tryOne = async (base: string) => {
         const client = CosmosRestClient.newStrategy(base, this.current);

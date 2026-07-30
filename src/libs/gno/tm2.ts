@@ -209,7 +209,7 @@ export function tm2ValidatorToStaking(v: any): Validator {
   if (!/^https?:\/\//i.test(website) || /\]\(|discord\.gg|t\.me\//i.test(website)) {
     website = '';
   }
-  return {
+  const staking = {
     // Keep signing address as operator_address so proposer/uptime matching
     // (bech32 g1…) keeps working. Registry operatorAddress is secondary.
     operator_address: address,
@@ -238,7 +238,13 @@ export function tm2ValidatorToStaking(v: any): Validator {
     min_self_delegation: '1',
     liquid_shares: '0',
     validator_bond_shares: '0',
-  };
+  } as Validator & { _operatorAddress?: string };
+  // Stable registry operator (g1 registration id) — used by getStakingValidator
+  // URL match when route is operator, not signing. Must be set or the field is dead.
+  if (meta?.operatorAddress) {
+    staking._operatorAddress = meta.operatorAddress;
+  }
+  return staking;
 }
 
 export function adaptTm2Validators(rpcResult: any): PaginatedTendermintValidator {

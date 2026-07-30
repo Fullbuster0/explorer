@@ -1,4 +1,13 @@
 #!/bin/bash
+# Full drop-in nginx for Gnoland TM2 RPC + gRPC + static valopers JSON.
+# Run as root from ~/endpoint/testnet (or anywhere).
+#
+# SAFETY (P1):
+#   Default = config-only (NO stop nginx, NO certbot). Safe to re-run.
+#   ISSUE_CERTS=1  → stop nginx + certbot standalone + write conf (first install / renew).
+#   Example first install:  ISSUE_CERTS=1 bash endpoint-gnoland.sh
+#   Example re-apply conf:  bash endpoint-gnoland.sh
+#
 # === KONFIGURASI ===
 BASE_DOMAIN="shazoes.xyz"
 RPC_SUB="gnoland-testnet-rpc"
@@ -11,16 +20,24 @@ CONF_FILE="/etc/nginx/sites-enabled/gnoland-testnet"
 # Path absolut di disk server yang sama — tidak perlu domain baru.
 VALOPERS_JSON="/home/hermes/explorer/public/data/gno-valopers.json"
 
-# === HENTIKAN NGINX SEMENTARA (hanya untuk Certbot standalone) ===
-echo "⏳  Menghentikan Nginx sementara untuk menjalankan Certbot standalone..."
-sudo systemctl stop nginx
+ISSUE_CERTS="${ISSUE_CERTS:-0}"
 
-# === BUAT SERTIFIKAT TERPISAH UNTUK MASING-MASING SUBDOMAIN ===
-echo "🔐 Membuat sertifikat SSL untuk $RPC_SUB.$BASE_DOMAIN"
-sudo certbot certonly --standalone -d $RPC_SUB.$BASE_DOMAIN --register-unsafely-without-email --agree-tos
+if [ "$ISSUE_CERTS" = "1" ]; then
+  # === HENTIKAN NGINX SEMENTARA (hanya untuk Certbot standalone) ===
+  echo "⏳  ISSUE_CERTS=1 → menghentikan Nginx sementara untuk Certbot standalone..."
+  sudo systemctl stop nginx
 
-echo "🔐 Membuat sertifikat SSL untuk $GRPC_SUB.$BASE_DOMAIN"
-sudo certbot certonly --standalone -d $GRPC_SUB.$BASE_DOMAIN --register-unsafely-without-email --agree-tos
+  echo "🔐 Membuat sertifikat SSL untuk $RPC_SUB.$BASE_DOMAIN"
+  sudo certbot certonly --standalone -d $RPC_SUB.$BASE_DOMAIN --register-unsafely-without-email --agree-tos
+
+  echo "🔐 Membuat sertifikat SSL untuk $GRPC_SUB.$BASE_DOMAIN"
+  sudo certbot certonly --standalone -d $GRPC_SUB.$BASE_DOMAIN --register-unsafely-without-email --agree-tos
+else
+  echo "ℹ️  ISSUE_CERTS=0 (default) → skip certbot, nginx tetap jalan. Set ISSUE_CERTS=1 hanya untuk first install/renew."
+  if [ ! -f "/etc/letsencrypt/live/$RPC_SUB.$BASE_DOMAIN/fullchain.pem" ]; then
+    echo "⚠️  Sertifikat RPC belum ada. Jalankan sekali: ISSUE_CERTS=1 $0"
+  fi
+fi
 
 # Pastikan file registry kebaca nginx (kalau belum ada, location tetap ada — 404 sampai cron jalan)
 if [ -f "$VALOPERS_JSON" ]; then
@@ -97,7 +114,11 @@ EOF
 
 # === AKTIFKAN DAN MUAT ULANG NGINX ===
 echo "🚀 Menguji dan menyalakan ulang Nginx..."
-sudo nginx -t && sudo systemctl start nginx && sudo systemctl reload nginx
+if sudo systemctl is-active --quiet nginx; then
+  sudo nginx -t && sudo systemctl reload nginx
+else
+  sudo nginx -t && sudo systemctl start nginx
+fi
 
 echo "✅  Siap diakses melalui:"
 echo "   RPC      → https://$RPC_SUB.$BASE_DOMAIN"
@@ -107,3 +128,5 @@ echo ""
 echo "Cek cepat:"
 echo "  curl -sI https://$RPC_SUB.$BASE_DOMAIN/static/gno-valopers.json | head"
 echo "  curl -s  https://$RPC_SUB.$BASE_DOMAIN/status | head -c 120"
+echo ""
+echo "Catatan: re-run aman (default ISSUE_CERTS=0). First cert: ISSUE_CERTS=1 $0"

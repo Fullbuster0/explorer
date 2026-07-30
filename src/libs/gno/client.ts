@@ -597,7 +597,9 @@ export class GnoTm2Client {
         /* try next form */
       }
     }
-    return { tx: null, tx_response: null };
+    // Miss must be null — callers that only check `if (res)` must not treat
+    // an empty shell as a hit (fetchTx already checks tx_response fields).
+    return null as any;
   }
   async getTxsBySender(_sender: string, _page?: PageRequest, _limit?: number) {
     return { txs: [], tx_responses: [], pagination: emptyPage() };

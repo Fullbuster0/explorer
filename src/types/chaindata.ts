@@ -62,6 +62,18 @@ export interface LocalChainConfig {
    * transactions / realms / tokens / validator statuses come from here.
    */
   indexer_api?: string;
+  /**
+   * Gno/TM2 only: public CORS JSON of the valoper registry (cron scrape).
+   * Served from the RPC host, e.g.
+   * https://gnoland-testnet-rpc.shazoes.xyz/static/gno-valopers.json
+   * Copied through convertFromLocal → ChainConfig.valopers_live_url.
+   */
+  valopers_live_url?: string;
+  /**
+   * Optional gnoweb base (realms/tokens deep links). e.g.
+   * https://topaz.testnets.gno.land
+   */
+  gnoweb?: string;
   coin_type: string;
   logo: string;
   theme_color?: string;
@@ -147,6 +159,10 @@ export interface ChainConfig {
   engine?: 'cosmos' | 'gno' | 'tm2';
   /** Gno/TM2 indexer REST base URL (tx/realms/tokens/validator status). */
   indexer_api?: string;
+  /** Gno/TM2 live valoper registry JSON (CORS). See LocalChainConfig.valopers_live_url. */
+  valopers_live_url?: string;
+  /** Optional gnoweb base for realm/token deep links. */
+  gnoweb?: string;
   endpoints: {
     rest?: Endpoint[];
     rpc?: Endpoint[];
