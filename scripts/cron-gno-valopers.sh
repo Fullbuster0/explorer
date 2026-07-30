@@ -9,8 +9,13 @@
 #        https://gnoland-testnet-rpc.shazoes.xyz/static/gno-valopers.json
 #      → SPA fetches live (CORS *). NO git/deploy required for data.
 #
-# Bundle commit (valopers-data.ts) is OPTIONAL fallback for cold start.
-# Set GNO_VALOPERS_AUTO_COMMIT=1 to re-enable commit+push (legacy Vercel path).
+# Bundle commit (valopers-data.ts) is OPTIONAL cold-start seed ONLY.
+# Production SSOT = public/data/gno-valopers.json (gitignored) → nginx /static/.
+# NEVER auto-commit to the public repo (supply-chain / random data risk).
+# Default: AUTO_COMMIT=0 and --skip-bundle (do not rewrite tracked TS).
+# Manual seed only if you intentionally want a bundle fallback:
+#   node scripts/refresh-gno-valopers.mjs   # writes bundle
+#   git add -p src/libs/gno/valopers-data.ts && git commit   # human review
 set -euo pipefail
 # Portable root: env override → script-relative → legacy hermes path
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -47,7 +52,9 @@ fi
 
 {
   echo "==== $(date -u +%Y-%m-%dT%H:%M:%SZ) node=$NODE_BIN auto_commit=$AUTO_COMMIT ===="
-  "$NODE_BIN" scripts/refresh-gno-valopers.mjs --chain gnoland-testnet
+  # --skip-bundle: never rewrite tracked valopers-data.ts from cron (public repo safety).
+  # Live SPA reads RPC /static/gno-valopers.json (gitignored JSON only).
+  "$NODE_BIN" scripts/refresh-gno-valopers.mjs --chain gnoland-testnet --skip-bundle
   # Ensure world-readable for nginx (static location)
   if [ -f public/data/gno-valopers.json ]; then
     chmod a+r public/data/gno-valopers.json 2>/dev/null || true
