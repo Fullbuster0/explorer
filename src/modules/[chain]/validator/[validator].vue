@@ -150,6 +150,29 @@ const gnoTxsError = ref(false);
 const gnoTxsTick = ref(Date.now());
 /** Address whose cursor we paginate (operator preferred). */
 const gnoTxsPrimaryAddr = ref('');
+/** Client-side page size + pager (same UX as AtomOne account history). */
+const gnoTxHistoryLimit = ref(10);
+const gnoTxHistoryPage = ref(1);
+const GNO_TX_PAGE_SIZES = [5, 10, 20, 50];
+const gnoTxsPage = computed(() => {
+  const start = (gnoTxHistoryPage.value - 1) * gnoTxHistoryLimit.value;
+  return gnoTxs.value.slice(start, start + gnoTxHistoryLimit.value);
+});
+const gnoTxHistoryPageCount = computed(() =>
+  Math.max(1, Math.ceil(gnoTxs.value.length / gnoTxHistoryLimit.value) || 1)
+);
+function setGnoTxHistoryPage(page: number) {
+  const max = Math.max(1, Math.ceil(gnoTxs.value.length / gnoTxHistoryLimit.value) || 1);
+  gnoTxHistoryPage.value = Math.min(Math.max(1, page), max);
+  if (gnoTxsHasNext.value) {
+    const nearEnd = page * gnoTxHistoryLimit.value >= gnoTxs.value.length - gnoTxHistoryLimit.value;
+    if (nearEnd) loadMoreGnoTxs();
+  }
+}
+function setGnoTxHistorySize(size: number) {
+  gnoTxHistoryLimit.value = size;
+  gnoTxHistoryPage.value = 1;
+}
 
 /**
  * Gno realtime — tip height from baseStore (same source as navbar #height).
@@ -1289,6 +1312,7 @@ async function loadGnoTxs() {
       gnoTxsHasNext.value = page.hasNext;
       gnoTxsPrimaryAddr.value = page.primaryAddress;
       gnoTxsTick.value = Date.now();
+      gnoTxHistoryPage.value = 1;
       lastErr = null;
       break;
     } catch (e: any) {
@@ -2052,14 +2076,31 @@ watch(
       <div class="sz-section-head flex-wrap gap-3">
         <div>
           <div class="sz-section-kicker">History</div>
-          <div class="sz-section-title">Transactions</div>
+          <div class="sz-section-title">
+            Transactions
+            <span v-if="gnoTxs.length" class="text-[12px] font-normal text-secondary ml-1">
+              ({{ gnoTxs.length }}{{ gnoTxsHasNext ? '+' : '' }} · showing {{ gnoTxsPage.length }})
+            </span>
+          </div>
         </div>
-        <div class="flex items-center gap-2 text-[11.5px] text-secondary">
-          <span class="font-mono" :title="gnoTxsPrimaryAddr || addresses.operAddress || validator">
-            {{ shortAddr(gnoTxsPrimaryAddr || addresses.operAddress || validator) }}
-          </span>
-          <span class="opacity-60">·</span>
-          <span>operator · via indexer</span>
+        <div class="flex flex-wrap items-center gap-3">
+          <div class="flex items-center gap-2 text-[11.5px] text-secondary">
+            <span class="font-mono" :title="gnoTxsPrimaryAddr || addresses.operAddress || validator">
+              {{ shortAddr(gnoTxsPrimaryAddr || addresses.operAddress || validator) }}
+            </span>
+            <span class="opacity-60">·</span>
+            <span>operator · via indexer</span>
+          </div>
+          <div class="sz-acc-page-size">
+            <button
+              v-for="size in GNO_TX_PAGE_SIZES"
+              :key="size"
+              type="button"
+              class="sz-acc-page-btn"
+              :class="{ 'sz-acc-page-btn--active': gnoTxHistoryLimit === size }"
+              @click="setGnoTxHistorySize(size)"
+            >{{ size }}</button>
+          </div>
         </div>
       </div>
       <div class="overflow-x-auto">
@@ -2086,7 +2127,7 @@ watch(
             <tr v-else-if="!gnoTxs.length">
               <td colspan="8" class="text-center text-secondary py-8 text-sm">No transactions for this address yet.</td>
             </tr>
-            <tr v-for="(tx, i) in gnoTxs" :key="tx.txHash || i">
+            <tr v-for="(tx, i) in gnoTxsPage" :key="tx.txHash || i">
               <td>
                 <RouterLink class="font-mono text-[12px] text-primary link link-hover" :to="`/${chain}/block/${tx.blockHeight}`">
                   #{{ tx.blockHeight }}
@@ -2136,10 +2177,22 @@ watch(
           </tbody>
         </table>
       </div>
-      <div v-if="gnoTxsHasNext" class="p-3 flex justify-center border-t border-base-content/10">
-        <button type="button" class="btn btn-primary btn-sm min-w-[180px]" :disabled="gnoTxsLoadingMore" @click="loadMoreGnoTxs">
-          {{ gnoTxsLoadingMore ? 'Loading…' : 'Load more' }}
-        </button>
+      <div class="sz-acc-pager border-t border-base-content/10" v-if="gnoTxs.length > gnoTxHistoryLimit || gnoTxsHasNext">
+        <button type="button" class="sz-acc-pager-btn" :disabled="gnoTxHistoryPage === 1" @click="setGnoTxHistoryPage(gnoTxHistoryPage - 1)">← Prev</button>
+        <span class="sz-acc-pager-info">Page {{ gnoTxHistoryPage }} / {{ gnoTxHistoryPageCount }}{{ gnoTxsHasNext ? '+' : '' }}</span>
+        <button
+          type="button"
+          class="sz-acc-pager-btn"
+          :disabled="gnoTxHistoryPage * gnoTxHistoryLimit >= gnoTxs.length && !gnoTxsHasNext"
+          @click="setGnoTxHistoryPage(gnoTxHistoryPage + 1)"
+        >Next →</button>
+        <button
+          v-if="gnoTxsHasNext"
+          type="button"
+          class="sz-acc-pager-btn ml-2"
+          :disabled="gnoTxsLoadingMore"
+          @click="loadMoreGnoTxs"
+        >{{ gnoTxsLoadingMore ? 'Loading…' : 'Fetch more' }}</button>
       </div>
     </section>
 

@@ -47,10 +47,16 @@ const gnoTxsLoadingMore = ref(false);
 // The full fetched list (server may return more than `txHistoryLimit`).
 const allTxs = ref([] as TxResponse[]);
 
-// Client-side slice — the rows actually rendered.
+// Client-side slice — the rows actually rendered (Cosmos + Gno).
 const txs = computed(() => {
   const start = (txHistoryPage.value - 1) * txHistoryLimit.value;
   return allTxs.value.slice(start, start + txHistoryLimit.value);
+});
+
+/** Gno history: same page-size + pager UX as AtomOne/Cosmos (client slice of loaded pages). */
+const gnoTxsPage = computed(() => {
+  const start = (txHistoryPage.value - 1) * txHistoryLimit.value;
+  return gnoTxs.value.slice(start, start + txHistoryLimit.value);
 });
 
 // What we display as the total count = all fetched (since server ignores
@@ -212,8 +218,14 @@ async function loadMoreGnoTxs() {
 }
 
 function setTxHistoryPage(page: number) {
-  const max = Math.max(1, Math.ceil(allTxs.value.length / txHistoryLimit.value));
+  const total = isGno.value ? gnoTxs.value.length : allTxs.value.length;
+  const max = Math.max(1, Math.ceil(total / txHistoryLimit.value));
   txHistoryPage.value = Math.min(Math.max(1, page), max);
+  // If user pages near the end on Gno and more indexer pages exist, prefetch.
+  if (isGno.value && gnoTxsHasNext.value) {
+    const nearEnd = page * txHistoryLimit.value >= gnoTxs.value.length - txHistoryLimit.value;
+    if (nearEnd) loadMoreGnoTxs();
+  }
 }
 
 function setTxHistorySize(size: number) {
@@ -221,6 +233,10 @@ function setTxHistorySize(size: number) {
   // Reset to first page so user sees the new slice from the top.
   txHistoryPage.value = 1;
 }
+
+const gnoHistoryPageCount = computed(() =>
+  Math.max(1, Math.ceil(gnoTxs.value.length / txHistoryLimit.value) || 1)
+);
 
 onMounted(() => {
   loadAccount(props.address);
@@ -867,10 +883,13 @@ function findTokenAmount(
           <div class="sz-section-title">
             {{ $t('account.transactions') }} ({{ txsTotal ? format.formatNumber(txsTotal, '0,0') : (isGno ? gnoTxs.length : txs.length) }})
             <span v-if="!isGno && txsTotal > txs.length" class="sz-acc-section-meta">showing {{ txs.length }} of {{ format.formatNumber(txsTotal, '0,0') }}</span>
-            <span v-if="isGno" class="sz-acc-section-meta">via indexer</span>
+            <span v-if="isGno && gnoTxs.length" class="sz-acc-section-meta">
+              showing {{ gnoTxsPage.length }} of {{ format.formatNumber(gnoTxs.length, '0,0') }}{{ gnoTxsHasNext ? '+' : '' }} · via indexer
+            </span>
+            <span v-else-if="isGno" class="sz-acc-section-meta">via indexer</span>
           </div>
         </div>
-        <div v-if="!isGno" class="flex items-center gap-2">
+        <div class="flex items-center gap-2">
           <div class="sz-acc-page-size">
             <button
               v-for="size in [5, 10, 20, 50]"
@@ -885,7 +904,7 @@ function findTokenAmount(
         </div>
       </div>
 
-      <!-- Gno: indexer-backed history (amountIn/Out shape) -->
+      <!-- Gno: indexer-backed history (amountIn/Out shape) — same pager UX as Cosmos -->
       <div v-if="isGno" class="overflow-x-auto">
         <table class="sz-table sz-acc-table">
           <thead>
@@ -913,7 +932,7 @@ function findTokenAmount(
             <tr v-else-if="!gnoTxs.length">
               <td colspan="6" class="sz-acc-empty">{{ $t('account.no_transactions') }}</td>
             </tr>
-            <tr v-for="(tx, index) in gnoTxs" :key="tx.txHash || index">
+            <tr v-for="(tx, index) in gnoTxsPage" :key="tx.txHash || index">
               <td class="sz-acc-num">
                 <RouterLink v-if="tx.blockHeight" :to="`/${chain}/block/${tx.blockHeight}`" class="sz-acc-link">#{{ tx.blockHeight }}</RouterLink>
                 <span v-else>—</span>
@@ -949,10 +968,22 @@ function findTokenAmount(
             </tr>
           </tbody>
         </table>
-        <div v-if="gnoTxsHasNext" class="p-3 text-center">
-          <button class="btn btn-sm btn-primary" :disabled="gnoTxsLoadingMore" @click="loadMoreGnoTxs">
-            {{ gnoTxsLoadingMore ? 'Loading…' : 'Load more' }}
-          </button>
+        <div class="sz-acc-pager" v-if="gnoTxs.length > txHistoryLimit || gnoTxsHasNext">
+          <button class="sz-acc-pager-btn" :disabled="txHistoryPage === 1" @click="setTxHistoryPage(txHistoryPage - 1)">← Prev</button>
+          <span class="sz-acc-pager-info">
+            Page {{ txHistoryPage }} / {{ gnoHistoryPageCount }}{{ gnoTxsHasNext ? '+' : '' }}
+          </span>
+          <button
+            class="sz-acc-pager-btn"
+            :disabled="txHistoryPage * txHistoryLimit >= gnoTxs.length && !gnoTxsHasNext"
+            @click="setTxHistoryPage(txHistoryPage + 1)"
+          >Next →</button>
+          <button
+            v-if="gnoTxsHasNext"
+            class="sz-acc-pager-btn ml-2"
+            :disabled="gnoTxsLoadingMore"
+            @click="loadMoreGnoTxs"
+          >{{ gnoTxsLoadingMore ? 'Loading…' : 'Fetch more' }}</button>
         </div>
       </div>
 

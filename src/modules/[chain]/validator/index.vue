@@ -96,7 +96,15 @@ function gnoToValidator(g: GnoIndexerValidator): Validator {
  * Used to detect real changes between polls (not every poll → toast).
  */
 function gnoFingerprint(g: GnoIndexerValidator): string {
-  return `${g.status}|${g.address}|${(g.monikerName || '').trim()}`;
+  // Identity = status + address only (moniker display can change without a set change)
+  return `${g.status}|${g.address}`;
+}
+
+function gnoSetKey(rows: GnoIndexerValidator[]): string {
+  return rows
+    .map(gnoFingerprint)
+    .sort()
+    .join('\n');
 }
 
 function showGnoToast(msg: string) {
@@ -241,6 +249,11 @@ async function fetchGnoValidators(opts: { silent?: boolean } = {}) {
   let lastErr: any = null;
   // Snapshot for silent poll toast (progressive assign would otherwise make prev===next)
   const prevSnapshot = opts.silent ? gnoValidators.value.slice() : null;
+  // Silent background polls must NOT progressive-paint: swapping partial pages
+  // (20 → 40 → 88) several times per minute makes the table "refresh" and
+  // flicker for the user. Keep the current rows until the full set is ready,
+  // then swap once + toast only on real identity-set changes.
+  const paintProgressive = !opts.silent;
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     if (gen !== gnoFetchGen) return;
     try {
@@ -248,24 +261,30 @@ async function fetchGnoValidators(opts: { silent?: boolean } = {}) {
       // Bust HTTP cache so new registrations from cron land without hard refresh.
       await initGnoValopers().catch(() => undefined);
       if (gen !== gnoFetchGen) return;
-      // Progressive paint: first page (~20) lands immediately; rest appends.
-      // Merge registry-pending on every partial so Pending tab isn't empty mid-walk.
       const nextRaw = await getGnoIndexer(indexerUrl.value).getAllValidators((partial, done) => {
         if (gen !== gnoFetchGen) return;
+        if (!paintProgressive) return; // silent: hold UI until full merge below
+        // First paint only when list empty; later progressive appends for cold load
         gnoValidators.value = mergeRegistryPending(partial);
         if (done) gnoError.value = '';
-        if (partial.length && !opts.silent) loadAvatars();
+        if (partial.length) loadAvatars();
       });
       if (gen !== gnoFetchGen) return;
       const next = mergeRegistryPending(nextRaw);
       if (opts.silent && prevSnapshot) {
+        // Compare identity fingerprints; toast only for real add/remove/status
         diffAndToast(prevSnapshot, next);
-      } else if (!gnoBaselineReady) {
-        gnoBaselineReady = true;
+        // Skip DOM thrash if the set is identical (common every 30s poll)
+        if (gnoSetKey(prevSnapshot) !== gnoSetKey(next)) {
+          gnoValidators.value = next;
+          loadAvatars();
+        }
+      } else {
+        if (!gnoBaselineReady) gnoBaselineReady = true;
+        gnoValidators.value = next;
+        loadAvatars();
       }
-      gnoValidators.value = next;
       gnoError.value = '';
-      loadAvatars();
       lastErr = null;
       break;
     } catch (e: any) {
@@ -452,26 +471,30 @@ onMounted(() => {
       }
     }
   );
-  // Near-realtime: poll every 30s while this page is open (was 60s — felt "zonk"
-  // because new valoper registrations only appear via registry merge + cron).
-  // Toast only on real set changes (new pending register / activated / inactivated).
+  // Near-realtime: poll every 45s while this page is open.
+  // Fetch is fully silent (no progressive paint, no loading spinner). Toast
+  // only fires on real set changes (new pending / activated / inactivated).
   if (isGno.value) {
-    gnoPollTimer = setInterval(() => fetchGnoValidators({ silent: true }), 30_000);
+    gnoPollTimer = setInterval(() => fetchGnoValidators({ silent: true }), 45_000);
   }
   // Start poller when isGno flips true after mount (chain switch / late engine)
   watch(isGno, (gno) => {
     if (gno && !gnoPollTimer) {
       fetchGnoValidators();
-      gnoPollTimer = setInterval(() => fetchGnoValidators({ silent: true }), 30_000);
+      gnoPollTimer = setInterval(() => fetchGnoValidators({ silent: true }), 45_000);
     }
   });
   // Visibility resume: re-pull when user returns to the tab (catch registrations
-  // that landed while backgrounded — no hard refresh).
+  // that landed while backgrounded — no hard refresh). Debounced so rapid
+  // tab switches don't stack progressive-less fetches.
   if (typeof document !== 'undefined') {
+    let visCooldown = 0;
     const onVis = () => {
-      if (document.visibilityState === 'visible' && isGno.value) {
-        fetchGnoValidators({ silent: true });
-      }
+      if (document.visibilityState !== 'visible' || !isGno.value) return;
+      const now = Date.now();
+      if (now - visCooldown < 15_000) return;
+      visCooldown = now;
+      fetchGnoValidators({ silent: true });
     };
     document.addEventListener('visibilitychange', onVis);
     onUnmounted(() => document.removeEventListener('visibilitychange', onVis));
