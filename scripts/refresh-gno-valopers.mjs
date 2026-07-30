@@ -26,9 +26,26 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const ROOT = join(__dirname, '..');
-const OUTPUT_DIR = join(ROOT, 'public', 'data');
-const OUTPUT_FILE = join(OUTPUT_DIR, 'gno-valopers.json');
+// Explorer repo root (chain JSON + optional bundle/overrides live here).
+// May differ from JSON output dir when using Opsi A: $HOME/gno-valopers.
+const ROOT = process.env.GNO_EXPLORER_ROOT
+  ? process.env.GNO_EXPLORER_ROOT
+  : join(__dirname, '..');
+
+// --- args ---
+const args = process.argv.slice(2);
+const chainArg = args.includes('--chain') ? args[args.indexOf('--chain') + 1] : 'gnoland-testnet';
+const skipAtomone = args.includes('--skip-atomone');
+const skipBundle = args.includes('--skip-bundle');
+// --out /path/to/gno-valopers.json  OR env VALOPERS_JSON / GNO_VALOPERS_OUT
+const outIdx = args.indexOf('--out');
+const outFromCli = outIdx >= 0 ? args[outIdx + 1] : null;
+const OUTPUT_FILE =
+  outFromCli ||
+  process.env.VALOPERS_JSON ||
+  process.env.GNO_VALOPERS_OUT ||
+  join(ROOT, 'public', 'data', 'gno-valopers.json');
+const OUTPUT_DIR = dirname(OUTPUT_FILE);
 const BUNDLE_FILE = join(ROOT, 'src', 'libs', 'gno', 'valopers-data.ts');
 const OVERRIDE_FILE = join(ROOT, 'src', 'libs', 'gno', 'identity-overrides.json');
 
@@ -44,18 +61,12 @@ const ATOMONE_LCDS = [
   'https://atomone.api.nodeshub.online',
 ];
 
-// --- args ---
-const args = process.argv.slice(2);
-const chainArg = args.includes('--chain') ? args[args.indexOf('--chain') + 1] : 'gnoland-testnet';
-const skipAtomone = args.includes('--skip-atomone');
-const skipBundle = args.includes('--skip-bundle');
-
 function findChainConfig(name) {
   for (const dir of ['chains/testnet', 'chains/mainnet']) {
     const p = join(ROOT, dir, `${name}.json`);
     if (existsSync(p)) return JSON.parse(readFileSync(p, 'utf-8'));
   }
-  throw new Error(`Chain config not found: ${name}`);
+  throw new Error(`Chain config not found: ${name} under ${ROOT}`);
 }
 
 const config = findChainConfig(chainArg);
@@ -65,7 +76,7 @@ if (!vs || vs.type !== 'gno-realm') {
   process.exit(0);
 }
 const BASE = vs.base_url.replace(/\/$/, '');
-console.log(`Chain: ${chainArg} | Source: ${BASE} | Output: ${OUTPUT_FILE}`);
+console.log(`Chain: ${chainArg} | Source: ${BASE} | Output: ${OUTPUT_FILE} | ExplorerRoot: ${ROOT}`);
 
 // --- fetch helper ---
 async function get(url, accept = 'text/html') {
