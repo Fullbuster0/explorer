@@ -1,7 +1,7 @@
 /** Auto-generated Gnoland valoper moniker registry.
  * Source: https://topaz.testnets.gno.land/r/gnops/valopers
  * Identity: AtomOne mainnet moniker match → Keybase (for logos)
- * Generated: 2026-07-29T21:32:14.372Z
+ * Generated: 2026-07-30T01:00:45.606Z
  * Do not hand-edit — run: node scripts/refresh-gno-valopers.mjs
  */
 export interface GnoValoperRow {
@@ -943,7 +943,7 @@ const registry: GnoValoperRow[] = [
     "website": "https://nodeist.net",
     "identity": "A2E180C6914F7F87",
     "serverType": "data-center",
-    "description": "Nodeist is the trusted staking service provider for blockchain projects. 100% refund for downtime slash. Contact us at  /cdn-cgi/l/email-protection#0a626f6666654a64656e6f63797e24646f7e  [email protected]\n\nWhy gno.land: We've been following Gno.land's development with great enthusiasm since its early days. The platform's unique approach to smart contracts through the Gno language presents one of the most innovative solutions in the blockchain space today. Its modular, community-driven architecture aligns perfectly with our vision for decentralized infrastructure.\n\nContributions: Early Network Participation · Educational Resources · Community Support · Planned Infrastructure: Committed to launching public RPC endpoints and maintaining daily snapshots to enhance network accessibility",
+    "description": "Nodeist is the trusted staking service provider for blockchain projects. 100% refund for downtime slash. Contact us at  /cdn-cgi/l/email-protection#7c14191010133c12131819150f0852121908  [email protected]\n\nWhy gno.land: We've been following Gno.land's development with great enthusiasm since its early days. The platform's unique approach to smart contracts through the Gno language presents one of the most innovative solutions in the blockchain space today. Its modular, community-driven architecture aligns perfectly with our vision for decentralized infrastructure.\n\nContributions: Early Network Participation · Educational Resources · Community Support · Planned Infrastructure: Committed to launching public RPC endpoints and maintaining daily snapshots to enhance network accessibility",
     "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpxkc940hdu7nsch7gpsnhdn9pynm7pj458zmwruprak7ewhws84dvn5n75",
     "twitter": "https://x.com/Nodeistt",
     "github": "https://github.com/Nodeist",
