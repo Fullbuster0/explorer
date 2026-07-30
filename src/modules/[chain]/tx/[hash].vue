@@ -83,7 +83,7 @@ async function enrichGnoTx(res: any, routeHash: string) {
         if (!res.tx.auth_info) res.tx.auth_info = { fee: { amount: [] } };
         if (!res.tx.auth_info.fee) res.tx.auth_info.fee = { amount: [] };
         res.tx.auth_info.fee.amount = [{ amount: String(fee.value), denom: fee.denom || 'ugnot' }];
-        res.tx.auth_info.fee.gas_limit = String(detail.gas?.wanted ?? res.tx_response.gas_wanted || '0');
+        res.tx.auth_info.fee.gas_limit = String(detail.gas?.wanted ?? (res.tx_response.gas_wanted || '0'));
       }
       if (detail.gas?.used != null) res.tx_response.gas_used = String(detail.gas.used);
       if (detail.gas?.wanted != null) res.tx_response.gas_wanted = String(detail.gas.wanted);
