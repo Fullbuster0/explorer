@@ -2571,4 +2571,61 @@ watch(
 .sz-hero-link--muted .sz-hero-link-value {
   color: var(--text-secondary);
 }
+
+/* Gno tx history pager — match account AtomOne UX (classes shared) */
+.sz-acc-page-size {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 10px;
+  background: color-mix(in srgb, hsl(var(--bc)) 5%, transparent);
+  border: 1px solid var(--sz-border, rgba(128,128,128,.25));
+}
+.sz-acc-page-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30px;
+  height: 26px;
+  padding: 0 0.5rem;
+  border-radius: 7px;
+  background: transparent;
+  border: none;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-secondary, #888);
+  cursor: pointer;
+}
+.sz-acc-page-btn--active {
+  color: white;
+  background: hsl(var(--p));
+}
+.sz-acc-pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.9rem;
+  padding: 0.85rem 1rem 0.95rem;
+}
+.sz-acc-pager-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.4rem 0.75rem;
+  border-radius: 8px;
+  font-size: 11.5px;
+  font-weight: 700;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  background: transparent;
+  border: 1px solid var(--sz-border, rgba(128,128,128,.25));
+  cursor: pointer;
+}
+.sz-acc-pager-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.sz-acc-pager-info {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--text-secondary, #888);
+}
 </style>
