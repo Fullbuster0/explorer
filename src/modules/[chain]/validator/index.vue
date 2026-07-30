@@ -7,7 +7,7 @@ import type { Key, SlashingParam, Validator } from '@/types';
 import { formatSeconds } from '@/libs/utils';
 import { diff } from 'semver';
 import { getGnoIndexer, type GnoIndexerValidator } from '@/libs/gno/indexer';
-import { lookupGnoValoper, initGnoValopers } from '@/libs/gno/valopers';
+import { lookupGnoValoper, initGnoValopers, listGnoValopers } from '@/libs/gno/valopers';
 
 const staking = useStakingStore();
 const base = useBaseStore();
@@ -155,6 +155,72 @@ function diffAndToast(prev: GnoIndexerValidator[], next: GnoIndexerValidator[]) 
   if (msgs.length) showGnoToast(msgs.slice(0, 3).join(' · '));
 }
 
+/**
+ * onbloc keeps a PENDING row for every registration — including operators that
+ * later became ACTIVE (address = operator, while ACTIVE row uses signing addr).
+ * Those double-entries must stay hidden.
+ *
+ * Separately, NEW registrations often appear ONLY on the official valopers
+ * realm (gnoweb page 3+) before onbloc indexes them. Those never show as
+ * PENDING onbloc rows that survive dedupe. We synthesize PENDING rows from the
+ * valopers registry for operators not yet in the ACTIVE/INACTIVE set.
+ */
+function mergeRegistryPending(indexerRows: GnoIndexerValidator[]): GnoIndexerValidator[] {
+  const settledSig = new Set<string>();
+  const settledOp = new Set<string>();
+  const settledMon = new Set<string>();
+  const seenPendOp = new Set<string>();
+
+  for (const g of indexerRows) {
+    if (g.status === 'ACTIVE' || g.status === 'INACTIVE') {
+      settledSig.add(g.address);
+      const meta = lookupGnoValoper(g.address);
+      if (meta?.operatorAddress) settledOp.add(meta.operatorAddress);
+      if (meta?.signingAddress) settledSig.add(meta.signingAddress);
+      settledOp.add(g.address); // genesis / same-key
+      const mon = (meta?.moniker || g.monikerName || '').trim().toLowerCase();
+      if (mon) settledMon.add(mon);
+    } else if (g.status === 'PENDING') {
+      seenPendOp.add(g.address);
+    }
+  }
+
+  // Keep indexer rows as-is; append synthetic pending for registry-only regs.
+  const out = indexerRows.slice();
+  let synthId = -1;
+  for (const row of listGnoValopers()) {
+    const op = (row.operatorAddress || '').trim();
+    const sig = (row.signingAddress || '').trim();
+    const mon = (row.moniker || '').trim();
+    if (!op && !sig) continue;
+    // Already active/inactive by signing or operator
+    if (sig && settledSig.has(sig)) continue;
+    if (op && settledOp.has(op)) continue;
+    if (op && settledSig.has(op)) continue;
+    if (sig && settledOp.has(sig)) continue;
+    if (mon && settledMon.has(mon.toLowerCase())) continue;
+    // Already have an onbloc PENDING row for this operator
+    if (op && seenPendOp.has(op)) continue;
+    if (sig && seenPendOp.has(sig)) continue;
+
+    out.push({
+      id: synthId--,
+      monikerName: mon || shortAddr(op || sig),
+      status: 'PENDING',
+      // Pending detail / account activity keys off operator (gnokey), not secrets.
+      address: op || sig,
+      votingPower: '0',
+      shareRate: '0',
+      firstCommittedHeight: 0,
+      inActivatedHeight: null,
+      firstCommittedTime: null,
+      proposalId: null,
+    });
+    if (op) seenPendOp.add(op);
+  }
+  return out;
+}
+
 async function fetchGnoValidators(opts: { silent?: boolean } = {}) {
   if (!isGno.value) return;
   // Wait briefly for chain config to settle (indexer_api arrives with current)
@@ -179,17 +245,20 @@ async function fetchGnoValidators(opts: { silent?: boolean } = {}) {
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     if (gen !== gnoFetchGen) return;
     try {
-      // Ensure valopers registry is loaded (moniker + signing↔operator link for dedupe)
+      // Ensure valopers registry is loaded (moniker + signing↔operator + pending synth)
+      // Bust HTTP cache so new registrations from cron land without hard refresh.
       await initGnoValopers().catch(() => undefined);
       if (gen !== gnoFetchGen) return;
       // Progressive paint: first page (~20) lands immediately; rest appends.
-      const next = await getGnoIndexer(indexerUrl.value).getAllValidators((partial, done) => {
+      // Merge registry-pending on every partial so Pending tab isn't empty mid-walk.
+      const nextRaw = await getGnoIndexer(indexerUrl.value).getAllValidators((partial, done) => {
         if (gen !== gnoFetchGen) return;
-        gnoValidators.value = partial;
+        gnoValidators.value = mergeRegistryPending(partial);
         if (done) gnoError.value = '';
         if (partial.length && !opts.silent) loadAvatars();
       });
       if (gen !== gnoFetchGen) return;
+      const next = mergeRegistryPending(nextRaw);
       if (opts.silent && prevSnapshot) {
         diffAndToast(prevSnapshot, next);
       } else if (!gnoBaselineReady) {
@@ -214,9 +283,14 @@ async function fetchGnoValidators(opts: { silent?: boolean } = {}) {
   if (gen !== gnoFetchGen) return;
   if (lastErr) {
     if (!opts.silent) gnoError.value = lastErr?.message || String(lastErr);
-    // Indexer down: keep existing rows if any; else RPC ACTIVE fallback.
+    // Indexer down: keep existing rows if any; else RPC ACTIVE fallback + still show registry pending.
     if (!gnoValidators.value.length) {
       await fetchGnoValidatorsFromRpc();
+    } else {
+      // Re-merge in case registry JSON updated while indexer errored
+      gnoValidators.value = mergeRegistryPending(
+        gnoValidators.value.filter((g) => g.id >= 0) // drop prior synth, re-add
+      );
     }
   }
   if (!opts.silent) gnoLoading.value = false;
@@ -244,7 +318,8 @@ async function fetchGnoValidatorsFromRpc() {
       proposalId: null,
     }));
     if (mapped.length) {
-      gnoValidators.value = mapped;
+      // Still surface registry-only registrations as Pending when indexer is down.
+      gnoValidators.value = mergeRegistryPending(mapped);
       gnoError.value = gnoError.value || 'Indexer unavailable — showing RPC active set';
       if (!gnoBaselineReady) gnoBaselineReady = true;
       loadAvatars();
@@ -388,19 +463,30 @@ onMounted(() => {
       }
     }
   );
-  // Near-realtime: poll every 60s while this page is open. Toast only on real
-  // set changes (new pending register / activated / inactivated) — not every tick.
-  // Same idea as TX page polling, but validators change rarely so toast is useful.
+  // Near-realtime: poll every 30s while this page is open (was 60s — felt "zonk"
+  // because new valoper registrations only appear via registry merge + cron).
+  // Toast only on real set changes (new pending register / activated / inactivated).
   if (isGno.value) {
-    gnoPollTimer = setInterval(() => fetchGnoValidators({ silent: true }), 60_000);
+    gnoPollTimer = setInterval(() => fetchGnoValidators({ silent: true }), 30_000);
   }
   // Start poller when isGno flips true after mount (chain switch / late engine)
   watch(isGno, (gno) => {
     if (gno && !gnoPollTimer) {
       fetchGnoValidators();
-      gnoPollTimer = setInterval(() => fetchGnoValidators({ silent: true }), 60_000);
+      gnoPollTimer = setInterval(() => fetchGnoValidators({ silent: true }), 30_000);
     }
   });
+  // Visibility resume: re-pull when user returns to the tab (catch registrations
+  // that landed while backgrounded — no hard refresh).
+  if (typeof document !== 'undefined') {
+    const onVis = () => {
+      if (document.visibilityState === 'visible' && isGno.value) {
+        fetchGnoValidators({ silent: true });
+      }
+    };
+    document.addEventListener('visibilitychange', onVis);
+    onUnmounted(() => document.removeEventListener('visibilitychange', onVis));
+  }
 });
 
 onUnmounted(() => {

@@ -1790,7 +1790,7 @@ watch(
             <div class="mt-1 text-[11px] text-secondary">
               Balance:
               <span class="font-mono text-base-content">{{ gnoBalances.loading ? '…' : formatGnoBal(gnoBalances.signing) }}</span>
-              <span class="opacity-60"> · liquid · no account link</span>
+              <span class="opacity-60"> · no account link (from gnoland secrets)</span>
             </div>
           </div>
           <div>
@@ -1812,7 +1812,7 @@ watch(
             <div class="mt-1 text-[11px] text-secondary">
               Balance:
               <span class="font-mono text-base-content">{{ gnoBalances.loading ? '…' : formatGnoBal(gnoBalances.operator) }}</span>
-              <span class="opacity-60"> · account + valoper activity</span>
+              <span class="opacity-60"> · account + valoper activity (from gnokey)</span>
             </div>
           </div>
           <div>
