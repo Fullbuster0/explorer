@@ -23,6 +23,8 @@ const tm2Synthetic = ref(false);
 let timer: any = null;
 let loading = false;
 let started = false;
+/** Supersede concurrent startMonitor runs (endpoint swap / SPA remount). */
+let monitorGen = 0;
 const positions = ref([] as any[]);
 const validatorsData = ref([] as any);
 
@@ -106,12 +108,15 @@ function setRpcFromList(preferAddress?: string) {
 }
 
 async function startMonitor() {
-  if (started || loading) return;
+  // Allow re-entry if a previous attempt is still loading (endpoint swap / SPA remount).
+  // Generation token supersedes the older run so we never permanently lock `loading`.
+  const gen = ++monitorGen;
   started = true;
   loading = true;
   try {
     try {
       validatorsData.value = await stakingStore.fetchAcitveValdiators();
+      if (gen !== monitorGen) return;
       loadAvatars();
     } catch (e) {
       console.warn('validators load failed', e);
@@ -127,10 +132,13 @@ async function startMonitor() {
     // Try each RPC until one supports both /validators and /consensus_state
     let ok = false;
     for (const ep of rpcList.value) {
+      if (gen !== monitorGen) return;
       rpc.value = baseOf(ep.address);
       await fetchPosition();
+      if (gen !== monitorGen) return;
       if (httpstatus.value === 200 && positions.value.length > 0) {
         await update();
+        if (gen !== monitorGen) return;
         if (httpstatus.value === 200) {
           ok = true;
           break;
@@ -148,7 +156,7 @@ async function startMonitor() {
       started = false; // allow re-try after endpoint swap / later readiness
     }
   } finally {
-    loading = false;
+    if (gen === monitorGen) loading = false;
   }
 }
 
@@ -185,9 +193,9 @@ watch(
   () => chainStore.endpoint?.address,
   async (addr, prev) => {
     if (!addr || addr === prev) return;
-    if (loading) return;
     clearTime();
     started = false;
+    loading = false; // unlock any stuck in-flight startMonitor
     positions.value = [];
     roundState.value = {};
     await startMonitor();
@@ -323,7 +331,13 @@ const filteredRows = computed(() => {
 
 // ---- actions ----
 async function refetch() {
-  if (loading) return;
+  // Don't hard-lock on loading forever — supersede via startMonitor gen path
+  if (loading) {
+    // Force a clean restart rather than no-op (user-visible "stuck until refresh")
+    clearTime();
+    started = false;
+    loading = false;
+  }
   loading = true;
   httpstatus.value = 200;
   httpStatusText.value = '';

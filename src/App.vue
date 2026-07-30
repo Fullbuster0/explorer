@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { themeChange } from 'theme-change';
-import { onMounted, onUnmounted, ref } from 'vue';
+import { onMounted, onUnmounted } from 'vue';
 import TxDialog from './components/TxDialog.vue';
 import { useBaseStore } from '@/stores';
 
@@ -8,18 +8,25 @@ import { useBaseStore } from '@/stores';
 const REFRESH_INTERVAL = Number(import.meta.env.VITE_REFRESH_INTERVAL || 2000);
 
 const blockStore = useBaseStore();
-const requestCounter = ref(0);
 let pollingTimer: ReturnType<typeof setInterval> | null = null;
 let inflight = false;
 
 async function tick() {
-  if (inflight || requestCounter.value >= 2) return;
+  // Drop the hard `inflight` permanent lock: a hung fetchLatest used to freeze
+  // the global block poller until hard refresh (statusbar + every page felt dead).
+  // fetchLatest itself is bounded via http timeout; overlapping ticks are fine to skip
+  // only while a call is truly running, and we always clear the flag in finally.
+  if (inflight) return;
   inflight = true;
-  requestCounter.value += 1;
   try {
-    await blockStore.fetchLatest();
+    await Promise.race([
+      blockStore.fetchLatest(),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('tick-timeout')), 20000)),
+    ]);
+  } catch (e) {
+    // swallow — next interval retries; fallbackEndpoint may already be running
+    console.warn('[App] block tick:', (e as any)?.message || e);
   } finally {
-    requestCounter.value -= 1;
     inflight = false;
   }
 }

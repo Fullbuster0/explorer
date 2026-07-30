@@ -39,6 +39,8 @@ const gnoError = ref('');
 const gnoToast = ref('');
 let gnoToastTimer: ReturnType<typeof setTimeout> | null = null;
 let gnoPollTimer: ReturnType<typeof setInterval> | null = null;
+/** Bump every fetchGnoValidators call so stale in-flight results are ignored. */
+let gnoFetchGen = 0;
 /** First successful fetch is baseline — don't toast on initial load. */
 let gnoBaselineReady = false;
 
@@ -165,21 +167,29 @@ async function fetchGnoValidators(opts: { silent?: boolean } = {}) {
     await fetchGnoValidatorsFromRpc();
     return;
   }
+  // Generation token: a new call always supersedes an older in-flight one.
+  // Never gate on gnoLoading — that caused "SPA nav blank until hard refresh"
+  // when a hung/slow indexer left loading=true and later mounts no-op'd.
+  const gen = ++gnoFetchGen;
   if (!opts.silent) gnoLoading.value = true;
   const maxAttempts = opts.silent ? 1 : 3;
   let lastErr: any = null;
   // Snapshot for silent poll toast (progressive assign would otherwise make prev===next)
   const prevSnapshot = opts.silent ? gnoValidators.value.slice() : null;
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    if (gen !== gnoFetchGen) return;
     try {
       // Ensure valopers registry is loaded (moniker + signing↔operator link for dedupe)
       await initGnoValopers().catch(() => undefined);
+      if (gen !== gnoFetchGen) return;
       // Progressive paint: first page (~20) lands immediately; rest appends.
       const next = await getGnoIndexer(indexerUrl.value).getAllValidators((partial, done) => {
+        if (gen !== gnoFetchGen) return;
         gnoValidators.value = partial;
         if (done) gnoError.value = '';
         if (partial.length && !opts.silent) loadAvatars();
       });
+      if (gen !== gnoFetchGen) return;
       if (opts.silent && prevSnapshot) {
         diffAndToast(prevSnapshot, next);
       } else if (!gnoBaselineReady) {
@@ -201,6 +211,7 @@ async function fetchGnoValidators(opts: { silent?: boolean } = {}) {
       }
     }
   }
+  if (gen !== gnoFetchGen) return;
   if (lastErr) {
     if (!opts.silent) gnoError.value = lastErr?.message || String(lastErr);
     // Indexer down: keep existing rows if any; else RPC ACTIVE fallback.

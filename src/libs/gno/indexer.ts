@@ -9,7 +9,12 @@
  *
  * Pagination is CURSOR-based: responses carry `page.cursor` + `page.hasNext`.
  * The `size` param is ignored server-side (always ~20 items).
+ *
+ * IMPORTANT: all HTTP goes through `@/libs/http` get() (12s AbortController +
+ * 1 retry). Bare `fetch` used to hang forever on a stalled indexer → page
+ * `loading=true` stuck → sidebar SPA nav looked blank until hard refresh.
  */
+import { get as httpGet } from '@/libs/http';
 
 export interface GnoTx {
   txHash: string;
@@ -131,10 +136,16 @@ export class GnoIndexerClient {
         url.searchParams.set(k, String(v));
       }
     }
-    const res = await fetch(url.toString());
-    if (!res.ok) throw new Error(`Indexer API ${res.status}: ${path}`);
-    const json = await res.json();
-    return json.data as T;
+    // Timed + retried — never leave SPA pages waiting on a hung TCP forever.
+    const json = await httpGet(url.toString());
+    if (json == null || typeof json !== 'object') {
+      throw new Error(`Indexer API empty body: ${path}`);
+    }
+    // onbloc envelope: { data: T }. Tolerate bare T if a mirror drops the wrap.
+    if (Object.prototype.hasOwnProperty.call(json, 'data')) {
+      return (json as any).data as T;
+    }
+    return json as T;
   }
 
   /** First page of transactions (newest first). */

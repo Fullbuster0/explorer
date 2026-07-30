@@ -3,16 +3,19 @@
  * Gno Tokens (GRC20) — from onbloc indexer API.
  */
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
-import { useBlockchain } from '@/stores';
+import { useBaseStore, useBlockchain } from '@/stores';
 import { getGnoIndexer, type GnoToken } from '@/libs/gno/indexer';
 
 const props = defineProps(['chain']);
 const chainStore = useBlockchain();
+const baseStore = useBaseStore();
 
 const tokens = ref<GnoToken[]>([]);
 const loading = ref(false);
 const errored = ref(false);
 const search = ref('');
+/** Supersede in-flight fetches — never block SPA re-entry with `if (loading) return`. */
+let fetchGen = 0;
 
 const indexerUrl = computed(() => (chainStore.current as any)?.indexer_api || '');
 const hasIndexer = computed(() => !!indexerUrl.value);
@@ -55,15 +58,18 @@ function shortPath(path: string): string {
 }
 
 async function fetchTokens() {
-  if (!hasIndexer.value || loading.value) return;
+  if (!hasIndexer.value) return;
+  const gen = ++fetchGen;
   loading.value = true;
   errored.value = false;
   const maxAttempts = 3;
   let lastErr: any = null;
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    if (gen !== fetchGen) return;
     try {
       const client = getGnoIndexer(indexerUrl.value);
       const page = await client.getTokens();
+      if (gen !== fetchGen) return;
       tokens.value = page.items;
       lastErr = null;
       break;
@@ -75,6 +81,7 @@ async function fetchTokens() {
       }
     }
   }
+  if (gen !== fetchGen) return;
   if (lastErr) errored.value = true;
   loading.value = false;
 }
@@ -91,6 +98,13 @@ watch(
   () => indexerUrl.value,
   (url, prev) => {
     if (url && url !== prev && (!tokens.value.length || errored.value)) fetchTokens();
+  }
+);
+// Reconnect recovery after silent RPC fallback (no hard refresh)
+watch(
+  () => baseStore.connected,
+  (ok, was) => {
+    if (ok && !was && hasIndexer.value && (!tokens.value.length || errored.value)) fetchTokens();
   }
 );
 // Tab-back resume when empty/errored

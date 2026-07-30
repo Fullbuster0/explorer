@@ -415,11 +415,14 @@ dayjs();
             <span>{{ $t('pages.out_of_sync') }} {{ blocktime.format() }} ({{ blocktime.fromNow() }})</span>
           </div>
         </div>
-        <RouterView v-slot="{ Component }">
-          <Transition mode="out-in">
-            <Component :is="Component" />
-          </Transition>
-        </RouterView>
+        <!--
+          SPA page swap: avoid mode="out-in" without a named transition.
+          Unnamed Transition + out-in can leave the leaving component stuck
+          (opacity 0 / display:none) when CSS enter/leave classes are missing
+          → user sees chrome+statusbar but blank main until hard refresh.
+          Instant swap is correct for data pages; keep Transition only if named.
+        -->
+        <RouterView />
       </main>
 
       <newFooter />

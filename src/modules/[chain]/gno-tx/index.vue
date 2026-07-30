@@ -4,12 +4,13 @@
  * Public Gno RPC has tx_index=off, so we use the indexer.
  */
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
-import { useBlockchain } from '@/stores';
+import { useBaseStore, useBlockchain } from '@/stores';
 import { getGnoIndexer, type GnoTx } from '@/libs/gno/indexer';
 import { RouterLink } from 'vue-router';
 
 const props = defineProps(['chain']);
 const chainStore = useBlockchain();
+const baseStore = useBaseStore();
 
 const txs = ref<GnoTx[]>([]);
 const cursor = ref<string | undefined>();
@@ -20,6 +21,8 @@ const errored = ref(false);
 const lastFetchedAt = ref(0);
 const nowTick = ref(Date.now());
 let tickTimer: number | undefined;
+/** Supersede in-flight fetches — never block SPA re-entry with `if (loading) return`. */
+let fetchGen = 0;
 
 const indexerUrl = computed(() => (chainStore.current as any)?.indexer_api || '');
 const hasIndexer = computed(() => !!indexerUrl.value);
@@ -89,15 +92,18 @@ function ageBucket(iso: string): 'fresh' | 'recent' | 'aged' {
 }
 
 async function fetchFirst() {
-  if (!hasIndexer.value || loading.value) return;
+  if (!hasIndexer.value) return;
+  const gen = ++fetchGen;
   loading.value = true;
   errored.value = false;
   const maxAttempts = 3;
   let lastErr: any = null;
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    if (gen !== fetchGen) return; // superseded by newer nav/fetch
     try {
       const client = getGnoIndexer(indexerUrl.value);
       const page = await client.getTransactions();
+      if (gen !== fetchGen) return;
       txs.value = page.items;
       cursor.value = page.cursor;
       hasNext.value = page.hasNext;
@@ -112,6 +118,7 @@ async function fetchFirst() {
       }
     }
   }
+  if (gen !== fetchGen) return;
   if (lastErr) errored.value = true;
   loading.value = false;
 }
@@ -157,6 +164,16 @@ watch(
   () => indexerUrl.value,
   (url, prev) => {
     if (url && url !== prev && (!txs.value.length || errored.value)) fetchFirst();
+  }
+);
+// After silent RPC auto-fallback restores Connected, re-pull empty/errored lists
+// without requiring the user to hard-refresh or re-click sidebar.
+watch(
+  () => baseStore.connected,
+  (ok, was) => {
+    if (ok && !was && hasIndexer.value && (!txs.value.length || errored.value)) {
+      fetchFirst();
+    }
   }
 );
 // Visibility resume: if user tabbed away and came back to an empty/errored list, retry

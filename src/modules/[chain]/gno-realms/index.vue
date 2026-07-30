@@ -4,11 +4,12 @@
  * Data from onbloc indexer API.
  */
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
-import { useBlockchain } from '@/stores';
+import { useBaseStore, useBlockchain } from '@/stores';
 import { getGnoIndexer, type GnoRealm } from '@/libs/gno/indexer';
 
 const props = defineProps(['chain']);
 const chainStore = useBlockchain();
+const baseStore = useBaseStore();
 
 const realms = ref<GnoRealm[]>([]);
 const cursor = ref<string | undefined>();
@@ -17,6 +18,8 @@ const loading = ref(false);
 const loadingMore = ref(false);
 const errored = ref(false);
 const search = ref('');
+/** Supersede in-flight fetches — never block SPA re-entry with `if (loading) return`. */
+let fetchGen = 0;
 
 const indexerUrl = computed(() => (chainStore.current as any)?.indexer_api || '');
 const hasIndexer = computed(() => !!indexerUrl.value);
@@ -67,15 +70,18 @@ function gnowebUrl(path: string): string {
 }
 
 async function fetchFirst() {
-  if (!hasIndexer.value || loading.value) return;
+  if (!hasIndexer.value) return;
+  const gen = ++fetchGen;
   loading.value = true;
   errored.value = false;
   const maxAttempts = 3;
   let lastErr: any = null;
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    if (gen !== fetchGen) return;
     try {
       const client = getGnoIndexer(indexerUrl.value);
       const page = await client.getRealms();
+      if (gen !== fetchGen) return;
       realms.value = page.items;
       cursor.value = page.cursor;
       hasNext.value = page.hasNext;
@@ -89,6 +95,7 @@ async function fetchFirst() {
       }
     }
   }
+  if (gen !== fetchGen) return;
   if (lastErr) errored.value = true;
   loading.value = false;
 }
@@ -126,6 +133,13 @@ watch(
   () => indexerUrl.value,
   (url, prev) => {
     if (url && url !== prev && (!realms.value.length || errored.value)) fetchFirst();
+  }
+);
+// Reconnect recovery: Connected flip after fallback — refill empty list (no hard refresh)
+watch(
+  () => baseStore.connected,
+  (ok, was) => {
+    if (ok && !was && hasIndexer.value && (!realms.value.length || errored.value)) fetchFirst();
   }
 );
 // Tab-back resume when list empty/errored (no hard refresh)

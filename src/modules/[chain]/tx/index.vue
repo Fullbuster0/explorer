@@ -43,6 +43,8 @@ const freshHashes = ref<Set<string>>(new Set()); // txs that arrived on this ref
 const nowTick = ref(Date.now()); // for relative-time re-renders
 let pollTimer: number | undefined;
 let tickTimer: number | undefined;
+/** Supersede concurrent fetchRecent — never permanent-lock on loading. */
+let fetchGen = 0;
 
 onMounted(() => {
   // Gno chains: bounce bare /tx → /gno-tx before spinning the LCD poller.
@@ -91,10 +93,13 @@ watch(
 );
 
 async function fetchRecent(isInitial: boolean) {
-  if (loading.value) return;
+  // Never permanently lock on loading — hung LCD used to freeze the poller
+  // until hard refresh. Generation token supersedes in-flight work.
+  const gen = ++fetchGen;
   loading.value = true;
   try {
     const res = await chainStore.fetchRecentTxs(RECENT_LIMIT);
+    if (gen !== fetchGen) return;
     const rows = (res?.tx_responses || []).slice(0, RECENT_LIMIT);
     if (!rows.length && !isInitial) {
       // don't clobber the previous list on a transient miss
@@ -120,9 +125,9 @@ async function fetchRecent(isInitial: boolean) {
     errored.value = false;
     lastFetchedAt.value = Date.now();
   } catch (e) {
-    errored.value = true;
+    if (gen === fetchGen) errored.value = true;
   } finally {
-    loading.value = false;
+    if (gen === fetchGen) loading.value = false;
   }
 }
 
