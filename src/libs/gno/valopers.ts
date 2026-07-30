@@ -258,3 +258,19 @@ export function listGnoValopers(): GnoValoper[] {
   }
   return out;
 }
+
+/** gnoweb base from chain config (realms/tokens deep links). */
+export function gnoGnowebBase(chain?: any): string {
+  const raw = String(chain?.gnoweb || chain?.valopers_source?.base_url || '').replace(/\/r\/gnops\/valopers\/?$/, '');
+  if (raw) return raw.replace(/\/$/, '');
+  // Last-resort Topaz — only when chain JSON omitted gnoweb
+  return 'https://topaz.testnets.gno.land';
+}
+
+/** Valopers realm profile URL for an operator. */
+export function gnoValoperProfileUrl(operator: string, chain?: any): string {
+  const base =
+    String(chain?.valopers_source?.base_url || '').replace(/\/$/, '') ||
+    `${gnoGnowebBase(chain)}/r/gnops/valopers`;
+  return `${base}:${operator}`;
+}

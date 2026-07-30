@@ -25,7 +25,7 @@ import {
 import PaginationBar from '@/components/PaginationBar.vue';
 import { fromBase64, toBase64 } from '@cosmjs/encoding';
 import { stringToUint8Array, uint8ArrayToString } from '@/libs/utils';
-import { lookupGnoValoper, initGnoValopers, type GnoValoper } from '@/libs/gno/valopers';
+import { lookupGnoValoper, initGnoValopers, gnoValoperProfileUrl, type GnoValoper } from '@/libs/gno/valopers';
 import { getGnoIndexer, type GnoTx } from '@/libs/gno/indexer';
 import { tm2Get } from '@/libs/gno/tm2';
 
@@ -185,14 +185,9 @@ let gnoHeightUnwatch: (() => void) | null = null;
 
 /** Official valopers realm profile URL for this validator (Gno only). Config-driven. */
 const gnoValopersUrl = computed(() => {
-  if (!isGno.value) return '';
-  const base =
-    String((blockchain.current as any)?.valopers_source?.base_url || '').replace(/\/$/, '') ||
-    'https://topaz.testnets.gno.land/r/gnops/valopers';
-  const op = gnoMeta.value?.operatorAddress || addresses.value.operAddress || '';
-  if (!op) return base;
-  // realm detail path: base_url already ends at …/valopers → append :operator
-  return `${base}:${op}`;
+  const op = String(gnoMeta.value?.operatorAddress || '').trim();
+  if (!op) return '';
+  return gnoValoperProfileUrl(op, blockchain.current);
 });
 
 function gnoTxFuncLabel(tx: GnoTx): { label: string; slug: string } {

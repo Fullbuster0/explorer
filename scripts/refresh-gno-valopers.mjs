@@ -11,7 +11,7 @@
  *   0. Manual overrides  src/libs/gno/identity-overrides.json  (operator-controlled)
  *   1. Exact moniker match vs AtomOne mainnet
  *   2. Normalize-exact (strip emoji/decor)
- *   3. Prefix / contains (shorter≥60% longer, UNIQUE identity only)
+ *   3. Prefix / tight-contains (shorter≥75% longer, min6, UNIQUE identity only)
  *   Existing avatar pipeline (keybase() → S3 → localStorage) then shows logos.
  *
  * Usage: node scripts/refresh-gno-valopers.mjs [--chain gnoland-testnet]
@@ -89,22 +89,59 @@ async function getJson(url) {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // --- list pages ---
+function stripHtmlText(s) {
+  return String(s || '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&#39;/g, "'")
+    .replace(/&quot;/g, '"')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 async function fetchListPages() {
   const ops = [];
+  const seen = new Set();
+  // Multiple href shapes gnoweb has used over time
+  const patterns = [
+    /href=["']\/r\/gnops\/valopers:(g1[a-z0-9]+)["'][^>]*>\s*([^<]+?)\s*<\/a>/gi,
+    /href=["'][^"']*\/r\/gnops\/valopers:(g1[a-z0-9]+)["'][^>]*>\s*([^<]+?)\s*<\/a>/gi,
+    /valopers:(g1[a-z0-9]+)[^<]{0,80}?>([^<]{1,64})</gi,
+  ];
   for (let page = 1; page <= MAX_PAGES; page++) {
     const html = await get(`${BASE}?page=${page}`);
-    const re = /href="\/r\/gnops\/valopers:(g1[a-z0-9]+)"[^>]*>\s*([^<]+?)\s*<\/a>/gi;
-    let m;
     let newCount = 0;
-    while ((m = re.exec(html)) !== null) {
-      const moniker = m[2].trim();
-      if (moniker && moniker.toLowerCase() !== 'profile') {
-        ops.push({ operatorAddress: m[1], moniker });
+    for (const re of patterns) {
+      re.lastIndex = 0;
+      let m;
+      while ((m = re.exec(html)) !== null) {
+        const op = m[1];
+        const moniker = stripHtmlText(m[2]);
+        if (!op || seen.has(op)) continue;
+        if (!moniker || moniker.toLowerCase() === 'profile') continue;
+        seen.add(op);
+        ops.push({ operatorAddress: op, moniker });
         newCount++;
       }
     }
-    console.log(`  list page ${page}: ${newCount} entries`);
-    if (newCount === 0) break;
+    console.log(`  list page ${page}: ${newCount} new (total ${ops.length})`);
+    if (newCount === 0 && page > 1) break;
+    // empty page1 is hard fail later; keep trying page1 patterns only once
+    if (newCount === 0 && page === 1) {
+      // last-ditch: bare operator ids on page
+      const bare = html.match(/g1[a-z0-9]{38,60}/g) || [];
+      for (const op of bare) {
+        if (seen.has(op)) continue;
+        seen.add(op);
+        ops.push({ operatorAddress: op, moniker: op.slice(0, 12) + '…' });
+        newCount++;
+      }
+      if (newCount) console.log(`  list page 1 bare-fallback: ${newCount}`);
+      if (!newCount) break;
+    }
     await sleep(DELAY_MS);
   }
   return ops;
@@ -512,22 +549,24 @@ async function buildRegistry() {
           hitRow = normMap.get(monNorm);
         }
 
-        // Tier 3: prefix OR contains (shorter ≥60% of longer), UNIQUE identity only.
-        // Prefix covers "Nodeist" ← "Nodeist 🛡️ Slash Protected" (ratio would be 7/23 < 0.6).
-        // Contains+ratio covers "AviaOne" ← "AVIAONE.com 🟢".
-        // UNIQUE identity rejects ambiguous collisions (no fuzzy).
-        if (!hitRow?.identity && monNorm && monNorm.length >= 4) {
+        // Tier 3 (STRICTER): prefix preferred; contains only if shorter ≥75% of longer
+        // AND min length ≥6. UNIQUE identity only — never multi-match.
+        // Drops loose "Foo" inside "FooBarBazInfra" false logos.
+        if (!hitRow?.identity && monNorm && monNorm.length >= 5) {
           const cands = [];
           for (const [nk, val] of normMap) {
-            if (!nk || nk.length < 4) continue;
+            if (!nk || nk.length < 5) continue;
             const a = Math.min(monNorm.length, nk.length);
             const b = Math.max(monNorm.length, nk.length);
             const isPrefix = nk.startsWith(monNorm) || monNorm.startsWith(nk);
-            const isContains =
-              (monNorm.includes(nk) || nk.includes(monNorm)) && a / b >= 0.6;
-            if (isPrefix || isContains) cands.push(val);
+            // contains only when nearly the same token
+            const isTightContains =
+              a >= 6 &&
+              a / b >= 0.75 &&
+              (monNorm.includes(nk) || nk.includes(monNorm));
+            if (isPrefix || isTightContains) cands.push(val);
           }
-          const ids = new Set(cands.map((c) => c.identity));
+          const ids = new Set(cands.map((c) => c.identity).filter(Boolean));
           if (ids.size === 1) {
             hitRow = cands[0];
           }

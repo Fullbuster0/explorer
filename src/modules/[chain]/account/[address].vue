@@ -59,8 +59,9 @@ const gnoTxsPage = computed(() => {
   return gnoTxs.value.slice(start, start + txHistoryLimit.value);
 });
 
-// What we display as the total count = all fetched (since server ignores
-// limit/offset). Falls back to 0 while loading.
+// Display total = rows loaded into the client buffer (NOT chain-wide count).
+// Gno indexer is cursor-paginated; `gnoTxsHasNext` means more exist server-side.
+// UI shows "N loaded" + optional "+" so we never imply a false global total.
 const txsTotal = computed(() =>
   isGno.value ? gnoTxs.value.length : allTxs.value.length
 );
@@ -972,6 +973,7 @@ function findTokenAmount(
           <button class="sz-acc-pager-btn" :disabled="txHistoryPage === 1" @click="setTxHistoryPage(txHistoryPage - 1)">← Prev</button>
           <span class="sz-acc-pager-info">
             Page {{ txHistoryPage }} / {{ gnoHistoryPageCount }}{{ gnoTxsHasNext ? '+' : '' }}
+            <span class="sz-acc-pager-loaded text-[10px] opacity-60 ml-1">({{ gnoTxs.length }} loaded{{ gnoTxsHasNext ? ', more available' : '' }})</span>
           </span>
           <button
             class="sz-acc-pager-btn"

@@ -118,7 +118,8 @@ function extractAsciiRuns(bytes: Uint8Array, minLen = 4): string[] {
 
 /**
  * Best-effort decode of Gno/TM2 tx bytes into message card(s).
- * Official gnoscan shows MsgCall / pkg / func / args — we surface the same fields.
+ * Prefer structured type-url + pkg + func near each other; ASCII scrape is fallback.
+ * Flags _decode_method so UI can show confidence (structured | heuristic).
  */
 function decodeGnoTxMessages(txB64: string): {
   messages: any[];
@@ -130,78 +131,157 @@ function decodeGnoTxMessages(txB64: string): {
   let memo = '';
   try {
     const bytes = fromBase64(txB64);
-    const runs = extractAsciiRuns(bytes, 4);
-    const typeUrls = runs.filter((s) => /^\/[a-zA-Z][a-zA-Z0-9_.]*\.[A-Za-z]/.test(s));
+    const runs = extractAsciiRuns(bytes, 3);
+    const typeUrls = runs.filter((s) => /^\/[a-zA-Z][a-zA-Z0-9_.\/]*\.[A-Za-z]/.test(s));
     const addrs = runs.filter((s) => /^g1[a-z0-9]{38,60}$/.test(s));
-    const pkgs = runs.filter((s) => s.startsWith('gno.land/'));
-    const amounts = runs.filter((s) => /^\d+ugnot$/.test(s));
-    // Func names commonly right after pkg path in /vm.m_call: Register, Transfer, …
-    const skip = new Set([
-      ...typeUrls,
-      ...addrs,
-      ...pkgs,
-      ...amounts,
+    const pkgs = runs.filter((s) => /^gno\.land\/[a-zA-Z0-9_./-]+$/.test(s));
+    // ugnot + other denoms if present
+    const amounts = runs.filter((s) => /^\d+[a-z][a-z0-9]{1,15}$/.test(s) && /ugnot|gnot/i.test(s));
+    const knownNoise = new Set([
       'data-center',
       'community',
       'unknown',
+      'std',
+      'tm2',
+      'bank',
+      'vm',
+      ' stef ',
     ]);
-    const typeUrl = typeUrls.find((t) => t.startsWith('/vm.') || t.startsWith('/bank.') || t.startsWith('/tm.')) || typeUrls[0] || '/tm2.Unknown';
+    const skip = new Set<string>([...typeUrls, ...addrs, ...pkgs, ...amounts, ...knownNoise]);
 
-    // Heuristic func name: short identifier after pkg, not an address
+    // Prefer vm/bank/tm type urls; score by known prefixes
+    const preferType = (t: string) => {
+      if (t.startsWith('/vm.m_') || t.startsWith('/vm.')) return 3;
+      if (t.startsWith('/bank.')) return 2;
+      if (t.startsWith('/tm.') || t.startsWith('/std.')) return 1;
+      return 0;
+    };
+    typeUrls.sort((a, b) => preferType(b) - preferType(a) || b.length - a.length);
+    const typeUrl = typeUrls[0] || '/tm2.Unknown';
+    const structured = preferType(typeUrl) > 0 && pkgs.length > 0;
+
+    // Func: CamelCase after nearest pkg run; reject pure noise
     let funcName = '';
-    const pkgIdx = runs.findIndex((s) => s.startsWith('gno.land/'));
+    const pkgIdx = runs.findIndex((s) => /^gno\.land\//.test(s));
     if (pkgIdx >= 0) {
-      for (let i = pkgIdx + 1; i < Math.min(runs.length, pkgIdx + 8); i++) {
+      for (let i = pkgIdx + 1; i < Math.min(runs.length, pkgIdx + 12); i++) {
         const s = runs[i];
-        if (/^[A-Z][A-Za-z0-9_]{1,40}$/.test(s) && !skip.has(s)) {
+        if (skip.has(s) || s.startsWith('gno.') || s.startsWith('/') || /^g1/.test(s)) continue;
+        // MsgCall funcs are typically PascalCase identifiers
+        if (/^[A-Z][A-Za-z0-9_]{1,48}$/.test(s)) {
+          funcName = s;
+          break;
+        }
+        // some lower-case exported funcs
+        if (/^[a-z][A-Za-z0-9_]{2,48}$/.test(s) && !/ugnot|http|https|www/.test(s)) {
           funcName = s;
           break;
         }
       }
     }
 
-    // Longest prose-ish run as description/args body (Register description etc.)
-    const longText = runs
-      .filter((s) => s.length > 40 && !s.startsWith('gno.land/') && !s.startsWith('/') && !/^g1/.test(s))
-      .sort((a, b) => b.length - a.length)[0] || '';
+    // Longest prose as args/description — but require spaces or punctuation so we
+    // don't promote random long base58 blobs.
+    const longText =
+      runs
+        .filter(
+          (s) =>
+            s.length > 24 &&
+            !s.startsWith('gno.land/') &&
+            !s.startsWith('/') &&
+            !/^g1/.test(s) &&
+            !/ugnot$/i.test(s) &&
+            (/[\s,.;:!?]/.test(s) || s.length > 80)
+        )
+        .sort((a, b) => b.length - a.length)[0] || '';
 
-    const caller = addrs.find((a) => !a.includes('qqqqqq')) || addrs[0] || '';
+    // Caller: first non-zero-looking g1 (avoid all-q padding)
+    const caller =
+      addrs.find((a) => !/q{6,}/i.test(a) && !/^g1q+/.test(a)) || addrs[0] || '';
+
     const msg: any = {
       '@type': typeUrl,
       message_type: typeUrl,
+      _decode_method: structured ? 'structured' : 'heuristic',
     };
-    if (caller) msg.caller = caller;
-    if (caller) msg.from_address = caller;
+    if (caller) {
+      msg.caller = caller;
+      msg.from_address = caller;
+    }
     if (pkgs[0]) msg.pkg_path = pkgs[0];
+    // Dedupe pkg list if multiple
+    if (pkgs.length > 1) msg.pkg_paths = [...new Set(pkgs)];
     if (funcName) msg.func = funcName;
     if (longText) msg.args = longText;
-    // moniker often immediate short token after Register
-    if (funcName === 'Register' || funcName === 'UpdateDescription') {
-      const mon = runs.find(
-        (s) =>
-          s.length >= 2 &&
-          s.length <= 32 &&
-          !skip.has(s) &&
-          !s.startsWith('gno.') &&
-          !/^g1/.test(s) &&
-          !/ugnot$/.test(s) &&
-          s !== funcName
-      );
-      if (mon && !/^\d+$/.test(mon)) msg.moniker = mon;
+
+    // Moniker only for known profile-mutating funcs; take token *immediately*
+    // after func name in run order when possible.
+    if (funcName === 'Register' || funcName === 'UpdateDescription' || funcName === 'UpdateMoniker') {
+      let mon = '';
+      const fIdx = runs.indexOf(funcName);
+      if (fIdx >= 0) {
+        for (let i = fIdx + 1; i < Math.min(runs.length, fIdx + 6); i++) {
+          const s = runs[i];
+          if (
+            s.length >= 2 &&
+            s.length <= 48 &&
+            !skip.has(s) &&
+            !s.startsWith('gno.') &&
+            !s.startsWith('/') &&
+            !/^g1/.test(s) &&
+            !/ugnot$/i.test(s) &&
+            s !== funcName &&
+            !/^\d+$/.test(s) &&
+            !/^[A-Z][a-z]+[A-Z]/.test(s) // skip other PascalCase funcs
+          ) {
+            mon = s;
+            break;
+          }
+        }
+      }
+      if (!mon) {
+        mon =
+          runs.find(
+            (s) =>
+              s.length >= 2 &&
+              s.length <= 32 &&
+              !skip.has(s) &&
+              !s.startsWith('gno.') &&
+              !/^g1/.test(s) &&
+              !/ugnot$/i.test(s) &&
+              s !== funcName &&
+              !/^\d+$/.test(s)
+          ) || '';
+      }
+      if (mon) msg.moniker = mon;
     }
-    if (amounts[0]) {
-      const m = amounts[0].match(/^(\d+)(ugnot)$/);
-      if (m) msg.send = [{ amount: m[1], denom: m[2] }];
+
+    // send = first amount that looks like transfer (not fee); fee = last small amount
+    const parsedAmts = amounts
+      .map((a) => {
+        const m = a.match(/^(\d+)([a-z][a-z0-9]{1,15})$/i);
+        return m ? { amount: m[1], denom: m[2].toLowerCase(), raw: a } : null;
+      })
+      .filter(Boolean) as { amount: string; denom: string; raw: string }[];
+
+    if (parsedAmts.length) {
+      // Largest non-fee-looking as send when multiple
+      const sorted = [...parsedAmts].sort((a, b) => Number(b.amount) - Number(a.amount));
+      if (sorted[0] && Number(sorted[0].amount) > 0) {
+        msg.send = [{ amount: sorted[0].amount, denom: sorted[0].denom }];
+      }
+      const feeCand = parsedAmts[parsedAmts.length - 1];
+      if (feeCand) feeAmount = [{ amount: feeCand.amount, denom: feeCand.denom }];
     }
-    // Fee is typically last small ugnot amount in std tx wrapper
-    if (amounts.length) {
-      const feeStr = amounts[amounts.length - 1];
-      const m = feeStr.match(/^(\d+)(ugnot)$/);
-      if (m) feeAmount = [{ amount: m[1], denom: m[2] }];
+
+    // If bank send with no pkg, still emit a useful card
+    if (!pkgs.length && typeUrl.includes('bank') && caller) {
+      msg['@type'] = typeUrl;
     }
+
     messages.push(msg);
   } catch {
-    /* empty */
+    /* empty — caller may still enrich from indexer */
   }
   return { messages, feeAmount, memo };
 }

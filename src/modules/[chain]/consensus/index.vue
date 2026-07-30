@@ -445,9 +445,13 @@ async function synthesizeTm2RoundState(base: string) {
       const pcs = block?.last_commit?.precommits || block?.last_commit?.signatures || [];
       for (const pc of pcs) {
         if (!pc) continue;
-        const addr = String(pc.validator_address || '');
-        const hasSig = !!(pc.signature || pc.block_id?.hash);
-        if (addr && hasSig) signed.add(addr);
+        const addr = String(pc.validator_address || '').trim();
+        const hasSig = !!(pc.signature || pc.block_id?.hash || (pc.block_id && pc.block_id !== 'nil'));
+        if (addr && hasSig) {
+          signed.add(addr);
+          // g1 bech32 is case-insensitive for matching
+          if (/^g1/i.test(addr)) signed.add(addr.toLowerCase());
+        }
       }
       // If hrs still empty, take from block header
       if (!hrs && block?.header?.height) {
@@ -461,8 +465,8 @@ async function synthesizeTm2RoundState(base: string) {
     /* ignore */
   }
   for (const p of positions.value) {
-    const addr = String(p.address || '');
-    const ok = signed.has(addr);
+    const addr = String(p.address || '').trim();
+    const ok = signed.has(addr) || (/^g1/i.test(addr) && signed.has(addr.toLowerCase()));
     // Non-nil string → isSigned() true; 'nil-Vote' → false
     prevotes.push(ok ? 'TM2-COMMIT' : 'nil-Vote');
     precommits.push(ok ? 'TM2-COMMIT' : 'nil-Vote');
@@ -583,8 +587,8 @@ function exportCsv() {
             <span
               v-if="tm2Synthetic"
               class="inline-flex items-center gap-1 rounded-full border border-amber-700/60 bg-amber-900/30 px-2 py-0.5 text-[10px] font-semibold text-amber-300"
-              title="Gnoland does not expose live prevote/precommit bitarrays. Numbers below = signer coverage of the last committed block."
-            >TM2 · from last commit</span>
+              title="Gnoland /consensus_state has empty height_vote_set. This view synthesizes online/offline from last block precommits — NOT live round votes."
+            >TM2 · last commit (synthetic)</span>
             <span v-if="round !== ''" class="hidden sm:inline-flex items-center gap-1 rounded-full border border-slate-700 bg-slate-800/60 px-2 py-0.5 text-[10px] font-semibold text-slate-300">
               Round {{ round }}
             </span>
