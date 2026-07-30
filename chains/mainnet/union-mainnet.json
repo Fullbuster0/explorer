@@ -15,6 +15,10 @@
   ],
   "registry_name": "Union",
   "coingecko": "",
+  "description": "Union is the zero-knowledge (zk) interoperability network that functions as a settlement and liquidity layer for protocols and asset issuers. Union supports direct connections between L1s, L2s, and rollups regardless of execution environment, while still being powered by the most secure consensus verification.",
+  "website": "https://union.build",
+  "twitter": "https://x.com/union_build",
+  "discord": "https://discord.union.build",
   "github": "https://github.com/unionlabs/union",
   "api": [
     {

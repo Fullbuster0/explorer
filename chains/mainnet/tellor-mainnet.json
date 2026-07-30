@@ -15,6 +15,10 @@
   ],
   "registry_name": "Tellor",
   "coingecko": "",
+  "description": "Tellor Layer is a new L1 built using the cosmos sdk for the purpose of coming to consensus on any subjective data. It is operated by an open public network of staked parties who are crypto-economically incentivized to honestly report requested data. Experience true data sovereignty without compromising usability or regulatory compliance.",
+  "website": "https://tellor.io",
+  "twitter": "https://x.com/wearetellor",
+  "discord": "https://discord.gg/tellor",
   "github": "https://github.com/tellor-io/layer",
   "api": [
     {

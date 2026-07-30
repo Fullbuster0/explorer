@@ -15,6 +15,10 @@
   ],
   "registry_name": "Axone",
   "coingecko": "",
+  "description": "Axone is a Layer-1 blockchain for collaborative AI training, governance, and monetization. It provides a framework with custom conditions ensuring privacy, compatibility, and fair value sharing. Users can build AI ecosystems and access data or infrastructure from web2 and web3 protocols like DePIN, AI, and Data networks.",
+  "website": "https://axone.xyz/",
+  "twitter": "https://x.com/axonexyz",
+  "discord": "https://discord.gg/axone",
   "github": "https://github.com/axone-protocol/axoned",
   "api": [
     {
@@ -31,7 +35,7 @@
     },
     {
       "address": "https://axone-api.highstakes.ch",
-      "provider": "High Stakes \ud83c\udde8\ud83c\udded"
+      "provider": "High Stakes 🇨🇭"
     },
     {
       "address": "https://rest.cros-nest.com:443/axone",
@@ -69,7 +73,7 @@
     },
     {
       "address": "https://axone-rpc.highstakes.ch",
-      "provider": "High Stakes \ud83c\udde8\ud83c\udded"
+      "provider": "High Stakes 🇨🇭"
     },
     {
       "address": "https://rpc.cros-nest.com:443/axone",

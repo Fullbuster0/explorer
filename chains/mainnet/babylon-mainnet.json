@@ -15,6 +15,10 @@
   ],
   "registry_name": "Babylon Genesis",
   "coingecko": "",
+  "description": "Babylon Genesis enables Bitcoin tokens to be used as an economic security layer for Proof of Stake (PoS) systems without relying on bridges, wrapping, or third-party custody.",
+  "website": "https://babylonlabs.io",
+  "twitter": "https://x.com/babylonlabs_io",
+  "discord": "https://discord.com/invite/babylonglobal",
   "github": "https://github.com/babylonlabs-io/babylon",
   "api": [
     {

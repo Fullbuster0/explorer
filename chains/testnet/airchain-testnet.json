@@ -15,6 +15,10 @@
   ],
   "registry_name": "Airchain",
   "coingecko": "",
+  "description": "Airchains is distinct from RaaS providers because we built our own ZK circuit from the ground up, rather than relying on a third party. We also offer full EVM, SVM, and Cosmwasm support and interoperability, whereas RaaS providers are EVM-only.",
+  "website": "https://www.airchains.io",
+  "twitter": "https://x.com/airchains_io",
+  "discord": "https://discord.gg/airchains",
   "github": "https://github.com/airchains-network/junction",
   "api": [
     {

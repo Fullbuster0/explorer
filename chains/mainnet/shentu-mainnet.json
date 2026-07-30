@@ -15,6 +15,10 @@
   ],
   "registry_name": "Shentu",
   "coingecko": "certik",
+  "description": "Security-oriented blockchain enables provable trust for all. OpenBounty(bug bounties), DeepWallet etc.",
+  "website": "https://www.shentu.technology",
+  "twitter": "https://x.com/ShentuChain",
+  "discord": "https://discord.com/invite/6nfAk956NH",
   "github": "https://github.com/shentufoundation/shentu",
   "api": [
     {
@@ -35,7 +39,7 @@
     },
     {
       "address": "https://shentu.api.m.stavr.tech",
-      "provider": "\ud83d\udd25STAVR\ud83d\udd25"
+      "provider": "🔥STAVR🔥"
     },
     {
       "address": "https://shentu-api.ramuchi.tech",
@@ -47,7 +51,7 @@
     },
     {
       "address": "https://shentu-api.highstakes.ch",
-      "provider": "High Stakes \ud83c\udde8\ud83c\udded"
+      "provider": "High Stakes 🇨🇭"
     },
     {
       "address": "https://shentu-api.panthea.eu",
@@ -71,7 +75,7 @@
     },
     {
       "address": "https://shentu-rest.publicnode.com",
-      "provider": "Allnodes \u26a1\ufe0f Nodes & Staking"
+      "provider": "Allnodes ⚡️ Nodes & Staking"
     }
   ],
   "rpc": [
@@ -89,7 +93,7 @@
     },
     {
       "address": "https://shentu-rpc.publicnode.com:443",
-      "provider": "Allnodes \u26a1\ufe0f Nodes & Staking"
+      "provider": "Allnodes ⚡️ Nodes & Staking"
     },
     {
       "address": "https://rpc.shentu.org:443",
@@ -97,7 +101,7 @@
     },
     {
       "address": "https://shentu.rpc.m.stavr.tech:443",
-      "provider": "\ud83d\udd25STAVR\ud83d\udd25"
+      "provider": "🔥STAVR🔥"
     },
     {
       "address": "https://shentu-rpc.ramuchi.tech",
@@ -109,7 +113,7 @@
     },
     {
       "address": "https://shentu-rpc.highstakes.ch",
-      "provider": "High Stakes \ud83c\udde8\ud83c\udded"
+      "provider": "High Stakes 🇨🇭"
     },
     {
       "address": "https://shentu-rpc.panthea.eu",

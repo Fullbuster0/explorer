@@ -15,6 +15,10 @@
   ],
   "registry_name": "Structs",
   "coingecko": "",
+  "description": "Struct is a strategic game of interstellar enterprise and empire. In the distant future, the species of the galaxy are embroiled in a race for Alpha Matter, the rare and dangerous substance that fuels galactic civilization.",
+  "website": "https://www.playstructs.com",
+  "twitter": "https://x.com/PlayStructs",
+  "discord": "https://discord.gg/UQ5EXTfjpa",
   "github": "https://github.com/playstructs/structsd",
   "api": [
     {

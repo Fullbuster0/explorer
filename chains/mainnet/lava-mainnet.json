@@ -15,6 +15,10 @@
   ],
   "registry_name": "Lava",
   "coingecko": "lava-network",
+  "description": "Lava powers a trustless market for RPC data access. The protocol governs over peer to peer and private Provider-Application pairings, ensuring high quality RPC service while creating consensus around data served.",
+  "website": "https://www.lavanet.xyz/",
+  "twitter": "https://twitter.com/lavanetxyz",
+  "discord": "https://discord.gg/Tbk5NxTCdA",
   "github": "https://github.com/lavanet/lava",
   "api": [
     {

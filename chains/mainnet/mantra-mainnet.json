@@ -15,6 +15,10 @@
   ],
   "registry_name": "MANTRA",
   "coingecko": "",
+  "description": "MANTRA Chain is a modular Layer-1 blockchain engineered for decentralized finance (DeFi) and real-world asset (RWA) tokenization, with a foundational commitment to regulatory compliance.",
+  "website": "https://mantrachain.io",
+  "twitter": "https://twitter.com/MANTRA_Chain",
+  "discord": "https://discord.com/invite/mantrachain",
   "github": "https://github.com/MANTRA-Chain/mantrachain",
   "api": [
     {

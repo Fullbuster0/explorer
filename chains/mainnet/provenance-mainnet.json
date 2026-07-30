@@ -15,6 +15,10 @@
   ],
   "registry_name": "Provenance",
   "coingecko": "",
+  "description": "Supporting the leading public blockchain for financial services, with $12B+ in RWA TVL. Leveraged by leading institutions and fintech",
+  "website": "https://provenance.io/",
+  "twitter": "https://x.com/provenancefdn",
+  "discord": "https://discord.gg/kNZC8nwCFP",
   "github": "https://github.com/provenance-io/provenance",
   "api": [
     {

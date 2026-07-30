@@ -15,6 +15,10 @@
   ],
   "registry_name": "SEDA",
   "coingecko": "",
+  "description": "SEDA is a standard for modular data transport and querying. Any data type, for all networks.",
+  "website": "https://www.seda.xyz",
+  "twitter": "https://x.com/sedaprotocol",
+  "discord": "https://discord.com/invite/seda",
   "github": "https://github.com/sedaprotocol/seda-chain",
   "api": [
     {

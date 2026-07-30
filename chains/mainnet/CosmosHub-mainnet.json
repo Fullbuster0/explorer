@@ -15,6 +15,9 @@
   ],
   "registry_name": "Cosmos Hub",
   "coingecko": "",
+  "description": "The Cosmos Hub is the flagship blockchain of the Cosmos ecosystem, launched in 2019. Today, it provides multichain services to other Cosmos blockchains, including the IBC Eureka bridge between the Cosmos ecosystem and Ethereum.",
+  "website": "https://cosmos.network",
+  "twitter": "https://x.com/cosmos",
   "github": "https://github.com/cosmos/gaia",
   "api": [
     {

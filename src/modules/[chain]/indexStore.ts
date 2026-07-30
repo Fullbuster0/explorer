@@ -305,9 +305,14 @@ export const useIndexModule = defineStore('module-index', {
         this.coinInfo.links.homepage = [chain.website];
       }
       if (chain.twitter && !this.coinInfo.links.twitter_screen_name) {
-        // Accept full URL or bare handle
-        const m = String(chain.twitter).match(/(?:twitter\.com|x\.com)\/@?([A-Za-z0-9_]+)/i);
+        // Accept full URL, @handle, or bare handle
+        const raw = String(chain.twitter).trim();
+        const m = raw.match(/(?:twitter\.com|x\.com)\/@?([A-Za-z0-9_]+)/i);
         if (m) this.coinInfo.links.twitter_screen_name = m[1];
+        else {
+          const h = raw.replace(/^@/, '');
+          if (/^[A-Za-z0-9_]+$/.test(h)) this.coinInfo.links.twitter_screen_name = h;
+        }
       }
       if (chain.github && !(this.coinInfo.links.repos_url?.github || []).some(Boolean)) {
         this.coinInfo.links.repos_url = this.coinInfo.links.repos_url || { github: [] };
@@ -332,10 +337,15 @@ export const useIndexModule = defineStore('module-index', {
           .getCoinInfo(cgId)
           .then((x) => {
             this.coinInfo = x;
+            // CoinGecko overwrites seedManualHero — re-fill any empty slots
+            // from chain JSON (unlisted / partial CG profiles).
+            this.seedManualHero();
             this.loadGithubActivity();
           })
           .catch((e: any) => {
             console.warn('[dashboard] coinInfo failed:', e?.message || e);
+            // Keep manual seed if CG fails (403/404/network).
+            this.seedManualHero();
           });
         this.coingecko
           .getMarketChart(this.days, cgId)
