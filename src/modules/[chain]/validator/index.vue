@@ -132,17 +132,21 @@ function diffAndToast(prev: GnoIndexerValidator[], next: GnoIndexerValidator[]) 
       (g.monikerName || '').trim() ||
       shortAddr(g.address);
     if (g.status === 'PENDING') {
-      // Only toast if it would survive isTruePending against the NEW set.
-      // We'll re-check after assignment; for toast we approximate: not matching
-      // any ACTIVE/INACTIVE moniker in the new set.
-      const settled = next.some(
-        (x) =>
-          (x.status === 'ACTIVE' || x.status === 'INACTIVE') &&
-          ((lookupGnoValoper(x.address)?.moniker || '').toLowerCase() === mon.toLowerCase() ||
-            (x.monikerName || '').trim().toLowerCase() === mon.toLowerCase() ||
-            x.address === g.address ||
-            lookupGnoValoper(x.address)?.operatorAddress === g.address),
-      );
+      // Toast only if this address is not already an ACTIVE/INACTIVE op/sig pair.
+      // Never match by moniker — same name can be a different valoper.
+      const settled = next.some((x) => {
+        if (x.status !== 'ACTIVE' && x.status !== 'INACTIVE') return false;
+        if (x.address === g.address) return true;
+        const xm = lookupGnoValoper(x.address);
+        if (xm?.operatorAddress === g.address) return true;
+        if (xm?.signingAddress === g.address) return true;
+        const gm = lookupGnoValoper(g.address);
+        if (gm && xm) {
+          if (gm.operatorAddress && gm.operatorAddress === xm.operatorAddress) return true;
+          if (gm.signingAddress && gm.signingAddress === xm.signingAddress) return true;
+        }
+        return false;
+      });
       if (!settled) msgs.push(`New pending: ${mon}`);
     } else if (g.status === 'ACTIVE') {
       msgs.push(`Activated: ${mon}`);
@@ -158,34 +162,31 @@ function diffAndToast(prev: GnoIndexerValidator[], next: GnoIndexerValidator[]) 
 /**
  * onbloc keeps a PENDING row for every registration — including operators that
  * later became ACTIVE (address = operator, while ACTIVE row uses signing addr).
- * Those double-entries must stay hidden.
+ * Those double-entries must stay hidden — matched by address only.
  *
  * Separately, NEW registrations often appear ONLY on the official valopers
- * realm (gnoweb page 3+) before onbloc indexes them. Those never show as
- * PENDING onbloc rows that survive dedupe. We synthesize PENDING rows from the
- * valopers registry for operators not yet in the ACTIVE/INACTIVE set.
+ * realm (gnoweb page 3+) before onbloc indexes them. We synthesize PENDING
+ * rows from the valopers registry for operators not yet in ACTIVE/INACTIVE.
+ *
+ * Moniker is display-only. Two valopers can share "LuckyStar" / "onbloc-val-01"
+ * — identity key is always operatorAddress + signingAddress.
  */
 function mergeRegistryPending(indexerRows: GnoIndexerValidator[]): GnoIndexerValidator[] {
-  const settledSig = new Set<string>();
-  const settledOp = new Set<string>();
-  const settledMon = new Set<string>();
-  const seenPendOp = new Set<string>();
+  const settled = new Set<string>();
+  const seenPend = new Set<string>();
 
   for (const g of indexerRows) {
     if (g.status === 'ACTIVE' || g.status === 'INACTIVE') {
-      settledSig.add(g.address);
+      settled.add(g.address);
       const meta = lookupGnoValoper(g.address);
-      if (meta?.operatorAddress) settledOp.add(meta.operatorAddress);
-      if (meta?.signingAddress) settledSig.add(meta.signingAddress);
-      settledOp.add(g.address); // genesis / same-key
-      const mon = (meta?.moniker || g.monikerName || '').trim().toLowerCase();
-      if (mon) settledMon.add(mon);
+      // Only the paired op/sig for THIS address — never all rows with same moniker
+      if (meta?.operatorAddress) settled.add(meta.operatorAddress);
+      if (meta?.signingAddress) settled.add(meta.signingAddress);
     } else if (g.status === 'PENDING') {
-      seenPendOp.add(g.address);
+      seenPend.add(g.address);
     }
   }
 
-  // Keep indexer rows as-is; append synthetic pending for registry-only regs.
   const out = indexerRows.slice();
   let synthId = -1;
   for (const row of listGnoValopers()) {
@@ -193,15 +194,12 @@ function mergeRegistryPending(indexerRows: GnoIndexerValidator[]): GnoIndexerVal
     const sig = (row.signingAddress || '').trim();
     const mon = (row.moniker || '').trim();
     if (!op && !sig) continue;
-    // Already active/inactive by signing or operator
-    if (sig && settledSig.has(sig)) continue;
-    if (op && settledOp.has(op)) continue;
-    if (op && settledSig.has(op)) continue;
-    if (sig && settledOp.has(sig)) continue;
-    if (mon && settledMon.has(mon.toLowerCase())) continue;
-    // Already have an onbloc PENDING row for this operator
-    if (op && seenPendOp.has(op)) continue;
-    if (sig && seenPendOp.has(sig)) continue;
+    // Address-only: already active/inactive (this valoper pair)
+    if (sig && settled.has(sig)) continue;
+    if (op && settled.has(op)) continue;
+    // Already have an onbloc PENDING row for this operator/signing
+    if (op && seenPend.has(op)) continue;
+    if (sig && seenPend.has(sig)) continue;
 
     out.push({
       id: synthId--,
@@ -216,7 +214,8 @@ function mergeRegistryPending(indexerRows: GnoIndexerValidator[]): GnoIndexerVal
       firstCommittedTime: null,
       proposalId: null,
     });
-    if (op) seenPendOp.add(op);
+    if (op) seenPend.add(op);
+    if (sig) seenPend.add(sig);
   }
   return out;
 }
@@ -330,52 +329,42 @@ async function fetchGnoValidatorsFromRpc() {
 }
 
 /**
- * Operator addresses of ACTIVE + INACTIVE validators (via valopers signing→operator).
- * Used to strip PENDING rows that are just the registration record of a validator
- * already in (or formerly in) the set — onbloc keeps both rows, we only show one.
+ * Operator/signing addresses of ACTIVE + INACTIVE validators.
+ * Used to strip PENDING rows that are just the registration record of a
+ * validator already in (or formerly in) the set — onbloc keeps both rows.
+ *
+ * Identity key = address only (operator OR signing). Moniker is NEVER used:
+ * different valopers can share the same moniker (LuckyStar / onbloc-val-01).
  *
  * Priority: ACTIVE > INACTIVE > PENDING (registration-only).
- * Roomit / Provalidator: INACTIVE by signing addr + PENDING by operator addr →
- * show only under Inactive (they left the set at inActivatedHeight).
  */
-const settledOperatorAddrs = computed(() => {
-  const ops = new Set<string>();
+const settledAddrs = computed(() => {
+  const addrs = new Set<string>();
   for (const g of gnoValidators.value) {
     if (g.status !== 'ACTIVE' && g.status !== 'INACTIVE') continue;
-    const meta = lookupGnoValoper(g.address); // signing address → registry row
-    if (meta?.operatorAddress) ops.add(meta.operatorAddress);
-    // Also treat the signing address itself as settled (genesis / same-key cases).
-    ops.add(g.address);
-  }
-  return ops;
-});
-
-/** Monikers of ACTIVE + INACTIVE (registry + onbloc monikerName), lowercased. */
-const settledMonikers = computed(() => {
-  const mons = new Set<string>();
-  for (const g of gnoValidators.value) {
-    if (g.status !== 'ACTIVE' && g.status !== 'INACTIVE') continue;
+    // The onbloc ACTIVE/INACTIVE row itself (usually signing address)
+    addrs.add(g.address);
+    // Paired operator/signing from valopers registry for THIS address only
     const meta = lookupGnoValoper(g.address);
-    if (meta?.moniker) mons.add(meta.moniker.toLowerCase());
-    const onbloc = (g.monikerName || '').trim().toLowerCase();
-    if (onbloc) mons.add(onbloc);
+    if (meta?.operatorAddress) addrs.add(meta.operatorAddress);
+    if (meta?.signingAddress) addrs.add(meta.signingAddress);
   }
-  return mons;
+  return addrs;
 });
 
 /**
  * True PENDING = registered, not yet (and never was) in the validator set.
- * Drop if this operator is already ACTIVE or INACTIVE (onbloc double-entry).
+ * Drop only when this row's address is the operator/signing of an
+ * ACTIVE/INACTIVE entry. Same moniker + different valoper = still pending.
  */
 function isTruePending(g: GnoIndexerValidator): boolean {
   if (g.status !== 'PENDING') return false;
-  // Drop if operator address already settled (Active or Inactive).
-  if (settledOperatorAddrs.value.has(g.address)) return false;
-  // Drop if moniker matches a settled validator (covers missing address link).
-  const mon = (g.monikerName || '').trim().toLowerCase();
-  if (mon && settledMonikers.value.has(mon)) return false;
+  if (settledAddrs.value.has(g.address)) return false;
+  // Also resolve via registry: pending row may be operator while settled
+  // set only has signing (or vice versa) for the SAME valoper pair.
   const meta = lookupGnoValoper(g.address);
-  if (meta?.moniker && settledMonikers.value.has(meta.moniker.toLowerCase())) return false;
+  if (meta?.operatorAddress && settledAddrs.value.has(meta.operatorAddress)) return false;
+  if (meta?.signingAddress && settledAddrs.value.has(meta.signingAddress)) return false;
   return true;
 }
 
@@ -780,22 +769,22 @@ loadAvatars();
               <th class="text-right">{{ $t('staking.voting_power') }}</th>
               <th class="text-right">{{ isGno ? 'Share' : $t('staking.24h_changes') }}</th>
               <th class="text-right">{{ isGno ? $t('staking.status') : $t('staking.commission') }}</th>
-              <th class="text-center">{{ isGno ? 'Height' : $t('staking.actions') }}</th>
+              <th v-if="!isGno" class="text-center">{{ $t('staking.actions') }}</th>
             </tr>
           </thead>
           <tbody>
             <tr v-if="isGno && gnoLoading && !gnoValidators.length">
-              <td colspan="6" class="py-10 text-center text-[12.5px] text-secondary">
+              <td :colspan="isGno ? 5 : 6" class="py-10 text-center text-[12.5px] text-secondary">
                 Loading validators from indexer…
               </td>
             </tr>
             <tr v-else-if="isGno && gnoError && !gnoValidators.length">
-              <td colspan="6" class="py-10 text-center text-[12.5px] text-error">
+              <td :colspan="isGno ? 5 : 6" class="py-10 text-center text-[12.5px] text-error">
                 {{ gnoError }}
               </td>
             </tr>
             <tr v-else-if="!list.length">
-              <td colspan="6" class="py-10 text-center text-[12.5px] text-secondary">
+              <td :colspan="isGno ? 5 : 6" class="py-10 text-center text-[12.5px] text-secondary">
                 No validators in this status.
               </td>
             </tr>
@@ -874,32 +863,17 @@ loadAvatars();
                 </template>
                 <template v-else>{{ format.formatCommissionRate(v.commission?.commission_rates?.rate) }}</template>
               </td>
-              <!-- height (Gno) / action (Cosmos) -->
-              <td class="text-center">
-                <template v-if="gno">
-                  <span v-if="gno.status === 'INACTIVE' && gno.inActivatedHeight" class="font-mono text-[11px] text-secondary" :title="'Inactivated at'">
-                    #{{ gno.inActivatedHeight }}
-                  </span>
-                  <RouterLink
-                    v-else-if="gno.firstCommittedHeight"
-                    class="sz-height-link font-mono text-[11px]"
-                    :to="`/${$route.params.chain}/block/${gno.firstCommittedHeight}`"
-                  >
-                    <span class="sz-height-hash">#</span>{{ gno.firstCommittedHeight }}
-                  </RouterLink>
-                  <span v-else class="text-[11px] text-secondary">—</span>
-                </template>
-                <template v-else>
-                  <span v-if="v.jailed" class="sz-chip sz-chip--bad">{{ $t('staking.jailed') }}</span>
-                  <span v-else-if="isGno" class="text-[11px] text-secondary">—</span>
-                  <button type="button"
-                    v-else
-                    class="btn btn-xs btn-primary rounded-md capitalize"
-                    @click="dialog.open('delegate', { validator_address: v.operator_address })"
-                  >
-                    {{ $t('account.btn_delegate') }}
-                  </button>
-                </template>
+              <!-- actions (Cosmos only — Gno has no height column) -->
+              <td v-if="!isGno" class="text-center">
+                <span v-if="v.jailed" class="sz-chip sz-chip--bad">{{ $t('staking.jailed') }}</span>
+                <button
+                  v-else
+                  type="button"
+                  class="btn btn-xs btn-primary rounded-md capitalize"
+                  @click="dialog.open('delegate', { validator_address: v.operator_address })"
+                >
+                  {{ $t('account.btn_delegate') }}
+                </button>
               </td>
             </tr>
           </tbody>
