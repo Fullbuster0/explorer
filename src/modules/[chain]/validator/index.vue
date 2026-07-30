@@ -49,6 +49,34 @@ function shortAddr(a: string): string {
   return a.length > 18 ? `${a.slice(0, 12)}…${a.slice(-6)}` : a;
 }
 
+/** Initials monogram — no generic placeholder icons (Keybase/real logos only). */
+function monogram(name?: string, addr?: string): string {
+  const n = (name || '').trim();
+  if (n) {
+    const parts = n.split(/\s+/).filter(Boolean);
+    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+    return n.slice(0, 2).toUpperCase();
+  }
+  const a = (addr || '').trim();
+  return a ? a.slice(2, 4).toUpperCase() : '?';
+}
+
+function formatShareRate(rate?: string | number | null): string {
+  if (rate === undefined || rate === null || rate === '') return '—';
+  const n = Number(rate);
+  if (!Number.isFinite(n)) return String(rate);
+  // indexer shareRate is already a percent number (e.g. 1.23)
+  return `${n.toFixed(n >= 10 ? 2 : 3)}%`;
+}
+
+const gnoTotalVp = computed(() => {
+  if (!isGno.value) return 0;
+  return gnoValidators.value
+    .filter((g) => g.status === 'ACTIVE')
+    .reduce((s, g) => s + Number(g.votingPower || 0), 0);
+});
+
+
 /** Build a Validator-shaped object from an onbloc indexer entry.
  *  Moniker resolution: valopers realm registry first (covers ACTIVE signing
  *  addresses → operator moniker, and PENDING operator addresses), then onbloc
@@ -780,6 +808,30 @@ loadAvatars();
       </div>
     </div>
 
+    <!-- Gno set vitals — real counts only, no Cosms mint/slash CTAs -->
+    <div v-if="isGno" class="grid grid-cols-2 gap-3 xl:!grid-cols-4 mb-1">
+      <div class="sz-stat" style="--stat-hue: var(--sz-success)">
+        <div class="sz-stat-head"><i class="sz-stat-tick"></i><span class="sz-stat-label">Active</span></div>
+        <div class="sz-stat-value font-mono">{{ gnoValidators.length ? gnoCounts.ACTIVE : '…' }}</div>
+        <div class="sz-stat-sub">signing set</div>
+      </div>
+      <div class="sz-stat" style="--stat-hue: var(--sz-warn)">
+        <div class="sz-stat-head"><i class="sz-stat-tick"></i><span class="sz-stat-label">Pending</span></div>
+        <div class="sz-stat-value font-mono">{{ gnoValidators.length ? gnoCounts.PENDING : '…' }}</div>
+        <div class="sz-stat-sub">registered · not signing</div>
+      </div>
+      <div class="sz-stat" style="--stat-hue: var(--sz-danger)">
+        <div class="sz-stat-head"><i class="sz-stat-tick"></i><span class="sz-stat-label">Inactive</span></div>
+        <div class="sz-stat-value font-mono">{{ gnoValidators.length ? gnoCounts.INACTIVE : '…' }}</div>
+        <div class="sz-stat-sub">out of set</div>
+      </div>
+      <div class="sz-stat" style="--stat-hue: var(--sz-accent)">
+        <div class="sz-stat-head"><i class="sz-stat-tick"></i><span class="sz-stat-label">Active VP</span></div>
+        <div class="sz-stat-value font-mono text-[1.05rem]">{{ gnoValidators.length ? format.formatToken({ amount: String(gnoTotalVp), denom: staking.params.bond_denom || 'ugnot' }, true, '0,0') : '…' }}</div>
+        <div class="sz-stat-sub">sum voting power</div>
+      </div>
+    </div>
+
     <!-- validator set -->
     <div class="sz-section mt-4 overflow-hidden">
       <div class="overflow-x-auto">
@@ -797,7 +849,7 @@ loadAvatars();
           <tbody>
             <tr v-if="isGno && gnoLoading && !gnoValidators.length">
               <td :colspan="isGno ? 5 : 6" class="py-10 text-center text-[12.5px] text-secondary">
-                Loading validators from indexer…
+                Loading validator set…
               </td>
             </tr>
             <tr v-else-if="isGno && gnoError && !gnoValidators.length">
@@ -807,7 +859,7 @@ loadAvatars();
             </tr>
             <tr v-else-if="!list.length">
               <td :colspan="isGno ? 5 : 6" class="py-10 text-center text-[12.5px] text-secondary">
-                No validators in this status.
+                No validators in this tab.
               </td>
             </tr>
             <tr v-for="({ v, rank, logo, gno }, i) in list" :key="v.operator_address">
@@ -827,24 +879,25 @@ loadAvatars();
               <!-- validator -->
               <td>
                 <div class="flex items-center gap-3 overflow-hidden" style="max-width: 320px">
-                  <div class="relative h-9 w-9 shrink-0 overflow-hidden rounded-full bg-base-200 ring-1 ring-base-content/10">
+                  <div class="relative h-9 w-9 shrink-0 overflow-hidden rounded-full bg-base-200 ring-1 ring-base-content/10 shadow-sm">
                     <img v-if="logo" :src="logo" class="h-full w-full object-contain"
                       @error="() => { const identity = v.description?.identity; if (identity) loadAvatar(identity); }"
                     />
-                    <div v-else class="flex h-full w-full items-center justify-center text-base-content/40">
-                      <Icon icon="mdi:help-circle-outline" class="text-xl" />
+                    <div v-else class="sz-val-mono flex h-full w-full items-center justify-center text-[11px] font-extrabold tracking-wide text-primary/80">
+                      {{ monogram(v.description?.moniker, v.operator_address) }}
                     </div>
                   </div>
                   <div class="min-w-0">
                     <RouterLink
                       :to="`/${$route.params.chain}/validator/${v.operator_address}`"
                       class="block truncate text-[13.5px] font-semibold text-primary no-underline hover:underline"
+                      :title="v.description?.moniker"
                     >
                       {{ v.description?.moniker }}
                     </RouterLink>
-                    <span class="block truncate font-mono text-[11px] text-secondary">
+                    <span class="block truncate font-mono text-[11px] text-secondary" :title="v.operator_address">
                       <template v-if="gno">{{ shortAddr(v.operator_address) }}</template>
-                      <template v-else>{{ v.description?.website || v.description?.identity || '-' }}</template>
+                      <template v-else>{{ v.description?.website || v.description?.identity || '—' }}</template>
                     </span>
                   </div>
                 </div>
@@ -867,7 +920,7 @@ loadAvatars();
               </td>
               <!-- share (Gno) / 24h change (Cosmos) -->
               <td class="text-right font-mono text-[12px]" :class="gno ? '' : change24Color(v)">
-                <template v-if="gno">{{ gno.shareRate }}%</template>
+                <template v-if="gno">{{ formatShareRate(gno.shareRate) }}</template>
                 <template v-else>{{ change24Text(v) || '—' }}</template>
               </td>
               <!-- status (Gno) / commission (Cosmos) -->
@@ -903,9 +956,19 @@ loadAvatars();
       </div>
 
       <div class="flex flex-wrap items-center gap-2 border-t border-base-content/10 px-4 py-3">
-        <span class="sz-chip sz-chip--bad">{{ $t('staking.top') }} 33%</span>
-        <span class="sz-chip sz-chip--warn">{{ $t('staking.top') }} 67%</span>
-        <span class="hidden text-[11.5px] text-secondary md:!inline">{{ $t('staking.description') }}</span>
+        <template v-if="isGno && tab === 'active'">
+          <span class="sz-chip sz-chip--bad">Top 33% VP</span>
+          <span class="sz-chip sz-chip--warn">Top 67% VP</span>
+          <span class="hidden text-[11.5px] text-secondary md:!inline">Rank tint = cumulative voting-power share of the active set</span>
+        </template>
+        <template v-else-if="isGno">
+          <span class="text-[11.5px] text-secondary">Sorted by voting power · logos from Keybase identity when available</span>
+        </template>
+        <template v-else>
+          <span class="sz-chip sz-chip--bad">{{ $t('staking.top') }} 33%</span>
+          <span class="sz-chip sz-chip--warn">{{ $t('staking.top') }} 67%</span>
+          <span class="hidden text-[11.5px] text-secondary md:!inline">{{ $t('staking.description') }}</span>
+        </template>
       </div>
     </div>
 
@@ -935,6 +998,17 @@ loadAvatars();
 .gno-toast-leave-to {
   opacity: 0;
   transform: translateY(12px);
+}
+.sz-val-mono {
+  background: color-mix(in srgb, hsl(var(--p)) 12%, transparent);
+  letter-spacing: 0.04em;
+  user-select: none;
+}
+.sz-table tbody tr {
+  transition: background 0.12s ease;
+}
+.sz-table tbody tr:hover td {
+  background: color-mix(in srgb, hsl(var(--bc)) 3.5%, transparent);
 }
 </style>
 

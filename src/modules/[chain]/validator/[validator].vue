@@ -1444,7 +1444,7 @@ watch(
             <img
               v-if="identity && logo(identity)"
               v-lazy="logo(identity)"
-              class="h-full w-full object-cover"
+              class="h-full w-full object-contain p-1"
               alt=""
               @error="() => loadAvatar(identity)"
             />
@@ -1474,20 +1474,50 @@ watch(
               </p>
             </template>
 
-            <!-- Gno: hero stays lean (profile lives in the Valoper card) — just the
-                 official valopers realm profile link -->
-            <div v-if="isGno" class="flex flex-wrap items-center gap-2 mt-2">
-              <a
-                :href="gnoValopersUrl"
-                target="_blank"
-                rel="noopener"
-                class="sz-hero-link"
-                title="Official valoper profile on gno.land"
-              >
-                <Icon icon="mdi-account-card-details-outline" class="text-base" />
-                <span class="sz-hero-link-label">Valoper Profile</span>
-                <span class="sz-hero-link-value">gnops/valopers</span>
-              </a>
+            <!-- Gno: lean hero — operator/signing chips + official profile link (no Cosms delegate CTA) -->
+            <div v-if="isGno" class="mt-2 space-y-2">
+              <div class="flex flex-wrap items-center gap-2 text-[11.5px] font-mono text-secondary">
+                <span
+                  v-if="addresses.operAddress || v.operator_address"
+                  class="sz-chip !text-[10px] !font-medium cursor-pointer"
+                  title="Operator — click to copy"
+                  @click="copyWebsite(addresses.operAddress || v.operator_address || '')"
+                >op {{ shortAddr(addresses.operAddress || v.operator_address) }}</span>
+                <span
+                  v-if="addresses.account"
+                  class="sz-chip !text-[10px] !font-medium cursor-pointer"
+                  title="Signing — click to copy"
+                  @click="copyWebsite(addresses.account || '')"
+                >sig {{ shortAddr(addresses.account) }}</span>
+                <span v-if="identity" class="sz-chip font-mono !text-[10px] !font-medium text-secondary" :title="'Keybase ' + identity">
+                  {{ identity }}
+                </span>
+              </div>
+              <div class="flex flex-wrap items-center gap-2">
+                <a
+                  v-if="gnoValopersUrl"
+                  :href="gnoValopersUrl"
+                  target="_blank"
+                  rel="noopener"
+                  class="sz-hero-link"
+                  title="Official valoper profile on gnoweb"
+                >
+                  <Icon icon="mdi-open-in-new" class="text-base" />
+                  <span class="sz-hero-link-label">gnoweb</span>
+                  <span class="sz-hero-link-value">valopers</span>
+                </a>
+                <a
+                  v-if="v.description?.website || gnoMeta?.website"
+                  :href="(v.description?.website || gnoMeta?.website || '').startsWith('http') ? (v.description?.website || gnoMeta?.website) : `https://${v.description?.website || gnoMeta?.website}`"
+                  target="_blank"
+                  rel="noopener"
+                  class="sz-hero-link"
+                  :title="v.description?.website || gnoMeta?.website"
+                >
+                  <Icon icon="mdi-web" class="text-base" />
+                  <span class="sz-hero-link-label">Website</span>
+                </a>
+              </div>
             </div>
 
             <div v-if="!isGno" class="flex flex-wrap items-center gap-2">
@@ -1605,32 +1635,34 @@ watch(
           'text-error': gnoSigning.health === 'Unhealthy',
         }">{{ gnoSigning.health }}</div>
       </div>
-      <div class="grid grid-cols-2 md:!grid-cols-3 xl:!grid-cols-6 gap-0 divide-x divide-base-content/10">
-        <div class="px-4 py-3">
-          <div class="text-[11px] font-bold uppercase tracking-wider text-secondary mb-1">Status</div>
-          <div class="text-sm font-semibold">{{ gnoStatusLabel }}</div>
+      <div class="sz-gno-metrics grid grid-cols-2 md:!grid-cols-3 xl:!grid-cols-6 gap-0">
+        <div class="sz-gno-metric">
+          <div class="sz-gno-metric-label">Status</div>
+          <div class="sz-gno-metric-value">
+            <span class="sz-chip !text-[10px]" :class="gnoStatusChip">{{ gnoStatusLabel }}</span>
+          </div>
         </div>
-        <div class="px-4 py-3">
-          <div class="text-[11px] font-bold uppercase tracking-wider text-secondary mb-1">Indexed Height</div>
-          <div class="text-sm font-mono">{{ gnoRpc?.height || (baseStore.latest?.block?.header?.height) || '…' }}</div>
+        <div class="sz-gno-metric">
+          <div class="sz-gno-metric-label">Tip Height</div>
+          <div class="sz-gno-metric-value font-mono">{{ gnoRpc?.height || (baseStore.latest?.block?.header?.height) || '…' }}</div>
         </div>
-        <div class="px-4 py-3">
-          <div class="text-[11px] font-bold uppercase tracking-wider text-secondary mb-1">Voting Power</div>
-          <div class="text-sm font-mono">{{ gnoRpc?.votingPower || gnoChain?.votingPower || v.tokens || '—' }}</div>
-          <div v-if="gnoRpc?.vpShare" class="text-[11px] text-secondary mt-0.5">{{ gnoRpc.vpShare }} of set</div>
+        <div class="sz-gno-metric">
+          <div class="sz-gno-metric-label">Voting Power</div>
+          <div class="sz-gno-metric-value font-mono">{{ gnoRpc?.votingPower || gnoChain?.votingPower || v.tokens || '—' }}</div>
+          <div v-if="gnoRpc?.vpShare" class="sz-gno-metric-sub">{{ gnoRpc.vpShare }} of set</div>
         </div>
-        <div class="px-4 py-3">
-          <div class="text-[11px] font-bold uppercase tracking-wider text-secondary mb-1">Proposer Priority</div>
-          <div class="text-sm font-mono">{{ gnoRpc?.proposerPriority || '—' }}</div>
+        <div class="sz-gno-metric">
+          <div class="sz-gno-metric-label">Proposer Priority</div>
+          <div class="sz-gno-metric-value font-mono">{{ gnoRpc?.proposerPriority ?? '—' }}</div>
         </div>
-        <div class="px-4 py-3">
-          <div class="text-[11px] font-bold uppercase tracking-wider text-secondary mb-1">Uptime (100 blks)</div>
-          <div class="text-sm font-semibold">{{ gnoSigning.uptime || '…' }}</div>
-          <div v-if="gnoSigning.visible" class="text-[11px] text-secondary mt-0.5">{{ gnoSigning.counts.commit || 0 }}/{{ gnoSigning.visible }} signed</div>
+        <div class="sz-gno-metric">
+          <div class="sz-gno-metric-label">Uptime (100 blks)</div>
+          <div class="sz-gno-metric-value font-semibold">{{ gnoSigning.uptime || '…' }}</div>
+          <div v-if="gnoSigning.visible" class="sz-gno-metric-sub">{{ gnoSigning.counts.commit || 0 }}/{{ gnoSigning.visible }} signed</div>
         </div>
-        <div class="px-4 py-3">
-          <div class="text-[11px] font-bold uppercase tracking-wider text-secondary mb-1">Server</div>
-          <div class="text-sm">{{ gnoMeta?.serverType || '—' }}</div>
+        <div class="sz-gno-metric">
+          <div class="sz-gno-metric-label">Server</div>
+          <div class="sz-gno-metric-value capitalize">{{ gnoMeta?.serverType || '—' }}</div>
         </div>
       </div>
       <div v-if="gnoRpc?.consensusPubKey" class="px-4 py-2.5 border-t border-base-content/10 flex flex-wrap items-center gap-2 text-[12px]">
@@ -1678,12 +1710,14 @@ watch(
           <div
             v-for="c in gnoSigning.cells"
             :key="c.height"
-            class="w-[7px] h-4 rounded-[1px]"
+            class="sz-gno-sign-cell w-[8px] h-[18px] rounded-[2px]"
             :class="c.color"
             :title="'#' + c.height"
           ></div>
         </div>
-        <div v-else class="text-secondary text-xs py-2">Loading signing history…</div>
+        <div v-else class="text-secondary text-xs py-3 italic">
+          {{ gnoStatusLabel === 'PENDING' || gnoStatusLabel === 'Pending' ? 'No signing window yet — validator is pending.' : 'Loading signing history…' }}
+        </div>
       </div>
     </div>
 
@@ -1820,7 +1854,7 @@ watch(
             <div class="mt-1 text-[11px] text-secondary">
               Balance:
               <span class="font-mono text-base-content">{{ gnoBalances.loading ? '…' : formatGnoBal(gnoBalances.signing) }}</span>
-              <span class="opacity-60"> · no account link (from gnoland secrets)</span>
+              <span class="opacity-50"> · signing only</span>
             </div>
           </div>
           <div>
@@ -1842,7 +1876,7 @@ watch(
             <div class="mt-1 text-[11px] text-secondary">
               Balance:
               <span class="font-mono text-base-content">{{ gnoBalances.loading ? '…' : formatGnoBal(gnoBalances.operator) }}</span>
-              <span class="opacity-60"> · account + valoper activity (from gnokey)</span>
+              <span class="opacity-50"> · account + activity</span>
             </div>
           </div>
           <div>
@@ -1859,7 +1893,14 @@ watch(
           </div>
           <div v-if="identity">
             <div class="text-[11px] font-bold uppercase tracking-wider text-secondary mb-0.5">Keybase Identity</div>
-            <div class="sz-hash text-[12px] break-all font-mono">{{ identity }}</div>
+            <a
+              class="sz-hash text-[12px] break-all font-mono text-primary link link-hover"
+              :href="`https://keybase.io/_/api/1.0/user/lookup.json?key_suffix=${identity}&fields=basics`"
+              target="_blank"
+              rel="noopener"
+              :title="identity"
+            >{{ identity }}</a>
+            <div class="mt-0.5 text-[10.5px] text-secondary">used for logo resolution only</div>
           </div>
         </div>
       </div>
@@ -2521,19 +2562,62 @@ watch(
 /* Gno valoper profile — Cosmos SDK hero-style clamp + read more */
 .sz-gno-profile--clamped {
   display: -webkit-box;
-  -webkit-line-clamp: 6;
+  -webkit-line-clamp: 7;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
 .sz-gno-profile-toggle {
   background: none;
   border: none;
-  padding: 0;
+  padding: 0.15rem 0;
   cursor: pointer;
   letter-spacing: 0.02em;
 }
 .sz-gno-profile-toggle:hover {
   text-decoration: underline;
+}
+/* Gno metric strip */
+.sz-gno-metrics {
+  border-top: 1px solid color-mix(in srgb, hsl(var(--bc)) 8%, transparent);
+}
+.sz-gno-metric {
+  padding: 0.85rem 1rem;
+  border-right: 1px solid color-mix(in srgb, hsl(var(--bc)) 8%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, hsl(var(--bc)) 6%, transparent);
+  min-height: 4.4rem;
+}
+.sz-gno-metric:nth-child(2n) {
+  /* keep grid rhythm on mobile */
+}
+@media (min-width: 1280px) {
+  .sz-gno-metric:nth-child(6n) {
+    border-right: none;
+  }
+}
+.sz-gno-metric-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-secondary, #888);
+  margin-bottom: 0.35rem;
+}
+.sz-gno-metric-value {
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.25;
+  word-break: break-word;
+}
+.sz-gno-metric-sub {
+  margin-top: 0.2rem;
+  font-size: 11px;
+  color: var(--text-secondary, #888);
+}
+.sz-gno-sign-cell {
+  transition: transform 0.08s ease;
+}
+.sz-gno-sign-cell:hover {
+  transform: scaleY(1.15);
 }
 .sz-hero-link {
   display: inline-flex;
