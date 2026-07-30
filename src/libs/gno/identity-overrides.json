@@ -1,4 +1,12 @@
 {
-  "_comment": "Manual Keybase identity overrides for Gno validators. HIGHEST priority — never overwritten by AtomOne auto-match or live scrape. Keys: operatorAddress (g1…) preferred | signingAddress (g1…) | moniker (mutable, last resort). Value: 16-char Keybase identity hex OR { identity, operator?, signing?, moniker? }. Lookup order: operator → signing → moniker. Helper: node scripts/keybase-lookup.mjs <username>. Example: \"g1abc...\": \"A2E180C6914F7F87\".",
-  "overrides": {}
+  "_comment": "Manual Keybase identity overrides for Gno validators. HIGHEST priority — never overwritten by AtomOne auto-match or live scrape. Keys: operatorAddress (g1…) preferred | signingAddress (g1…) | moniker (mutable, last resort). Value: 16-char Keybase identity hex OR { identity, operator?, signing?, moniker? }. Lookup order: operator → signing → moniker. Helper: node scripts/keybase-lookup.mjs <username>.",
+  "overrides": {
+    "g17kuxcnsy7uy6jsm5mlcr8037gsjpz76ru0ddk3": {
+      "identity": "7A553496D97AA912",
+      "operator": "g17kuxcnsy7uy6jsm5mlcr8037gsjpz76ru0ddk3",
+      "signing": "g1ckuv7eqtx7nvqwv24l82wyp2qyy3mxyt5y6ad6",
+      "moniker": "Shazoes",
+      "_note": "Keybase username: shazoe (identity from AtomOne + keybase key_suffix). Operator pin = immutable."
+    }
+  }
 }
