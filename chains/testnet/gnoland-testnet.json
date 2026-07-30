@@ -141,7 +141,8 @@
   "valopers_source": {
     "type": "gno-realm",
     "base_url": "https://topaz.testnets.gno.land/r/gnops/valopers",
-    "note": "Official gnops valoper registry. Swap base_url for mainnet."
+    "note": "Official gnops valoper registry. Swap base_url for mainnet. Cron scrapes this server-side."
   },
+  "valopers_live_url": "https://gnoland-testnet-rpc.shazoes.xyz/static/gno-valopers.json",
   "indexer_api": "https://topaz.api.onbloc.xyz/v1"
 }

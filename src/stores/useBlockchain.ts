@@ -894,7 +894,8 @@ export const useBlockchain = defineStore('blockchain', {
       if (isGnoChain(this.current)) {
         this.rpc = GnoTm2Client.new(endpoint.address) as unknown as CosmosRestClient;
         // Fire-and-forget: merge live valoper registry from official realm
-        initGnoValopers(this.chainName).catch(() => {});
+        const liveUrl = (this.current as any)?.valopers_live_url as string | undefined;
+        initGnoValopers(this.chainName, liveUrl).catch(() => {});
       } else {
         this.rpc = CosmosRestClient.newStrategy(endpoint.address, this.current);
       }
