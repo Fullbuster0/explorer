@@ -18,11 +18,17 @@
 #   git add -p src/libs/gno/valopers-data.ts && git commit   # human review
 set -euo pipefail
 # Portable root: env override → script-relative (works any user/server).
-# Do NOT hardcode /home/hermes — production may use /opt/explorer or another $HOME.
+# Do NOT hardcode /home/hermes.
+# Convention: $HOME/explorer (crontab user). Override: GNO_EXPLORER_ROOT.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="${GNO_EXPLORER_ROOT:-}"
 if [ -z "$ROOT" ]; then
-  ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+  # Prefer conventional ~/explorer when this script lives there; else script parent
+  if [ -f "${HOME}/explorer/scripts/refresh-gno-valopers.mjs" ]; then
+    ROOT="${HOME}/explorer"
+  else
+    ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+  fi
 fi
 if [ ! -d "$ROOT" ] || [ ! -f "$ROOT/scripts/refresh-gno-valopers.mjs" ]; then
   echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] FATAL: explorer root invalid: ROOT=$ROOT (set GNO_EXPLORER_ROOT)" >&2

@@ -8,13 +8,17 @@
 #   CONF_FILE                   nginx vhost (default sites-enabled/gnoland-testnet)
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-EXPLORER_ROOT="${GNO_EXPLORER_ROOT:-}"
-if [ -z "$EXPLORER_ROOT" ]; then
-  EXPLORER_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+# Deploy home: sudo-safe ($HOME under sudo is /root — use SUDO_USER)
+if [ -n "${SUDO_USER:-}" ] && [ "$SUDO_USER" != "root" ]; then
+  APP_HOME="$(getent passwd "$SUDO_USER" | cut -d: -f6)"
+else
+  APP_HOME="${HOME}"
 fi
+APP_HOME="${APP_HOME:-/root}"
 
+EXPLORER_ROOT="${GNO_EXPLORER_ROOT:-$APP_HOME/explorer}"
 CONF="${CONF_FILE:-/etc/nginx/sites-enabled/gnoland-testnet}"
+# Default: $HOME/explorer/public/data/gno-valopers.json (per-user)
 JSON_PATH="${VALOPERS_JSON:-${JSON_PATH:-$EXPLORER_ROOT/public/data/gno-valopers.json}}"
 MARKER="gno-valopers-static"
 RPC_SERVER_NAME="${RPC_SERVER_NAME:-gnoland-testnet-rpc.shazoes.xyz}"
@@ -23,18 +27,24 @@ if [ ! -f "$CONF" ]; then
   echo "FATAL: $CONF missing"; exit 1
 fi
 
+echo "📁 APP_HOME=$APP_HOME"
 echo "📁 JSON_PATH=$JSON_PATH"
 echo "📁 CONF=$CONF"
 
-chmod a+r "$JSON_PATH" 2>/dev/null || true
-# Portable traverse perms for nginx → JSON
+if [ -f "$JSON_PATH" ]; then
+  chmod a+r "$JSON_PATH" 2>/dev/null || true
+fi
+chmod a+x "$APP_HOME" \
+  "$APP_HOME/explorer" \
+  "$APP_HOME/explorer/public" \
+  "$APP_HOME/explorer/public/data" 2>/dev/null || true
 _path="$JSON_PATH"
 while [ -n "$_path" ] && [ "$_path" != "/" ]; do
   _path="$(dirname "$_path")"
   [ -d "$_path" ] || continue
   chmod a+x "$_path" 2>/dev/null || true
   case "$_path" in
-    /home|/home/*|/opt|/opt/*|/var|/var/*|/srv|/srv/*) ;;
+    "$APP_HOME"|"$APP_HOME"/*|/home|/home/*|/opt|/opt/*|/var|/var/*|/srv|/srv/*) ;;
     *) break ;;
   esac
 done

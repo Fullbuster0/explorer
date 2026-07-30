@@ -10,8 +10,10 @@
 #
 # PATHS (production-portable — no hard dependency on user "hermes"):
 #   VALOPERS_JSON       absolute path to cron output JSON (highest priority)
-#   GNO_EXPLORER_ROOT   explorer tree that owns public/data/gno-valopers.json
-#   Default             <repo>/public/data/gno-valopers.json next to this script
+#   GNO_EXPLORER_ROOT   explorer tree (else $APP_HOME/explorer)
+#   Default             $APP_HOME/explorer/public/data/gno-valopers.json
+#   APP_HOME            SUDO_USER home if run via sudo, else $HOME
+#                       → `sudo bash endpoint-gnoland.sh` does NOT resolve to /root/explorer
 #   Cron must write the SAME file nginx aliases (see cron-gno-valopers.sh).
 #
 # === KONFIGURASI ===
@@ -22,13 +24,16 @@ RPC_PORT="${RPC_PORT:-42657}"
 GRPC_PORT="${GRPC_PORT:-42090}"
 CONF_FILE="${CONF_FILE:-/etc/nginx/sites-enabled/gnoland-testnet}"
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# Explorer root: env → parent of scripts/ (this file lives in scripts/)
-EXPLORER_ROOT="${GNO_EXPLORER_ROOT:-}"
-if [ -z "$EXPLORER_ROOT" ]; then
-  EXPLORER_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+# Real deploy user home (sudo-safe)
+if [ -n "${SUDO_USER:-}" ] && [ "$SUDO_USER" != "root" ]; then
+  APP_HOME="$(getent passwd "$SUDO_USER" | cut -d: -f6)"
+else
+  APP_HOME="${HOME}"
 fi
-# JSON path: explicit env → <explorer>/public/data/gno-valopers.json
+APP_HOME="${APP_HOME:-/root}"
+
+EXPLORER_ROOT="${GNO_EXPLORER_ROOT:-$APP_HOME/explorer}"
+# Default layout: ~/explorer/public/data/gno-valopers.json (per-user production)
 VALOPERS_JSON="${VALOPERS_JSON:-$EXPLORER_ROOT/public/data/gno-valopers.json}"
 
 ISSUE_CERTS="${ISSUE_CERTS:-0}"
@@ -50,26 +55,31 @@ else
   fi
 fi
 
-# Pastikan file registry + parent dirs kebaca nginx (www-data harus bisa traverse).
-# Kalau file belum ada, location tetap di conf — 404 sampai cron jalan.
+# Pastikan file registry kebaca nginx (kalau belum ada, location tetap — 404 sampai cron).
+# Layout default: $APP_HOME/explorer/public/data (sama ide dengan $HOME/explorer/...).
 if [ -f "$VALOPERS_JSON" ]; then
   chmod a+r "$VALOPERS_JSON" 2>/dev/null || true
 fi
-# Walk parents of JSON path (portable — works for /home/USER/… or /opt/explorer/…)
-_path="$VALOPERS_JSON"
-while [ -n "$_path" ] && [ "$_path" != "/" ]; do
-  _path="$(dirname "$_path")"
-  [ -d "$_path" ] || continue
-  chmod a+x "$_path" 2>/dev/null || true
-  # stop at filesystem root-ish; don't chmod all of /
-  case "$_path" in
-    /home|/home/*|/opt|/opt/*|/var|/var/*|/srv|/srv/*) ;;
-    *) break ;;
-  esac
-done
-# Ensure data dir exists so next cron can write
+chmod a+x "$APP_HOME" \
+  "$APP_HOME/explorer" \
+  "$APP_HOME/explorer/public" \
+  "$APP_HOME/explorer/public/data" 2>/dev/null || true
+# If JSON lives outside ~/explorer (VALOPERS_JSON override), still fix traverse
+if [ -f "$VALOPERS_JSON" ] || [ -d "$(dirname "$VALOPERS_JSON")" ]; then
+  _path="$VALOPERS_JSON"
+  while [ -n "$_path" ] && [ "$_path" != "/" ]; do
+    _path="$(dirname "$_path")"
+    [ -d "$_path" ] || continue
+    chmod a+x "$_path" 2>/dev/null || true
+    case "$_path" in
+      "$APP_HOME"|"$APP_HOME"/*|/home|/home/*|/opt|/opt/*|/var|/var/*|/srv|/srv/*) ;;
+      *) break ;;
+    esac
+  done
+fi
 sudo mkdir -p "$(dirname "$VALOPERS_JSON")" 2>/dev/null || mkdir -p "$(dirname "$VALOPERS_JSON")" 2>/dev/null || true
 
+echo "📁 APP_HOME=$APP_HOME"
 echo "📁 VALOPERS_JSON=$VALOPERS_JSON"
 echo "📁 EXPLORER_ROOT=$EXPLORER_ROOT"
 
@@ -160,4 +170,5 @@ echo "  curl -sI https://$RPC_SUB.$BASE_DOMAIN/static/gno-valopers.json | head"
 echo "  curl -s  https://$RPC_SUB.$BASE_DOMAIN/status | head -c 120"
 echo ""
 echo "Catatan: re-run aman (default ISSUE_CERTS=0). First cert: ISSUE_CERTS=1 $0"
-echo "Prod beda path: VALOPERS_JSON=/var/lib/gnoland/gno-valopers.json GNO_EXPLORER_ROOT=/opt/explorer $0"
+echo "Default path: \$HOME/explorer/public/data/gno-valopers.json (sudo → SUDO_USER home, not /root)"
+echo "Override: VALOPERS_JSON=/var/lib/gnoland/gno-valopers.json GNO_EXPLORER_ROOT=/opt/explorer $0"
