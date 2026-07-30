@@ -12,16 +12,31 @@
 # Bundle commit (valopers-data.ts) is OPTIONAL fallback for cold start.
 # Set GNO_VALOPERS_AUTO_COMMIT=1 to re-enable commit+push (legacy Vercel path).
 set -euo pipefail
-cd /home/hermes/explorer || exit 1
+# Portable root: env override → script-relative → legacy hermes path
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT="${GNO_EXPLORER_ROOT:-}"
+if [ -z "$ROOT" ]; then
+  ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+fi
+if [ ! -d "$ROOT" ] || [ ! -f "$ROOT/scripts/refresh-gno-valopers.mjs" ]; then
+  ROOT="/home/hermes/explorer"
+fi
+cd "$ROOT" || exit 1
 
 LOG=/tmp/gno-valopers-refresh.log
 AUTO_COMMIT="${GNO_VALOPERS_AUTO_COMMIT:-0}"
 
 NODE_BIN=""
-for cand in \
-  /home/hermes/.nvm/versions/node/v20.20.2/bin/node \
-  /home/hermes/.nvm/versions/node/v18.20.8/bin/node \
-  /usr/bin/node; do
+# Prefer pinned nvm builds, then any nvm v20/v18, then PATH/node
+shopt -s nullglob 2>/dev/null || true
+NVM_CANDS=(
+  /home/hermes/.nvm/versions/node/v20.20.2/bin/node
+  /home/hermes/.nvm/versions/node/v18.20.8/bin/node
+  /home/hermes/.nvm/versions/node/v20.*/bin/node
+  /home/hermes/.nvm/versions/node/v18.*/bin/node
+)
+for cand in "${NVM_CANDS[@]}" "$(command -v node 2>/dev/null || true)" /usr/bin/node; do
+  [ -n "$cand" ] || continue
   if [ -x "$cand" ]; then NODE_BIN="$cand"; break; fi
 done
 

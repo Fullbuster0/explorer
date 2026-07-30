@@ -325,14 +325,19 @@ export class GnoIndexerClient {
   /**
    * Resolve one realm by exact package path.
    * onbloc `/realms?path=` is not a reliable exact filter — walk pages.
+   * Cap raised (40→80) so deep testnet catalogs still resolve.
    */
   async getRealmByPath(pkgPath: string): Promise<GnoRealm | undefined> {
     const want = String(pkgPath || '').trim();
     if (!want) return undefined;
+    const wantNorm = want.replace(/^gno\.land\//, '');
     let cursor: string | undefined;
-    for (let i = 0; i < 40; i++) {
+    for (let i = 0; i < 80; i++) {
       const page = cursor ? await this.getRealmsAfter(cursor) : await this.getRealms();
-      const hit = (page.items || []).find((r) => r.path === want);
+      const hit = (page.items || []).find((r) => {
+        const p = String(r.path || '');
+        return p === want || p.replace(/^gno\.land\//, '') === wantNorm;
+      });
       if (hit) return hit;
       if (!page.hasNext || !page.cursor) break;
       cursor = page.cursor;
@@ -340,19 +345,37 @@ export class GnoIndexerClient {
     return undefined;
   }
 
-  /** Resolve one GRC20 token by tokenId, path, or symbol (exact, case-sensitive for id/path). */
+  /**
+   * Resolve one GRC20 token by tokenId, path, or symbol.
+   * Walk all token pages (not first page only) — catalog can grow past ~20.
+   */
   async getTokenByKey(key: string): Promise<GnoToken | undefined> {
     const want = String(key || '').trim();
     if (!want) return undefined;
-    const page = await this.getTokens();
-    const items = page.items || [];
-    return (
-      items.find((t) => t.tokenId === want) ||
-      items.find((t) => t.path === want) ||
-      items.find((t) => t.symbol === want) ||
-      items.find((t) => t.tokenId?.toLowerCase() === want.toLowerCase()) ||
-      items.find((t) => t.path?.toLowerCase() === want.toLowerCase())
-    );
+    const wantLow = want.toLowerCase();
+    const match = (t: GnoToken) =>
+      t.tokenId === want ||
+      t.path === want ||
+      t.symbol === want ||
+      t.tokenId?.toLowerCase() === wantLow ||
+      t.path?.toLowerCase() === wantLow ||
+      t.symbol?.toLowerCase() === wantLow ||
+      t.slug === want ||
+      t.slug?.toLowerCase() === wantLow;
+
+    let cursor: string | undefined;
+    for (let i = 0; i < 30; i++) {
+      const data = await this.get<{ items: GnoToken[]; page?: { cursor?: string; hasNext?: boolean } }>(
+        '/tokens',
+        cursor ? { cursor } : { page: 1 }
+      );
+      const items = data.items || [];
+      const hit = items.find(match);
+      if (hit) return hit;
+      if (!data.page?.hasNext || !data.page?.cursor) break;
+      cursor = data.page.cursor;
+    }
+    return undefined;
   }
 
   /** Fetch all validators across ACTIVE / INACTIVE / PENDING (cursor-paginated).

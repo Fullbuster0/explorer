@@ -41,13 +41,19 @@ const isProposalsLoading = computed(() => govStore.loading['2'] !== LoadingStatu
 
 function refreshDashboard() {
   store.loadDashboard();
-  walletStore.loadMyAsset();
-  // warm tokenomics sources (pool/supply/inflation/tax) after chain switch
-  distStore.fetchParams();
+  // Gno/TM2: wallet UI is hidden and Cosms bank/wallet paths do not apply.
+  const gno =
+    blockchain.current?.engine === 'gno' || blockchain.current?.engine === 'tm2';
+  if (!gno) {
+    walletStore.loadMyAsset();
+    // warm tokenomics sources (pool/supply/inflation/tax) after chain switch
+    distStore.fetchParams();
+    mintStore.fetchInflation();
+    bankStore.initial();
+  }
+  // Staking pool/params still useful on Gno (VP / bonded set)
   stakingStore.fetchPool();
   stakingStore.fetchParams();
-  mintStore.fetchInflation();
-  bankStore.initial();
 }
 
 onMounted(() => {
@@ -117,6 +123,7 @@ const color = computed(() => {
 });
 
 function updateState() {
+  if (blockchain.current?.engine === 'gno' || blockchain.current?.engine === 'tm2') return;
   walletStore.loadMyAsset();
 }
 

@@ -96,24 +96,35 @@ for (const row of staticRegistry) {
   applyRow(pinIdentity(row as GnoValoperRow));
 }
 
+/** Normalize g1 bech32 map keys (case-insensitive). Non-g1 keys kept as-is. */
+function addrKey(a?: string): string {
+  const s = String(a || '').trim();
+  if (!s) return '';
+  return /^g1[a-z0-9]+$/i.test(s) ? s.toLowerCase() : s;
+}
+
 function applyRow(row: GnoValoperRow): boolean {
   if (!row.signingAddress && !row.operatorAddress) return false;
   row = pinIdentity(row);
 
+  const opKey = addrKey(row.operatorAddress);
+  const sigKey = addrKey(row.signingAddress);
+
   // Rebind on UpdateSigningKey: drop stale signing→row links for this operator.
-  if (row.operatorAddress) {
-    const prev = byOperator.get(row.operatorAddress);
-    if (prev?.signingAddress && prev.signingAddress !== row.signingAddress) {
-      const mapped = bySigning.get(prev.signingAddress);
-      if (mapped && mapped.operatorAddress === row.operatorAddress) {
-        bySigning.delete(prev.signingAddress);
+  if (opKey) {
+    const prev = byOperator.get(opKey);
+    if (prev?.signingAddress && addrKey(prev.signingAddress) !== sigKey) {
+      const prevSig = addrKey(prev.signingAddress);
+      const mapped = bySigning.get(prevSig);
+      if (mapped && addrKey(mapped.operatorAddress) === opKey) {
+        bySigning.delete(prevSig);
       }
     }
   }
 
   let changed = false;
-  if (row.signingAddress) {
-    const existing = bySigning.get(row.signingAddress);
+  if (sigKey) {
+    const existing = bySigning.get(sigKey);
     if (
       !existing ||
       existing.moniker !== row.moniker ||
@@ -123,10 +134,10 @@ function applyRow(row: GnoValoperRow): boolean {
     ) {
       changed = true;
     }
-    bySigning.set(row.signingAddress, row);
+    bySigning.set(sigKey, row);
   }
-  if (row.operatorAddress) {
-    const existing = byOperator.get(row.operatorAddress);
+  if (opKey) {
+    const existing = byOperator.get(opKey);
     if (
       !existing ||
       existing.moniker !== row.moniker ||
@@ -135,7 +146,7 @@ function applyRow(row: GnoValoperRow): boolean {
     ) {
       changed = true;
     }
-    byOperator.set(row.operatorAddress, row);
+    byOperator.set(opKey, row);
   }
   return changed;
 }
@@ -152,10 +163,17 @@ function candidateUrls(explicit?: string): string[] {
   return out;
 }
 
+/** AbortController timeout — works where AbortSignal.timeout is missing. */
+function abortAfter(ms: number): AbortSignal {
+  const c = new AbortController();
+  setTimeout(() => c.abort(), ms);
+  return c.signal;
+}
+
 async function fetchRows(url: string): Promise<GnoValoperRow[] | null> {
   const join = url.includes('?') ? '&' : '?';
   const res = await fetch(`${url}${join}t=${Date.now()}`, {
-    signal: AbortSignal.timeout(8000),
+    signal: abortAfter(8000),
     cache: 'no-store',
     headers: { Accept: 'application/json' },
   });
@@ -203,7 +221,8 @@ export function initGnoValopers(chainOrUrl = 'gnoland-testnet', liveUrl?: string
 
 export function lookupGnoValoper(address?: string): GnoValoper | undefined {
   if (!address) return undefined;
-  const hit = bySigning.get(address) || byOperator.get(address);
+  const k = addrKey(address);
+  const hit = bySigning.get(k) || byOperator.get(k) || bySigning.get(address) || byOperator.get(address);
   if (!hit) return undefined;
   // Always surface pinned identity even if maps were seeded before override edit
   return pinIdentity(hit);

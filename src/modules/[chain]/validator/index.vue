@@ -92,11 +92,10 @@ function gnoToValidator(g: GnoIndexerValidator): Validator {
 }
 
 /**
- * Fingerprint a validator for set-diff: status + address + moniker.
- * Used to detect real changes between polls (not every poll → toast).
+ * Fingerprint a validator for set-diff: status + address only.
+ * Moniker is display-only — renames must NOT toast as set changes.
  */
 function gnoFingerprint(g: GnoIndexerValidator): string {
-  // Identity = status + address only (moniker display can change without a set change)
   return `${g.status}|${g.address}`;
 }
 

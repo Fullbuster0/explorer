@@ -3,6 +3,14 @@ import { useBlockchain, useDashboard } from '@/stores';
 import { PageRequest, type Channel, type Connection } from '@/types';
 import router from '@/router';
 
+/** AbortController timeout polyfill (Safari <16 / older Chromium). */
+function abortAfter(ms: number): AbortSignal {
+  const c = new AbortController();
+  setTimeout(() => c.abort(), ms);
+  return c.signal;
+}
+
+
 /**
  * IBC "Relayers" store — Mintscan-style flow (summary + per-chain table),
  * but the data model is our own: group connections/channels by remote chain.
@@ -360,7 +368,7 @@ export const useIBCModule = defineStore('module-ibc', {
       for (const file of names) {
         try {
           const url = `https://raw.githubusercontent.com/cosmos/chain-registry/master/_IBC/${file}`;
-          const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+          const res = await fetch(url, { signal: abortAfter(8000) });
           if (!res.ok) continue;
           const data = await res.json();
           return this.parseRegistryIbc(data, a);
