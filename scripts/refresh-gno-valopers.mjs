@@ -494,8 +494,11 @@ async function buildRegistry() {
       let hit = 0;
       let kept = 0;
       for (const r of rows) {
-        // Skip if already has manual override (any key type)
-        if (resolveOverride(r)) continue;
+        // Skip if already has manual override (any key type) — immutable pin
+        if (resolveOverride(r)) {
+          kept++;
+          continue;
+        }
 
         const mon = r.moniker || '';
         const monLower = mon.toLowerCase();
@@ -545,6 +548,19 @@ async function buildRegistry() {
     }
   } else {
     console.log('AtomOne enrich skipped (--skip-atomone)');
+  }
+
+  // FINAL PIN: manual overrides always win — re-apply after AtomOne so nothing
+  // can overwrite operator/signing/moniker pins (highest priority, immutable).
+  {
+    let pinned = 0;
+    for (const r of rows) {
+      const id = resolveOverride(r);
+      if (!id) continue;
+      r.identity = id;
+      pinned++;
+    }
+    if (pinned > 0) console.log(`  Manual overrides final-pin: ${pinned} rows locked`);
   }
 
   rows.sort((a, b) => a.moniker.localeCompare(b.moniker, 'en', { sensitivity: 'base' }));

@@ -6,37 +6,99 @@
  *   - signingAddress / pubkey = mutable (UpdateSigningKey)
  *   - moniker / description = mutable (UpdateDescription)
  *
+ * Logo / Keybase identity priority (highest → lowest):
+ *   0. Manual pin  identity-overrides.json  (operator > signing > moniker)
+ *      — applied at cron into live JSON; also re-applied client-side so a pin
+ *        cannot be wiped by a stale live row or AtomOne auto-match
+ *   1. Live JSON identity field (cron: overrides → AtomOne enrich → final pin)
+ *   2. Bundled valopers-data.ts seed
+ *
  * Live source (preferred, no git/deploy):
  *   https://gnoland-testnet-rpc.shazoes.xyz/static/gno-valopers.json
- *   (nginx static location on the same RPC host; CORS *)
- *
- * Fallbacks:
- *   1) chain config `valopers_live_url`
- *   2) same-origin `/data/gno-valopers.json` (self-host explorer / local)
- *   3) bundled `valopers-data.ts` (cold start only)
- *
- * Cron on this box scrapes r/gnops/valopers → writes the JSON file.
- * After RPC static is live, auto-commit of the TS bundle is optional.
  */
 import staticRegistry from './valopers-data';
 import type { GnoValoperRow } from './valopers-data';
+import overrideFile from './identity-overrides.json';
 
 export type GnoValoper = GnoValoperRow;
 
 const bySigning = new Map<string, GnoValoper>();
 const byOperator = new Map<string, GnoValoper>();
 
+/** operator / signing / monikerLower → Keybase identity (16 hex). */
+const overrideByOperator = new Map<string, string>();
+const overrideBySigning = new Map<string, string>();
+const overrideByMoniker = new Map<string, string>();
+
+function loadOverridesFromJson(raw: unknown) {
+  overrideByOperator.clear();
+  overrideBySigning.clear();
+  overrideByMoniker.clear();
+  const ov =
+    raw && typeof raw === 'object' && (raw as { overrides?: Record<string, unknown> }).overrides
+      ? (raw as { overrides: Record<string, unknown> }).overrides
+      : {};
+  for (const [key, val] of Object.entries(ov || {})) {
+    if (!key || val == null) continue;
+    const id =
+      typeof val === 'string'
+        ? val.trim()
+        : typeof val === 'object' && val && (val as { identity?: string }).identity
+          ? String((val as { identity: string }).identity).trim()
+          : '';
+    if (!id) continue;
+    const k = key.trim();
+    if (/^g1[a-z0-9]{38,}$/i.test(k)) {
+      overrideByOperator.set(k.toLowerCase(), id);
+      overrideBySigning.set(k.toLowerCase(), id);
+    } else {
+      overrideByMoniker.set(k.toLowerCase(), id);
+    }
+    if (typeof val === 'object' && val) {
+      const o = val as { operator?: string; signing?: string; moniker?: string };
+      if (o.operator) overrideByOperator.set(String(o.operator).toLowerCase(), id);
+      if (o.signing) overrideBySigning.set(String(o.signing).toLowerCase(), id);
+      if (o.moniker) overrideByMoniker.set(String(o.moniker).toLowerCase(), id);
+    }
+  }
+}
+
+loadOverridesFromJson(overrideFile);
+
+/** Resolve manual Keybase pin — operator > signing > moniker. Never auto-cleared. */
+export function resolveIdentityOverride(row: {
+  operatorAddress?: string;
+  signingAddress?: string;
+  moniker?: string;
+}): string | undefined {
+  const op = (row.operatorAddress || '').toLowerCase();
+  const sig = (row.signingAddress || '').toLowerCase();
+  const mon = (row.moniker || '').toLowerCase();
+  if (op && overrideByOperator.has(op)) return overrideByOperator.get(op);
+  if (sig && overrideBySigning.has(sig)) return overrideBySigning.get(sig);
+  if (mon && overrideByMoniker.has(mon)) return overrideByMoniker.get(mon);
+  return undefined;
+}
+
+function pinIdentity(row: GnoValoperRow): GnoValoperRow {
+  const pinned = resolveIdentityOverride(row);
+  if (!pinned) return row;
+  if (row.identity === pinned) return row;
+  return { ...row, identity: pinned };
+}
+
 /** Default public URL on our Gno RPC vhost (same server as cron). */
 export const DEFAULT_GNO_VALOPERS_LIVE_URL =
   'https://gnoland-testnet-rpc.shazoes.xyz/static/gno-valopers.json';
 
-// Seed with static data (instant, bundled)
+// Seed with static data (instant, bundled) + apply pins
 for (const row of staticRegistry) {
-  applyRow(row);
+  applyRow(pinIdentity(row as GnoValoperRow));
 }
 
 function applyRow(row: GnoValoperRow): boolean {
   if (!row.signingAddress && !row.operatorAddress) return false;
+  row = pinIdentity(row);
 
   // Rebind on UpdateSigningKey: drop stale signing→row links for this operator.
   if (row.operatorAddress) {
@@ -85,30 +147,20 @@ function candidateUrls(explicit?: string): string[] {
     out.push(u);
   };
   add(explicit);
-  // Bundled chain config may set valopers_live_url (imported at build time via chain json)
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const cfg = (globalThis as any).__GNO_VALOPERS_LIVE_URL__ as string | undefined;
-    add(cfg);
-  } catch {
-    /* ignore */
-  }
   add(DEFAULT_GNO_VALOPERS_LIVE_URL);
-  // Same-origin (self-host explorer / local vite public/)
   add('/data/gno-valopers.json');
   return out;
 }
 
 async function fetchRows(url: string): Promise<GnoValoperRow[] | null> {
-  const sep = url.includes('?') ? '&' : '?';
-  const res = await fetch(`${url}${sep}t=${Date.now()}`, {
+  const join = url.includes('?') ? '&' : '?';
+  const res = await fetch(`${url}${join}t=${Date.now()}`, {
     signal: AbortSignal.timeout(8000),
     cache: 'no-store',
     headers: { Accept: 'application/json' },
   });
   if (!res.ok) return null;
   const ct = (res.headers.get('content-type') || '').toLowerCase();
-  // Vercel SPA fallback returns text/html for missing /data/* — reject that
   if (ct.includes('text/html')) return null;
   const data = await res.json();
   if (Array.isArray(data)) return data as GnoValoperRow[];
@@ -119,13 +171,9 @@ async function fetchRows(url: string): Promise<GnoValoperRow[] | null> {
 
 /**
  * Load live registry. Tries RPC static URL first, then same-origin.
- * Safe to call often (validator poll); failures keep bundled seed.
- *
- * @param chainOrUrl  chain name (ignored for URL pick except logging) OR full URL override
- * @param liveUrl     optional explicit live JSON URL (from chain config)
+ * Manual identity overrides are re-applied on every row (cannot be changed by live JSON).
  */
 export function initGnoValopers(chainOrUrl = 'gnoland-testnet', liveUrl?: string): Promise<void> {
-  // Back-compat: single arg that looks like URL
   let explicit = liveUrl;
   if (!explicit && /^https?:\/\//i.test(chainOrUrl)) explicit = chainOrUrl;
 
@@ -144,18 +192,20 @@ export function initGnoValopers(chainOrUrl = 'gnoland-testnet', liveUrl?: string
             `[gno-valopers] live ${rows.length} from ${url} (${updated} fields changed)`
           );
         }
-        return; // first successful source wins
+        return;
       } catch {
-        // try next candidate
+        /* try next */
       }
     }
-    // All failed — bundled seed already in maps
   })();
 }
 
 export function lookupGnoValoper(address?: string): GnoValoper | undefined {
   if (!address) return undefined;
-  return bySigning.get(address) || byOperator.get(address);
+  const hit = bySigning.get(address) || byOperator.get(address);
+  if (!hit) return undefined;
+  // Always surface pinned identity even if maps were seeded before override edit
+  return pinIdentity(hit);
 }
 
 export function gnoMoniker(address?: string, fallback?: string): string {
@@ -178,13 +228,13 @@ export function listGnoValopers(): GnoValoper[] {
     const k = row.operatorAddress || row.signingAddress || row.moniker;
     if (!k || seen.has(k)) continue;
     seen.add(k);
-    out.push(row);
+    out.push(pinIdentity(row));
   }
   for (const row of bySigning.values()) {
     const k = row.operatorAddress || row.signingAddress || row.moniker;
     if (!k || seen.has(k)) continue;
     seen.add(k);
-    out.push(row);
+    out.push(pinIdentity(row));
   }
   return out;
 }

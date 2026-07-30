@@ -1,4 +1,4 @@
 {
-  "_comment": "Manual Keybase identity overrides for Gno validators. Priority: manual > AtomOne auto-match. Keys (any of these, case-insensitive): moniker | operatorAddress (g1…) | signingAddress (g1…). Value = Keybase identity hash (16 hex chars). Address keys preferred — moniker is mutable. Lookup order: operator → signing → moniker. Helper: node scripts/keybase-lookup.mjs <username>. Example: \"g1abc...\": \"A2E180C6914F7F87\" or \"MyValidator\": \"A2E180C6914F7F87\".",
+  "_comment": "Manual Keybase identity overrides for Gno validators. HIGHEST priority — never overwritten by AtomOne auto-match or live scrape. Keys: operatorAddress (g1…) preferred | signingAddress (g1…) | moniker (mutable, last resort). Value: 16-char Keybase identity hex OR { identity, operator?, signing?, moniker? }. Lookup order: operator → signing → moniker. Helper: node scripts/keybase-lookup.mjs <username>. Example: \"g1abc...\": \"A2E180C6914F7F87\".",
   "overrides": {}
 }
