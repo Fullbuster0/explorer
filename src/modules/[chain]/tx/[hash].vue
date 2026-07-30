@@ -4,6 +4,7 @@ import DynamicComponent from '@/components/dynamic/DynamicComponent.vue';
 import { computed, ref, watch } from 'vue';
 import type { Tx, TxResponse } from '@/types';
 import { Icon } from '@iconify/vue';
+import { getGnoIndexer } from '@/libs/gno/indexer';
 
 const props = defineProps(['hash', 'chain']);
 
@@ -23,6 +24,8 @@ const tx = ref(
 );
 const loading = ref(false);
 const error = ref('');
+/** Gno extras from onbloc detail (storage deposit, signer, network). */
+const gnoMeta = ref<Record<string, any> | null>(null);
 
 /** Vue route params are usually decoded once; harden against leftover %2F/%3D
  *  (and rare double-encoding) so Gno base64 hashes still hit TM2 /tx. */
@@ -42,27 +45,110 @@ function normalizeRouteHash(raw?: string): string {
   return h.trim();
 }
 
+function isGnoEngine(): boolean {
+  const e = blockchain.current?.engine;
+  return e === 'gno' || e === 'tm2';
+}
+
+function indexerBase(): string {
+  return String((blockchain.current as any)?.indexer?.api || 'https://topaz.api.onbloc.xyz/v1');
+}
+
+/** Merge onbloc detail + events onto RPC-adapted tx (time/fee/events enrichment). */
+async function enrichGnoTx(res: any, routeHash: string) {
+  if (!res?.tx_response) return res;
+  const b64 =
+    res.tx_response._gno_hash_b64 ||
+    (String(res.tx_response.txhash || '').includes('/') || String(res.tx_response.txhash || '').includes('=')
+      ? res.tx_response.txhash
+      : '') ||
+    routeHash;
+  try {
+    const idx = getGnoIndexer(indexerBase());
+    const [detail, idxEvents] = await Promise.all([
+      idx.getTransactionDetail(b64).catch(() => null),
+      idx.getTransactionEvents(b64).catch(() => []),
+    ]);
+    if (detail) {
+      gnoMeta.value = detail;
+      if (detail.timestamp && !res.tx_response.timestamp) {
+        res.tx_response.timestamp = detail.timestamp;
+      } else if (detail.timestamp) {
+        // Prefer indexer wall-clock if RPC block time already set — keep earlier non-empty
+        res.tx_response.timestamp = res.tx_response.timestamp || detail.timestamp;
+      }
+      const fee = detail.transactionFee;
+      if (fee?.value != null && !(res.tx?.auth_info?.fee?.amount?.length)) {
+        if (!res.tx) res.tx = { body: { messages: [] }, auth_info: { fee: { amount: [] } } };
+        if (!res.tx.auth_info) res.tx.auth_info = { fee: { amount: [] } };
+        if (!res.tx.auth_info.fee) res.tx.auth_info.fee = { amount: [] };
+        res.tx.auth_info.fee.amount = [{ amount: String(fee.value), denom: fee.denom || 'ugnot' }];
+        res.tx.auth_info.fee.gas_limit = String(detail.gas?.wanted ?? res.tx_response.gas_wanted || '0');
+      }
+      if (detail.gas?.used != null) res.tx_response.gas_used = String(detail.gas.used);
+      if (detail.gas?.wanted != null) res.tx_response.gas_wanted = String(detail.gas.wanted);
+      if (detail.memo && res.tx?.body) res.tx.body.memo = detail.memo;
+      if (detail.success === false) res.tx_response.code = 1;
+      if (detail.errorLog) res.tx_response.raw_log = detail.errorLog;
+    }
+    // Prefer indexer events when present (caller + realmPath + emit params)
+    if (Array.isArray(idxEvents) && idxEvents.length) {
+      res.tx_response.events = idxEvents.map((ev: any) => {
+        const attrs: { key: string; value: string }[] = [];
+        if (ev.caller) attrs.push({ key: 'caller', value: String(ev.caller) });
+        if (ev.originCaller && ev.originCaller !== ev.caller) {
+          attrs.push({ key: 'origin_caller', value: String(ev.originCaller) });
+        }
+        if (ev.realmPath) attrs.push({ key: 'pkg_path', value: String(ev.realmPath) });
+        if (ev.function) attrs.push({ key: 'function', value: String(ev.function) });
+        const params = ev.emit?.params || ev.params || [];
+        if (Array.isArray(params)) {
+          for (const p of params) {
+            attrs.push({ key: String(p.key || p.name || ''), value: String(p.value ?? '') });
+          }
+        }
+        // fallback: flatten remaining scalar fields
+        if (!attrs.length) {
+          for (const [k, v] of Object.entries(ev)) {
+            if (['identifier', 'txHash', 'emit', 'timestamp', 'blockHeight'].includes(k)) continue;
+            if (v == null || typeof v === 'object') continue;
+            attrs.push({ key: k, value: String(v) });
+          }
+        }
+        return {
+          type: String(ev.eventName || ev.emit?.name || ev['@type'] || 'event'),
+          attributes: attrs,
+        };
+      });
+      if (!res.tx_response.timestamp && idxEvents[0]?.timestamp) {
+        res.tx_response.timestamp = idxEvents[0].timestamp;
+      }
+    }
+  } catch {
+    /* indexer optional */
+  }
+  return res;
+}
+
 async function loadTx(hash?: string) {
   const h = normalizeRouteHash(hash);
   if (!h) return;
   loading.value = true;
   error.value = '';
   tx.value = {} as any;
+  gnoMeta.value = null;
   try {
-    // Wait for endpoint / Gno rpc readiness (cold nav race)
     if (!blockchain.endpoint?.address) {
       for (let i = 0; i < 20 && !blockchain.endpoint?.address; i++) {
         await new Promise((r) => setTimeout(r, 150));
       }
     }
-    const isGno =
-      blockchain.current?.engine === 'gno' || blockchain.current?.engine === 'tm2';
+    const isGno = isGnoEngine();
     if (isGno && !blockchain.rpc) {
       for (let i = 0; i < 20 && !blockchain.rpc; i++) {
         await new Promise((r) => setTimeout(r, 150));
       }
     }
-    // Light retry — first tick after endpoint swap can miss
     let res: any = null;
     let lastErr: any = null;
     for (let attempt = 0; attempt < 3; attempt++) {
@@ -78,6 +164,7 @@ async function loadTx(hash?: string) {
       await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
     }
     if (res && res.tx_response) {
+      if (isGno) res = await enrichGnoTx(res, h);
       tx.value = res as any;
       error.value = '';
     } else {
@@ -116,9 +203,23 @@ const messages = computed(() => {
 const events = computed(() => (tx.value.tx_response?.events || []) as any[]);
 
 const msgSummary = (m: any) => {
-  const t = String(m['@type'] || '').split('.').pop() || '';
-  return t.replace(/^Msg/, '');
+  if (m?.func) return String(m.func);
+  const t = String(m['@type'] || m.message_type || '').split('.').pop() || '';
+  return t.replace(/^Msg/, '').replace(/^m_/, '');
 };
+
+const storageDepositText = computed(() => {
+  const sd = gnoMeta.value?.storageDeposit;
+  if (!sd?.value) return '';
+  return format.formatTokens([{ amount: String(sd.value), denom: sd.denom || 'ugnot' }], true, '0,0.[00]');
+});
+
+const gnoSigner = computed(() => {
+  const sigs = gnoMeta.value?.signatures;
+  if (Array.isArray(sigs) && sigs[0]?.pubKey) return String(sigs[0].pubKey);
+  const m = messages.value[0];
+  return m?.caller || m?.from_address || '';
+});
 
 const gasUsedRatio = computed(() => {
   const u = Number(tx.value.tx_response?.gas_used || 0);
@@ -203,7 +304,11 @@ const rawType = computed(() => String((tx.value.tx as any)?.['@type'] || '/cosmo
     <!-- loading -->
     <div v-if="loading" class="sz-section mb-4 px-4 py-6 text-sm opacity-70">
       <span class="sz-live-dot mr-2"></span>
-      Loading transaction… <span class="text-secondary">(active REST → archive fallback)</span>
+      Loading transaction… <span class="text-secondary">{{
+        blockchain.current?.engine === 'gno' || blockchain.current?.engine === 'tm2'
+          ? 'Gno RPC + indexer'
+          : 'active REST → archive fallback'
+      }}</span>
     </div>
 
     <!-- not found -->
@@ -290,8 +395,8 @@ const rawType = computed(() => String((tx.value.tx as any)?.['@type'] || '/cosmo
 
         <div class="sz-stat" style="--stat-hue: #764bc8">
           <div class="sz-stat-head"><i class="sz-stat-tick"></i><span class="sz-stat-label">{{ $t('account.time') }}</span></div>
-          <div class="sz-stat-value">{{ format.toDay(txTime, 'from') }}</div>
-          <div class="sz-stat-sub">{{ format.toLocaleDate(txTime) }}</div>
+          <div class="sz-stat-value">{{ txTime ? format.toDay(txTime, 'from') : '—' }}</div>
+          <div class="sz-stat-sub">{{ txTime ? format.toLocaleDate(txTime) : 'no timestamp' }}</div>
         </div>
 
         <div class="sz-stat" style="--stat-hue: var(--sz-warn)">
@@ -369,8 +474,11 @@ const rawType = computed(() => String((tx.value.tx as any)?.['@type'] || '/cosmo
               <tr>
                 <td class="text-secondary whitespace-nowrap">{{ $t('account.time') }}</td>
                 <td class="font-mono text-[12.5px]">
-                  {{ format.toLocaleDate(txTime) }}
-                  <span class="text-secondary">({{ format.toDay(txTime, 'from') }})</span>
+                  <template v-if="txTime">
+                    {{ format.toLocaleDate(txTime) }}
+                    <span class="text-secondary">({{ format.toDay(txTime, 'from') }})</span>
+                  </template>
+                  <span v-else class="text-secondary">—</span>
                 </td>
               </tr>
               <tr>
@@ -381,9 +489,22 @@ const rawType = computed(() => String((tx.value.tx as any)?.['@type'] || '/cosmo
                 <td class="text-secondary whitespace-nowrap">{{ $t('tx.fee') }}</td>
                 <td class="font-mono text-[12.5px]">{{ feeText || '—' }}</td>
               </tr>
+              <tr v-if="storageDepositText">
+                <td class="text-secondary whitespace-nowrap">Storage deposit</td>
+                <td class="font-mono text-[12.5px]">{{ storageDepositText }}</td>
+              </tr>
+              <tr v-if="gnoSigner">
+                <td class="text-secondary whitespace-nowrap">Signer</td>
+                <td class="font-mono text-[12px] break-all">
+                  <RouterLink
+                    class="text-primary link link-hover"
+                    :to="`/${props.chain}/account/${gnoSigner}`"
+                  >{{ gnoSigner }}</RouterLink>
+                </td>
+              </tr>
               <tr>
                 <td class="text-secondary whitespace-nowrap">{{ $t('tx.memo') }}</td>
-                <td class="text-[12.5px]">{{ tx.tx.body.memo || '—' }}</td>
+                <td class="text-[12.5px]">{{ tx.tx.body?.memo || '—' }}</td>
               </tr>
             </tbody>
           </table>

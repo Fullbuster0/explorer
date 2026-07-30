@@ -161,6 +161,41 @@ export class GnoIndexerClient {
     };
   }
 
+  /**
+   * Single-tx detail from indexer (timestamp, fee, gas, signatures, storage deposit).
+   * Path: GET /transactions/{url-encoded-base64-hash}
+   * Envelope: { data: { data: Detail } } — outer unwrapped by this.get(), inner peels here.
+   */
+  async getTransactionDetail(txHash: string): Promise<any | null> {
+    const h = String(txHash || '').trim();
+    if (!h) return null;
+    try {
+      const data = await this.get<any>(`/transactions/${encodeURIComponent(h)}`);
+      // shapes: { data: detail } | detail
+      const detail = data?.data && typeof data.data === 'object' && !Array.isArray(data.data) ? data.data : data;
+      if (!detail || typeof detail !== 'object') return null;
+      if (!detail.txHash && !detail.timestamp && detail.blockHeight == null) return null;
+      return detail;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Events for a tx — GET /transactions/{hash}/events
+   * Richer than raw TM2 sometimes (caller, realmPath, emit.params).
+   */
+  async getTransactionEvents(txHash: string): Promise<any[]> {
+    const h = String(txHash || '').trim();
+    if (!h) return [];
+    try {
+      const data = await this.get<{ items?: any[] }>(`/transactions/${encodeURIComponent(h)}/events`);
+      return Array.isArray(data?.items) ? data.items : Array.isArray(data) ? (data as any) : [];
+    } catch {
+      return [];
+    }
+  }
+
   /** Next page via opaque cursor. */
   async getTransactionsAfter(cursor: string): Promise<GnoPage<GnoTx>> {
     const data = await this.get<{ items: GnoTx[]; page?: { cursor?: string; hasNext?: boolean } }>(

@@ -85,16 +85,12 @@ function normalizeGnoTxHash(input: string): { hex: string; b64: string; raw: str
   }
   const hex = s.replace(/^0x/i, '').toLowerCase();
   if (/^[0-9a-f]{64}$/.test(hex)) {
-    // build standard base64 from hex for alternate try
     try {
       const bytes = new Uint8Array(hex.match(/.{1,2}/g)!.map((b) => parseInt(b, 16)));
-      // browser/node btoa of binary
       let bin = '';
       bytes.forEach((b) => (bin += String.fromCharCode(b)));
       const b64 =
-        typeof btoa !== 'undefined'
-          ? btoa(bin)
-          : Buffer.from(bytes).toString('base64');
+        typeof btoa !== 'undefined' ? btoa(bin) : Buffer.from(bytes).toString('base64');
       return { hex, b64, raw: s };
     } catch {
       return { hex, b64: '', raw: s };
@@ -103,10 +99,148 @@ function normalizeGnoTxHash(input: string): { hex: string; b64: string; raw: str
   return { hex: s.replace(/^0x/i, ''), b64: s, raw: s };
 }
 
+/** Extract printable ASCII runs from raw tx bytes (amino/protobuf hybrid). */
+function extractAsciiRuns(bytes: Uint8Array, minLen = 4): string[] {
+  const out: string[] = [];
+  let cur: number[] = [];
+  const flush = () => {
+    if (cur.length >= minLen) out.push(String.fromCharCode(...cur));
+    cur = [];
+  };
+  for (let i = 0; i < bytes.length; i++) {
+    const b = bytes[i];
+    if (b >= 32 && b < 127) cur.push(b);
+    else flush();
+  }
+  flush();
+  return out;
+}
+
+/**
+ * Best-effort decode of Gno/TM2 tx bytes into message card(s).
+ * Official gnoscan shows MsgCall / pkg / func / args — we surface the same fields.
+ */
+function decodeGnoTxMessages(txB64: string): {
+  messages: any[];
+  feeAmount: { amount: string; denom: string }[];
+  memo: string;
+} {
+  const messages: any[] = [];
+  let feeAmount: { amount: string; denom: string }[] = [];
+  let memo = '';
+  try {
+    const bytes = fromBase64(txB64);
+    const runs = extractAsciiRuns(bytes, 4);
+    const typeUrls = runs.filter((s) => /^\/[a-zA-Z][a-zA-Z0-9_.]*\.[A-Za-z]/.test(s));
+    const addrs = runs.filter((s) => /^g1[a-z0-9]{38,60}$/.test(s));
+    const pkgs = runs.filter((s) => s.startsWith('gno.land/'));
+    const amounts = runs.filter((s) => /^\d+ugnot$/.test(s));
+    // Func names commonly right after pkg path in /vm.m_call: Register, Transfer, …
+    const skip = new Set([
+      ...typeUrls,
+      ...addrs,
+      ...pkgs,
+      ...amounts,
+      'data-center',
+      'community',
+      'unknown',
+    ]);
+    const typeUrl = typeUrls.find((t) => t.startsWith('/vm.') || t.startsWith('/bank.') || t.startsWith('/tm.')) || typeUrls[0] || '/tm2.Unknown';
+
+    // Heuristic func name: short identifier after pkg, not an address
+    let funcName = '';
+    const pkgIdx = runs.findIndex((s) => s.startsWith('gno.land/'));
+    if (pkgIdx >= 0) {
+      for (let i = pkgIdx + 1; i < Math.min(runs.length, pkgIdx + 8); i++) {
+        const s = runs[i];
+        if (/^[A-Z][A-Za-z0-9_]{1,40}$/.test(s) && !skip.has(s)) {
+          funcName = s;
+          break;
+        }
+      }
+    }
+
+    // Longest prose-ish run as description/args body (Register description etc.)
+    const longText = runs
+      .filter((s) => s.length > 40 && !s.startsWith('gno.land/') && !s.startsWith('/') && !/^g1/.test(s))
+      .sort((a, b) => b.length - a.length)[0] || '';
+
+    const caller = addrs.find((a) => !a.includes('qqqqqq')) || addrs[0] || '';
+    const msg: any = {
+      '@type': typeUrl,
+      message_type: typeUrl,
+    };
+    if (caller) msg.caller = caller;
+    if (caller) msg.from_address = caller;
+    if (pkgs[0]) msg.pkg_path = pkgs[0];
+    if (funcName) msg.func = funcName;
+    if (longText) msg.args = longText;
+    // moniker often immediate short token after Register
+    if (funcName === 'Register' || funcName === 'UpdateDescription') {
+      const mon = runs.find(
+        (s) =>
+          s.length >= 2 &&
+          s.length <= 32 &&
+          !skip.has(s) &&
+          !s.startsWith('gno.') &&
+          !/^g1/.test(s) &&
+          !/ugnot$/.test(s) &&
+          s !== funcName
+      );
+      if (mon && !/^\d+$/.test(mon)) msg.moniker = mon;
+    }
+    if (amounts[0]) {
+      const m = amounts[0].match(/^(\d+)(ugnot)$/);
+      if (m) msg.send = [{ amount: m[1], denom: m[2] }];
+    }
+    // Fee is typically last small ugnot amount in std tx wrapper
+    if (amounts.length) {
+      const feeStr = amounts[amounts.length - 1];
+      const m = feeStr.match(/^(\d+)(ugnot)$/);
+      if (m) feeAmount = [{ amount: m[1], denom: m[2] }];
+    }
+    messages.push(msg);
+  } catch {
+    /* empty */
+  }
+  return { messages, feeAmount, memo };
+}
+
+/** TM2 typed events ({@type, fields…}) → Cosmos-style {type, attributes[]} for UI cards. */
+function adaptTm2Events(rawEvents: any): { type: string; attributes: { key: string; value: string }[] }[] {
+  if (!Array.isArray(rawEvents) || !rawEvents.length) return [];
+  return rawEvents.map((ev) => {
+    if (!ev || typeof ev !== 'object') {
+      return { type: 'event', attributes: [{ key: 'raw', value: String(ev) }] };
+    }
+    // Already cosmos-shaped
+    if (Array.isArray(ev.attributes)) {
+      return {
+        type: String(ev.type || ev['@type'] || 'event'),
+        attributes: ev.attributes.map((a: any) => ({
+          key: String(a.key ?? a.Key ?? ''),
+          value: String(a.value ?? a.Value ?? ''),
+        })),
+      };
+    }
+    const type = String(ev['@type'] || ev.type || ev.eventName || 'event').replace(/^\//, '');
+    const attrs: { key: string; value: string }[] = [];
+    for (const [k, v] of Object.entries(ev)) {
+      if (k === '@type' || k === 'type' || k === 'eventName') continue;
+      if (v == null) continue;
+      if (typeof v === 'object') {
+        attrs.push({ key: k, value: JSON.stringify(v) });
+      } else {
+        attrs.push({ key: k, value: String(v) });
+      }
+    }
+    return { type, attributes: attrs };
+  });
+}
+
 /** Adapt TM2 /tx result → Cosmos {tx, tx_response} shape for detail page. */
 function adaptTm2Tx(result: any, preferHash?: string): { tx: any; tx_response: any } | null {
   if (!result) return null;
-  // unwrap jsonrpc
   const r = result.result || result;
   if (!r || (!r.hash && !r.tx && !r.height)) return null;
 
@@ -117,47 +251,40 @@ function adaptTm2Tx(result: any, preferHash?: string): { tx: any; tx_response: a
   const rb = tr.ResponseBase || tr.response_base || {};
   const err = rb.Error || rb.error;
   const code = err ? 1 : 0;
-  const log = rb.Log || rb.log || '';
+  const log = rb.Log || rb.log || (err ? JSON.stringify(err) : '');
   const gasWanted = String(tr.GasWanted ?? tr.gas_wanted ?? '0');
   const gasUsed = String(tr.GasUsed ?? tr.gas_used ?? '0');
 
-  // Best-effort decode of amino/proto bytes for display
+  const events = adaptTm2Events(rb.Events || rb.events || tr.Events || tr.events || []);
+
   let messages: any[] = [];
-  let rawTx: any = { '@type': '/tm2.Tx', body: { messages: [] as any[] }, auth_info: { fee: { amount: [], gas_limit: gasWanted }, signer_infos: [] }, signatures: [] };
-  try {
-    if (r.tx) {
-      const bytes = fromBase64(r.tx);
-      const text = new TextDecoder('utf-8', { fatal: false } as any).decode(bytes);
-      // Pull ASCII type URLs + g1 addresses + amounts for a minimal message view
-      const typeMatch = text.match(/\/[a-zA-Z][a-zA-Z0-9_.]*\.[A-Za-z][A-Za-z0-9_]*/g) || [];
-      const addrs = text.match(/g1[a-z0-9]{38,60}/g) || [];
-      const amounts = text.match(/\d+ugnot/g) || [];
-      const typeUrl = typeMatch[0] || '/tm2.Unknown';
-      const msg: any = { '@type': typeUrl };
-      if (addrs[0]) msg.from_address = addrs[0];
-      if (addrs[1]) msg.to_address = addrs[1];
-      if (amounts[0]) {
-        const m = amounts[0].match(/^(\d+)(ugnot)$/);
-        if (m) msg.amount = [{ amount: m[1], denom: m[2] }];
-      }
-      // fee often second ugnot amount
-      if (amounts[1]) {
-        const m = amounts[1].match(/^(\d+)(ugnot)$/);
-        if (m) {
-          rawTx.auth_info.fee.amount = [{ amount: m[1], denom: m[2] }];
-        }
-      }
-      messages = [msg];
-      rawTx.body.messages = messages;
-      rawTx._raw_b64 = r.tx;
-    }
-  } catch {
-    /* keep empty messages */
+  let feeAmount: { amount: string; denom: string }[] = [];
+  let memo = '';
+  if (r.tx) {
+    const decoded = decodeGnoTxMessages(r.tx);
+    messages = decoded.messages;
+    feeAmount = decoded.feeAmount;
+    memo = decoded.memo;
   }
 
-  const tx_response = {
+  const rawTx: any = {
+    '@type': '/tm2.Tx',
+    body: { messages, memo, timeout_height: '0', extension_options: [], non_critical_extension_options: [] },
+    auth_info: {
+      fee: { amount: feeAmount, gas_limit: gasWanted, payer: '', granter: '' },
+      signer_infos: [],
+      tip: null,
+    },
+    signatures: [],
+    _raw_b64: r.tx || '',
+  };
+
+  // Display hash: prefer base64 (Gno native / gnoscan) — hex kept as secondary
+  const displayHash = hashB64 || hashHex;
+
+  const tx_response: any = {
     height,
-    txhash: hashHex || hashB64,
+    txhash: displayHash,
     codespace: '',
     code,
     data: rb.Data || '',
@@ -167,14 +294,30 @@ function adaptTm2Tx(result: any, preferHash?: string): { tx: any; tx_response: a
     gas_wanted: gasWanted,
     gas_used: gasUsed,
     tx: rawTx,
-    timestamp: '',
-    events: [],
-    // Gno extras for UI
+    timestamp: '', // filled by getTx via /block?height=
+    events,
     _gno_hash_b64: hashB64,
+    _gno_hash_hex: hashHex,
     _gno_index: r.index,
   };
 
   return { tx: rawTx, tx_response };
+}
+
+/** Pull block header time for a height (TM2 /block). */
+async function tm2BlockTimestamp(endpoint: string, height: string | number): Promise<string> {
+  if (!height || height === '0') return '';
+  try {
+    const data = await tm2Get(endpoint, `/block?height=${encodeURIComponent(String(height))}`);
+    const hdr =
+      data?.result?.block?.header ||
+      data?.block?.header ||
+      data?.result?.block_meta?.header ||
+      {};
+    return String(hdr.time || hdr.Time || '') || '';
+  } catch {
+    return '';
+  }
 }
 
 export class GnoTm2Client {
@@ -442,7 +585,14 @@ export class GnoTm2Client {
         const data = await tm2Get(this.endpoint, path);
         if (data?.error) continue;
         const adapted = adaptTm2Tx(data, n.hex);
-        if (adapted?.tx_response?.txhash || adapted?.tx_response?.height) return adapted;
+        if (adapted?.tx_response?.txhash || adapted?.tx_response?.height) {
+          // Fill timestamp from block header — TM2 /tx has no time field
+          if (!adapted.tx_response.timestamp && adapted.tx_response.height) {
+            const ts = await tm2BlockTimestamp(this.endpoint, adapted.tx_response.height);
+            if (ts) adapted.tx_response.timestamp = ts;
+          }
+          return adapted;
+        }
       } catch {
         /* try next form */
       }
