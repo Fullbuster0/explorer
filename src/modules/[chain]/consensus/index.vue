@@ -4,6 +4,12 @@ import { onMounted, ref, computed, onUnmounted, watch } from 'vue';
 import { useBlockchain, useStakingStore, useBaseStore } from '@/stores';
 import { consensusPubkeyToHexAddress } from '@/libs';
 import { gnoMoniker, lookupGnoValoper } from '@/libs/gno/valopers';
+import {
+  rankRpcs,
+  pickTipPeers,
+  mergeEndpointLists,
+  type RpcQuality,
+} from '@/libs/rpc-quality';
 
 const chainStore = useBlockchain();
 const stakingStore = useStakingStore();
@@ -78,18 +84,23 @@ const activeRpcLabel = computed(() => {
 });
 
 function pickRpcList() {
-  const list = (chainStore.current?.endpoints?.rpc || []).filter((x) => x?.address);
-  // Prefer Shazoes RPC first (CORS + consensus endpoints allowed)
-  list.sort((a, b) => {
-    const as = /shazoes/i.test(a.address || '') || /shazoes/i.test(a.provider || '') ? 0 : 1;
-    const bs = /shazoes/i.test(b.address || '') || /shazoes/i.test(b.provider || '') ? 0 : 1;
-    return as - bs;
-  });
-  return list;
+  // Config order only — quality ranking is shared via rankRpcs / pickTipPeers.
+  return (chainStore.current?.endpoints?.rpc || []).filter((x) => x?.address);
+}
+
+/** rpc[] + rest/api[] + active client — same pool philosophy as store rank. */
+function consensusCandidateList() {
+  return mergeEndpointLists(
+    chainStore.current?.endpoints?.rpc,
+    chainStore.current?.endpoints?.rest,
+    chainStore.endpoint?.address
+      ? [{ address: chainStore.endpoint.address, provider: 'active' }]
+      : []
+  );
 }
 
 function setRpcFromList(preferAddress?: string) {
-  rpcList.value = pickRpcList();
+  rpcList.value = consensusCandidateList();
   if (rpcList.value.length === 0) {
     rpc.value = '';
     return false;
@@ -122,26 +133,64 @@ async function startMonitor() {
       console.warn('validators load failed', e);
     }
 
-    rpcList.value = pickRpcList();
-    if (rpcList.value.length === 0) {
+    const candidates = consensusCandidateList();
+    rpcList.value = candidates;
+    if (candidates.length === 0) {
       httpstatus.value = 0;
       httpStatusText.value = 'No RPC endpoint configured for this chain';
       started = false; // allow retry when endpoints land
       return;
     }
-    // Try each RPC until one supports both /validators and /consensus_state
+
+    // Shared quality gate (same as block/tx store): tip height + !catching_up + valset.
+    // Old bug: Shazoes-first + "HTTP 200 && positions>0" stuck on 2-val lagging node.
+    const engine = chainStore.current?.engine;
+    const ranked: RpcQuality[] = await rankRpcs(candidates, { engine, timeoutMs: 4500 });
+    if (gen !== monitorGen) return;
+    rpcList.value = ranked.map((r) => ({ address: r.address, provider: r.provider }));
+
+    const tryOrder = pickTipPeers(ranked);
+    const healthy = ranked.filter((r) => r.ok);
+    const order = tryOrder.length ? tryOrder : healthy;
+
     let ok = false;
-    for (const ep of rpcList.value) {
+    for (const ep of order) {
       if (gen !== monitorGen) return;
-      rpc.value = baseOf(ep.address);
+      rpc.value = ep.address;
       await fetchPosition();
       if (gen !== monitorGen) return;
-      if (httpstatus.value === 200 && positions.value.length > 0) {
+      // Require a non-trivial set when peers advertise many vals (avoid 2-of-89)
+      const minVals = order[0]?.valCount >= 10 ? Math.max(3, Math.floor(order[0].valCount * 0.5)) : 1;
+      if (httpstatus.value === 200 && positions.value.length >= minVals) {
         await update();
         if (gen !== monitorGen) return;
         if (httpstatus.value === 200) {
           ok = true;
+          console.info(
+            `[consensus] RPC ${ep.address} h=${ep.height} vals=${positions.value.length}` +
+              (ep.provider ? ` (${ep.provider})` : '')
+          );
           break;
+        }
+      }
+    }
+    // Last resort: any ranked peer that at least returns validators (better than blank)
+    if (!ok) {
+      for (const ep of ranked) {
+        if (gen !== monitorGen) return;
+        rpc.value = ep.address;
+        await fetchPosition();
+        if (gen !== monitorGen) return;
+        if (httpstatus.value === 200 && positions.value.length > 0) {
+          await update();
+          if (gen !== monitorGen) return;
+          if (httpstatus.value === 200) {
+            ok = true;
+            console.warn(
+              `[consensus] degraded RPC ${ep.address} h=${ep.height} vals=${positions.value.length} catching=${ep.catchingUp}`
+            );
+            break;
+          }
         }
       }
     }
@@ -523,7 +572,7 @@ async function update() {
   }
 }
 
-// Auto-fallback: if the active RPC dies mid-session, walk the list to a healthy one.
+// Auto-fallback: if the active RPC dies mid-session, walk tip-quality peers.
 let fallbackCooldown = 0;
 async function fallbackRpc() {
   const now = Date.now();
@@ -531,15 +580,21 @@ async function fallbackRpc() {
   fallbackCooldown = now;
   if (!rpcList.value || rpcList.value.length <= 1) return;
   const current = rpc.value;
-  const candidates = rpcList.value.filter((x) => baseOf(x.address) !== current);
-  for (const ep of candidates) {
-    const candidate = baseOf(ep.address);
+  const engine = chainStore.current?.engine;
+  const ranked = await rankRpcs(
+    rpcList.value.map((x) => ({ address: x.address, provider: x.provider })),
+    { engine, timeoutMs: 4000 }
+  );
+  const tip = pickTipPeers(ranked).filter((r) => r.address !== current);
+  const order = tip.length ? tip : ranked.filter((r) => r.ok && r.address !== current);
+  for (const ep of order) {
     try {
-      const probe = await fetch(`${candidate}/consensus_state`);
+      const probe = await fetch(`${ep.address}/consensus_state`);
       if (probe.ok) {
-        rpc.value = candidate;
+        rpc.value = ep.address;
         httpstatus.value = 200;
         httpStatusText.value = 'Switched to fallback RPC';
+        await fetchPosition();
         await update();
         return;
       }

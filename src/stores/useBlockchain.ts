@@ -7,6 +7,12 @@ import { CosmosRestClient } from '@/libs/client';
 import { GnoTm2Client } from '@/libs/gno/client';
 import { isGnoChain, tm2Health } from '@/libs/gno/tm2';
 import { initGnoValopers } from '@/libs/gno/valopers';
+import {
+  rankRpcs,
+  pickTipPeers,
+  qualityToEndpoint,
+  type RpcQuality,
+} from '@/libs/rpc-quality';
 import { PageRequest, type PaginatedTxs, type TxResponse } from '@/types';
 import {
   useBankStore,
@@ -782,19 +788,114 @@ export const useBlockchain = defineStore('blockchain', {
       }
     },
 
+    engineTag(): string | undefined {
+      return this.current?.engine;
+    },
+
+    /**
+     * Rank all live REST/api[] peers by tip height (+ valset on Gno).
+     * Shared quality gate for startup, fallback, and consensus-style picks.
+     */
+    async rankRestEndpoints(timeoutMs = 4500): Promise<RpcQuality[]> {
+      const all = this.restEndpoints();
+      if (!all.length) return [];
+      const ranked = await rankRpcs(all, {
+        engine: this.engineTag(),
+        timeoutMs,
+      });
+      // Mirror deny/good for sticky randomEndpoint compatibility
+      for (const r of ranked) {
+        if (r.ok) markGood(this.chainName, r.address);
+        else markBad(this.chainName, r.address, r.reason || 'rank-fail');
+      }
+      return ranked;
+    },
+
+    /**
+     * Probe-first endpoint setup (option A).
+     * Never wire a dead/lagging preferred host before quality ranking — that
+     * was the blank-page + sticky-Shazoes failure mode (set then async heal).
+     */
     async randomSetupEndpoint() {
-      const endpoint = this.randomEndpoint(this.chainName);
-      if (endpoint) {
-        await this.setRestEndpoint(endpoint);
-        // Self-heal: if the chosen endpoint is dead, fall back in the background
-        // so non-technical users are never stuck on a down RPC.
-        this.healthCheck(endpoint.address, 6000).then((ok) => {
-          if (!ok) this.fallbackEndpoint({ reason: 'startup-unhealthy' });
+      const all = this.restEndpoints();
+      if (!all.length) {
+        this.connPhase = 'degraded';
+        this.connErr = "We can't reach the network right now. Please try again in a moment.";
+        return;
+      }
+
+      this.connPhase = 'reconnecting';
+      try {
+        const ranked = await this.rankRestEndpoints(4500);
+        const tip = pickTipPeers(ranked);
+
+        // Honor localStorage only if that peer is still a tip-quality host
+        const chainName = this.chainName;
+        let saved: Endpoint | undefined;
+        try {
+          const raw = localStorage.getItem(`endpoint-${chainName}`);
+          if (raw) saved = JSON.parse(raw) as Endpoint;
+        } catch {
+          /* ignore */
+        }
+        const savedAddr = (saved?.address || '').replace(/\/+$/, '');
+        const savedTip = tip.find((t) => t.address.replace(/\/+$/, '') === savedAddr);
+
+        // Among tip peers: prefer config order (Shazoes first when healthy at tip)
+        const configOrder = all.map((e) => e.address.replace(/\/+$/, ''));
+        const tipByConfig = [...tip].sort((a, b) => {
+          const ia = configOrder.indexOf(a.address.replace(/\/+$/, ''));
+          const ib = configOrder.indexOf(b.address.replace(/\/+$/, ''));
+          const sa = ia === -1 ? 999 : ia;
+          const sb = ib === -1 ? 999 : ib;
+          return sa - sb || b.valCount - a.valCount || b.height - a.height;
         });
-      } else {
-        // No endpoint configured at all — still try a fallback pick so the page
-        // doesn't sit forever waiting for an RPC that will never be wired.
-        this.fallbackEndpoint({ reason: 'no-endpoint' });
+
+        const bestQ = savedTip || tipByConfig[0] || ranked.find((r) => r.ok);
+        if (bestQ) {
+          const ep = qualityToEndpoint(bestQ);
+          const prev = (this.endpoint?.address || '').replace(/\/+$/, '');
+          await this.setRestEndpoint(ep);
+          this.connPhase = 'ok';
+          this.connErr = '';
+          this.fallbackAttempts = 0;
+          console.info(
+            `[explorer] RPC probe-first: ${ep.address} h=${bestQ.height}` +
+              (bestQ.valCount ? ` vals=${bestQ.valCount}` : '') +
+              (bestQ.provider ? ` (${bestQ.provider})` : '')
+          );
+          // If we already had a different dead endpoint wired, refresh stores
+          if (prev && prev !== ep.address.replace(/\/+$/, '')) {
+            this.initial();
+          }
+          return;
+        }
+
+        // Nobody ranked ok — last resort: weighted config pick + async heal (legacy)
+        const endpoint = this.randomEndpoint(this.chainName);
+        if (endpoint) {
+          await this.setRestEndpoint(endpoint);
+          this.connPhase = 'degraded';
+          this.connErr =
+            "We're having trouble reaching the network. Tap Try again — we'll reconnect automatically.";
+          this.fallbackEndpoint({ reason: 'startup-unhealthy' });
+        } else {
+          this.connPhase = 'degraded';
+          this.connErr = "We can't reach the network right now. Please try again in a moment.";
+        }
+      } catch (e: any) {
+        console.warn('[explorer] randomSetupEndpoint rank failed', e?.message || e);
+        // Degrade gracefully to legacy path
+        const endpoint = this.randomEndpoint(this.chainName);
+        if (endpoint) {
+          await this.setRestEndpoint(endpoint);
+          this.healthCheck(endpoint.address, 6000).then((ok) => {
+            if (!ok) this.fallbackEndpoint({ reason: 'startup-unhealthy' });
+            else this.connPhase = 'ok';
+          });
+        } else {
+          this.connPhase = 'degraded';
+        }
       }
     },
 
@@ -811,9 +912,8 @@ export const useBlockchain = defineStore('blockchain', {
     },
 
     /**
-     * Auto-switch to a healthy endpoint when the current one is down.
-     * Non-technical users never pick an RPC — we rotate the config pool
-     * (preferring earlier / known-good hosts) and re-init stores.
+     * Auto-switch to the best tip-quality endpoint when current is down/lagging.
+     * Ranks all peers (height + sync) — does NOT pick "first config-order OK".
      */
     async fallbackEndpoint(opts: { reason?: string; force?: boolean } = {}) {
       const all = this.restEndpoints();
@@ -838,15 +938,15 @@ export const useBlockchain = defineStore('blockchain', {
       this.connPhase = 'reconnecting';
       this.fallbackAttempts += 1;
       try {
-        const current = this.endpoint?.address;
-        // Single-endpoint chains: re-probe current; if dead, surface degraded (no magic peer).
+        const current = (this.endpoint?.address || '').replace(/\/+$/, '');
+
         if (all.length === 1) {
           const only = all[0];
           const ok = await this.healthCheck(only.address, 5000);
           if (ok) {
             this.connErr = '';
             this.connPhase = 'ok';
-            if (only.address !== current) {
+            if (only.address.replace(/\/+$/, '') !== current) {
               await this.setRestEndpoint(only);
               this.initial();
             }
@@ -858,37 +958,27 @@ export const useBlockchain = defineStore('blockchain', {
           return;
         }
 
-        // 1) Prefer non-denied, non-current, config order (Shazoes first on Gno)
-        let pool = all.filter((e) => e.address !== current && !isDenied(this.chainName, e.address));
-        // 2) If empty, allow denied (TTL may be wrong / transient) — last resort
-        if (pool.length === 0) {
-          pool = all.filter((e) => e.address !== current);
-        }
-        // 3) Still empty → only current left; re-check it
-        if (pool.length === 0) {
-          pool = all.slice();
-        }
+        const ranked = await this.rankRestEndpoints(5000);
+        const tip = pickTipPeers(ranked);
+        // Prefer a tip peer that isn't the failing current (unless current is still tip-best)
+        let best =
+          tip.find((t) => t.address.replace(/\/+$/, '') !== current) || tip[0] || ranked.find((r) => r.ok);
 
-        // Parallel health, preserve config order for pick
-        const results = await Promise.all(
-          pool.map(async (ep) => ({ ep, ok: await this.healthCheck(ep.address, 5000) }))
-        );
-        const healthy = results.find((r) => r.ok);
-
-        if (healthy) {
-          const switched = healthy.ep.address !== current;
+        if (best) {
+          const ep = qualityToEndpoint(best);
+          const switched = ep.address.replace(/\/+$/, '') !== current;
           console.info(
-            `[explorer] RPC auto-fallback (${opts.reason || 'auto'}): ${current || '∅'} -> ${healthy.ep.address}`
+            `[explorer] RPC auto-fallback (${opts.reason || 'auto'}): ${current || '∅'} -> ${ep.address}` +
+              ` h=${best.height}` +
+              (best.valCount ? ` vals=${best.valCount}` : '')
           );
           this.connErr = '';
           this.connPhase = 'ok';
           this.fallbackAttempts = 0;
           if (switched) {
             this.justRecovered = true;
-            await this.setRestEndpoint(healthy.ep);
-            // Re-run chain init so stores that already gave up get a fresh shot — no manual refresh.
+            await this.setRestEndpoint(ep);
             this.initial();
-            // Auto-clear "Back online" chip
             setTimeout(() => {
               if (this.justRecovered) this.justRecovered = false;
             }, 6000);
@@ -896,15 +986,12 @@ export const useBlockchain = defineStore('blockchain', {
           return;
         }
 
-        // All candidates failed — stay on current, show non-technical degraded state.
-        // Schedule one more silent retry (no user action required).
         this.connPhase = 'degraded';
         this.connErr =
           "We're having trouble reaching the network. We'll keep trying — or tap Try again.";
         console.warn(`[explorer] RPC auto-fallback exhausted (${opts.reason || 'auto'}); all peers unhealthy`);
         if (!opts.force) {
           setTimeout(() => {
-            // Only retry if still degraded (don't stomp a later recovery)
             if (this.connPhase === 'degraded' && !this.fallbackInProgress) {
               this.fallbackEndpoint({ reason: 'auto-retry' });
             }
