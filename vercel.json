@@ -6,7 +6,7 @@
   "rewrites": [
     {
       "source": "/vote-api/:path*",
-      "destination": "https://step-maintains-dinner-waiver.trycloudflare.com/:path*"
+      "destination": "https://vote-tendermint.shazoes.xyz/:path*"
     },
     {
       "source": "/(.*)",
