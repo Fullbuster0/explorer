@@ -136,12 +136,17 @@ export const useIndexModule = defineStore('module-index', {
       return this.blockchain?.website || '';
     },
     github(): string {
-      if (this.coinInfo?.links?.repos_url?.github?.length) {
-        const [page1, page2, page3] = this.coinInfo.links.repos_url.github;
-        if (page1 || page2 || page3) return page1 || page2 || page3;
-      }
+      // Prefer any candidate that parses to owner/repo. CoinGecko often
+      // returns org-only URLs (e.g. https://github.com/babylonlabs-io/) which
+      // must NOT beat chain-config repo URLs used by the activity card.
       // @ts-ignore
-      return this.blockchain?.github || '';
+      const chainGh = this.blockchain?.github || '';
+      const cgList = this.coinInfo?.links?.repos_url?.github || [];
+      const candidates = [...cgList, chainGh].filter(Boolean) as string[];
+      for (const c of candidates) {
+        if (this.parseGithubRepo(c)) return c;
+      }
+      return candidates[0] || chainGh || '';
     },
     telegram(): string {
       const id = this.coinInfo?.links?.telegram_channel_identifier;
@@ -314,9 +319,17 @@ export const useIndexModule = defineStore('module-index', {
           if (/^[A-Za-z0-9_]+$/.test(h)) this.coinInfo.links.twitter_screen_name = h;
         }
       }
-      if (chain.github && !(this.coinInfo.links.repos_url?.github || []).some(Boolean)) {
+      if (chain.github) {
         this.coinInfo.links.repos_url = this.coinInfo.links.repos_url || { github: [] };
-        this.coinInfo.links.repos_url.github = [chain.github];
+        const list = this.coinInfo.links.repos_url.github || [];
+        const chainParsed = this.parseGithubRepo(chain.github);
+        const hasRepo = list.some((u: string) => !!this.parseGithubRepo(u));
+        // CG org-only (no owner/repo) → replace/prepend chain repo so hero + activity win.
+        if (chainParsed && !hasRepo) {
+          this.coinInfo.links.repos_url.github = [chain.github, ...list.filter(Boolean)];
+        } else if (!list.some(Boolean)) {
+          this.coinInfo.links.repos_url.github = [chain.github];
+        }
       }
     },
 
