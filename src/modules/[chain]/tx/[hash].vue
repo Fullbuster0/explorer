@@ -218,10 +218,21 @@ const storageDepositText = computed(() => {
 });
 
 const gnoSigner = computed(() => {
+  const looksG1 = (s: string) => /^g1[0-9a-z]{38,}$/i.test(s);
   const sigs = gnoMeta.value?.signatures;
-  if (Array.isArray(sigs) && sigs[0]?.pubKey) return String(sigs[0].pubKey);
+  if (Array.isArray(sigs) && sigs[0]) {
+    // onbloc often puts account address in pubKey field for Gno — only link if g1…
+    for (const k of ['address', 'pubKey', 'pubkey'] as const) {
+      const v = String((sigs[0] as any)?.[k] || '');
+      if (looksG1(v)) return v;
+    }
+  }
   const m = messages.value[0];
-  return m?.caller || m?.from_address || '';
+  for (const c of [m?.caller, m?.from_address, m?.signer]) {
+    const v = String(c || '');
+    if (looksG1(v)) return v;
+  }
+  return '';
 });
 
 const gasUsedRatio = computed(() => {

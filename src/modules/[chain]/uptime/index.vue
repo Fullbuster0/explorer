@@ -276,13 +276,17 @@ onMounted(() => {
   updateTotalSigningInfo();
   loadAllValidators();
 
-  // Soft-fail: rpc may still be null on first paint (Gno connect race)
-  chainStore.rpc
-    ?.getSlashingParams()
-    .then((x) => {
-      slashingParam.value = x.params;
-    })
-    .catch((e: any) => console.warn('[uptime] slashing params:', e?.message || e));
+  // Gno/TM2: no on-chain slashing module — skip Cosms LCD noise.
+  const isGnoUptime =
+    chainStore.current?.engine === 'gno' || chainStore.current?.engine === 'tm2';
+  if (!isGnoUptime) {
+    chainStore.rpc
+      ?.getSlashingParams()
+      .then((x) => {
+        slashingParam.value = x.params;
+      })
+      .catch((e: any) => console.warn('[uptime] slashing params:', e?.message || e));
+  }
 });
 
 // Gno/TM2 race: recents often land before staking validators finish loading,
@@ -427,6 +431,8 @@ let signingFetchQueued = false;
 function updateTotalSigningInfo() {
   // coalesce concurrent refreshes (every-block polling)
   if (!chainStore.rpc) return;
+  // Gno: no Cosms SigningInfo — heatmap uses last_commit only
+  if (chainStore.current?.engine === 'gno' || chainStore.current?.engine === 'tm2') return;
   if (signingFetchInFlight) {
     signingFetchQueued = true;
     return;

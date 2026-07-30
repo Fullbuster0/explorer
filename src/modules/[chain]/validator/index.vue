@@ -259,7 +259,7 @@ async function fetchGnoValidators(opts: { silent?: boolean } = {}) {
     try {
       // Ensure valopers registry is loaded (moniker + signing↔operator + pending synth)
       // Bust HTTP cache so new registrations from cron land without hard refresh.
-      await initGnoValopers().catch(() => undefined);
+      await initGnoValopers().catch((e: any) => console.warn('[gno-valopers] init:', e?.message || e));
       if (gen !== gnoFetchGen) return;
       const nextRaw = await getGnoIndexer(indexerUrl.value).getAllValidators((partial, done) => {
         if (gen !== gnoFetchGen) return;
@@ -319,7 +319,7 @@ async function fetchGnoValidatorsFromRpc() {
   const rpc = chainStore.rpc as any;
   if (!rpc?.getStakingValidators) return;
   try {
-    await initGnoValopers().catch(() => undefined);
+    await initGnoValopers().catch((e: any) => console.warn('[gno-valopers] init:', e?.message || e));
     const res = await rpc.getStakingValidators('BOND_STATUS_BONDED');
     const vals = (res?.validators || []) as Validator[];
     // Map to indexer shape so list/tabs keep working (ACTIVE only).

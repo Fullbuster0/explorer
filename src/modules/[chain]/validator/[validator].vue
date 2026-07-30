@@ -183,12 +183,16 @@ const gnoSigningBusy = ref(false);
 const gnoProfileExpanded = ref(false);
 let gnoHeightUnwatch: (() => void) | null = null;
 
-/** Official valopers realm profile URL for this validator (Gno only). */
+/** Official valopers realm profile URL for this validator (Gno only). Config-driven. */
 const gnoValopersUrl = computed(() => {
   if (!isGno.value) return '';
+  const base =
+    String((blockchain.current as any)?.valopers_source?.base_url || '').replace(/\/$/, '') ||
+    'https://topaz.testnets.gno.land/r/gnops/valopers';
   const op = gnoMeta.value?.operatorAddress || addresses.value.operAddress || '';
-  if (!op) return 'https://topaz.testnets.gno.land/r/gnops/valopers';
-  return `https://topaz.testnets.gno.land/r/gnops/valopers:${op}`;
+  if (!op) return base;
+  // realm detail path: base_url already ends at …/valopers → append :operator
+  return `${base}:${op}`;
 });
 
 function gnoTxFuncLabel(tx: GnoTx): { label: string; slug: string } {
@@ -330,13 +334,18 @@ const pePageNum = ref(1);
 const PE_PAGE_SIZE = 20;
 const POWER_MAX = 500;
 
-addresses.value.account = operatorAddressToAccount(validator.value);
+// Cosms only: valoper→account. Gno uses g1 signing/operator from valopers meta
+// (operatorAddressToAccount on bare g1 is a no-op / wrong race before meta loads).
+if (!isGno.value) {
+  addresses.value.account = operatorAddressToAccount(validator.value);
+}
 
 // self bond — refetched via the rpc watch below. Setup runs before the chain's
 // REST client exists on slow-connecting chains (e.g. CosmosHub); rpc?. would
 // otherwise resolve undefined silently and leave this stuck at "—".
 function loadSelfBond(force = false) {
   if (!blockchain.rpc || !validator.value) return;
+  if (isGno.value) return; // Gno has no Cosms self-bond LCD path
   // Keep account derivation in sync (valoper → account) every call.
   if (!addresses.value.account) {
     addresses.value.account = operatorAddressToAccount(validator.value);
@@ -935,7 +944,9 @@ function loadValidatorCore() {
   // valopers registry (AtomOne-enriched Keybase identity) instead.
   if (isGno.value) {
     initGnoValopers()
-      .catch(() => undefined)
+      .catch((e: any) => {
+        console.warn('[gno-valopers] init:', e?.message || e);
+      })
       .then(() => {
         const meta = lookupGnoValoper(valAddr);
         if (!meta) {

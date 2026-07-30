@@ -40,12 +40,24 @@ async function loadAllParams() {
     if (gen === loadGen) flag.value = false;
   };
 
+  // Gno/TM2: only chain tip + staking/VP + abci. Skip Cosms gov/dist/slash/mint RPCs.
   store.handleBaseBlockLatest().finally(() => mark(chainLoading));
   store.handleStakingParams().finally(() => mark(stakingLoading));
+  store.handleAbciInfo().finally(() => mark(abciLoading));
+  if (isGno) {
+    store.modulesHidden.gov = true;
+    store.modulesHidden.distribution = true;
+    store.modulesHidden.slashing = true;
+    store.modulesHidden.mint = true;
+    mark(govLoading);
+    mark(distributionLoading);
+    mark(slashingLoading);
+    mark(mintLoading);
+    return;
+  }
   store.handleGovernanceParams().finally(() => mark(govLoading));
   store.handleDistributionParams().finally(() => mark(distributionLoading));
   store.handleSlashingParams().finally(() => mark(slashingLoading));
-  store.handleAbciInfo().finally(() => mark(abciLoading));
   store.handleMintParam().finally(() => mark(mintLoading));
 }
 

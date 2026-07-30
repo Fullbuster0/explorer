@@ -350,16 +350,27 @@ export function gnoStakingPool(validators: Validator[]): StakingPool {
   };
 }
 
-/** True when this chain config is Gnoland / TM2 (no Cosmos LCD). */
+/** True when this chain config is Gnoland / TM2 (no Cosmos LCD).
+ *  Prefer explicit `engine`. Fallback only for legacy configs without engine —
+ *  tightened so bare substring "gno" on unrelated chains is less likely.
+ */
 export function isGnoChain(chain: any): boolean {
   if (!chain) return false;
   if (chain.engine === 'gno' || chain.engine === 'tm2') return true;
+  if (chain.engine === 'cosmos') return false;
   const name = String(chain.chainName || chain.chain_name || '').toLowerCase();
   const id = String(chain.chainId || chain.chain_id || '').toLowerCase();
-  if (name.includes('gnoland') || name.includes('gnotopaz') || name.startsWith('gno')) return true;
-  if (id.startsWith('topaz') || id.startsWith('gnoland') || id.includes('gno')) return true;
-  // sdk_version marker
+  if (
+    name.includes('gnoland') ||
+    name.includes('gnotopaz') ||
+    name === 'gno' ||
+    name.startsWith('gno-') ||
+    name.startsWith('gno_')
+  ) {
+    return true;
+  }
+  if (id.startsWith('topaz') || id.startsWith('gnoland') || id.includes('gnoland')) return true;
   const sdk = String(chain.versions?.cosmosSdk || chain.sdk_version || '').toLowerCase();
-  if (sdk.includes('gno') || sdk.includes('tm2')) return true;
+  if (sdk.includes('tm2') || sdk.startsWith('gno/') || sdk === 'gno') return true;
   return false;
 }

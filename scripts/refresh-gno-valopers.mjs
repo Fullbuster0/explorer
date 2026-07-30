@@ -33,7 +33,7 @@ const BUNDLE_FILE = join(ROOT, 'src', 'libs', 'gno', 'valopers-data.ts');
 const OVERRIDE_FILE = join(ROOT, 'src', 'libs', 'gno', 'identity-overrides.json');
 
 const UA = 'ShazoesExplorer/1.0 (valoper-refresh)';
-const DELAY_MS = 150;
+const DELAY_MS = 250; // was 150 — softer on gnoweb rate limits
 const MAX_PAGES = 10;
 
 // AtomOne mainnet LCD — source of Keybase identities for moniker-matched Gno vals.

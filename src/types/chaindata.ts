@@ -74,6 +74,15 @@ export interface LocalChainConfig {
    * https://topaz.testnets.gno.land
    */
   gnoweb?: string;
+  /**
+   * Gno valoper registry realm source (cron + SPA profile links).
+   * e.g. { type: 'gno-realm', base_url: 'https://topaz…/r/gnops/valopers' }
+   */
+  valopers_source?: {
+    type?: string;
+    base_url?: string;
+    note?: string;
+  };
   coin_type: string;
   logo: string;
   theme_color?: string;
@@ -163,6 +172,12 @@ export interface ChainConfig {
   valopers_live_url?: string;
   /** Optional gnoweb base for realm/token deep links. */
   gnoweb?: string;
+  /** Gno valoper registry realm (profile links + cron source meta). */
+  valopers_source?: {
+    type?: string;
+    base_url?: string;
+    note?: string;
+  };
   endpoints: {
     rest?: Endpoint[];
     rpc?: Endpoint[];

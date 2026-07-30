@@ -128,9 +128,15 @@ async function loadRealm() {
       try {
         const page = await client.getAccountTransactions(hit.publisher);
         if (token !== loadToken.value) return;
-        publisherTxs.value = (page.items || []).slice(0, 8);
-      } catch {
-        /* optional */
+        const want = pkgPath.value;
+        const items = page.items || [];
+        // Prefer txs that mention this realm path (func.pkgPath); else show publisher feed.
+        const related = items.filter((tx) =>
+          (tx.func || []).some((f) => f?.pkgPath && (f.pkgPath === want || want.endsWith(f.pkgPath) || f.pkgPath.endsWith(want)))
+        );
+        publisherTxs.value = (related.length ? related : items).slice(0, 8);
+      } catch (e) {
+        console.warn('[gno-realm] publisher txs optional fail:', e);
       }
     }
   } finally {

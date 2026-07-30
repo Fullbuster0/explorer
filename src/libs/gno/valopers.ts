@@ -193,10 +193,11 @@ export function initGnoValopers(chainOrUrl = 'gnoland-testnet', liveUrl?: string
           );
         }
         return;
-      } catch {
-        /* try next */
+      } catch (e) {
+        console.warn(`[gno-valopers] fetch failed ${url}:`, (e as any)?.message || e);
       }
     }
+    console.warn('[gno-valopers] all live candidates failed; using bundled seed');
   })();
 }
 

@@ -497,6 +497,10 @@ export const useBlockchain = defineStore('blockchain', {
       page?: PageRequest,
       limit?: number
     ): Promise<PaginatedTxs | null> {
+      // Gno/TM2: no Cosms tx-search / LCD events — never walk REST against TM2.
+      if (this.current && isGnoChain(this.current as any)) {
+        return null;
+      }
       console.info('[store] fetchPowerEventsTxs', query.slice(0, 60), 'current=', !!this.current, 'endpoint=', !!this.endpoint?.address);
       const tryOne = async (base: string): Promise<PaginatedTxs | null> => {
         const client = CosmosRestClient.newStrategy(base, this.current);
@@ -567,6 +571,10 @@ export const useBlockchain = defineStore('blockchain', {
      * want the quickest healthy node); then archive; then remaining rest.
      */
     async fetchRecentTxs(limit = 5): Promise<PaginatedTxs | null> {
+      // Gno uses /gno-tx indexer feed — Cosms tx.height search does not exist on TM2.
+      if (this.current && isGnoChain(this.current as any)) {
+        return null;
+      }
       const query = `?query=tx.height>0`;
       const page = new PageRequest();
       page.setPageSize(limit);
@@ -917,7 +925,9 @@ export const useBlockchain = defineStore('blockchain', {
         this.rpc = GnoTm2Client.new(endpoint.address) as unknown as CosmosRestClient;
         // Fire-and-forget: merge live valoper registry from official realm
         const liveUrl = (this.current as any)?.valopers_live_url as string | undefined;
-        initGnoValopers(this.chainName, liveUrl).catch(() => {});
+        initGnoValopers(this.chainName, liveUrl).catch((e: any) => {
+          console.warn('[gno-valopers] init failed:', e?.message || e);
+        });
       } else {
         this.rpc = CosmosRestClient.newStrategy(endpoint.address, this.current);
       }

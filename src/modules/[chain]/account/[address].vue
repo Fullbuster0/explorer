@@ -101,7 +101,7 @@ const gnoRelated = computed(() => {
 
 // Warm valopers on Gno so chips resolve on cold account deep-links
 if (isGno.value) {
-  initGnoValopers(String(props.chain || 'gnoland-testnet')).catch(() => {});
+  initGnoValopers(String(props.chain || 'gnoland-testnet')).catch((e: any) => console.warn('[gno-valopers] init:', e?.message || e));
 }
 
 function shortGnoHash(h: string): string {

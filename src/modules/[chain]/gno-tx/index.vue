@@ -186,6 +186,36 @@ if (typeof document !== 'undefined') {
   document.addEventListener('visibilitychange', onVis);
   onUnmounted(() => document.removeEventListener('visibilitychange', onVis));
 }
+// Tip poll: new block → soft refresh first page (dedupe by hash, keep cursor)
+let tipPollBusy = false;
+watch(
+  () => baseStore.latest?.block?.header?.height,
+  async (h, prev) => {
+    if (!h || h === prev || !hasIndexer.value) return;
+    if (document.visibilityState === 'hidden') return;
+    if (tipPollBusy || loading.value || loadingMore.value) return;
+    tipPollBusy = true;
+    try {
+      const client = getGnoIndexer(indexerUrl.value);
+      const page = await client.getTransactions();
+      const seen = new Set(txs.value.map((x) => x.txHash));
+      const fresh = (page.items || []).filter((x) => !seen.has(x.txHash));
+      if (fresh.length) {
+        txs.value = [...fresh, ...txs.value];
+        lastFetchedAt.value = Date.now();
+      } else if (!txs.value.length) {
+        txs.value = page.items || [];
+        cursor.value = page.cursor;
+        hasNext.value = page.hasNext;
+        lastFetchedAt.value = Date.now();
+      }
+    } catch (e) {
+      console.warn('[gno-tx] tip poll failed:', e);
+    } finally {
+      tipPollBusy = false;
+    }
+  }
+);
 
 const secondsSinceLastFetch = computed(() => {
   if (!lastFetchedAt.value) return null;

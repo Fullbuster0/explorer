@@ -235,6 +235,10 @@ export const useParamStore = defineStore('paramstore', {
      * the punishment regime looks like.
      */
     async handleSlashingParams() {
+      if (this.blockchain.current?.engine === 'gno' || this.blockchain.current?.engine === 'tm2') {
+        this.modulesHidden.slashing = true;
+        return;
+      }
       try {
         const res = await this.getSlashingParams();
         if (!res?.params || !Object.keys(res.params as any).length) {
@@ -273,6 +277,10 @@ export const useParamStore = defineStore('paramstore', {
      * coefs are legible instead of one flattened key/value dump.
      */
     async handleDistributionParams() {
+      if (this.blockchain.current?.engine === 'gno' || this.blockchain.current?.engine === 'tm2') {
+        this.modulesHidden.distribution = true;
+        return;
+      }
       try {
         const res = await this.getDistributionParams();
         if (!res?.params || !Object.keys(res.params as any).length) {
@@ -324,6 +332,10 @@ export const useParamStore = defineStore('paramstore', {
      * that sub-group if so.
      */
     async handleGovernanceParams() {
+      if (this.blockchain.current?.engine === 'gno' || this.blockchain.current?.engine === 'tm2') {
+        this.modulesHidden.gov = true;
+        return;
+      }
       const excludes = this.blockchain.current?.excludes;
       if (excludes && excludes.indexOf('governance') > -1) return;
       const subGroups: { title: string; items: any[] }[] = [];

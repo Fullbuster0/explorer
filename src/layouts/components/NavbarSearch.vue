@@ -737,12 +737,12 @@ onMounted(() => {
   window.addEventListener('keydown', onKeydown);
   loadRecent();
   // Warm Gno valopers so signing/operator search resolves moniker immediately
-  if (isGno.value) initGnoValopers().catch(() => undefined);
+  if (isGno.value) initGnoValopers().catch((e: any) => console.warn('[gno-valopers] init:', e?.message || e));
 });
 watch(
   () => isGno.value,
   (g) => {
-    if (g) initGnoValopers().catch(() => undefined);
+    if (g) initGnoValopers().catch((e: any) => console.warn('[gno-valopers] init:', e?.message || e));
   }
 );
 // Chain name settles after first paint — warm registry without hard refresh
@@ -750,7 +750,7 @@ watch(
   () => chainName.value,
   (name, prev) => {
     if (name && name !== prev && isGno.value) {
-      initGnoValopers().catch(() => undefined);
+      initGnoValopers().catch((e: any) => console.warn('[gno-valopers] init:', e?.message || e));
     }
   }
 );
