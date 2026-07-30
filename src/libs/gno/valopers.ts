@@ -187,9 +187,111 @@ async function fetchRows(url: string): Promise<GnoValoperRow[] | null> {
   return null;
 }
 
+// ---- Live fetch gate (keep valopers_live_url on Shazoes /static) ----
+// When the static host is down, do NOT hammer it every page mount. Remember
+// chain tip height at failure; only retry after tip has advanced past that.
+// Bundled seed (+ last successful in-memory maps) keep monikers working.
+
+const VALOPERS_GATE_KEY = 'gno-valopers-fetch-gate';
+
+type ValopersGate = {
+  /** tip height observed when live JSON last failed (per URL) */
+  byUrl: Record<string, { downAtHeight: number; failedAt: number }>;
+};
+
+function readGate(): ValopersGate {
+  try {
+    const raw = localStorage.getItem(VALOPERS_GATE_KEY);
+    if (!raw) return { byUrl: {} };
+    const p = JSON.parse(raw);
+    return { byUrl: p?.byUrl && typeof p.byUrl === 'object' ? p.byUrl : {} };
+  } catch {
+    return { byUrl: {} };
+  }
+}
+
+function writeGate(g: ValopersGate) {
+  try {
+    localStorage.setItem(VALOPERS_GATE_KEY, JSON.stringify(g));
+  } catch {
+    /* quota */
+  }
+}
+
+function markValopersFetchFailed(url: string, tipHeight: number) {
+  const g = readGate();
+  const prev = g.byUrl[url]?.downAtHeight ?? 0;
+  // Keep the highest tip we saw while down so we don't retry on equal/lower
+  g.byUrl[url] = {
+    downAtHeight: Math.max(prev, tipHeight, 0),
+    failedAt: Date.now(),
+  };
+  writeGate(g);
+}
+
+function clearValopersFetchFailed(url: string) {
+  const g = readGate();
+  if (!g.byUrl[url]) return;
+  delete g.byUrl[url];
+  writeGate(g);
+}
+
+/**
+ * Tip height for the host that serves valopers JSON.
+ * Same-origin `/data/...` → no remote status (treat as unknown → always try once).
+ * Absolute URL → GET `{origin}/status` (TM2 / Cosmos-style).
+ */
+async function tipHeightNearValopersUrl(url: string): Promise<number | null> {
+  if (!/^https?:\/\//i.test(url)) return null;
+  try {
+    const origin = new URL(url).origin;
+    const res = await fetch(`${origin}/status`, {
+      signal: abortAfter(4000),
+      cache: 'no-store',
+      headers: { Accept: 'application/json' },
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    // TM2
+    const tm2 = Number(data?.result?.sync_info?.latest_block_height || 0);
+    if (tm2 > 0) return tm2;
+    // CosmJS / rare shapes
+    const lcd = Number(data?.sync_info?.latest_block_height || data?.result?.height || 0);
+    return lcd > 0 ? lcd : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * true → skip live JSON fetch (host still down / tip not advanced).
+ * false → attempt fetch.
+ */
+function shouldSkipValopersFetch(url: string, tipHeight: number | null): boolean {
+  const ent = readGate().byUrl[url];
+  if (!ent) return false;
+
+  // Absolute host (Shazoes): tip unknown ⇒ still down — don't hammer static.
+  // Relative `/data/...`: no origin /status — use short time backoff only.
+  if (tipHeight == null || tipHeight <= 0) {
+    if (!/^https?:\/\//i.test(url)) {
+      return Date.now() - (ent.failedAt || 0) < 60_000;
+    }
+    return true;
+  }
+  // Only retry after chain tip moved past the height recorded at failure.
+  if (tipHeight <= ent.downAtHeight) {
+    return true;
+  }
+  return false;
+}
+
 /**
  * Load live registry. Tries RPC static URL first, then same-origin.
  * Manual identity overrides are re-applied on every row (cannot be changed by live JSON).
+ *
+ * Gate: on failure, remember tip height; skip re-fetch until tip is higher
+ * (Shazoes `/static` stays the only live URL — no multi-host failover).
  */
 export function initGnoValopers(chainOrUrl = 'gnoland-testnet', liveUrl?: string): Promise<void> {
   let explicit = liveUrl;
@@ -197,26 +299,63 @@ export function initGnoValopers(chainOrUrl = 'gnoland-testnet', liveUrl?: string
 
   return (async () => {
     const urls = candidateUrls(explicit);
+    let anyAttempted = false;
+    let anySkipped = false;
+
     for (const url of urls) {
+      const tip = await tipHeightNearValopersUrl(url);
+      if (shouldSkipValopersFetch(url, tip)) {
+        anySkipped = true;
+        console.info(
+          `[gno-valopers] skip fetch ${url}` +
+            (tip != null
+              ? ` (tip ${tip} ≤ downAt ${readGate().byUrl[url]?.downAtHeight})`
+              : ' (host tip unreachable; waiting for advance)')
+        );
+        continue;
+      }
+
+      anyAttempted = true;
       try {
         const rows = await fetchRows(url);
-        if (!rows || !rows.length) continue;
+        if (!rows || !rows.length) {
+          // Empty/404 — treat as fail for gate (cron may not have written yet)
+          markValopersFetchFailed(url, tip ?? readGate().byUrl[url]?.downAtHeight ?? 0);
+          continue;
+        }
         let updated = 0;
         for (const row of rows) {
           if (applyRow(row)) updated++;
         }
+        clearValopersFetchFailed(url);
         if (updated > 0 || rows.length) {
           console.info(
-            `[gno-valopers] live ${rows.length} from ${url} (${updated} fields changed)`
+            `[gno-valopers] live ${rows.length} from ${url} (${updated} fields changed)` +
+              (tip != null ? ` tip=${tip}` : '')
           );
         }
         return;
       } catch (e) {
+        markValopersFetchFailed(url, tip ?? 0);
         console.warn(`[gno-valopers] fetch failed ${url}:`, (e as any)?.message || e);
       }
     }
-    console.warn('[gno-valopers] all live candidates failed; using bundled seed');
+
+    if (anySkipped && !anyAttempted) {
+      console.info('[gno-valopers] live fetch gated; using bundled seed / last in-memory maps');
+    } else {
+      console.warn('[gno-valopers] all live candidates failed; using bundled seed');
+    }
   })();
+}
+
+/** Test/debug: clear tip-gated skip state (forces next init to attempt live fetch). */
+export function resetGnoValopersFetchGate() {
+  try {
+    localStorage.removeItem(VALOPERS_GATE_KEY);
+  } catch {
+    /* ignore */
+  }
 }
 
 export function lookupGnoValoper(address?: string): GnoValoper | undefined {
