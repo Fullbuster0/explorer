@@ -33,8 +33,9 @@ fi
 APP_HOME="${APP_HOME:-/root}"
 
 EXPLORER_ROOT="${GNO_EXPLORER_ROOT:-$APP_HOME/explorer}"
-# Default layout: ~/explorer/public/data/gno-valopers.json (per-user production)
-VALOPERS_JSON="${VALOPERS_JSON:-$EXPLORER_ROOT/public/data/gno-valopers.json}"
+# Opsi A default: data plane di luar explorer ($HOME/gno-valopers).
+# Legacy: VALOPERS_JSON=$EXPLORER_ROOT/public/data/gno-valopers.json
+VALOPERS_JSON="${VALOPERS_JSON:-$APP_HOME/gno-valopers/data/gno-valopers.json}"
 
 ISSUE_CERTS="${ISSUE_CERTS:-0}"
 
