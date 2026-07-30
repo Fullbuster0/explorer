@@ -17,14 +17,16 @@
 #   node scripts/refresh-gno-valopers.mjs   # writes bundle
 #   git add -p src/libs/gno/valopers-data.ts && git commit   # human review
 set -euo pipefail
-# Portable root: env override → script-relative → legacy hermes path
+# Portable root: env override → script-relative (works any user/server).
+# Do NOT hardcode /home/hermes — production may use /opt/explorer or another $HOME.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="${GNO_EXPLORER_ROOT:-}"
 if [ -z "$ROOT" ]; then
   ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 fi
 if [ ! -d "$ROOT" ] || [ ! -f "$ROOT/scripts/refresh-gno-valopers.mjs" ]; then
-  ROOT="/home/hermes/explorer"
+  echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] FATAL: explorer root invalid: ROOT=$ROOT (set GNO_EXPLORER_ROOT)" >&2
+  exit 1
 fi
 cd "$ROOT" || exit 1
 
@@ -35,10 +37,10 @@ NODE_BIN=""
 # Prefer pinned nvm builds, then any nvm v20/v18, then PATH/node
 shopt -s nullglob 2>/dev/null || true
 NVM_CANDS=(
-  /home/hermes/.nvm/versions/node/v20.20.2/bin/node
-  /home/hermes/.nvm/versions/node/v18.20.8/bin/node
-  /home/hermes/.nvm/versions/node/v20.*/bin/node
-  /home/hermes/.nvm/versions/node/v18.*/bin/node
+  "$HOME/.nvm/versions/node/v20.20.2/bin/node"
+  "$HOME/.nvm/versions/node/v18.20.8/bin/node"
+  "$HOME/.nvm/versions/node/v20."*/bin/node
+  "$HOME/.nvm/versions/node/v18."*/bin/node
 )
 for cand in "${NVM_CANDS[@]}" "$(command -v node 2>/dev/null || true)" /usr/bin/node; do
   [ -n "$cand" ] || continue

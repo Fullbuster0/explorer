@@ -1,18 +1,43 @@
 #!/bin/bash
 # Run as ROOT. Adds /static/gno-valopers.json to gnoland-testnet-rpc vhost.
-#   sudo bash /home/hermes/explorer/scripts/patch-gnoland-rpc-valopers-nginx.sh
+#   sudo bash scripts/patch-gnoland-rpc-valopers-nginx.sh
+#
+# Production-portable:
+#   VALOPERS_JSON / JSON_PATH   absolute JSON path (cron output)
+#   GNO_EXPLORER_ROOT           explorer root → public/data/gno-valopers.json
+#   CONF_FILE                   nginx vhost (default sites-enabled/gnoland-testnet)
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+EXPLORER_ROOT="${GNO_EXPLORER_ROOT:-}"
+if [ -z "$EXPLORER_ROOT" ]; then
+  EXPLORER_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+fi
+
 CONF="${CONF_FILE:-/etc/nginx/sites-enabled/gnoland-testnet}"
-JSON_PATH="${JSON_PATH:-/home/hermes/explorer/public/data/gno-valopers.json}"
+JSON_PATH="${VALOPERS_JSON:-${JSON_PATH:-$EXPLORER_ROOT/public/data/gno-valopers.json}}"
 MARKER="gno-valopers-static"
+RPC_SERVER_NAME="${RPC_SERVER_NAME:-gnoland-testnet-rpc.shazoes.xyz}"
 
 if [ ! -f "$CONF" ]; then
   echo "FATAL: $CONF missing"; exit 1
 fi
 
+echo "📁 JSON_PATH=$JSON_PATH"
+echo "📁 CONF=$CONF"
+
 chmod a+r "$JSON_PATH" 2>/dev/null || true
-chmod a+x /home/hermes /home/hermes/explorer /home/hermes/explorer/public /home/hermes/explorer/public/data 2>/dev/null || true
+# Portable traverse perms for nginx → JSON
+_path="$JSON_PATH"
+while [ -n "$_path" ] && [ "$_path" != "/" ]; do
+  _path="$(dirname "$_path")"
+  [ -d "$_path" ] || continue
+  chmod a+x "$_path" 2>/dev/null || true
+  case "$_path" in
+    /home|/home/*|/opt|/opt/*|/var|/var/*|/srv|/srv/*) ;;
+    *) break ;;
+  esac
+done
 
 if grep -q "$MARKER" "$CONF"; then
   echo "Already patched. nginx -t + reload."
@@ -20,13 +45,14 @@ if grep -q "$MARKER" "$CONF"; then
   exit 0
 fi
 
-export CONF JSON_PATH MARKER
+export CONF JSON_PATH MARKER RPC_SERVER_NAME
 python3 <<'PY'
 from pathlib import Path
 import os, shutil
 conf = Path(os.environ["CONF"])
 json_path = os.environ["JSON_PATH"]
 marker = os.environ["MARKER"]
+server_name = os.environ["RPC_SERVER_NAME"]
 orig = conf.read_text()
 shutil.copy2(conf, str(conf) + ".bak-valopers")
 static_block = f"""
@@ -48,10 +74,16 @@ static_block = f"""
         }}
     }}
 """
-needle = "server_name gnoland-testnet-rpc.shazoes.xyz;"
+needle = f"server_name {server_name};"
 idx = orig.find(needle)
 if idx < 0:
-    raise SystemExit("RPC server_name not found")
+    # fallback: any gnoland rpc server_name line
+    import re
+    m = re.search(r"server_name\s+([^\s;]*gnoland[^\s;]*rpc[^\s;]*);", orig)
+    if not m:
+        raise SystemExit(f"RPC server_name not found (tried {server_name!r})")
+    idx = m.start()
+    needle = m.group(0)
 loc = orig.find("location / {", idx)
 if loc < 0:
     raise SystemExit("location / not found in RPC server")
@@ -65,8 +97,8 @@ systemctl reload nginx
 
 echo ""
 echo "Verify JSON:"
-curl -sI "https://gnoland-testnet-rpc.shazoes.xyz/static/gno-valopers.json" | head -n 15
+curl -sI "https://${RPC_SERVER_NAME}/static/gno-valopers.json" | head -n 15
 echo "---"
-curl -s "https://gnoland-testnet-rpc.shazoes.xyz/static/gno-valopers.json" | head -c 180; echo
+curl -s "https://${RPC_SERVER_NAME}/static/gno-valopers.json" | head -c 180; echo
 echo "Verify RPC still OK:"
-curl -s "https://gnoland-testnet-rpc.shazoes.xyz/status" | head -c 120; echo
+curl -s "https://${RPC_SERVER_NAME}/status" | head -c 120; echo
