@@ -4,11 +4,18 @@ import { onMounted, onUnmounted } from 'vue';
 import TxDialog from './components/TxDialog.vue';
 import { useBaseStore } from '@/stores';
 
-// Default 2s so navbar height tracks ~blocktime better (was 6s → looks frozen)
+// Default 2s (was 6s → looked frozen). Kept as a safety fallback; the live poll
+// now follows the active chain's real blocktime instead of this fixed value.
 const REFRESH_INTERVAL = Number(import.meta.env.VITE_REFRESH_INTERVAL || 2000);
 
+// Adaptive poll bounds (ms): don't hammer fast (~1s) chains, keep slow chains alive.
+const POLL_MIN = 2000;
+const POLL_MAX = 15000;
+
 const blockStore = useBaseStore();
-let pollingTimer: ReturnType<typeof setInterval> | null = null;
+let pollingTimer: ReturnType<typeof setTimeout> | null = null;
+let running = false;
+let epoch = 0; // bumped on start/stop so a stale polling chain can't resurrect itself
 let inflight = false;
 
 async function tick() {
@@ -31,18 +38,39 @@ async function tick() {
   }
 }
 
+// Next delay follows the active chain's measured blocktime (Ping.pub feel): fast
+// chains poll more often, slow chains less — clamped to [POLL_MIN, POLL_MAX].
+// Re-read every cycle so switching chains re-tunes automatically. The blocktime
+// getter returns 1000 before two blocks are seen → clamps up to POLL_MIN (2s).
+function nextDelay(): number {
+  const bt = blockStore.blocktime; // ms per block
+  if (!Number.isFinite(bt) || bt <= 0) return Math.max(1000, REFRESH_INTERVAL);
+  return Math.min(POLL_MAX, Math.max(POLL_MIN, Math.round(bt)));
+}
+
+function scheduleNext(myEpoch: number) {
+  // A chain is stale if start/stop bumped `epoch` after it was born (rapid tab
+  // flicker during a slow fetch). Stale chains die here → exactly one live chain.
+  if (!running || myEpoch !== epoch) return;
+  pollingTimer = setTimeout(() => {
+    tick().finally(() => scheduleNext(myEpoch));
+  }, nextDelay());
+}
+
 function startPolling() {
-  if (pollingTimer !== null) return;
-  // immediate pull so header isn't stuck on "—" / stale height
-  tick();
-  pollingTimer = setInterval(() => {
-    tick();
-  }, Math.max(1000, REFRESH_INTERVAL));
+  if (running) return;
+  running = true;
+  epoch++;
+  const myEpoch = epoch;
+  // immediate pull so header isn't stuck on "—" / stale height, then adaptive chain
+  tick().finally(() => scheduleNext(myEpoch));
 }
 
 function stopPolling() {
+  running = false;
+  epoch++; // invalidate any in-flight chain so its scheduleNext becomes a no-op
   if (pollingTimer !== null) {
-    clearInterval(pollingTimer);
+    clearTimeout(pollingTimer);
     pollingTimer = null;
   }
 }
