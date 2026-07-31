@@ -35,10 +35,6 @@
     {
       "address": "https://cosmoshub-mainnet-api.itrocket.net",
       "provider": "ITRocket"
-    },
-    {
-      "address": "https://rest.cosmos.directory/cosmoshub",
-      "provider": "cosmos.directory"
     }
   ],
   "archived_api": [
