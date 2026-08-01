@@ -52,21 +52,31 @@ function claim() {
   if (!address.value) return;
   faucetModal.value = true;
   // @ts-ignore
-  get(`${faucetUrl.value}/send/${address.value}`).then((res: FaucetResponse) => {
-    console.log(res);
-    ret.value = res;
-  });
+  get(`${faucetUrl.value}/send/${address.value}`)
+    .then((res: FaucetResponse) => {
+      console.log(res);
+      ret.value = res;
+    })
+    .catch((e: any) => {
+      // get() throws on network/HTTP failure — surface it in the modal instead
+      // of leaving an unhandled rejection and a stuck, empty dialog.
+      ret.value = { status: 'error', result: null, message: e?.message || 'Faucet request failed' };
+    });
 }
 
 function balance() {
-  get(`${faucetUrl.value}/balance`).then((res) => {
-    if (res.status === 'error') {
-      configChecker.value = res.message;
-      return;
-    }
-    balances.value = res.result?.balance;
-    faucet.value = res.result?.address;
-  });
+  get(`${faucetUrl.value}/balance`)
+    .then((res) => {
+      if (res.status === 'error') {
+        configChecker.value = res.message;
+        return;
+      }
+      balances.value = res.result?.balance;
+      faucet.value = res.result?.address;
+    })
+    .catch((e: any) => {
+      configChecker.value = e?.message || 'Failed to load faucet balance';
+    });
 }
 
 onMounted(() => {

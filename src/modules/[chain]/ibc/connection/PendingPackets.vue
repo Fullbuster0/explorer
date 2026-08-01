@@ -189,11 +189,16 @@ function start() {
   stop();
   poll();
   timer = setInterval(poll, 6000);
+  if (!tickTimer) tickTimer = setInterval(() => (tick.value++), 1000);
 }
 function stop() {
   if (timer) {
     clearInterval(timer);
     timer = null;
+  }
+  if (tickTimer) {
+    clearInterval(tickTimer);
+    tickTimer = null;
   }
 }
 
@@ -211,9 +216,10 @@ const secondsAgo = computed(() => {
   if (!lastPoll.value) return null;
   return Math.max(0, Math.floor((Date.now() - lastPoll.value) / 1000));
 });
-// tick a reactive re-render so "Xs ago" updates
+// tick a reactive re-render so "Xs ago" updates — tied to start()/stop() so it
+// clears on unmount (a bare setup-scope setInterval here leaked on every visit).
 const tick = ref(0);
-setInterval(() => (tick.value++), 1000);
+let tickTimer: ReturnType<typeof setInterval> | null = null;
 const ago = computed(() => {
   void tick.value;
   if (!lastPoll.value) return '';
