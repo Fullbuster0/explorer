@@ -64,6 +64,21 @@ if [ -f /etc/letsencrypt/ssl-dhparams.pem ]; then
   SSL_DH="    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;"
 fi
 
+# Security headers — injected into EACH location (add_header doesn't inherit
+# when a location has its own add_header like Cache-Control).
+read -r -d '' SEC_HEADERS <<'SEC' || true
+        add_header Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https: wss: data:; frame-src 'self' https://wallet.keplr.app; worker-src 'self' blob:; child-src 'self' blob:; form-action 'self'; frame-ancestors 'self'; upgrade-insecure-requests" always;
+        add_header X-Frame-Options "SAMEORIGIN" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+        add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+        add_header Cross-Origin-Opener-Policy "same-origin-allow-popups" always;
+        add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+SEC
+
+# Vote-indexer upstream (local backend on :8878)
+VOTE_UPSTREAM="http://127.0.0.1:8878"
+
 # === [1] HTTP VHOST DULU (ACME + server_name) ===
 # JANGAN stop nginx — multi-vhost: stop global bikin downtime semua site.
 echo "==> [1/4] Tulis HTTP bootstrap → ${CONF_FILE}"
@@ -166,18 +181,37 @@ ${SSL_DH}
     # ── Hashed assets (/assets/index-a1b2c3.js): cache forever ──
     # Filename = content hash, aman immutable. Repeat visit = 0 byte.
     location /assets/ {
+${SEC_HEADERS}
         add_header Cache-Control "public, max-age=31536000, immutable";
         try_files \$uri =404;
     }
 
     # ── Static media (logos, vendor, fonts): cache 7 hari ──
     location ~* ^/(logos|vendor|favicon|manifest)/ {
+${SEC_HEADERS}
         add_header Cache-Control "public, max-age=604800";
         try_files \$uri =404;
     }
 
+    # ── Vote API proxy (same-origin fallback for VITE_VOTE_INDEXER_URL) ──
+    # SPA uses /vote-api when VITE_VOTE_INDEXER_URL is not set at build time.
+    # Proxies to local vote-indexer backend on :8878.
+    location /vote-api/ {
+${SEC_HEADERS}
+        proxy_pass ${VOTE_UPSTREAM}/;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_connect_timeout 10s;
+        proxy_send_timeout 120s;
+        proxy_read_timeout 120s;
+    }
+
     # ── SPA fallback: index.html harus revalidate (deploy baru) ──
     location / {
+${SEC_HEADERS}
         add_header Cache-Control "no-cache";
         try_files \$uri \$uri/ /index.html;
     }
