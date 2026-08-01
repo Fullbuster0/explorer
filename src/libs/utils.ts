@@ -22,6 +22,32 @@ export function getLocalObject(name: string) {
   return safeJsonParse(localStorage.getItem(name), null);
 }
 
+/**
+ * Sanitize an attacker-influenceable URL (on-chain validator website/socials,
+ * CoinGecko/registry links, third-party API URLs) for use in an `<a :href>`.
+ * Allow only http(s); upgrade bare domains; neuter every other scheme
+ * (javascript:, data:, vbscript:, file:, …) to a dead '#' link. rel="noopener"
+ * does NOT neutralize javascript: hrefs — the scheme allowlist does.
+ */
+export function safeUrl(u?: string): string {
+  const s = (u || '').trim();
+  if (!s) return '#';
+  if (/^https?:\/\//i.test(s)) return s;
+  if (/^[a-z][a-z0-9+.-]*:/i.test(s)) return '#'; // any other scheme → block
+  return `https://${s}`; // bare domain → https
+}
+
+/**
+ * Sanitize an attacker-influenceable email (on-chain security_contact) for a
+ * `mailto:` href. A raw `'mailto:' + x` allows header injection
+ * (`x@y?cc=spam&subject=phish`). Strict-validate as a plain address; anything
+ * else → dead '#' link.
+ */
+export function safeMailto(u?: string): string {
+  const s = (u || '').trim();
+  return /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(s) ? `mailto:${s}` : '#';
+}
+
 export function getLocalChains() {
   return 'osmosis';
 }

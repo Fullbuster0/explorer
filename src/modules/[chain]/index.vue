@@ -18,7 +18,7 @@ import {
 import { LoadingStatus } from '@/stores/useDashboard';
 import { onMounted, ref, computed } from 'vue';
 import { useIndexModule, colorMap, tickerUrl } from './indexStore';
-import { formatSeconds } from '@/libs/utils';
+import { formatSeconds, safeUrl } from '@/libs/utils';
 
 import ProposalListItem from '@/components/ProposalListItem.vue';
 import Loading from '@/components/Loading.vue';
@@ -372,7 +372,7 @@ const amount = computed({
                 <a
                   v-for="(item, index) of comLinks"
                   :key="index"
-                  :href="item.href"
+                  :href="safeUrl(item.href)"
                   target="_blank"
                   rel="noopener"
                   class="sz-hero-link"
@@ -582,7 +582,7 @@ const amount = computed({
           </div>
           <a
             v-if="githubCard.htmlUrl"
-            :href="githubCard.htmlUrl"
+            :href="safeUrl(githubCard.htmlUrl)"
             target="_blank"
             rel="noopener"
             class="btn btn-sm btn-outline gap-1"
@@ -596,7 +596,7 @@ const amount = computed({
         <div v-if="githubCard.loading" class="px-4 py-6 text-sm text-secondary">Loading repository activity…</div>
         <div v-else-if="githubCard.error && !githubCard.commits?.length" class="px-4 py-4 text-sm text-secondary">
           {{ githubCard.error }}
-          <a v-if="githubCard.htmlUrl" :href="githubCard.htmlUrl" class="link link-primary ml-1" target="_blank" rel="noopener">Open on GitHub</a>
+          <a v-if="githubCard.htmlUrl" :href="safeUrl(githubCard.htmlUrl)" class="link link-primary ml-1" target="_blank" rel="noopener">Open on GitHub</a>
         </div>
         <template v-else>
           <!-- contribution heatmap (nodes.guru / GitHub style) -->
@@ -697,7 +697,7 @@ const amount = computed({
                 class="px-4 py-2.5 hover:bg-base-content/5 transition-colors"
               >
                 <a
-                  :href="c.htmlUrl || githubCard.htmlUrl"
+                  :href="safeUrl(c.htmlUrl || githubCard.htmlUrl)"
                   target="_blank"
                   rel="noopener"
                   class="block no-underline"
