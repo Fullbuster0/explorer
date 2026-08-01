@@ -43,12 +43,12 @@
   ],
   "archived_api": [
     {
-      "address": "https://atomone-api.allinbits.com",
-      "provider": "AllinBits (Archive)"
+      "address": "https://atomone-mainnet-api.shazoes.xyz",
+      "provider": "Shazoes (Archive)"
     },
     {
-      "address": "https://atomone-mainnet-archive-api.itrocket.net",
-      "provider": "ITRocket (Archive)"
+      "address": "https://atomone-api.allinbits.com",
+      "provider": "AllinBits (Archive)"
     }
   ],
   "rpc": [

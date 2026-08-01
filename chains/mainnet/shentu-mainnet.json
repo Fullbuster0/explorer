@@ -84,5 +84,15 @@
     "ibc-go",
     "ibc-transfer",
     "no-legacy-stdTx"
+  ],
+  "archived_api": [
+    {
+      "address": "https://shentu-api.polkachu.com",
+      "provider": "Polkachu (Archive)"
+    },
+    {
+      "address": "https://shentu-mainnet-api.shazoes.xyz",
+      "provider": "Shazoes"
+    }
   ]
 }

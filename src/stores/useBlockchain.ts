@@ -742,6 +742,15 @@ export const useBlockchain = defineStore('blockchain', {
         await collect(ep.address);
       }
 
+      // LCD dead end (e.g. Lava: relayer wallets produce result sets larger
+      // than every public LCD's internal gRPC max-message size, so tx-by-event
+      // queries fail with "received message larger than max" regardless of
+      // limit). Fall back to Tendermint RPC tx_search, which honours per_page.
+      if (!merged.size) {
+        const rpcRows = await this.rpcTxSearchFallback(address);
+        for (const r of rpcRows) if (r.txhash) merged.set(r.txhash, r);
+      }
+
       if (!merged.size) return null;
 
       // Sort by height DESC — matches what a single endpoint would return.
@@ -758,6 +767,155 @@ export const useBlockchain = defineStore('blockchain', {
         tx_responses: sorted,
         pagination: { total: String(bestTotal) } as any,
       } as unknown as PaginatedTxs;
+    },
+
+    /**
+     * Tendermint RPC tx_search fallback for account history.
+     *
+     * Some chains' public LCDs cannot serve tx-by-event queries for very
+     * active accounts: Lava relayer wallets produce result sets larger than
+     * the node's internal gRPC max-message size (~10MB), so every LCD returns
+     * `grpc: received message larger than max` no matter the pagination.limit
+     * (which most LCDs ignore anyway). RPC `/tx_search` honours `per_page`
+     * and returns compact indexed results. Verified 2026-08-01 against
+     * lava-rpc.polkachu.com (CORS: *).
+     *
+     * Conversion: tx_search items → TxResponse-shaped rows the account table
+     * already renders. Message @types come from the `message.action` event
+     * (base64 on Tendermint 0.34, plain on CometBFT 0.37+). Timestamps need
+     * a block-header fetch per unique height (batched, capped at 40).
+     */
+    async rpcTxSearchFallback(address: string): Promise<TxResponse[]> {
+      const rpcs = (this.current?.endpoints?.rpc || []).slice(0, 4);
+      if (!rpcs.length) return [];
+
+      // Tendermint 0.34 base64-encodes event keys/values; CometBFT 0.37+
+      // emits plain strings. Decode only when it looks like base64 AND
+      // yields printable text.
+      const decodeAttr = (s: string): string => {
+        if (!s || !/^[A-Za-z0-9+/]+={0,2}$/.test(s) || s.length % 4 === 1) return s;
+        try {
+          const d = atob(s);
+          return /^[\x20-\x7e]+$/.test(d) ? d : s;
+        } catch {
+          return s;
+        }
+      };
+
+      const fetchJson = async (url: string, timeoutMs = 8000): Promise<any> => {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), timeoutMs);
+        try {
+          const res = await fetch(url, { signal: controller.signal });
+          if (!res.ok) return null;
+          return await res.json();
+        } catch {
+          return null; // CORS / timeout / network — try next endpoint
+        } finally {
+          clearTimeout(timer);
+        }
+      };
+
+      const queries = [
+        `message.sender='${address}'`,
+        `coin_received.receiver='${address}'`,
+      ];
+
+      type RawItem = { hash: string; height: string; tx_result?: any };
+      const found = new Map<string, RawItem>();
+      let workingRpc = '';
+
+      // Union across ALL responding RPCs — indexes differ wildly between
+      // providers (stakevillage had 5 receiver-only rows vs polkachu's 218+
+      // for the same wallet). Don't break on first success.
+      for (const rpc of rpcs) {
+        const base = (rpc.address || '').replace(/\/$/, '');
+        if (!base) continue;
+        let gotAny = false;
+        for (const q of queries) {
+          // tx_search requires the query wrapped in double quotes; order_by
+          // must be a quoted JSON string ("desc") — bare `desc` fails the
+          // URI→JSON-RPC param converter on Tendermint 0.34.
+          const url = `${base}/tx_search?query=${encodeURIComponent(`"${q}"`)}&per_page=100&page=1&order_by=${encodeURIComponent('"desc"')}`;
+          const data = await fetchJson(url);
+          const txs = data?.result?.txs;
+          if (Array.isArray(txs)) {
+            for (const t of txs) if (t?.hash) found.set(t.hash, t);
+            if (txs.length) gotAny = true;
+          }
+        }
+        if (gotAny && !workingRpc) workingRpc = base; // for block-header timestamps
+      }
+
+      const items = Array.from(found.values());
+      if (!items.length) return [];
+
+      const rows: TxResponse[] = items.map((item) => {
+        const tr = item.tx_result || {};
+        const events = (Array.isArray(tr.events) ? tr.events : []).map((ev: any) => ({
+          type: decodeAttr(String(ev.type || '')),
+          attributes: (Array.isArray(ev.attributes) ? ev.attributes : []).map((at: any) => ({
+            key: decodeAttr(String(at.key || '')),
+            value: decodeAttr(String(at.value || '')),
+          })),
+        }));
+        // Message @types: decoded message.action events first, raw_log fallback.
+        const msgTypes: string[] = [];
+        for (const ev of events) {
+          if (ev.type === 'message') {
+            for (const at of ev.attributes) {
+              if (at.key === 'action' && at.value.startsWith('/')) msgTypes.push(at.value);
+            }
+          }
+        }
+        if (!msgTypes.length && typeof tr.log === 'string' && tr.log.startsWith('[')) {
+          try {
+            for (const l of JSON.parse(tr.log)) {
+              for (const ev of l?.events || []) {
+                if (ev?.type !== 'message') continue;
+                for (const at of ev.attributes || []) {
+                  const k = decodeAttr(String(at.key || ''));
+                  const v = decodeAttr(String(at.value || ''));
+                  if (k === 'action' && v.startsWith('/')) msgTypes.push(v);
+                }
+              }
+            }
+          } catch {
+            /* malformed log — messages stay empty */
+          }
+        }
+        return {
+          height: String(item.height || '0'),
+          txhash: item.hash,
+          codespace: tr.codespace || '',
+          code: Number(tr.code || 0),
+          data: tr.data || '',
+          raw_log: typeof tr.log === 'string' ? tr.log : '',
+          logs: [] as any,
+          info: '',
+          gas_wanted: String(tr.gas_wanted || '0'),
+          gas_used: String(tr.gas_used || '0'),
+          tx: { body: { messages: msgTypes.map((t) => ({ '@type': t })) } } as any,
+          timestamp: '',
+          events,
+        } as unknown as TxResponse;
+      });
+
+      // Timestamps: batch block-header fetch per unique height (capped).
+      if (workingRpc) {
+        const heights = [...new Set(rows.map((r) => r.height))].slice(0, 40);
+        const times = new Map<string, string>();
+        await Promise.all(
+          heights.map(async (h) => {
+            const data = await fetchJson(`${workingRpc}/block?height=${h}`, 6000);
+            const t = data?.result?.block?.header?.time;
+            if (t) times.set(h, t);
+          })
+        );
+        for (const r of rows) (r as any).timestamp = times.get(r.height) || '';
+      }
+
+      return rows.sort((a, b) => Number(b.height || 0) - Number(a.height || 0));
     },
 
     // Lightweight liveness probe for a REST/LCD endpoint.

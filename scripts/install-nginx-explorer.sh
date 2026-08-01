@@ -209,6 +209,26 @@ ${SEC_HEADERS}
         proxy_read_timeout 120s;
     }
 
+    # ── Archive LCD proxy (CORS bypass for true-archive providers) ──
+    # Citizen Web3 runs the only full-history cosmoshub archive, but serves
+    # no CORS headers → browsers can't call it directly. Same-origin proxy
+    # fixes that. SPA config references /archive-proxy/cosmoshub as an
+    # archived_api entry. GET-only; backend host pinned (no open proxy).
+    location /archive-proxy/cosmoshub/ {
+${SEC_HEADERS}
+        limit_except GET { deny all; }
+        proxy_pass https://api.cosmoshub-4-archive.citizenweb3.com:443/;
+        proxy_ssl_server_name on;
+        proxy_http_version 1.1;
+        proxy_set_header Host api.cosmoshub-4-archive.citizenweb3.com;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_connect_timeout 10s;
+        proxy_send_timeout 30s;
+        proxy_read_timeout 30s;
+    }
+
     # ── SPA fallback: index.html harus revalidate (deploy baru) ──
     location / {
 ${SEC_HEADERS}

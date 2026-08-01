@@ -90,10 +90,5 @@
     "average": 0.025,
     "high": 0.05
   },
-  "archived_api": [
-    {
-      "address": "https://lava.api-archive.m.stavr.tech",
-      "provider": "🔥STAVR🔥"
-    }
-  ]
+  "archived_api": []
 }
