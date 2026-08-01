@@ -7,6 +7,7 @@ import { Icon } from '@iconify/vue';
 import { computed } from 'vue';
 import { ref } from 'vue';
 import { scanLocalKeys, type AccountEntry, scanCompatibleAccounts, type LocalKey } from './utils';
+import { safeJsonParse } from '@/libs/utils';
 
 const chainStore = useBlockchain();
 const format = useFormatter();
@@ -16,7 +17,14 @@ const sourceHdPath = ref("m/44/118/0'/0/0"); //
 const selectedSource = ref({} as LocalKey); //
 const importStep = ref('step1');
 
-const conf = ref(JSON.parse(storageStore.currentStorage.getItem('imported-addresses') || localStorage.getItem('imported-addresses') || '{}') as Record<string, AccountEntry[]>);
+// safeJsonParse: a corrupted 'imported-addresses' blob must NOT white-screen
+// the accounts page (bare JSON.parse at setup scope throws → persistent crash).
+const conf = ref(
+  safeJsonParse<Record<string, AccountEntry[]>>(
+    storageStore.currentStorage.getItem('imported-addresses') || localStorage.getItem('imported-addresses'),
+    {}
+  )
+);
 const balances = ref({} as Record<string, CoinWithPrice[]>);
 const delegations = ref({} as Record<string, Delegation[]>);
 

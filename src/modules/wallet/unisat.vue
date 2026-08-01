@@ -80,8 +80,17 @@ async function initParamsForKeplr() {
 function suggest() {
   // @ts-ignore
   if (window.unisat) {
+    // conf.value can be blank/invalid — parse in a try/catch so it surfaces a
+    // friendly error instead of throwing synchronously out of the click handler.
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(conf.value);
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : String(e);
+      return;
+    }
     // @ts-ignore
-    window.unisat.experimentalSuggestChain(JSON.parse(conf.value)).catch((e) => {
+    window.unisat.experimentalSuggestChain(parsed).catch((e) => {
       error.value = e;
     });
   }

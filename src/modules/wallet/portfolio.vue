@@ -8,11 +8,19 @@ import { useBaseStore, useBlockchain, useFormatter, useStorageStore } from '@/st
 import DonutChart from '@/components/charts/DonutChart.vue';
 import ApexCharts from 'vue3-apexcharts';
 import { get } from '@/libs';
+import { safeJsonParse } from '@/libs/utils';
 import { getMarketPriceChartConfig } from '@/components/charts/apexChartConfig';
 
 const format = useFormatter();
 const storageStore = useStorageStore();
-const conf = ref(JSON.parse(storageStore.currentStorage.getItem('imported-addresses') || localStorage.getItem('imported-addresses') || '{}') as Record<string, AccountEntry[]>);
+// safeJsonParse: a corrupted 'imported-addresses' blob must NOT white-screen
+// the portfolio page (bare JSON.parse at setup scope throws → persistent crash).
+const conf = ref(
+  safeJsonParse<Record<string, AccountEntry[]>>(
+    storageStore.currentStorage.getItem('imported-addresses') || localStorage.getItem('imported-addresses'),
+    {}
+  )
+);
 const chainStore = useBlockchain();
 const balances = ref({} as Record<string, Coin[]>);
 const delegations = ref({} as Record<string, Delegation[]>);

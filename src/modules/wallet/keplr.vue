@@ -81,8 +81,18 @@ async function initParamsForKeplr() {
 function suggest() {
   // @ts-ignore
   if (window.keplr) {
+    // conf.value can be blank/invalid (e.g. endpoint not set) — parse in a
+    // try/catch so it surfaces a friendly error instead of throwing
+    // synchronously out of the click handler (matches suggest.vue).
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(conf.value);
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : String(e);
+      return;
+    }
     // @ts-ignore
-    window.keplr.experimentalSuggestChain(JSON.parse(conf.value)).catch((e) => {
+    window.keplr.experimentalSuggestChain(parsed).catch((e) => {
       error.value = e;
     });
   }
