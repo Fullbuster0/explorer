@@ -839,7 +839,7 @@ export const useBlockchain = defineStore('blockchain', {
      * a block-header fetch per unique height (batched, capped at 40).
      */
     async rpcTxSearchFallback(address: string): Promise<{ rows: TxResponse[]; total: number }> {
-      const rpcs = (this.current?.endpoints?.rpc || []).slice(0, 4);
+      const rpcs = (this.current?.endpoints?.rpc || []).slice(0, 8);
       if (!rpcs.length) return { rows: [], total: 0 };
 
       // Tendermint 0.34 base64-encodes event keys/values; CometBFT 0.37+
@@ -1035,7 +1035,10 @@ export const useBlockchain = defineStore('blockchain', {
       page: number,
       pageSize: number
     ): Promise<{ rows: TxResponse[]; total: number } | null> {
-      const rpcs = (this.current?.endpoints?.rpc || []).slice(0, 4);
+      // Probe up to 8 RPCs — AtomOne-class chains list 6 public mirrors and the
+      // richest tx index is often NOT in the first 4 (slice(0,4) silently dropped
+      // ITRocket's complete index, leaving only a flapping publicnode backend).
+      const rpcs = (this.current?.endpoints?.rpc || []).slice(0, 8);
       if (!rpcs.length) return null;
 
       const decodeAttr = (s: string): string => {
@@ -1095,49 +1098,73 @@ export const useBlockchain = defineStore('blockchain', {
           })
         );
 
-      let best: Probe | undefined = (() => {
-        const c = pageRpcCache.get(cacheKey);
-        return c ? { base: c.base, total: c.total, ok: true } : undefined;
-      })();
-      if (!best) {
-        const probes = await probeAll();
-        for (const p of probes) if (p.ok && (!best || p.total > best.total)) best = p;
-        if (best && best.total > 0) pageRpcCache.set(cacheKey, { base: best.base, total: best.total });
-      }
-      if (!best || best.total === 0) return null; // no index → LCD fallback
+      // Rank candidate indexes by probe total (desc).
+      const rankProbes = (ps: Probe[]) =>
+        ps.filter((p) => p.ok && p.total > 0).sort((a, b) => b.total - a.total);
 
-      // Fetch the requested page of BOTH streams from the best index, merge.
-      const found = new Map<string, any>();
-      let total = 0;
-      await Promise.all(
-        queries.map(async (q) => {
-          const data = await fetchPage(best!.base, q, page, pageSize);
-          const txs = data?.result?.txs;
-          if (!Array.isArray(txs)) return;
-          const tc = Number(data?.result?.total_count ?? 0);
-          if (Number.isFinite(tc)) total += tc;
-          for (const t of txs) if (t?.hash) found.set(t.hash, t);
-        })
-      );
-      // Cached host dead this turn → re-probe once and retry the page.
-      if (!found.size && total === 0) {
-        pageRpcCache.delete(cacheKey);
-        const probes = await probeAll();
-        best = undefined;
-        for (const p of probes) if (p.ok && (!best || p.total > best.total)) best = p;
-        if (!best || best.total === 0) return null;
-        pageRpcCache.set(cacheKey, { base: best.base, total: best.total });
+      // Fetch the requested page of BOTH streams from one index, merged + deduped.
+      const fetchMerge = async (base: string) => {
+        const acc = new Map<string, any>();
+        let tot = 0;
         await Promise.all(
           queries.map(async (q) => {
-            const data = await fetchPage(best!.base, q, page, pageSize);
+            const data = await fetchPage(base, q, page, pageSize);
             const txs = data?.result?.txs;
             if (!Array.isArray(txs)) return;
             const tc = Number(data?.result?.total_count ?? 0);
-            if (Number.isFinite(tc)) total += tc;
-            for (const t of txs) if (t?.hash) found.set(t.hash, t);
+            if (Number.isFinite(tc)) tot += tc;
+            for (const t of txs) if (t?.hash) acc.set(t.hash, t);
           })
         );
+        return { found: acc, tot };
+      };
+
+      // Serve the page from the best candidate that isn't flapping. Load-balanced
+      // public RPCs (AtomOne publicnode) answer the probe healthy (17,998) then
+      // return a degraded partial page (30) when the request lands on a stale
+      // backend. Detect a >3× collapse (or an empty page) and fall through to the
+      // next candidate. The last candidate is always accepted so we never hide
+      // data that exists.
+      const serveFrom = async (ranked: Probe[]) => {
+        for (let i = 0; i < ranked.length; i++) {
+          const cand = ranked[i];
+          const m = await fetchMerge(cand.base);
+          const collapsed = m.tot > 0 && m.tot * 3 < cand.total;
+          const empty = m.found.size === 0 && m.tot === 0;
+          if (i < ranked.length - 1 && (collapsed || empty)) continue;
+          return { cand, found: m.found, total: m.tot };
+        }
+        return undefined;
+      };
+
+      // Cached winner leads (page turns skip the probe); otherwise probe every
+      // live index and rank.
+      let ranked: Probe[] = (() => {
+        const c = pageRpcCache.get(cacheKey);
+        return c ? [{ base: c.base, total: c.total, ok: true }] : [];
+      })();
+      if (!ranked.length) ranked = rankProbes(await probeAll());
+      if (!ranked.length) return null; // no index → LCD fallback
+
+      let served = await serveFrom(ranked);
+      // Cached winner flapped/dead and was the only candidate → full re-probe
+      // (ranking every other live index) and retry once.
+      if (served && ranked.length === 1 && pageRpcCache.has(cacheKey)) {
+        const bad =
+          (served.total > 0 && served.total * 3 < served.cand.total) ||
+          (served.found.size === 0 && served.total === 0);
+        if (bad) {
+          pageRpcCache.delete(cacheKey);
+          ranked = rankProbes(await probeAll()).filter((p) => p.base !== served!.cand.base);
+          if (ranked.length) served = (await serveFrom(ranked)) || served;
+        }
       }
+      if (!served) return null;
+
+      const best: Probe = served.cand;
+      pageRpcCache.set(cacheKey, { base: best.base, total: best.total });
+      const found = served.found;
+      const total = served.total;
 
       const items = Array.from(found.values());
       if (!items.length) return { rows: [], total: total || best.total };

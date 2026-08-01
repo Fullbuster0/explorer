@@ -57,6 +57,10 @@
       "provider": "Shazoes"
     },
     {
+      "address": "https://atomone-rpc.allinbits.com:443",
+      "provider": "AllinBits (Archive)"
+    },
+    {
       "address": "https://rpc.atomone-archive.citizenweb3.com:443",
       "provider": "Citizen Web3 (Archive)"
     },
