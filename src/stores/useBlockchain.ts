@@ -707,9 +707,9 @@ export const useBlockchain = defineStore('blockchain', {
           }
         };
 
-        const s = await tryOne('sender');
-        if (s) for (const r of s) if (r.txhash) seen.set(r.txhash, r);
-        const r = await tryOne('receiver');
+        // Sender + receiver are independent queries — fire them in parallel.
+        const [s, r] = await Promise.all([tryOne('sender'), tryOne('receiver')]);
+        if (s) for (const x of s) if (x.txhash) seen.set(x.txhash, x);
         if (r) for (const x of r) if (x.txhash) seen.set(x.txhash, x);
 
         if (!seen.size) return null;
@@ -750,9 +750,10 @@ export const useBlockchain = defineStore('blockchain', {
         if (hit.total > bestTotal) bestTotal = hit.total;
       };
 
-      for (const ep of this.archiveEndpoints()) {
-        await collect(ep.address);
-      }
+      // Probe all curated archives in parallel (independent endpoints). Was a
+      // sequential `for…await` — each dead/slow archive added its full timeout
+      // to the wait. collect() still early-stops once the shared buffer is full.
+      await Promise.all(this.archiveEndpoints().map((ep) => collect(ep.address)));
 
       // Consult the RPC tx_search index whenever the LCD buffer isn't full.
       //
@@ -855,37 +856,66 @@ export const useBlockchain = defineStore('blockchain', {
       let workingRpc = '';
       let total = 0; // chain-wide (sender+receiver total_count), max across RPCs
 
-      // Union across ALL responding RPCs, paging each query up to RPC_CAP.
-      // Indexes differ wildly between providers (stakevillage had 5 receiver-only
-      // rows vs polkachu's 218+ for the same wallet). Don't break on first success.
-      for (const rpc of rpcs) {
-        const base = (rpc.address || '').replace(/\/$/, '');
-        if (!base) continue;
-        let rpcTotal = 0;
-        let gotAny = false;
-        for (const q of queries) {
-          // tx_search requires the query wrapped in double quotes; order_by
-          // must be a quoted JSON string ("desc") — bare `desc` fails the
-          // URI→JSON-RPC param converter on Tendermint 0.34. per_page maxes
-          // at 100, so page 1..5 to reach RPC_CAP.
-          let pg = 1;
-          while (found.size < RPC_CAP && pg <= 5) {
-            const url = `${base}/tx_search?query=${encodeURIComponent(`"${q}"`)}&per_page=100&page=${pg}&order_by=${encodeURIComponent('"desc"')}`;
-            const data = await fetchJson(url);
-            const txs = data?.result?.txs;
-            if (!Array.isArray(txs)) break;
-            if (pg === 1) {
+      // tx_search requires the query wrapped in double quotes; order_by must be
+      // a quoted JSON string ("desc") — bare `desc` fails the URI→JSON-RPC param
+      // converter on Tendermint 0.34. per_page maxes at 100, so page 1..5 for cap.
+      const fetchPage = async (base: string, q: string, pg: number) => {
+        const url = `${base}/tx_search?query=${encodeURIComponent(`"${q}"`)}&per_page=100&page=${pg}&order_by=${encodeURIComponent('"desc"')}`;
+        return await fetchJson(url);
+      };
+
+      // PHASE 1 — parallel probe: page 1 of every RPC × both queries at once.
+      // Was a sequential `for (rpc) for (q) while (pg)` — up to ~40 serial
+      // requests, which is why "Fetching history from archive…" hung for tens
+      // of seconds. Probing yields each provider's total_count + its newest
+      // ≤100 rows (a union of recent tx across mirrors, nearly free).
+      const probes = await Promise.all(
+        rpcs.map(async (rpc) => {
+          const base = (rpc.address || '').replace(/\/$/, '');
+          if (!base) return { base: '', rpcTotal: 0, got: false };
+          let rpcTotal = 0;
+          let got = false;
+          await Promise.all(
+            queries.map(async (q) => {
+              const data = await fetchPage(base, q, 1);
+              const txs = data?.result?.txs;
+              if (!Array.isArray(txs)) return;
               const tc = Number(data?.result?.total_count ?? 0);
               if (Number.isFinite(tc)) rpcTotal += tc; // sender + receiver
-            }
-            for (const t of txs) if (t?.hash) found.set(t.hash, t);
-            if (txs.length) gotAny = true;
-            if (txs.length < 100) break; // last page
-            pg++;
-          }
-        }
-        if (gotAny && !workingRpc) workingRpc = base; // for block-header timestamps
-        if (rpcTotal > total) total = rpcTotal;
+              for (const t of txs) if (t?.hash) { found.set(t.hash, t); got = true; }
+            })
+          );
+          return { base, rpcTotal, got };
+        })
+      );
+
+      // Pick the richest index (max total_count) = the most complete archive.
+      // Pruned mirrors report small totals and lose; the archive node wins and
+      // is the one we page for depth (cosmoshub: citizenweb3 511 vs polkachu 0).
+      let best: { base: string; rpcTotal: number } | null = null;
+      for (const p of probes) {
+        if (p.got && !workingRpc) workingRpc = p.base; // for block-header timestamps
+        if (p.rpcTotal > total) total = p.rpcTotal;
+        if (p.base && (!best || p.rpcTotal > best.rpcTotal)) best = { base: p.base, rpcTotal: p.rpcTotal };
+      }
+
+      // PHASE 2 — page the best RPC (pages 2..5, both queries) in parallel to
+      // fill the buffer to RPC_CAP. Depth from the richest index beats unioning
+      // deep pages of pruned mirrors (those are subsets of the archive anyway).
+      if (best && found.size < RPC_CAP) {
+        const b = best.base;
+        await Promise.all(
+          [2, 3, 4, 5].map(async (pg) => {
+            await Promise.all(
+              queries.map(async (q) => {
+                if (found.size >= RPC_CAP) return;
+                const data = await fetchPage(b, q, pg);
+                const txs = data?.result?.txs;
+                if (Array.isArray(txs)) for (const t of txs) if (t?.hash) found.set(t.hash, t);
+              })
+            );
+          })
+        );
       }
 
       const items = Array.from(found.values());
