@@ -842,6 +842,13 @@ export const useBlockchain = defineStore('blockchain', {
       const rpcs = (this.current?.endpoints?.rpc || []).slice(0, 8);
       if (!rpcs.length) return { rows: [], total: 0 };
 
+      // address is interpolated raw into the tx_search query string below
+      // (`message.sender='${address}'`). Real bech32/gno addresses are pure
+      // [a-zA-Z0-9]; reject anything else so a crafted route param can't break
+      // out of the quoted value and reshape the query. Client-side, so this is
+      // defense-in-depth (no cross-user impact), not a live vuln.
+      if (!/^[a-zA-Z0-9]+$/.test(address)) return { rows: [], total: 0 };
+
       // Tendermint 0.34 base64-encodes event keys/values; CometBFT 0.37+
       // emits plain strings. Decode only when it looks like base64 AND
       // yields printable text.

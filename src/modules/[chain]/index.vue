@@ -410,6 +410,7 @@ const amount = computed({
               :class="{ '!btn-success': store.trustColor === 'green', '!btn-warning': store.trustColor === 'yellow' }"
               :href="tickerUrl(ticker.trade_url)"
               target="_blank"
+              rel="noopener noreferrer"
             >
               {{ $t('index.buy') }} {{ chainSymbol || '' }}
             </a>

@@ -90,6 +90,16 @@ function safeUrl(u?: string): string {
   return `https://${s}`; // bare domain → https
 }
 
+/**
+ * security_contact is on-chain (validator-controlled). A raw `'mailto:' + x`
+ * lets a validator inject mail headers (`x@y?cc=spam&subject=phish`) or worse.
+ * Strict-validate as a plain address; anything else → dead '#' link.
+ */
+function safeMailto(u?: string): string {
+  const s = (u || '').trim();
+  return /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(s) ? `mailto:${s}` : '#';
+}
+
 /** Gno/TM2 — live consensus data from TM2 RPC (UTSA-style status panel). */
 const gnoRpc = ref<{
   height?: string;
@@ -1528,7 +1538,7 @@ watch(
 
               <a
                 v-if="v.description?.security_contact"
-                :href="'mailto:' + v.description.security_contact"
+                :href="safeMailto(v.description.security_contact)"
                 class="sz-hero-link"
                 :title="v.description.security_contact"
               >
@@ -1781,7 +1791,7 @@ watch(
                 </a>
                 <a
                   v-if="gnoMeta?.email || v.description?.security_contact"
-                  :href="'mailto:' + (gnoMeta?.email || v.description?.security_contact)"
+                  :href="safeMailto(gnoMeta?.email || v.description?.security_contact)"
                   class="sz-hero-link"
                 >
                   <Icon icon="mdi-email-outline" class="text-base" />

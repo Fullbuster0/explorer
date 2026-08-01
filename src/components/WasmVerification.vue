@@ -292,7 +292,7 @@ function callFunction(title: string, method: string, arg: Argument) {
             {{ $t('cosmwasm.tips_description_1') }}
           </li>
           <li>
-            <a href="https://docs.welldonestudio.io/code/verification-api/" target="_blank"
+            <a href="https://docs.welldonestudio.io/code/verification-api/" target="_blank" rel="noopener noreferrer"
               >Link to Verification API Manual</a
             >
           </li>

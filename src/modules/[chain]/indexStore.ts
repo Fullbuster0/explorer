@@ -553,11 +553,15 @@ export function addOrReplaceUrlParam(url: string, param: string, value: string):
 }
 
 export function tickerUrl(url: string) {
+  // CoinGecko derivative trade_url is exchange-supplied (untrusted): an
+  // exchange could register javascript:/data: URLs → stored XSS via :href on
+  // click. Only http(s) survives; anything else becomes a dead '#' link.
+  const safe = (u: string) => (/^https?:\/\//i.test(u) ? u : '#');
   for (const domain of Object.keys(CODEMAP)) {
     if (url.indexOf(domain) > -1) {
       const v = CODEMAP[domain];
-      return addOrReplaceUrlParam(url, v[0], v[1]);
+      return safe(addOrReplaceUrlParam(url, v[0], v[1]));
     }
   }
-  return url;
+  return safe(url);
 }
