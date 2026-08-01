@@ -61,6 +61,10 @@ function isDenied(chain: string, addr: string): boolean {
   return true;
 }
 
+// Richest RPC tx_search index per chain+address, cached so account-history
+// page turns don't re-probe every click (fetchAccountTxsPage).
+const pageRpcCache = new Map<string, { base: string; total: number }>();
+
 export const useBlockchain = defineStore('blockchain', {
   state: () => {
     return {
@@ -1008,6 +1012,186 @@ export const useBlockchain = defineStore('blockchain', {
 
       const sorted = rows.sort((a, b) => Number(b.height || 0) - Number(a.height || 0));
       return { rows: sorted, total: total > 0 ? total : sorted.length };
+    },
+
+    /**
+     * Server-side paginated account history via RPC tx_search.
+     *
+     * Unlike the LCD union (which caps at ~500 because LCDs ignore offset),
+     * tx_search HONOURS page/per_page, so this can reach the full chain-wide
+     * history (e.g. Terra relayer: all 2,948 tx, one page downloaded per turn).
+     *
+     * sender + receiver are separate event streams (CometBFT rejects OR across
+     * event types with HTTP 500), so we fetch the requested page of EACH from
+     * the richest index and merge. For relayer/delegation wallets sender
+     * dominates (receiver ≈ 0-2), so the merged page is effectively the sender
+     * page; only perfectly-balanced addresses see minor page-boundary overlap.
+     *
+     * Returns null when no RPC exposes a tx index for this address — the caller
+     * then falls back to the LCD union buffer.
+     */
+    async fetchAccountTxsPage(
+      address: string,
+      page: number,
+      pageSize: number
+    ): Promise<{ rows: TxResponse[]; total: number } | null> {
+      const rpcs = (this.current?.endpoints?.rpc || []).slice(0, 4);
+      if (!rpcs.length) return null;
+
+      const decodeAttr = (s: string): string => {
+        if (!s || !/^[A-Za-z0-9+/]+={0,2}$/.test(s) || s.length % 4 === 1) return s;
+        try {
+          const d = atob(s);
+          return /^[\x20-\x7e]+$/.test(d) ? d : s;
+        } catch {
+          return s;
+        }
+      };
+      const fetchJson = async (url: string, timeoutMs = 8000): Promise<any> => {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), timeoutMs);
+        try {
+          const res = await fetch(url, { signal: controller.signal });
+          if (!res.ok) return null;
+          return await res.json();
+        } catch {
+          return null;
+        } finally {
+          clearTimeout(timer);
+        }
+      };
+      const queries = [
+        `message.sender='${address}'`,
+        `coin_received.receiver='${address}'`,
+      ];
+      const fetchPage = async (base: string, q: string, pg: number, perPage: number) => {
+        const url = `${base}/tx_search?query=${encodeURIComponent(`"${q}"`)}&per_page=${perPage}&page=${pg}&order_by=${encodeURIComponent('"desc"')}`;
+        return await fetchJson(url);
+      };
+
+      // Pick the richest index (max sender+receiver total_count). Cached per
+      // chain+address so page turns don't re-probe; re-probes if the cached
+      // host stops answering. Probe is cheap (per_page=1, totals only).
+      const cacheKey = `${this.chainName}:${address}`;
+      type Probe = { base: string; total: number; ok: boolean };
+      const probeAll = async (): Promise<Probe[]> =>
+        Promise.all(
+          rpcs.map(async (rpc): Promise<Probe> => {
+            const base = (rpc.address || '').replace(/\/$/, '');
+            if (!base) return { base: '', total: 0, ok: false };
+            let total = 0;
+            let ok = false;
+            await Promise.all(
+              queries.map(async (q) => {
+                const data = await fetchPage(base, q, 1, 1);
+                const txs = data?.result?.txs;
+                if (!Array.isArray(txs)) return;
+                ok = true;
+                const tc = Number(data?.result?.total_count ?? 0);
+                if (Number.isFinite(tc)) total += tc;
+              })
+            );
+            return { base, total, ok };
+          })
+        );
+
+      let best: Probe | undefined = (() => {
+        const c = pageRpcCache.get(cacheKey);
+        return c ? { base: c.base, total: c.total, ok: true } : undefined;
+      })();
+      if (!best) {
+        const probes = await probeAll();
+        for (const p of probes) if (p.ok && (!best || p.total > best.total)) best = p;
+        if (best && best.total > 0) pageRpcCache.set(cacheKey, { base: best.base, total: best.total });
+      }
+      if (!best || best.total === 0) return null; // no index → LCD fallback
+
+      // Fetch the requested page of BOTH streams from the best index, merge.
+      const found = new Map<string, any>();
+      let total = 0;
+      await Promise.all(
+        queries.map(async (q) => {
+          const data = await fetchPage(best!.base, q, page, pageSize);
+          const txs = data?.result?.txs;
+          if (!Array.isArray(txs)) return;
+          const tc = Number(data?.result?.total_count ?? 0);
+          if (Number.isFinite(tc)) total += tc;
+          for (const t of txs) if (t?.hash) found.set(t.hash, t);
+        })
+      );
+      // Cached host dead this turn → re-probe once and retry the page.
+      if (!found.size && total === 0) {
+        pageRpcCache.delete(cacheKey);
+        const probes = await probeAll();
+        best = undefined;
+        for (const p of probes) if (p.ok && (!best || p.total > best.total)) best = p;
+        if (!best || best.total === 0) return null;
+        pageRpcCache.set(cacheKey, { base: best.base, total: best.total });
+        await Promise.all(
+          queries.map(async (q) => {
+            const data = await fetchPage(best!.base, q, page, pageSize);
+            const txs = data?.result?.txs;
+            if (!Array.isArray(txs)) return;
+            const tc = Number(data?.result?.total_count ?? 0);
+            if (Number.isFinite(tc)) total += tc;
+            for (const t of txs) if (t?.hash) found.set(t.hash, t);
+          })
+        );
+      }
+
+      const items = Array.from(found.values());
+      if (!items.length) return { rows: [], total: total || best.total };
+
+      const rows: TxResponse[] = items.map((item) => {
+        const tr = item.tx_result || {};
+        const events = (Array.isArray(tr.events) ? tr.events : []).map((ev: any) => ({
+          type: decodeAttr(String(ev.type || '')),
+          attributes: (Array.isArray(ev.attributes) ? ev.attributes : []).map((at: any) => ({
+            key: decodeAttr(String(at.key || '')),
+            value: decodeAttr(String(at.value || '')),
+          })),
+        }));
+        const msgTypes: string[] = [];
+        for (const ev of events) {
+          if (ev.type === 'message') {
+            for (const at of ev.attributes) {
+              if (at.key === 'action' && at.value.startsWith('/')) msgTypes.push(at.value);
+            }
+          }
+        }
+        return {
+          height: String(item.height || '0'),
+          txhash: item.hash,
+          codespace: tr.codespace || '',
+          code: Number(tr.code || 0),
+          data: tr.data || '',
+          raw_log: typeof tr.log === 'string' ? tr.log : '',
+          logs: [] as any,
+          info: '',
+          gas_wanted: String(tr.gas_wanted || '0'),
+          gas_used: String(tr.gas_used || '0'),
+          tx: { body: { messages: msgTypes.map((t) => ({ '@type': t })) } } as any,
+          timestamp: '',
+          events,
+        } as unknown as TxResponse;
+      });
+
+      // Timestamps: batch block-header fetch per unique height.
+      const heights = [...new Set(rows.map((r) => r.height))].slice(0, 40);
+      const times = new Map<string, string>();
+      await Promise.all(
+        heights.map(async (h) => {
+          const data = await fetchJson(`${best!.base}/block?height=${h}`, 6000);
+          const t = data?.result?.block?.header?.time;
+          if (t) times.set(h, t);
+        })
+      );
+      for (const r of rows) (r as any).timestamp = times.get(r.height) || '';
+
+      const sorted = rows
+        .sort((a, b) => Number(b.height || 0) - Number(a.height || 0))
+        .slice(0, pageSize);
+      return { rows: sorted, total: total > 0 ? total : best.total };
     },
 
     // Lightweight liveness probe for a REST/LCD endpoint.

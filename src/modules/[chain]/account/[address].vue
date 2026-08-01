@@ -52,8 +52,19 @@ const allTxs = ref([] as TxResponse[]);
 // number, "showing N of M" clarifies only N are loaded.
 const txChainTotal = ref(0);
 
-// Client-side slice — the rows actually rendered (Cosmos + Gno).
+// Server-side pagination (RPC tx_search): full-depth history, one page per click.
+// When serverMode is on, `txs` renders serverTxs (the current page) and the pager
+// fetches pages on demand — no 500 cap. allTxs/LCD-union stays as the no-index
+// fallback (chains whose RPCs expose no tx index for the address).
+const serverMode = ref(false);
+const serverTxs = ref([] as TxResponse[]);
+const serverTotal = ref(0);
+const serverPageLoading = ref(false);
+
+// Client-side slice — the rows actually rendered (Cosmos + Gno). In serverMode
+// the current page comes straight from the RPC (serverTxs), no client slice.
 const txs = computed(() => {
+  if (serverMode.value) return serverTxs.value;
   const start = (txHistoryPage.value - 1) * txHistoryLimit.value;
   return allTxs.value.slice(start, start + txHistoryLimit.value);
 });
@@ -70,9 +81,11 @@ const gnoTxsPage = computed(() => {
 const txsTotal = computed(() =>
   isGno.value
     ? gnoTxs.value.length
-    : txChainTotal.value > 0
-      ? txChainTotal.value
-      : allTxs.value.length
+    : serverMode.value
+      ? serverTotal.value
+      : txChainTotal.value > 0
+        ? txChainTotal.value
+        : allTxs.value.length
 );
 
 const indexerUrl = computed(() => (blockchain.current as any)?.indexer_api || '');
@@ -157,6 +170,9 @@ async function loadTxHistory() {
   gnoTxsError.value = '';
   txHistoryPage.value = 1;
   txChainTotal.value = 0;
+  serverMode.value = false;
+  serverTxs.value = [];
+  serverTotal.value = 0;
   try {
     if (isGno.value) {
       // Gno: onbloc account transactions (RPC tx_index=off; no Cosmos LCD archives).
@@ -191,6 +207,21 @@ async function loadTxHistory() {
       }
       return;
     }
+    // Prefer server-side pagination: RPC tx_search honours page/per_page, so the
+    // full chain-wide history is reachable one page per click (no 500 cap). Only
+    // the current page is downloaded — critical for relayer accounts whose txs
+    // carry multi-MB light-client headers.
+    const sp = await blockchain.fetchAccountTxsPage(props.address, 1, txHistoryLimit.value);
+    if (sp && sp.total > 0) {
+      serverMode.value = true;
+      serverTxs.value = sp.rows;
+      serverTotal.value = sp.total;
+      allTxs.value = [];
+      gnoTxs.value = [];
+      return;
+    }
+    // No RPC tx index for this address → LCD union buffer (≤500, progressive).
+    serverMode.value = false;
     const page = new PageRequest();
     page.setPageSize(500); // ask generously — LCD caps internally, RPC fallback honours its own cap
     page.offset = 0;
@@ -238,6 +269,12 @@ async function loadMoreGnoTxs() {
 }
 
 function setTxHistoryPage(page: number) {
+  if (serverMode.value) {
+    const max = Math.max(1, Math.ceil(serverTotal.value / txHistoryLimit.value));
+    txHistoryPage.value = Math.min(Math.max(1, page), max);
+    loadServerPage(txHistoryPage.value);
+    return;
+  }
   const total = isGno.value ? gnoTxs.value.length : allTxs.value.length;
   const max = Math.max(1, Math.ceil(total / txHistoryLimit.value));
   txHistoryPage.value = Math.min(Math.max(1, page), max);
@@ -248,10 +285,28 @@ function setTxHistoryPage(page: number) {
   }
 }
 
+/** Fetch one page of server-paginated history (RPC tx_search) on demand. */
+async function loadServerPage(page: number) {
+  if (serverPageLoading.value) return;
+  serverPageLoading.value = true;
+  try {
+    const sp = await blockchain.fetchAccountTxsPage(props.address, page, txHistoryLimit.value);
+    if (sp) {
+      serverTxs.value = sp.rows;
+      if (sp.total > 0) serverTotal.value = sp.total;
+    }
+  } catch (e: any) {
+    console.warn('[account] server page failed:', e?.message || e);
+  } finally {
+    serverPageLoading.value = false;
+  }
+}
+
 function setTxHistorySize(size: number) {
   txHistoryLimit.value = size;
   // Reset to first page so user sees the new slice from the top.
   txHistoryPage.value = 1;
+  if (serverMode.value) loadServerPage(1);
 }
 
 const gnoHistoryPageCount = computed(() =>
@@ -902,7 +957,8 @@ function findTokenAmount(
           </div>
           <div class="sz-section-title">
             {{ $t('account.transactions') }} ({{ txsTotal ? format.formatNumber(txsTotal, '0,0') : (isGno ? gnoTxs.length : txs.length) }})
-            <span v-if="!isGno && txsTotal > allTxs.length" class="sz-acc-section-meta">showing {{ format.formatNumber(allTxs.length, '0,0') }} of {{ format.formatNumber(txsTotal, '0,0') }}</span>
+            <span v-if="!isGno && serverMode" class="sz-acc-section-meta">showing {{ serverTxs.length }} of {{ format.formatNumber(serverTotal, '0,0') }} · paginated</span>
+            <span v-else-if="!isGno && txsTotal > allTxs.length" class="sz-acc-section-meta">showing {{ format.formatNumber(allTxs.length, '0,0') }} of {{ format.formatNumber(txsTotal, '0,0') }}</span>
             <span v-if="isGno && gnoTxs.length" class="sz-acc-section-meta">
               showing {{ gnoTxsPage.length }} of {{ format.formatNumber(gnoTxs.length, '0,0') }}{{ gnoTxsHasNext ? '+' : '' }} · via indexer
             </span>
@@ -1021,7 +1077,7 @@ function findTokenAmount(
             </tr>
           </thead>
           <tbody>
-            <tr v-if="txsLoading && !txs.length">
+            <tr v-if="(txsLoading || serverPageLoading) && !txs.length">
               <td colspan="5" class="sz-acc-empty">
                 <div class="flex items-center justify-center gap-3">
                   <div class="sz-acc-loading-spinner" />
@@ -1073,12 +1129,12 @@ function findTokenAmount(
             </tr>
           </tbody>
         </table>
-        <div class="sz-acc-pager" v-if="allTxs.length > txHistoryLimit">
-          <button class="sz-acc-pager-btn" :disabled="txHistoryPage === 1" @click="setTxHistoryPage(txHistoryPage - 1)">← Prev</button>
-          <span class="sz-acc-pager-info">Page {{ txHistoryPage }} / {{ Math.max(1, Math.ceil(allTxs.length / txHistoryLimit)) }}</span>
+        <div class="sz-acc-pager" v-if="serverMode ? serverTotal > txHistoryLimit : allTxs.length > txHistoryLimit">
+          <button class="sz-acc-pager-btn" :disabled="txHistoryPage === 1 || serverPageLoading" @click="setTxHistoryPage(txHistoryPage - 1)">← Prev</button>
+          <span class="sz-acc-pager-info">Page {{ txHistoryPage }} / {{ Math.max(1, Math.ceil((serverMode ? serverTotal : allTxs.length) / txHistoryLimit)) }}{{ serverPageLoading ? ' · loading…' : '' }}</span>
           <button
             class="sz-acc-pager-btn"
-            :disabled="txHistoryPage * txHistoryLimit >= allTxs.length"
+            :disabled="(serverMode ? txHistoryPage >= Math.ceil(serverTotal / txHistoryLimit) : txHistoryPage * txHistoryLimit >= allTxs.length) || serverPageLoading"
             @click="setTxHistoryPage(txHistoryPage + 1)"
           >Next →</button>
         </div>
