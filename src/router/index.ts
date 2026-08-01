@@ -106,7 +106,11 @@ router.onError((err, to) => {
   const msg = String(err?.message || '');
   if (/Loading chunk|Failed to fetch dynamically imported|Importing a module script failed/i.test(msg)) {
     // Stale chunk after a new deploy — one clean reload to pick up fresh assets.
-    const target = to?.fullPath || window.location.pathname;
+    // Normalize to a single leading slash: a fullPath like `//evil.com` would
+    // be a protocol-relative URL and location.replace() would leave the origin
+    // (open redirect). Forcing `/…` keeps the reload same-origin.
+    const raw = to?.fullPath || window.location.pathname;
+    const target = `/${String(raw).replace(/^\/+/, '')}`;
     window.location.replace(target);
   }
 });
