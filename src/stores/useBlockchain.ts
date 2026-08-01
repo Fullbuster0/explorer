@@ -1203,8 +1203,17 @@ export const useBlockchain = defineStore('blockchain', {
         } as unknown as TxResponse;
       });
 
-      // Timestamps: batch block-header fetch per unique height.
-      const heights = [...new Set(rows.map((r) => r.height))].slice(0, 40);
+      // Sort + page FIRST, then fetch timestamps only for the rows actually
+      // displayed. (Previously timestamps were fetched for the first 40 unique
+      // heights in Map-insertion order — effectively arbitrary hash order —
+      // before sorting, so displayed rows could miss their timestamp while we
+      // wasted block fetches on rows that got sliced away.)
+      const sorted = rows
+        .sort((a, b) => Number(b.height || 0) - Number(a.height || 0))
+        .slice(0, pageSize);
+
+      // Timestamps: batch block-header fetch per unique displayed height.
+      const heights = [...new Set(sorted.map((r) => r.height))];
       const times = new Map<string, string>();
       await Promise.all(
         heights.map(async (h) => {
@@ -1213,11 +1222,8 @@ export const useBlockchain = defineStore('blockchain', {
           if (t) times.set(h, t);
         })
       );
-      for (const r of rows) (r as any).timestamp = times.get(r.height) || '';
+      for (const r of sorted) (r as any).timestamp = times.get(r.height) || '';
 
-      const sorted = rows
-        .sort((a, b) => Number(b.height || 0) - Number(a.height || 0))
-        .slice(0, pageSize);
       return { rows: sorted, total: total > 0 ? total : best.total };
     },
 
