@@ -80,12 +80,16 @@ function fetchAvatar(identity: string) {
   });
 }
 
+// Template can't touch the `localStorage` global (Vue resolves it as
+// _ctx.localStorage → undefined → throws on img @error). Persist via a method.
+function persistAvatars() {
+  localStorage.setItem('avatars', JSON.stringify(avatars.value));
+}
+
 function loadAvatars(identities: string[]) {
   const ids = identities.filter((id) => id && !avatars.value[id]);
   if (!ids.length) return;
-  Promise.all(ids.map((id) => fetchAvatar(id))).then(() =>
-    localStorage.setItem('avatars', JSON.stringify(avatars.value))
-  );
+  Promise.all(ids.map((id) => fetchAvatar(id))).then(() => persistAvatars());
 }
 
 let tallyTimer: ReturnType<typeof setInterval> | null = null;
@@ -246,9 +250,10 @@ const proposalTitle = computed(() => {
   const p = proposal.value;
   if (p?.title) return p.title;
   if (p?.content?.title) return p.content.title;
-  if (p?.content?.plan?.name) {
-    const t = msgTypeOf(p.content);
-    return t ? `${t}: ${p.content.plan.name}` : String(p.content.plan.name);
+  const plan = (p?.content as any)?.plan;
+  if (plan?.name) {
+    const t = msgTypeOf(p!.content);
+    return t ? `${t}: ${plan.name}` : String(plan.name);
   }
   const meta = metaItem(p?.metadata);
   return meta.title || `Proposal #${props.proposal_id}`;
@@ -1086,7 +1091,7 @@ onUnmounted(() => {
                       :src="logo(row.identity)"
                       class="h-full w-full object-cover"
                       alt=""
-                      @error="() => { if (row.identity) fetchAvatar(row.identity).then(() => localStorage.setItem('avatars', JSON.stringify(avatars))); }"
+                      @error="() => { if (row.identity) fetchAvatar(row.identity).then(persistAvatars); }"
                     />
                     <div
                       v-else

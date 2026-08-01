@@ -223,7 +223,7 @@ dayjs();
               <RouterLink
                 v-for="(el, k) of item?.children"
                 :key="k"
-                :to="el.to"
+                :to="(el as any).to"
                 @click="sidebarShow = false"
                 class="sz-nav-item group"
                 :class="{ 'sz-nav-item--active': selected($route, el) }"

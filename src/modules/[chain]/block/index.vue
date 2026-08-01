@@ -42,12 +42,16 @@ function fetchAvatar(identity: string) {
   });
 }
 
+// Template can't touch the `localStorage` global (Vue resolves it as
+// _ctx.localStorage → undefined → throws on img @error). Persist via a method.
+function persistAvatars() {
+  localStorage.setItem('avatars', JSON.stringify(avatars.value));
+}
+
 function loadAvatars(identities: string[]) {
   const ids = identities.filter((id) => id && !avatars.value[id]);
   if (!ids.length) return;
-  Promise.all(ids.map((id) => fetchAvatar(id))).then(() =>
-    localStorage.setItem('avatars', JSON.stringify(avatars.value))
-  );
+  Promise.all(ids.map((id) => fetchAvatar(id))).then(() => persistAvatars());
 }
 
 /** Resolve block proposer_address → validator moniker + identity + logo + route.
@@ -183,7 +187,7 @@ watch(
                 :src="proposer.logo"
                 class="h-full w-full object-cover"
                 alt=""
-                @error="() => { if (proposer.identity) fetchAvatar(proposer.identity).then(() => localStorage.setItem('avatars', JSON.stringify(avatars))); }"
+                @error="() => { if (proposer.identity) fetchAvatar(proposer.identity).then(persistAvatars); }"
               />
               <div
                 v-else

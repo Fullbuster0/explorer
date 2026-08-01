@@ -24,7 +24,7 @@ export const useDistributionStore = defineStore('distributionStore', {
     async fetchParams() {
       try {
         const response = await this.blockchain.rpc?.getDistributionParams();
-        if (response?.params) this.params = response.params;
+        if (response?.params) this.params = response.params as any;
       } catch (e: any) {
         console.warn('[distribution] params:', e?.message || e);
       }

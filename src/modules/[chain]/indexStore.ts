@@ -24,6 +24,23 @@ export function colorMap(color: string) {
   }
 }
 
+// Pure GitHub URL → {owner, repo} parser. Module-level (not a store action) so
+// getters can call it — Pinia types a getter's `this` without actions, so
+// `this.parseGithubRepo(...)` inside a getter fails type-check even though it
+// works at runtime. CoinGecko often returns org-only URLs (github.com/cosmos)
+// which correctly fail the owner/repo match.
+export function parseGithubRepoUrl(url: string): { owner: string; repo: string } | null {
+  if (!url) return null;
+  try {
+    const cleaned = url.trim().replace(/\.git$/i, '').replace(/\/$/, '');
+    const m = cleaned.match(/github\.com[/:]([^/\s]+)[/]([^/\s?#]+)/i);
+    if (!m) return null;
+    return { owner: m[1], repo: m[2] };
+  } catch {
+    return null;
+  }
+}
+
 const CODEMAP: Record<string, string[]> = {
   'binance.com': ['ref', 'CPA_004JZGRX6A'],
   'gate.com': ['ref', 'U1gVBl9a'],
@@ -144,7 +161,7 @@ export const useIndexModule = defineStore('module-index', {
       const cgList = this.coinInfo?.links?.repos_url?.github || [];
       const candidates = [...cgList, chainGh].filter(Boolean) as string[];
       for (const c of candidates) {
-        if (this.parseGithubRepo(c)) return c;
+        if (parseGithubRepoUrl(c)) return c;
       }
       return candidates[0] || chainGh || '';
     },
@@ -282,8 +299,8 @@ export const useIndexModule = defineStore('module-index', {
         .fetchCommunityPool()
         .then((x) => {
           this.communityPool = x?.pool
-            ?.filter((t) => t.denom.length < 10)
-            ?.map((t) => ({
+            ?.filter((t: any) => t.denom.length < 10)
+            ?.map((t: any) => ({
               amount: String(parseInt(t.amount)),
               denom: t.denom,
             }));
@@ -326,9 +343,9 @@ export const useIndexModule = defineStore('module-index', {
         const hasRepo = list.some((u: string) => !!this.parseGithubRepo(u));
         // CG org-only (no owner/repo) → replace/prepend chain repo so hero + activity win.
         if (chainParsed && !hasRepo) {
-          this.coinInfo.links.repos_url.github = [chain.github, ...list.filter(Boolean)];
+          this.coinInfo.links.repos_url.github = [chain.github, ...list.filter(Boolean)] as any;
         } else if (!list.some(Boolean)) {
-          this.coinInfo.links.repos_url.github = [chain.github];
+          this.coinInfo.links.repos_url.github = [chain.github] as any;
         }
       }
     },
@@ -372,15 +389,7 @@ export const useIndexModule = defineStore('module-index', {
     },
 
     parseGithubRepo(url: string): { owner: string; repo: string } | null {
-      if (!url) return null;
-      try {
-        const cleaned = url.trim().replace(/\.git$/i, '').replace(/\/$/, '');
-        const m = cleaned.match(/github\.com[/:]([^/\s]+)[/]([^/\s?#]+)/i);
-        if (!m) return null;
-        return { owner: m[1], repo: m[2] };
-      } catch {
-        return null;
-      }
+      return parseGithubRepoUrl(url);
     },
 
     resolveGithubUrl(): string {

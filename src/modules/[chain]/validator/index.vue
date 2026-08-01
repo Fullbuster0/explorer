@@ -432,7 +432,7 @@ onMounted(() => {
   });
   // Also re-fetch when engine/current settles (first paint often has empty indexer_api)
   watch(
-    () => [isGno.value, chainStore.current?.chain_name, !!chainStore.rpc] as const,
+    () => [isGno.value, chainStore.current?.chainName, !!chainStore.rpc] as const,
     ([gno, , hasRpc], prev) => {
       if (gno && (!prev || !prev[0] || !gnoValidators.value.length)) {
         fetchGnoValidators();
@@ -524,7 +524,7 @@ async function fetchChange(blockWindow: number = 14400) {
   while (page < staking.validators.length && height > 0) {
     try {
       const x = await base.fetchValidatorByHeight(height, page);
-      x?.validators?.forEach((v) => {
+      x?.validators?.forEach((v: any) => {
         if (v?.pub_key?.key) yesterday.value[v.pub_key.key] = Number(v.voting_power);
       });
     } catch (e: any) {
@@ -539,7 +539,7 @@ async function fetchChange(blockWindow: number = 14400) {
   while (page < staking.validators.length) {
     try {
       const x = await base.fetchLatestValidators(page);
-      x?.validators?.forEach((v) => {
+      x?.validators?.forEach((v: any) => {
         if (v?.pub_key?.key) latest.value[v.pub_key.key] = Number(v.voting_power);
       });
     } catch (e: any) {

@@ -664,7 +664,7 @@ async function fetchRedelegateCombined() {
     tx_responses: merged.length > POWER_MAX ? merged.slice(0, POWER_MAX) : merged,
     pagination: { total, next_key: null },
     total,
-  } as PaginatedTxs;
+  } as unknown as PaginatedTxs;
 }
 
 function pagePowerEvents(p: number) {
@@ -689,12 +689,12 @@ function loadAccountTxs() {
   blockchain
     .fetchAccountTxs(addresses.value.account, undefined, ACTIVITY_LIMIT)
     .then((x: any) => {
-      txs.value = x || ({ tx_responses: [] } as PaginatedTxs);
+      txs.value = x || ({ tx_responses: [] } as unknown as PaginatedTxs);
       txsPage = 1;
       txsHasMore.value = (x?.tx_responses?.length || 0) >= ACTIVITY_LIMIT;
     })
     .catch(() => {
-      txs.value = { tx_responses: [] } as PaginatedTxs;
+      txs.value = { tx_responses: [] } as unknown as PaginatedTxs;
       txsHasMore.value = false;
     })
     .finally(() => {
@@ -1421,7 +1421,7 @@ watch(
       delegations.value = {} as PaginatedDelegations;
       allDelegations.value = [];
       delegationsLoading.value = false;
-      events.value = { tx_responses: [], pagination: { total: '0', next_key: null } } as PaginatedTxs;
+      events.value = { tx_responses: [], pagination: { total: '0', next_key: null } } as unknown as PaginatedTxs;
       selfBonded.value = {} as Delegation;
       loadValidatorCore();
       if (isGno.value) startGnoHeightWatch();
@@ -2314,7 +2314,7 @@ watch(
             Holding the latest
             <b class="font-mono text-main">{{ events.tx_responses?.length || 0 }}</b>
             of
-            <b class="font-mono text-main">{{ events.pagination?.total || events.total || 0 }}</b>
+            <b class="font-mono text-main">{{ events.pagination?.total || (events as any).total || 0 }}</b>
             <span>events</span>
           </span>
         </div>

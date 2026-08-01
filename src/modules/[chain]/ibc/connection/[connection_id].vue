@@ -60,14 +60,14 @@ function loadDetail() {
   chainStore.rpc
     .getIBCConnectionsById(connId.value)
     .then((x) => {
-      conn.value = x.connection;
+      conn.value = x.connection as Connection;
       connLoaded.value = true;
     })
     .catch(() => {});
   chainStore.rpc
     .getIBCConnectionsClientState(connId.value)
     .then((x) => {
-      clientState.value = x.identified_client_state;
+      clientState.value = x.identified_client_state as any;
       clientStateLoaded.value = true;
     })
     .catch(() => {});
