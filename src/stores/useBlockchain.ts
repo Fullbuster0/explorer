@@ -681,9 +681,10 @@ export const useBlockchain = defineStore('blockchain', {
       }
       const tryBoth = async (
         base: string
-      ): Promise<TxResponse[] | null> => {
+      ): Promise<{ rows: TxResponse[]; total: number } | null> => {
         const client = CosmosRestClient.newStrategy(base, this.current);
         const seen = new Map<string, TxResponse>(); // hash -> response (dedupe)
+        let total = 0; // chain-wide (sender+receiver count_total) if exposed
         const tryOne = async (
           q: 'sender' | 'receiver'
         ): Promise<TxResponse[] | null> => {
@@ -693,6 +694,11 @@ export const useBlockchain = defineStore('blockchain', {
                 ? await client.getTxsBySender(address, page, limit)
                 : await client.getTxsByReceiver(address, page, limit);
             if (!res) return null;
+            // count_total is on by default (PageRequest) — archives that honour
+            // it expose the true chain-wide total for this query. Sum sender +
+            // receiver ≈ the mintscan-style "all txs involving this address".
+            const t = Number((res as any)?.pagination?.total ?? (res as any)?.total ?? 0);
+            if (Number.isFinite(t)) total += t;
             const rows = (res as any).tx_responses || (res as any).txs || [];
             return Array.isArray(rows) ? (rows as TxResponse[]) : null;
           } catch (e: any) {
@@ -707,9 +713,10 @@ export const useBlockchain = defineStore('blockchain', {
         if (r) for (const x of r) if (x.txhash) seen.set(x.txhash, x);
 
         if (!seen.size) return null;
-        return Array.from(seen.values()).sort(
+        const rows = Array.from(seen.values()).sort(
           (a, b) => Number(b.height || 0) - Number(a.height || 0)
         );
+        return { rows, total };
       };
 
       // Walk ONLY the curated archive endpoints. Walking the full 33-entry
@@ -721,25 +728,42 @@ export const useBlockchain = defineStore('blockchain', {
       let bestTotal = 0;
       const seenEndpoints = new Set<string>();
 
-      // Hard cap mirrors the server-side reality: every atomone LCD ignores
-      // `pagination.limit` and caps at ~100 rows. No endpoint exposes more.
-      // (Verified 2026-07-27 against PublicNode/AllinBits/cosmos.directory.)
-      const SERVER_CAP = 100;
+      // Client buffer cap (Option A): load up to 500 newest txs and paginate
+      // them client-side. Each LCD still returns only its first ≤100 rows
+      // (offsets ignored), but the union across mirrors + the RPC fallback
+      // can reach 500. The TRUE chain-wide total is carried separately in
+      // `bestTotal` (from count_total / total_count) so the header can show
+      // e.g. "2,948 Transactions" even when only 500 are loaded.
+      const SERVER_CAP = 500;
 
       const collect = async (addr: string) => {
         const cleaned = addr.replace(/\/$/, '');
         if (!cleaned || seenEndpoints.has(cleaned)) return;
-        // We've already saturated the indexed result. Stop walking.
+        // Buffer full — stop fetching rows, but keep walking cheaply? No:
+        // archives cap at 100 rows so the union rarely hits 500 from LCD
+        // alone; walking all mirrors also gives us the best (max) total.
         if (merged.size >= SERVER_CAP) return;
         seenEndpoints.add(cleaned);
-        const rows = await tryBoth(cleaned);
-        if (!rows) return;
-        for (const r of rows) if (r.txhash) merged.set(r.txhash, r);
+        const hit = await tryBoth(cleaned);
+        if (!hit) return;
+        for (const r of hit.rows) if (r.txhash) merged.set(r.txhash, r);
+        if (hit.total > bestTotal) bestTotal = hit.total;
       };
 
       for (const ep of this.archiveEndpoints()) {
-        if (merged.size >= SERVER_CAP) break;
         await collect(ep.address);
+      }
+
+      // Top-up (Option A buffer=500): LCD mirrors each cap at ~100 rows, so the
+      // union often stalls well below the true total (e.g. Terra: 102 loaded vs
+      // 2,950 total). When the archive told us more exists than we loaded, page
+      // the RPC tx_search index (which honours per_page) to fill up to SERVER_CAP.
+      // Guarded so the LCD-dead-end path below stays the only caller when LCD
+      // returned nothing at all (bestTotal stays 0 there).
+      if (bestTotal > merged.size && merged.size < SERVER_CAP) {
+        const fb = await this.rpcTxSearchFallback(address);
+        for (const r of fb.rows) if (r.txhash) merged.set(r.txhash, r);
+        if (fb.total > bestTotal) bestTotal = fb.total;
       }
 
       // LCD dead end (e.g. Lava: relayer wallets produce result sets larger
@@ -747,25 +771,27 @@ export const useBlockchain = defineStore('blockchain', {
       // queries fail with "received message larger than max" regardless of
       // limit). Fall back to Tendermint RPC tx_search, which honours per_page.
       if (!merged.size) {
-        const rpcRows = await this.rpcTxSearchFallback(address);
-        for (const r of rpcRows) if (r.txhash) merged.set(r.txhash, r);
+        const fb = await this.rpcTxSearchFallback(address);
+        for (const r of fb.rows) if (r.txhash) merged.set(r.txhash, r);
+        if (fb.total > bestTotal) bestTotal = fb.total;
       }
 
       if (!merged.size) return null;
 
       // Sort by height DESC — matches what a single endpoint would return.
-      const sorted = Array.from(merged.values()).sort(
-        (a, b) => Number(b.height || 0) - Number(a.height || 0)
-      );
+      const sorted = Array.from(merged.values())
+        .sort((a, b) => Number(b.height || 0) - Number(a.height || 0))
+        .slice(0, SERVER_CAP);
 
-      // We don't have a trustworthy global total (each endpoint returns its
-      // own view). Use the largest fetch as a lower-bound estimate.
-      bestTotal = sorted.length;
+      // Prefer the true chain-wide total (count_total / total_count) so the
+      // header matches mintscan; fall back to the fetched count if no archive
+      // exposed a total.
+      const total = bestTotal > 0 ? bestTotal : sorted.length;
 
       return {
         txs: [] as any[],
         tx_responses: sorted,
-        pagination: { total: String(bestTotal) } as any,
+        pagination: { total: String(total) } as any,
       } as unknown as PaginatedTxs;
     },
 
@@ -785,9 +811,9 @@ export const useBlockchain = defineStore('blockchain', {
      * (base64 on Tendermint 0.34, plain on CometBFT 0.37+). Timestamps need
      * a block-header fetch per unique height (batched, capped at 40).
      */
-    async rpcTxSearchFallback(address: string): Promise<TxResponse[]> {
+    async rpcTxSearchFallback(address: string): Promise<{ rows: TxResponse[]; total: number }> {
       const rpcs = (this.current?.endpoints?.rpc || []).slice(0, 4);
-      if (!rpcs.length) return [];
+      if (!rpcs.length) return { rows: [], total: 0 };
 
       // Tendermint 0.34 base64-encodes event keys/values; CometBFT 0.37+
       // emits plain strings. Decode only when it looks like base64 AND
@@ -821,34 +847,47 @@ export const useBlockchain = defineStore('blockchain', {
         `coin_received.receiver='${address}'`,
       ];
 
+      const RPC_CAP = 500; // match the LCD buffer cap (Option A)
       type RawItem = { hash: string; height: string; tx_result?: any };
       const found = new Map<string, RawItem>();
       let workingRpc = '';
+      let total = 0; // chain-wide (sender+receiver total_count), max across RPCs
 
-      // Union across ALL responding RPCs — indexes differ wildly between
-      // providers (stakevillage had 5 receiver-only rows vs polkachu's 218+
-      // for the same wallet). Don't break on first success.
+      // Union across ALL responding RPCs, paging each query up to RPC_CAP.
+      // Indexes differ wildly between providers (stakevillage had 5 receiver-only
+      // rows vs polkachu's 218+ for the same wallet). Don't break on first success.
       for (const rpc of rpcs) {
         const base = (rpc.address || '').replace(/\/$/, '');
         if (!base) continue;
+        let rpcTotal = 0;
         let gotAny = false;
         for (const q of queries) {
           // tx_search requires the query wrapped in double quotes; order_by
           // must be a quoted JSON string ("desc") — bare `desc` fails the
-          // URI→JSON-RPC param converter on Tendermint 0.34.
-          const url = `${base}/tx_search?query=${encodeURIComponent(`"${q}"`)}&per_page=100&page=1&order_by=${encodeURIComponent('"desc"')}`;
-          const data = await fetchJson(url);
-          const txs = data?.result?.txs;
-          if (Array.isArray(txs)) {
+          // URI→JSON-RPC param converter on Tendermint 0.34. per_page maxes
+          // at 100, so page 1..5 to reach RPC_CAP.
+          let pg = 1;
+          while (found.size < RPC_CAP && pg <= 5) {
+            const url = `${base}/tx_search?query=${encodeURIComponent(`"${q}"`)}&per_page=100&page=${pg}&order_by=${encodeURIComponent('"desc"')}`;
+            const data = await fetchJson(url);
+            const txs = data?.result?.txs;
+            if (!Array.isArray(txs)) break;
+            if (pg === 1) {
+              const tc = Number(data?.result?.total_count ?? 0);
+              if (Number.isFinite(tc)) rpcTotal += tc; // sender + receiver
+            }
             for (const t of txs) if (t?.hash) found.set(t.hash, t);
             if (txs.length) gotAny = true;
+            if (txs.length < 100) break; // last page
+            pg++;
           }
         }
         if (gotAny && !workingRpc) workingRpc = base; // for block-header timestamps
+        if (rpcTotal > total) total = rpcTotal;
       }
 
       const items = Array.from(found.values());
-      if (!items.length) return [];
+      if (!items.length) return { rows: [], total };
 
       const rows: TxResponse[] = items.map((item) => {
         const tr = item.tx_result || {};
@@ -915,7 +954,8 @@ export const useBlockchain = defineStore('blockchain', {
         for (const r of rows) (r as any).timestamp = times.get(r.height) || '';
       }
 
-      return rows.sort((a, b) => Number(b.height || 0) - Number(a.height || 0));
+      const sorted = rows.sort((a, b) => Number(b.height || 0) - Number(a.height || 0));
+      return { rows: sorted, total: total > 0 ? total : sorted.length };
     },
 
     // Lightweight liveness probe for a REST/LCD endpoint.

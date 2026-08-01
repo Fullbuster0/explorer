@@ -46,6 +46,11 @@ const gnoTxsLoadingMore = ref(false);
 
 // The full fetched list (server may return more than `txHistoryLimit`).
 const allTxs = ref([] as TxResponse[]);
+// True chain-wide tx count from the archive (count_total / total_count). Can
+// exceed allTxs.length when the wallet has more history than the client buffer
+// cap (Option A: ≤500 loaded, total can be e.g. 2,948) — header shows the real
+// number, "showing N of M" clarifies only N are loaded.
+const txChainTotal = ref(0);
 
 // Client-side slice — the rows actually rendered (Cosmos + Gno).
 const txs = computed(() => {
@@ -59,11 +64,15 @@ const gnoTxsPage = computed(() => {
   return gnoTxs.value.slice(start, start + txHistoryLimit.value);
 });
 
-// Display total = rows loaded into the client buffer (NOT chain-wide count).
-// Gno indexer is cursor-paginated; `gnoTxsHasNext` means more exist server-side.
-// UI shows "N loaded" + optional "+" so we never imply a false global total.
+// Display total: true chain-wide count when the archive exposed it (Cosmos),
+// else the loaded buffer size. Gno indexer is cursor-paginated; `gnoTxsHasNext`
+// means more exist server-side — UI shows "N loaded" + optional "+".
 const txsTotal = computed(() =>
-  isGno.value ? gnoTxs.value.length : allTxs.value.length
+  isGno.value
+    ? gnoTxs.value.length
+    : txChainTotal.value > 0
+      ? txChainTotal.value
+      : allTxs.value.length
 );
 
 const indexerUrl = computed(() => (blockchain.current as any)?.indexer_api || '');
@@ -147,6 +156,7 @@ async function loadTxHistory() {
   txsLoading.value = true;
   gnoTxsError.value = '';
   txHistoryPage.value = 1;
+  txChainTotal.value = 0;
   try {
     if (isGno.value) {
       // Gno: onbloc account transactions (RPC tx_index=off; no Cosmos LCD archives).
@@ -182,11 +192,12 @@ async function loadTxHistory() {
       return;
     }
     const page = new PageRequest();
-    page.setPageSize(100); // ask generously — server caps internally
+    page.setPageSize(500); // ask generously — LCD caps internally, RPC fallback honours its own cap
     page.offset = 0;
-    const res = await blockchain.fetchAccountTxs(props.address, page, 100);
+    const res = await blockchain.fetchAccountTxs(props.address, page, 500);
     if (res) {
       allTxs.value = res.tx_responses || [];
+      txChainTotal.value = Number((res as any)?.pagination?.total || 0);
     }
     gnoTxs.value = [];
   } catch (e: any) {
@@ -883,7 +894,7 @@ function findTokenAmount(
           </div>
           <div class="sz-section-title">
             {{ $t('account.transactions') }} ({{ txsTotal ? format.formatNumber(txsTotal, '0,0') : (isGno ? gnoTxs.length : txs.length) }})
-            <span v-if="!isGno && txsTotal > txs.length" class="sz-acc-section-meta">showing {{ txs.length }} of {{ format.formatNumber(txsTotal, '0,0') }}</span>
+            <span v-if="!isGno && txsTotal > allTxs.length" class="sz-acc-section-meta">showing {{ format.formatNumber(allTxs.length, '0,0') }} of {{ format.formatNumber(txsTotal, '0,0') }}</span>
             <span v-if="isGno && gnoTxs.length" class="sz-acc-section-meta">
               showing {{ gnoTxsPage.length }} of {{ format.formatNumber(gnoTxs.length, '0,0') }}{{ gnoTxsHasNext ? '+' : '' }} · via indexer
             </span>
