@@ -249,12 +249,16 @@ export const useFormatter = defineStore('formatter', {
 
         if (conf) {
           let unit = { exponent: 0, denom: '' };
-          // find the max exponent for display
-          conf.denom_units.forEach((x) => {
+          // find the max exponent for display (guard flat config without denom_units)
+          (conf.denom_units || []).forEach((x) => {
             if (x.exponent >= unit.exponent) {
               unit = x;
             }
           });
+          // Fallback: flat exponent config (e.g. {exponent:"18", symbol:"HP"})
+          if (unit.exponent === 0 && conf.exponent) {
+            unit = { exponent: Number(conf.exponent), denom: conf.symbol?.toLowerCase() || denom };
+          }
           if (unit && unit.exponent > 0) {
             amount = amount / Math.pow(10, unit.exponent || 6);
           }
@@ -285,12 +289,16 @@ export const useFormatter = defineStore('formatter', {
 
         if (conf) {
           let unit = { exponent: 0, denom: '' };
-          // find the max exponent for display
-          conf.denom_units.forEach((x) => {
+          // find the max exponent for display (guard flat config without denom_units)
+          (conf.denom_units || []).forEach((x) => {
             if (x.exponent >= unit.exponent) {
               unit = x;
             }
           });
+          // Fallback: flat exponent config (e.g. {exponent:"18", symbol:"HP"})
+          if (unit.exponent === 0 && conf.exponent) {
+            unit = { exponent: Number(conf.exponent), denom: conf.symbol?.toLowerCase() || denom };
+          }
           if (unit && unit.exponent > 0) {
             amount = amount / Math.pow(10, unit.exponent || 6);
             denom = unit.denom.toUpperCase();
@@ -302,7 +310,12 @@ export const useFormatter = defineStore('formatter', {
         if (amount < 0.01) {
           fmt = '0.[000000]';
         }
-        return `${numeral(amount).format(fmt)} ${withDenom ? denom.substring(0, 10) : ''}`;
+        // Guard numeral.js overflow (returns "NaN" for |amount| >= ~1e21)
+        let formatted = numeral(amount).format(fmt);
+        if (formatted === 'NaN') {
+          formatted = Math.abs(amount) >= 1e21 ? amount.toExponential(2) : String(amount);
+        }
+        return `${formatted} ${withDenom ? denom.substring(0, 10) : ''}`;
       }
       return '-';
     },

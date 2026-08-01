@@ -1,6 +1,6 @@
 {
   "chain_name": "hippo-mainnet",
-  "chain_id": "hippo-mainnet-1",
+  "chain_id": "hippo-protocol-1",
   "network_type": "mainnet",
   "features": [
     "dashboard",
@@ -29,12 +29,12 @@
       "provider": "NodesHub"
     },
     {
-      "address": "https://api.hippo-protocol.com",
-      "provider": "Hippo Protocol"
+      "address": "https://hippo-api.polkachu.com",
+      "provider": "Polkachu"
     },
     {
-      "address": "https://api.hippo.polkachu.com",
-      "provider": "Polkachu"
+      "address": "https://api.hippo-protocol.com",
+      "provider": "Hippo Protocol"
     }
   ],
   "rpc": [
@@ -43,18 +43,40 @@
       "provider": "Shazoes"
     },
     {
-      "address": "https://rpc.hippo.polkachu.com",
+      "address": "https://hippo-rpc.polkachu.com",
       "provider": "Polkachu"
     },
     {
-      "address": "https://rpc.hippo.protocol.com",
+      "address": "https://rpc.hippo-protocol.com",
       "provider": "Hippo Protocol"
     },
     {
-      "address": "https://rpc.hippo.nodeshub.online",
+      "address": "https://hippo.rpc.nodeshub.online",
       "provider": "NodesHub"
     }
   ],
   "archived_api": [],
-  "archived_rpc": []
+  "archived_rpc": [],
+  "snapshot_provider": "",
+  "sdk_version": "0.50.13",
+  "coin_type": "0",
+  "min_tx_fee": "1000000000000000000",
+  "addr_prefix": "hippo",
+  "theme_color": "#005fcc",
+  "logo": "/logos/hippo-protocol.png",
+  "assets": [
+    {
+      "base": "ahp",
+      "symbol": "HP",
+      "exponent": "18",
+      "coingecko_id": "hippo-protocol",
+      "logo": "/logos/hippo-protocol.png"
+    }
+  ],
+  "keplr_features": [
+    "ibc-go",
+    "ibc-transfer",
+    "no-legacy-stdTx"
+  ]
+
 }

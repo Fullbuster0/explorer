@@ -20,7 +20,9 @@ export enum EndpointType {
 }
 
 export interface Chain extends RegistryChain {}
-export interface Asset extends RegistryAsset {}
+export interface Asset extends RegistryAsset {
+  exponent?: string | number;
+}
 export interface Endpoint extends RegistryEndPoint {}
 export interface DenomUnit extends RegistryDenomUnit {}
 
