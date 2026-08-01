@@ -754,23 +754,25 @@ export const useBlockchain = defineStore('blockchain', {
         await collect(ep.address);
       }
 
-      // Top-up (Option A buffer=500): LCD mirrors each cap at ~100 rows, so the
-      // union often stalls well below the true total (e.g. Terra: 102 loaded vs
-      // 2,950 total). When the archive told us more exists than we loaded, page
-      // the RPC tx_search index (which honours per_page) to fill up to SERVER_CAP.
-      // Guarded so the LCD-dead-end path below stays the only caller when LCD
-      // returned nothing at all (bestTotal stays 0 there).
-      if (bestTotal > merged.size && merged.size < SERVER_CAP) {
-        const fb = await this.rpcTxSearchFallback(address);
-        for (const r of fb.rows) if (r.txhash) merged.set(r.txhash, r);
-        if (fb.total > bestTotal) bestTotal = fb.total;
-      }
-
-      // LCD dead end (e.g. Lava: relayer wallets produce result sets larger
-      // than every public LCD's internal gRPC max-message size, so tx-by-event
-      // queries fail with "received message larger than max" regardless of
-      // limit). Fall back to Tendermint RPC tx_search, which honours per_page.
-      if (!merged.size) {
+      // Consult the RPC tx_search index whenever the LCD buffer isn't full.
+      //
+      // Two failure modes this must cover:
+      //  1. LCD dead end (Lava): relayer wallets produce result sets larger
+      //     than every public LCD's internal gRPC max-message size, so
+      //     tx-by-event queries fail with "received message larger than max"
+      //     → merged stays empty.
+      //  2. Pruned LCD masquerading as complete (Cosmos Hub): lavenderfive
+      //     returns only its recent slice WITH count_total matching that
+      //     slice (e.g. 2 of the true 511), so `bestTotal == merged.size`
+      //     and the old `bestTotal > merged.size` guard never fired — the
+      //     archive RPC (citizenweb3, total_count 511) was never consulted.
+      //
+      // Pruned LCDs report their own shrunken view as count_total, so LCD
+      // bestTotal alone can't be trusted as the chain-wide total. The RPC
+      // union picks the archive node's true total_count and fills the buffer
+      // up to SERVER_CAP. Skip only when LCD already saturated the buffer —
+      // nothing more to load (e.g. Terra: 500 loaded, total carried as 2,950).
+      if (merged.size < SERVER_CAP) {
         const fb = await this.rpcTxSearchFallback(address);
         for (const r of fb.rows) if (r.txhash) merged.set(r.txhash, r);
         if (fb.total > bestTotal) bestTotal = fb.total;
