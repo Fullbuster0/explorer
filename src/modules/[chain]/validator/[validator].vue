@@ -24,7 +24,7 @@ import {
 } from '@/types';
 import PaginationBar from '@/components/PaginationBar.vue';
 import { fromBase64, toBase64 } from '@cosmjs/encoding';
-import { stringToUint8Array, uint8ArrayToString } from '@/libs/utils';
+import { stringToUint8Array, uint8ArrayToString, getLocalJson } from '@/libs/utils';
 import { lookupGnoValoper, initGnoValopers, gnoValoperProfileUrl, type GnoValoper } from '@/libs/gno/valopers';
 import { getGnoIndexer, type GnoTx } from '@/libs/gno/indexer';
 import { tm2Get } from '@/libs/gno/tm2';
@@ -46,7 +46,7 @@ const isGno = computed(
 const validator = computed(() => props.validator || '');
 
 const v = ref({} as Validator);
-const cache = JSON.parse(localStorage.getItem('avatars') || '{}');
+const cache = getLocalJson<Record<string, string>>('avatars', {});
 const avatars = ref(cache || {});
 const identity = ref('');
 const rewards = ref([] as Coin[] | undefined);

@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import { ref, onMounted, computed, watchEffect } from 'vue';
+import { getLocalJson } from '@/libs/utils';
 import { fromHex, toBase64 } from '@cosmjs/encoding';
 import { Icon } from '@iconify/vue';
 import { useFormatter, useStakingStore, useBaseStore, useBlockchain, useDashboard } from '@/stores';
@@ -17,7 +18,7 @@ const chainStore = useBlockchain();
 const dashboard = useDashboard();
 // storage local uptime-validator ids
 const local = ref(
-  JSON.parse(localStorage.getItem('uptime-validators') || '{}') as Record<string, { name: string; address: string }[]>
+  getLocalJson('uptime-validators', {} as Record<string, { name: string; address: string }[]>) as Record<string, { name: string; address: string }[]>
 );
 const signingInfo = ref({} as Record<string, SigningInfo[]>);
 const selected = ref([] as string[]);

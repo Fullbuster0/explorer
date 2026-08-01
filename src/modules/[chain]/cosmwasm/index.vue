@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import { useBlockchain, useFormatter, useTxDialog } from '@/stores';
+import { getLocalJson } from '@/libs/utils';
 import { useWasmStore } from './WasmStore';
 import { onMounted, ref } from 'vue';
 import type { PaginabledCodeInfos } from './types';
@@ -27,7 +28,7 @@ function pageload(pageNum: number) {
 pageload(1);
 
 onMounted(() => {
-  const historyStore = JSON.parse(localStorage.getItem('contract_history') || '{}');
+  const historyStore = getLocalJson<Record<string, any>>('contract_history', {});
   history.value = historyStore[props.chain] || [];
 });
 

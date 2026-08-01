@@ -1,9 +1,25 @@
-export function getLocalObject(name: string) {
-  const text = localStorage.getItem(name);
-  if (text) {
-    return JSON.parse(text);
+/**
+ * JSON.parse that never throws — returns `fallback` on malformed input.
+ * Use for ANY untrusted/unvalidated source: localStorage (can be corrupted),
+ * on-chain data, API responses, user-typed text. A bare JSON.parse on these
+ * throws and, at module/setup scope, takes down the whole page.
+ */
+export function safeJsonParse<T = any>(text: string | null | undefined, fallback: T): T {
+  if (!text) return fallback;
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    return fallback;
   }
-  return null;
+}
+
+/** Read + safely parse a localStorage JSON blob (corrupted storage → fallback, no crash). */
+export function getLocalJson<T = any>(name: string, fallback: T): T {
+  return safeJsonParse<T>(localStorage.getItem(name), fallback);
+}
+
+export function getLocalObject(name: string) {
+  return safeJsonParse(localStorage.getItem(name), null);
 }
 
 export function getLocalChains() {

@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { useBlockchain } from './useBlockchain';
 
 import { get } from '@/libs/http';
+import { safeJsonParse } from '@/libs/utils';
 import type { StakingParam, StakingPool, Validator } from '@/types';
 import { CosmosRestClient } from '@/libs/client';
 import {
@@ -123,7 +124,7 @@ export const useStakingStore = defineStore('stakingStore', {
 
     async loadKeyRotationFromLocalstorage(chain_id: string) {
       const keyRotation = localStorage.getItem(`key-rotation-${chain_id}`);
-      this.keyRotation = keyRotation ? JSON.parse(keyRotation) : {};
+      this.keyRotation = safeJsonParse(keyRotation, {});
     },
 
     findRotatedHexAddress(key: { '@type': string; key: string }) {

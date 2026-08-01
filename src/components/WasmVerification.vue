@@ -8,6 +8,7 @@ import { codeToHtml } from 'shiki';
 import { useWasmStore } from '@/modules/[chain]/cosmwasm/WasmStore';
 import { toBase64 } from '@cosmjs/encoding';
 import DOMPurify from 'dompurify';
+import { safeJsonParse } from '@/libs/utils';
 
 import { JsonViewer } from 'vue3-json-viewer';
 import { CosmjsOfflineSigner } from '@leapwallet/cosmos-snap-provider';
@@ -138,7 +139,7 @@ function selectTab(tabName: string) {
 const executions = computed(() => {
   return schemas.value
     .filter((x) => x.path.indexOf('execute_msg') > -1 || x.path.indexOf('query_msg') > -1)
-    .map((x) => JSON.parse(x.sourceCode || '{}') as Schema);
+    .map((x) => safeJsonParse(x.sourceCode || '{}', {} as Schema) as Schema);
   // if(raw && raw.sourceCode) {
   //   return JSON.parse(raw.sourceCode) as Schema
   // }
@@ -148,7 +149,7 @@ const executions = computed(() => {
 const queries = computed(() => {
   let raw = schemas.value.find((x) => x.path.indexOf('query_msg') > -1);
   if (raw && raw.sourceCode) {
-    return JSON.parse(raw.sourceCode) as Schema;
+    return safeJsonParse(raw.sourceCode, {} as Schema) as Schema;
   }
   return {} as Schema;
 });

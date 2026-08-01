@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import fetch from 'cross-fetch';
+import { getLocalJson } from '@/libs/utils';
 import { onMounted, ref, computed, onUnmounted, watch } from 'vue';
 import { useBlockchain, useStakingStore, useBaseStore } from '@/stores';
 import { consensusPubkeyToHexAddress } from '@/libs';
@@ -39,7 +40,7 @@ const searchText = ref('');
 const showFilter = ref<'all' | 'online' | 'offline'>('all');
 
 // ---- avatars (keybase, cached in localStorage) ----
-const avatars = ref<Record<string, string>>(JSON.parse(localStorage.getItem('avatars') || '{}'));
+const avatars = ref<Record<string, string>>(getLocalJson('avatars', {}));
 function logo(identity?: string) {
   if (!identity || !avatars.value[identity]) return '';
   const url = avatars.value[identity] || '';

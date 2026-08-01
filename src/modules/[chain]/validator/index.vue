@@ -4,7 +4,7 @@ import { computed } from '@vue/reactivity';
 import { onMounted, onUnmounted, ref, watch } from 'vue';
 import { Icon } from '@iconify/vue';
 import type { Key, SlashingParam, Validator } from '@/types';
-import { formatSeconds } from '@/libs/utils';
+import { formatSeconds, getLocalJson } from '@/libs/utils';
 import { diff } from 'semver';
 import { getGnoIndexer, type GnoIndexerValidator } from '@/libs/gno/indexer';
 import { lookupGnoValoper, initGnoValopers, listGnoValopers } from '@/libs/gno/valopers';
@@ -23,7 +23,7 @@ const isGno = computed(
 
 const indexerUrl = computed(() => (chainStore.current as any)?.indexer_api || '');
 
-const cache = JSON.parse(localStorage.getItem('avatars') || '{}');
+const cache = getLocalJson<Record<string, string>>('avatars', {});
 const avatars = ref(cache || {});
 const latest = ref({} as Record<string, number>);
 const yesterday = ref({} as Record<string, number>);

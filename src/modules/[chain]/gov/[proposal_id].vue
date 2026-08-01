@@ -2,6 +2,7 @@
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
 import MdEditor from 'md-editor-v3';
 import DOMPurify from 'dompurify';
+import { getLocalJson } from '@/libs/utils';
 import ObjectElement from '@/components/dynamic/ObjectElement.vue';
 import Countdown from '@/components/Countdown.vue';
 import {
@@ -55,7 +56,7 @@ const valPage = ref(1);
 const otherPage = ref(1);
 
 // ---- validator logos (keybase, cached in localStorage) — same as validators/blocks ----
-const avatars = ref<Record<string, string>>(JSON.parse(localStorage.getItem('avatars') || '{}'));
+const avatars = ref<Record<string, string>>(getLocalJson('avatars', {}));
 
 function logo(identity?: string) {
   if (!identity || !avatars.value[identity]) return '';

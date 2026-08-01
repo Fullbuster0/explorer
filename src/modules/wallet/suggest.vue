@@ -141,16 +141,25 @@ async function initSnap() {
 }
 
 function suggest() {
+  // conf.value is user-edited JSON — parse once, surface a friendly error
+  // instead of throwing synchronously out of the click handler.
+  let parsed: any;
+  try {
+    parsed = JSON.parse(conf.value);
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : String(e);
+    return;
+  }
   if (wallet.value === 'keplr') {
     // @ts-ignore
     if (window.keplr) {
       // @ts-ignore
-      window.keplr.experimentalSuggestChain(JSON.parse(conf.value)).catch((e) => {
+      window.keplr.experimentalSuggestChain(parsed).catch((e) => {
         error.value = e;
       });
     }
   } else {
-    suggestChain(JSON.parse(conf.value));
+    suggestChain(parsed);
   }
 }
 </script>

@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import { computed, ref, watch } from 'vue';
+import { getLocalJson } from '@/libs/utils';
 import { fromBase64, toHex } from '@cosmjs/encoding';
 import { useBaseStore, useFormatter, useStakingStore } from '@/stores';
 import { consensusPubkeyToHexAddress } from '@/libs';
@@ -16,7 +17,7 @@ const format = useFormatter();
 const staking = useStakingStore();
 
 // ---- avatars (keybase, cached in localStorage) — same pattern as consensus / validators ----
-const avatars = ref<Record<string, string>>(JSON.parse(localStorage.getItem('avatars') || '{}'));
+const avatars = ref<Record<string, string>>(getLocalJson('avatars', {}));
 
 function logo(identity?: string) {
   if (!identity || !avatars.value[identity]) return '';

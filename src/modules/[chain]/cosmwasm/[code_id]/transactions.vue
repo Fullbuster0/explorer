@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import PaginationBar from '@/components/PaginationBar.vue';
+import { getLocalJson, safeJsonParse } from '@/libs/utils';
 import {
   useBaseStore,
   useBlockchain,
@@ -41,7 +42,7 @@ const balances = ref({} as PaginatedBalances);
 
 const contractAddress = String(route.query.contract);
 
-const history = JSON.parse(localStorage.getItem('contract_history') || '{}');
+const history = getLocalJson<Record<string, any>>('contract_history', {});
 
 if (history[chainStore.chainName]) {
   if (!history[chainStore.chainName].includes(contractAddress)) {
@@ -197,7 +198,7 @@ const tab = ref('detail');
             :value="
               state.models?.map((v) => ({
                 key: format.hexToString(v.key),
-                value: JSON.parse(format.base64ToString(v.value)),
+                value: safeJsonParse(format.base64ToString(v.value), format.base64ToString(v.value)),
               })) || ''
             "
             :theme="baseStore.theme || 'dark'"
