@@ -2,6 +2,7 @@
 import { isBech32Address } from '@/libs/utils';
 import { useBlockchain, useFormatter } from '@/stores';
 import MdEditor from 'md-editor-v3';
+import DOMPurify from 'dompurify';
 import { computed, onMounted, ref } from 'vue';
 
 import { fromBase64, toHex } from '@cosmjs/encoding';
@@ -23,6 +24,17 @@ function isMD() {
   }
   return false;
 }
+
+/**
+ * md-editor-v3 renders Markdown → HTML with raw-HTML passthrough (verified:
+ * `<img onerror>`, `<script>`, `javascript:` all survive). `value` here is
+ * often ON-CHAIN data (gov proposal descriptions, multiline params) that any
+ * user can author → stored XSS on render. md-editor's `sanitize` hook receives
+ * the final preview HTML and its return value is what gets rendered (verified),
+ * so routing it through DOMPurify neutralizes the vector. The global
+ * editorExtensions.sanitize config is NOT honored on this path — the prop is.
+ */
+const sanitizeHtml = (html: string) => DOMPurify.sanitize(html);
 
 function isAddress() {
   // Gno: g1… proposer/operator is a validator identity in block headers —
@@ -73,7 +85,7 @@ const isConvertable = computed(() => {
 });
 </script>
 <template>
-  <MdEditor v-if="isMD()" :model-value="format.multiLine(value)" previewOnly no-mermaid no-katex no-iconfont class="md-editor-recover"></MdEditor>
+  <MdEditor v-if="isMD()" :model-value="format.multiLine(value)" previewOnly no-mermaid no-katex no-iconfont :sanitize="sanitizeHtml" class="md-editor-recover"></MdEditor>
   <span v-else-if="isAddress()" class="flex">
     <RouterLink :to="`/${chainStore.chainName}/account/${text}`">{{ text }}</RouterLink>
     <div v-for="{ name, provider } in names">

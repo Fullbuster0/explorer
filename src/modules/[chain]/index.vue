@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import MdEditor from 'md-editor-v3';
+import DOMPurify from 'dompurify';
 import PriceMarketChart from '@/components/charts/PriceMarketChart.vue';
 
 import { Icon } from '@iconify/vue';
@@ -75,6 +76,11 @@ function shortName(name: string, id: string) {
 const heroAbout = computed(
   () => store.aboutHtml || coinInfo.value?.description?.en || ''
 );
+
+// md-editor-v3 passes raw HTML through its Markdown pipeline (verified). The
+// about text is CoinGecko/config-sourced (lower risk than on-chain), but route
+// it through DOMPurify anyway — the `sanitize` prop's return is what renders.
+const sanitizeHtml = (html: string) => DOMPurify.sanitize(html);
 
 const comLinks = computed(() => {
   return [
@@ -381,7 +387,7 @@ const amount = computed({
                 class="sz-hero-about mt-4 max-w-3xl text-sm leading-relaxed text-secondary"
                 :class="{ 'sz-hero-about--clamped': !aboutExpanded }"
               >
-                <MdEditor :model-value="heroAbout" previewOnly no-mermaid no-katex no-iconfont />
+                <MdEditor :model-value="heroAbout" previewOnly no-mermaid no-katex no-iconfont :sanitize="sanitizeHtml" />
               </div>
               <button
                 v-if="heroAbout"

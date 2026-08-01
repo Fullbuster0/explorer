@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
 import MdEditor from 'md-editor-v3';
+import DOMPurify from 'dompurify';
 import ObjectElement from '@/components/dynamic/ObjectElement.vue';
 import Countdown from '@/components/Countdown.vue';
 import {
@@ -265,6 +266,12 @@ const proposalSummary = computed(() => {
   if (p?.content?.description) return p.content.description;
   return metaItem(p?.metadata).summary || '';
 });
+
+// Proposal summary/description is ON-CHAIN, authored by ANY account — the
+// prime stored-XSS vector. md-editor-v3 passes raw HTML through its Markdown
+// pipeline (verified: <img onerror>/<script>/javascript: all survive), so the
+// `sanitize` prop (its return value is what renders) routes it via DOMPurify.
+const sanitizeHtml = (html: string) => DOMPurify.sanitize(html);
 
 const statusChipClass = computed(() => statusChipFor(proposal.value?.status || ''));
 const statusLabel = computed(() => statusText(proposal.value?.status));
@@ -1012,6 +1019,7 @@ onUnmounted(() => {
           <MdEditor
             :model-value="format.multiLine(proposalSummary)"
             previewOnly no-mermaid no-katex no-iconfont
+            :sanitize="sanitizeHtml"
             class="md-editor-recover"
           />
         </div>

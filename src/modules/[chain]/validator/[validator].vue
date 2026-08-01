@@ -73,6 +73,23 @@ const gnoChain = ref<{ status?: string; votingPower?: string; proposerPriority?:
   undefined
 );
 
+/**
+ * Sanitize an attacker-controllable URL before it goes into an <a :href>.
+ * Validator description fields (website/socials) are ON-CHAIN data — any
+ * validator can set them to `javascript:alert(document.cookie)`, which would
+ * be stored XSS executed in this explorer's origin for every visitor who
+ * clicks the link (rel="noopener" does NOT neutralize javascript: hrefs).
+ * Allow only http(s); upgrade bare domains; neuter every other scheme
+ * (javascript:, data:, vbscript:, file:, …) to a dead '#' link.
+ */
+function safeUrl(u?: string): string {
+  const s = (u || '').trim();
+  if (!s) return '#';
+  if (/^https?:\/\//i.test(s)) return s;
+  if (/^[a-z][a-z0-9+.-]*:/i.test(s)) return '#'; // any other scheme → block
+  return `https://${s}`; // bare domain → https
+}
+
 /** Gno/TM2 — live consensus data from TM2 RPC (UTSA-style status panel). */
 const gnoRpc = ref<{
   height?: string;
@@ -1493,7 +1510,7 @@ watch(
             <div v-if="!isGno" class="flex flex-wrap items-center gap-2">
               <a
                 v-if="v.description?.website"
-                :href="v.description.website.startsWith('http') ? v.description.website : `https://${v.description.website}`"
+                :href="safeUrl(v.description.website)"
                 target="_blank"
                 rel="noopener"
                 class="sz-hero-link"
@@ -1724,7 +1741,7 @@ watch(
               <div class="flex flex-wrap gap-2">
                 <a
                   v-if="v.description?.website || gnoMeta?.website"
-                  :href="v.description?.website || gnoMeta?.website"
+                  :href="safeUrl(v.description?.website || gnoMeta?.website)"
                   target="_blank"
                   rel="noopener"
                   class="sz-hero-link"
@@ -1734,7 +1751,7 @@ watch(
                 </a>
                 <a
                   v-if="gnoMeta?.twitter"
-                  :href="gnoMeta.twitter"
+                  :href="safeUrl(gnoMeta.twitter)"
                   target="_blank"
                   rel="noopener"
                   class="sz-hero-link"
@@ -1744,7 +1761,7 @@ watch(
                 </a>
                 <a
                   v-if="gnoMeta?.telegram"
-                  :href="gnoMeta.telegram"
+                  :href="safeUrl(gnoMeta.telegram)"
                   target="_blank"
                   rel="noopener"
                   class="sz-hero-link"
@@ -1754,7 +1771,7 @@ watch(
                 </a>
                 <a
                   v-if="gnoMeta?.github"
-                  :href="gnoMeta.github"
+                  :href="safeUrl(gnoMeta.github)"
                   target="_blank"
                   rel="noopener"
                   class="sz-hero-link"

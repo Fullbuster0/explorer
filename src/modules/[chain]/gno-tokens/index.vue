@@ -49,8 +49,11 @@ function formatSupply(t: GnoToken): string {
 
 function gnowebUrl(path: string): string {
   const base = (chainStore.current as any)?.gnoweb || 'https://topaz.testnets.gno.land';
-  const p = path.replace(/^gno\.land/, '');
-  return `${base.replace(/\/$/, '')}${p}`;
+  // Always join with exactly one '/'. Without the separator a crafted realm
+  // path like `gno.land@evil.com` would yield `https://<gnoweb>@evil.com`,
+  // which browsers parse as host=evil.com (userinfo open-redirect).
+  const p = path.replace(/^gno\.land/, '').replace(/^\//, '');
+  return `${base.replace(/\/$/, '')}/${p}`;
 }
 
 function shortPath(path: string): string {
