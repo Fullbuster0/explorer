@@ -194,7 +194,15 @@ async function loadTxHistory() {
     const page = new PageRequest();
     page.setPageSize(500); // ask generously — LCD caps internally, RPC fallback honours its own cap
     page.offset = 0;
-    const res = await blockchain.fetchAccountTxs(props.address, page, 500);
+    // Progressive first paint: the store calls this as EACH archive source lands,
+    // so the table renders the moment the fastest mirror responds (~1s for relayer
+    // accounts) instead of after the full multi-source union (~10s). The union
+    // keeps filling allTxs in the background; total updates as count_total arrives.
+    const res = await blockchain.fetchAccountTxs(props.address, page, 500, (rows, total) => {
+      allTxs.value = rows;
+      if (total > txChainTotal.value) txChainTotal.value = total;
+      txsLoading.value = false; // drop the "Fetching history…" spinner on first data
+    });
     if (res) {
       allTxs.value = res.tx_responses || [];
       txChainTotal.value = Number((res as any)?.pagination?.total || 0);

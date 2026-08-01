@@ -667,7 +667,8 @@ export const useBlockchain = defineStore('blockchain', {
     async fetchAccountTxs(
       address: string,
       page?: PageRequest,
-      limit?: number
+      limit?: number,
+      onProgress?: (rows: TxResponse[], total: number) => void
     ): Promise<PaginatedTxs | null> {
       // Gno/TM2: no Cosmos LCD archives. Account history comes from the onbloc
       // indexer (see account/[address].vue loadTxHistory). Walking archiveEndpoints
@@ -736,6 +737,23 @@ export const useBlockchain = defineStore('blockchain', {
       // e.g. "2,948 Transactions" even when only 500 are loaded.
       const SERVER_CAP = 500;
 
+      // Progressive first paint: hand the caller whatever rows we have so far so
+      // the table renders the moment the FIRST archive responds — instead of
+      // making the user wait for the full multi-source union. Matters most for
+      // relayer accounts (terra/lava) whose txs carry full light-client headers:
+      // each archive query is ~5MB, so the union takes many seconds but the
+      // fastest mirror returns usable rows in ~1s. total updates as archives
+      // report their count_total; rows are deduped+sorted on every emit.
+      let lastEmitted = -1;
+      const emit = () => {
+        if (!onProgress || merged.size === lastEmitted) return;
+        lastEmitted = merged.size;
+        const rows = Array.from(merged.values())
+          .sort((a, b) => Number(b.height || 0) - Number(a.height || 0))
+          .slice(0, SERVER_CAP);
+        onProgress(rows, bestTotal > 0 ? bestTotal : rows.length);
+      };
+
       const collect = async (addr: string) => {
         const cleaned = addr.replace(/\/$/, '');
         if (!cleaned || seenEndpoints.has(cleaned)) return;
@@ -748,6 +766,7 @@ export const useBlockchain = defineStore('blockchain', {
         if (!hit) return;
         for (const r of hit.rows) if (r.txhash) merged.set(r.txhash, r);
         if (hit.total > bestTotal) bestTotal = hit.total;
+        emit(); // first paint / progressive update as each archive lands
       };
 
       // Probe all curated archives in parallel (independent endpoints). Was a
@@ -777,6 +796,7 @@ export const useBlockchain = defineStore('blockchain', {
         const fb = await this.rpcTxSearchFallback(address);
         for (const r of fb.rows) if (r.txhash) merged.set(r.txhash, r);
         if (fb.total > bestTotal) bestTotal = fb.total;
+        emit(); // RPC union may add rows + the archive node's true total
       }
 
       if (!merged.size) return null;
