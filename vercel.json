@@ -9,6 +9,10 @@
       "destination": "https://vote-tendermint.shazoes.xyz/:path*"
     },
     {
+      "source": "/archive-proxy/cosmoshub/:path*",
+      "destination": "https://api.cosmoshub-4-archive.citizenweb3.com/:path*"
+    },
+    {
       "source": "/(.*)",
       "has": [
         {
