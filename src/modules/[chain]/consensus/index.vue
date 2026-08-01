@@ -605,10 +605,19 @@ async function fallbackRpc() {
 }
 function exportCsv() {
   const header = ['Rank', 'Moniker', 'Address', 'VotingPower', 'VP%', 'Online', 'Prevote', 'Precommit'];
+  // Moniker is validator-controlled on-chain free text. A leading = + - @ (or
+  // tab/CR) makes Excel/LibreOffice evaluate the cell as a formula even when
+  // CSV-quoted (CSV formula injection → e.g. =cmd|'/C calc'!A0). Prefix a single
+  // quote to force a text literal, then escape embedded quotes for CSV.
+  const csvCell = (s: unknown) => {
+    const t = String(s ?? '');
+    const safe = /^[=+\-@\t\r]/.test(t) ? `'${t}` : t;
+    return `"${safe.replace(/"/g, '""')}"`;
+  };
   const lines = rows.value.map((r) =>
     [
       r.rank,
-      `"${r.moniker.replace(/"/g, '""')}"`,
+      csvCell(r.moniker),
       r.address,
       r.votingPower,
       r.vpPercent.toFixed(2),
