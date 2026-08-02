@@ -57,6 +57,7 @@ function titleFor(to: { path: string; params: Record<string, any> }) {
     case 'block':
       return id ? `Block #${id} · ${pretty} — ${SITE}` : `Blocks · ${pretty} — ${SITE}`;
     case 'gov':
+    case 'gno-gov':
     case 'governance':
       return id
         ? `Proposal #${id} · ${pretty} — ${SITE}`

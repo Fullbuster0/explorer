@@ -8,6 +8,7 @@
     "blocks",
     "tx",
     "validator",
+    "governance",
     "realms",
     "tokens",
     "consensus",
