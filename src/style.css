@@ -97,11 +97,12 @@ html[data-theme='dark'] .sz-page-shell::before {
   pointer-events: none;
 }
 
-/* soft glowing orbs that drift slowly */
+/* soft glowing orbs that drift slowly.
+ * NOTE: no CSS blur() — the radial-gradient already fades to transparent, so
+ * blur was redundant AND the #1 paint cost (12fps→55fps when removed). */
 .sz-orb {
   position: absolute;
   border-radius: 999px;
-  filter: blur(48px);
   will-change: transform, opacity;
   opacity: 0.55;
 }
@@ -136,7 +137,6 @@ html[data-theme='dark'] .sz-page-shell::before {
   top: 48%;
   background: radial-gradient(circle, rgba(153, 204, 255, 0.24) 0%, transparent 70%);
   animation: sz-drift-a 30s ease-in-out infinite alternate-reverse;
-  filter: blur(36px);
 }
 .sz-orb-e {
   width: 17rem;
@@ -145,7 +145,6 @@ html[data-theme='dark'] .sz-page-shell::before {
   bottom: 14%;
   background: radial-gradient(circle, rgba(99, 102, 241, 0.24) 0%, transparent 70%);
   animation: sz-drift-b 26s ease-in-out infinite alternate-reverse;
-  filter: blur(40px);
 }
 .sz-orb-f {
   width: 22rem;
@@ -154,7 +153,6 @@ html[data-theme='dark'] .sz-page-shell::before {
   top: -6%;
   background: radial-gradient(circle, rgba(56, 189, 248, 0.22) 0%, transparent 70%);
   animation: sz-drift-c 32s ease-in-out infinite alternate-reverse;
-  filter: blur(44px);
 }
 .sz-orb-g {
   width: 16rem;
@@ -163,7 +161,6 @@ html[data-theme='dark'] .sz-page-shell::before {
   bottom: 28%;
   background: radial-gradient(circle, rgba(0, 95, 204, 0.2) 0%, transparent 70%);
   animation: sz-drift-b 34s ease-in-out infinite alternate;
-  filter: blur(38px);
 }
 .sz-orb-h {
   width: 18rem;
@@ -172,7 +169,6 @@ html[data-theme='dark'] .sz-page-shell::before {
   top: 40%;
   background: radial-gradient(circle, rgba(118, 75, 200, 0.18) 0%, transparent 70%);
   animation: sz-drift-a 27s ease-in-out infinite alternate;
-  filter: blur(42px);
 }
 
 /* tiny drifting sparks — add life between the big orbs */
@@ -220,13 +216,13 @@ html[data-theme='dark'] .sz-page-shell::before {
   border-color: rgba(153, 204, 255, 0.16);
 }
 
-/* soft diagonal light beams */
+/* soft diagonal light beams — linear-gradient already fades to transparent,
+ * so no blur() (blur here cost ~24fps on loaded pages). */
 .sz-beam {
   position: absolute;
   top: -20%;
   width: 40%;
   height: 140%;
-  filter: blur(8px);
   will-change: transform, opacity;
 }
 .sz-beam-1 {
