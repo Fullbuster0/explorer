@@ -150,6 +150,55 @@ function parseStatus(text) {
   return 'UNKNOWN';
 }
 
+/**
+ * Voters live on a SEPARATE page: /r/gov/dao:<id>/votes (linked from the detail
+ * page as "Detailed voting list" — they are NOT inline in the detail HTML, which
+ * is why the old in-page regex always returned 0). Structure:
+ *   <p>YES from T1 (VPPM 3):</p>
+ *   <ul><li><a href="/u/g1...">g1...<span/></a></li>...</ul>
+ *   <p>YES from T2 (VPPM 2):</p>   ← empty <p> (no <ul>) when nobody voted
+ * Parse each option/tier/VPPM header, then the /u/g1… addresses in the segment
+ * that follows it (up to the next header). VPPM = voting power (tier weight).
+ */
+async function fetchVotes(id) {
+  const voters = [];
+  let html;
+  try {
+    html = await get(`${BASE}/r/gov/dao:${id}/votes`);
+  } catch (e) {
+    console.warn(`    votes page #${id} failed: ${e.message}`);
+    return voters;
+  }
+  const body = realmBody(html);
+  const headerRe = /<p>\s*(YES|NO|ABSTAIN)\s+from\s+(T\d+)\s*\(VPPM\s*(\d+)\)\s*:\s*<\/p>/gi;
+  const headers = [];
+  let hm;
+  while ((hm = headerRe.exec(body))) {
+    headers.push({
+      vote: hm[1].toUpperCase(),
+      tier: hm[2].toUpperCase(),
+      power: parseInt(hm[3], 10),
+      idx: hm.index,
+      end: hm.index + hm[0].length,
+    });
+  }
+  for (let i = 0; i < headers.length; i++) {
+    const h = headers[i];
+    const segEnd = i + 1 < headers.length ? headers[i + 1].idx : body.length;
+    const seg = body.slice(h.end, segEnd);
+    const addrRe = /\/u\/(g1[a-z0-9]+)/g;
+    let am;
+    const seen = new Set();
+    while ((am = addrRe.exec(seg))) {
+      if (!seen.has(am[1])) {
+        seen.add(am[1]);
+        voters.push({ address: am[1], vote: h.vote, tier: h.tier, voting_power: h.power });
+      }
+    }
+  }
+  return voters;
+}
+
 async function fetchProposal(id) {
   const url = `${BASE}/r/gov/dao:${id}`;
   const html = await get(url);
@@ -180,21 +229,9 @@ async function fetchProposal(id) {
     });
   }
 
-  // voters: addresses in the "Detailed voting list" section
-  const voters = [];
-  const vlIdx = text.search(/Detailed voting list/i);
-  if (vlIdx >= 0) {
-    const section = text.slice(vlIdx, vlIdx + 4000);
-    const voterRe = /(g1[a-z0-9]+)[^\n]*?(YES|NO|ABSTAIN)/gi;
-    let vm;
-    const seen = new Set();
-    while ((vm = voterRe.exec(section))) {
-      if (!seen.has(vm[1])) {
-        seen.add(vm[1]);
-        voters.push({ address: vm[1], vote: vm[2].toUpperCase() });
-      }
-    }
-  }
+  // voters: on a SEPARATE /votes sub-page (see fetchVotes) — not inline here.
+  await sleep(DELAY_MS);
+  const voters = await fetchVotes(id);
 
   return {
     proposal_id: id,
@@ -224,7 +261,7 @@ async function main() {
       proposals.push(p);
       console.log(
         `  #${id} ${p.status} Y${p.yes_percent}/N${p.no_percent}/A${p.abstain_percent} ` +
-          `tiers=${p.eligible_tiers.join('/')} updates=${p.validator_updates.length} "${p.title.slice(0, 40)}"`
+          `tiers=${p.eligible_tiers.join('/')} updates=${p.validator_updates.length} voters=${p.voters.length} "${p.title.slice(0, 40)}"`
       );
     } catch (e) {
       console.warn(`  #${id} FAILED: ${e.message}`);

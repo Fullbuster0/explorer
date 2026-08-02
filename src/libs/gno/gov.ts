@@ -22,6 +22,10 @@ export interface GnoValidatorUpdate {
 export interface GnoGovVoter {
   address: string;
   vote: 'YES' | 'NO' | 'ABSTAIN' | string;
+  /** Eligible tier the voter voted under (T1/T2/T3). */
+  tier?: string;
+  /** VPPM — voting power (tier weight) at vote time. */
+  voting_power?: number | null;
 }
 export interface GnoGovProposal {
   proposal_id: number;
@@ -73,7 +77,12 @@ function normalize(raw: any): GnoGovData | null {
           }))
         : [],
       voters: Array.isArray(p.voters)
-        ? p.voters.map((v: any) => ({ address: String(v.address || ''), vote: String(v.vote || '') }))
+        ? p.voters.map((v: any) => ({
+            address: String(v.address || ''),
+            vote: String(v.vote || ''),
+            tier: v.tier ? String(v.tier) : undefined,
+            voting_power: v.voting_power == null ? null : Number(v.voting_power),
+          }))
         : [],
     }));
   const counts = { active: 0, accepted: 0, rejected: 0, unknown: 0 };

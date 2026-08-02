@@ -152,12 +152,20 @@ watch(() => props.proposal_id, load);
       <section class="sz-govdao-panel sz-reveal" style="animation-delay: 180ms" v-if="proposal.voters.length">
         <div class="sz-govdao-panel-head">
           <span class="sz-govdao-panel-title">Voters</span>
-          <span class="sz-govdao-panel-meta">{{ proposal.voters.length }}</span>
+          <span class="sz-govdao-panel-meta">{{ proposal.voters.length }} vote{{ proposal.voters.length === 1 ? '' : 's' }}</span>
         </div>
-        <div class="sz-govdao-voters">
-          <div v-for="v in proposal.voters" :key="v.address" class="sz-govdao-voter">
+        <div class="sz-govdao-vtable">
+          <div class="sz-govdao-vrow sz-govdao-vhead">
+            <span>Voter</span>
+            <span>Tier</span>
+            <span>Option</span>
+            <span class="sz-govdao-vpower">Power</span>
+          </div>
+          <div v-for="v in proposal.voters" :key="v.address + v.vote" class="sz-govdao-vrow">
             <RouterLink :to="`/${chainStore.chainName}/account/${v.address}`" class="sz-govdao-update-addr">{{ v.address }}</RouterLink>
-            <span class="sz-govdao-voter-vote" :data-seg="v.vote.toLowerCase()">{{ v.vote }}</span>
+            <span><span v-if="v.tier" class="sz-tier" :data-tier="v.tier">{{ v.tier }}</span><span v-else class="sz-govdao-vnone">—</span></span>
+            <span><span class="sz-govdao-voter-vote" :data-seg="v.vote.toLowerCase()">{{ v.vote }}</span></span>
+            <span class="sz-govdao-vpower">{{ v.voting_power != null ? v.voting_power : '—' }}</span>
           </div>
         </div>
       </section>

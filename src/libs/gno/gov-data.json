@@ -3,7 +3,7 @@
     "chain_id": "topaz-1",
     "realm_path": "gno.land/r/gov/dao",
     "gnoweb_base": "https://topaz.testnets.gno.land",
-    "scraped_at": "2026-08-02T01:35:02.171Z",
+    "scraped_at": "2026-08-02T06:38:36.836Z",
     "page_count": 6,
     "proposal_count": 26,
     "latest_proposal_id": 25
@@ -36,7 +36,14 @@
           "power": 5
         }
       ],
-      "voters": []
+      "voters": [
+        {
+          "address": "g1aeddlftlfk27ret5rf750d7w5dume3kcsm8r8m",
+          "vote": "YES",
+          "tier": "T1",
+          "voting_power": 3
+        }
+      ]
     },
     {
       "proposal_id": 24,
@@ -59,7 +66,14 @@
           "power": null
         }
       ],
-      "voters": []
+      "voters": [
+        {
+          "address": "g1aeddlftlfk27ret5rf750d7w5dume3kcsm8r8m",
+          "vote": "YES",
+          "tier": "T1",
+          "voting_power": 3
+        }
+      ]
     },
     {
       "proposal_id": 23,
@@ -82,7 +96,14 @@
           "power": null
         }
       ],
-      "voters": []
+      "voters": [
+        {
+          "address": "g1aeddlftlfk27ret5rf750d7w5dume3kcsm8r8m",
+          "vote": "YES",
+          "tier": "T1",
+          "voting_power": 3
+        }
+      ]
     },
     {
       "proposal_id": 22,
@@ -105,7 +126,14 @@
           "power": null
         }
       ],
-      "voters": []
+      "voters": [
+        {
+          "address": "g1aeddlftlfk27ret5rf750d7w5dume3kcsm8r8m",
+          "vote": "YES",
+          "tier": "T1",
+          "voting_power": 3
+        }
+      ]
     },
     {
       "proposal_id": 21,
@@ -133,7 +161,14 @@
           "power": 5
         }
       ],
-      "voters": []
+      "voters": [
+        {
+          "address": "g1aeddlftlfk27ret5rf750d7w5dume3kcsm8r8m",
+          "vote": "YES",
+          "tier": "T1",
+          "voting_power": 3
+        }
+      ]
     },
     {
       "proposal_id": 20,
@@ -181,7 +216,14 @@
           "power": 5
         }
       ],
-      "voters": []
+      "voters": [
+        {
+          "address": "g1aeddlftlfk27ret5rf750d7w5dume3kcsm8r8m",
+          "vote": "YES",
+          "tier": "T1",
+          "voting_power": 3
+        }
+      ]
     },
     {
       "proposal_id": 19,
@@ -229,7 +271,14 @@
           "power": 5
         }
       ],
-      "voters": []
+      "voters": [
+        {
+          "address": "g1aeddlftlfk27ret5rf750d7w5dume3kcsm8r8m",
+          "vote": "YES",
+          "tier": "T1",
+          "voting_power": 3
+        }
+      ]
     },
     {
       "proposal_id": 18,
@@ -297,7 +346,14 @@
           "power": 5
         }
       ],
-      "voters": []
+      "voters": [
+        {
+          "address": "g1aeddlftlfk27ret5rf750d7w5dume3kcsm8r8m",
+          "vote": "YES",
+          "tier": "T1",
+          "voting_power": 3
+        }
+      ]
     },
     {
       "proposal_id": 17,
@@ -365,7 +421,14 @@
           "power": 5
         }
       ],
-      "voters": []
+      "voters": [
+        {
+          "address": "g1aeddlftlfk27ret5rf750d7w5dume3kcsm8r8m",
+          "vote": "YES",
+          "tier": "T1",
+          "voting_power": 3
+        }
+      ]
     },
     {
       "proposal_id": 16,
@@ -433,7 +496,14 @@
           "power": 5
         }
       ],
-      "voters": []
+      "voters": [
+        {
+          "address": "g1aeddlftlfk27ret5rf750d7w5dume3kcsm8r8m",
+          "vote": "YES",
+          "tier": "T1",
+          "voting_power": 3
+        }
+      ]
     },
     {
       "proposal_id": 15,
@@ -501,7 +571,14 @@
           "power": 5
         }
       ],
-      "voters": []
+      "voters": [
+        {
+          "address": "g1aeddlftlfk27ret5rf750d7w5dume3kcsm8r8m",
+          "vote": "YES",
+          "tier": "T1",
+          "voting_power": 3
+        }
+      ]
     },
     {
       "proposal_id": 14,
@@ -569,7 +646,14 @@
           "power": 5
         }
       ],
-      "voters": []
+      "voters": [
+        {
+          "address": "g1aeddlftlfk27ret5rf750d7w5dume3kcsm8r8m",
+          "vote": "YES",
+          "tier": "T1",
+          "voting_power": 3
+        }
+      ]
     },
     {
       "proposal_id": 13,
@@ -637,7 +721,14 @@
           "power": 5
         }
       ],
-      "voters": []
+      "voters": [
+        {
+          "address": "g1aeddlftlfk27ret5rf750d7w5dume3kcsm8r8m",
+          "vote": "YES",
+          "tier": "T1",
+          "voting_power": 3
+        }
+      ]
     },
     {
       "proposal_id": 12,
@@ -705,7 +796,14 @@
           "power": 5
         }
       ],
-      "voters": []
+      "voters": [
+        {
+          "address": "g1aeddlftlfk27ret5rf750d7w5dume3kcsm8r8m",
+          "vote": "YES",
+          "tier": "T1",
+          "voting_power": 3
+        }
+      ]
     },
     {
       "proposal_id": 11,
@@ -722,7 +820,14 @@
       "abstain_percent": 0,
       "description": "",
       "validator_updates": [],
-      "voters": []
+      "voters": [
+        {
+          "address": "g1aeddlftlfk27ret5rf750d7w5dume3kcsm8r8m",
+          "vote": "YES",
+          "tier": "T1",
+          "voting_power": 3
+        }
+      ]
     },
     {
       "proposal_id": 10,
@@ -745,7 +850,14 @@
           "power": 60
         }
       ],
-      "voters": []
+      "voters": [
+        {
+          "address": "g1aeddlftlfk27ret5rf750d7w5dume3kcsm8r8m",
+          "vote": "YES",
+          "tier": "T1",
+          "voting_power": 3
+        }
+      ]
     },
     {
       "proposal_id": 9,
@@ -768,7 +880,14 @@
           "power": 60
         }
       ],
-      "voters": []
+      "voters": [
+        {
+          "address": "g1aeddlftlfk27ret5rf750d7w5dume3kcsm8r8m",
+          "vote": "YES",
+          "tier": "T1",
+          "voting_power": 3
+        }
+      ]
     },
     {
       "proposal_id": 8,
@@ -791,7 +910,14 @@
           "power": 60
         }
       ],
-      "voters": []
+      "voters": [
+        {
+          "address": "g1aeddlftlfk27ret5rf750d7w5dume3kcsm8r8m",
+          "vote": "YES",
+          "tier": "T1",
+          "voting_power": 3
+        }
+      ]
     },
     {
       "proposal_id": 7,
@@ -814,7 +940,14 @@
           "power": 1
         }
       ],
-      "voters": []
+      "voters": [
+        {
+          "address": "g1aeddlftlfk27ret5rf750d7w5dume3kcsm8r8m",
+          "vote": "YES",
+          "tier": "T1",
+          "voting_power": 3
+        }
+      ]
     },
     {
       "proposal_id": 6,
@@ -837,7 +970,14 @@
           "power": 1
         }
       ],
-      "voters": []
+      "voters": [
+        {
+          "address": "g1aeddlftlfk27ret5rf750d7w5dume3kcsm8r8m",
+          "vote": "YES",
+          "tier": "T1",
+          "voting_power": 3
+        }
+      ]
     },
     {
       "proposal_id": 5,
@@ -860,7 +1000,14 @@
           "power": 1
         }
       ],
-      "voters": []
+      "voters": [
+        {
+          "address": "g1aeddlftlfk27ret5rf750d7w5dume3kcsm8r8m",
+          "vote": "YES",
+          "tier": "T1",
+          "voting_power": 3
+        }
+      ]
     },
     {
       "proposal_id": 4,
@@ -877,7 +1024,14 @@
       "abstain_percent": 0,
       "description": "",
       "validator_updates": [],
-      "voters": []
+      "voters": [
+        {
+          "address": "g1aeddlftlfk27ret5rf750d7w5dume3kcsm8r8m",
+          "vote": "YES",
+          "tier": "T1",
+          "voting_power": 3
+        }
+      ]
     },
     {
       "proposal_id": 3,
@@ -894,7 +1048,14 @@
       "abstain_percent": 0,
       "description": "",
       "validator_updates": [],
-      "voters": []
+      "voters": [
+        {
+          "address": "g1aeddlftlfk27ret5rf750d7w5dume3kcsm8r8m",
+          "vote": "YES",
+          "tier": "T1",
+          "voting_power": 3
+        }
+      ]
     },
     {
       "proposal_id": 2,
@@ -911,7 +1072,14 @@
       "abstain_percent": 0,
       "description": "",
       "validator_updates": [],
-      "voters": []
+      "voters": [
+        {
+          "address": "g1aeddlftlfk27ret5rf750d7w5dume3kcsm8r8m",
+          "vote": "YES",
+          "tier": "T1",
+          "voting_power": 3
+        }
+      ]
     },
     {
       "proposal_id": 1,
@@ -928,7 +1096,14 @@
       "abstain_percent": 0,
       "description": "",
       "validator_updates": [],
-      "voters": []
+      "voters": [
+        {
+          "address": "g1aeddlftlfk27ret5rf750d7w5dume3kcsm8r8m",
+          "vote": "YES",
+          "tier": "T1",
+          "voting_power": 3
+        }
+      ]
     },
     {
       "proposal_id": 0,
@@ -945,7 +1120,14 @@
       "abstain_percent": 0,
       "description": "",
       "validator_updates": [],
-      "voters": []
+      "voters": [
+        {
+          "address": "g1aeddlftlfk27ret5rf750d7w5dume3kcsm8r8m",
+          "vote": "YES",
+          "tier": "T1",
+          "voting_power": 3
+        }
+      ]
     }
   ]
 }
