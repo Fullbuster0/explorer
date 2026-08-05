@@ -26,20 +26,20 @@
       "provider": "BlockPI"
     },
     {
-      "address": "https://api.zetachain.nodestake.org",
-      "provider": "NodeStake"
-    },
-    {
-      "address": "https://rest.cosmos.directory/zetachain",
-      "provider": "cosmos.directory"
-    },
-    {
       "address": "https://zetachain-api.polkachu.com",
       "provider": "Polkachu"
     },
     {
+      "address": "https://zetachain-api.noders.services",
+      "provider": "[NODERS]TEAM"
+    },
+    {
       "address": "https://zeta.api.m.stavr.tech",
       "provider": "🔥STAVR🔥"
+    },
+    {
+      "address": "https://api.zetachain.nodestake.org",
+      "provider": "NodeStake"
     }
   ],
   "rpc": [
@@ -80,11 +80,7 @@
       "logo": "/logos/zetachain.png"
     }
   ],
-  "keplr_features": [
-    "ibc-go",
-    "ibc-transfer",
-    "no-legacy-stdTx"
-  ],
+  "keplr_features": ["ibc-go", "ibc-transfer", "no-legacy-stdTx"],
   "archived_api": [
     {
       "address": "https://zetachain-mainnet-archive.allthatnode.com:1317",

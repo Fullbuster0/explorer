@@ -25,16 +25,16 @@
       "provider": "Shazoes"
     },
     {
+      "address": "https://api.hippo-protocol.com",
+      "provider": "Hippo Protocol"
+    },
+    {
       "address": "https://hippo.api.nodeshub.online",
       "provider": "NodesHub"
     },
     {
       "address": "https://hippo-api.polkachu.com",
       "provider": "Polkachu"
-    },
-    {
-      "address": "https://api.hippo-protocol.com",
-      "provider": "Hippo Protocol"
     }
   ],
   "rpc": [
@@ -43,13 +43,14 @@
       "provider": "Shazoes"
     },
     {
-      "address": "https://hippo-rpc.polkachu.com",
-      "provider": "Polkachu"
-    },
-    {
       "address": "https://rpc.hippo-protocol.com",
       "provider": "Hippo Protocol"
     },
+    {
+      "address": "https://hippo-rpc.polkachu.com",
+      "provider": "Polkachu"
+    },
+
     {
       "address": "https://hippo.rpc.nodeshub.online",
       "provider": "NodesHub"
@@ -73,10 +74,5 @@
       "logo": "/logos/hippo-protocol.png"
     }
   ],
-  "keplr_features": [
-    "ibc-go",
-    "ibc-transfer",
-    "no-legacy-stdTx"
-  ]
-
+  "keplr_features": ["ibc-go", "ibc-transfer", "no-legacy-stdTx"]
 }

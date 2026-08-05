@@ -22,16 +22,16 @@
   "github": "https://github.com/terra-money/core",
   "api": [
     {
+      "address": "https://terra-api.polkachu.com:443",
+      "provider": "Polkachu"
+    },
+    {
       "address": "https://terra-mainnet-api.shazoes.xyz",
       "provider": "Shazoes"
     },
     {
       "address": "https://terra-rest.publicnode.com",
       "provider": "Allnodes ⚡️ Nodes & Staking"
-    },
-    {
-      "address": "https://rest.cosmos.directory/terra2",
-      "provider": "cosmos.directory"
     },
     {
       "address": "https://terra2.tdrsys.com",
@@ -44,6 +44,10 @@
   ],
   "rpc": [
     {
+      "address": "https://terra-rpc.polkachu.com:443",
+      "provider": "Polkachu"
+    },
+    {
       "address": "https://terra-mainnet-rpc.shazoes.xyz",
       "provider": "Shazoes"
     },
@@ -54,10 +58,6 @@
     {
       "address": "https://terra2.tdrsys.com:2053",
       "provider": "TdrSys"
-    },
-    {
-      "address": "https://terra-rpc.polkachu.com:443",
-      "provider": "Polkachu"
     },
     {
       "address": "https://terra-rpc.stakely.io:443",
@@ -80,11 +80,7 @@
       "logo": "/logos/terra.png"
     }
   ],
-  "keplr_features": [
-    "ibc-go",
-    "ibc-transfer",
-    "no-legacy-stdTx"
-  ],
+  "keplr_features": ["ibc-go", "ibc-transfer", "no-legacy-stdTx"],
   "archived_api": [
     {
       "address": "https://terra-api.polkachu.com",

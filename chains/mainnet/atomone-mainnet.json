@@ -43,12 +43,12 @@
   ],
   "archived_api": [
     {
-      "address": "https://atomone-mainnet-api.shazoes.xyz",
-      "provider": "Shazoes (Archive)"
-    },
-    {
       "address": "https://atomone-api.allinbits.com",
       "provider": "AllinBits (Archive)"
+    },
+    {
+      "address": "https://atomone-mainnet-api.itrocket.net",
+      "provider": "ITRocket (Archive)"
     }
   ],
   "rpc": [
@@ -99,10 +99,6 @@
       "logo": "/logos/atomone.png"
     }
   ],
-  "keplr_features": [
-    "ibc-go",
-    "ibc-transfer",
-    "no-legacy-stdTx"
-  ],
+  "keplr_features": ["ibc-go", "ibc-transfer", "no-legacy-stdTx"],
   "github": "https://github.com/atomone-hub/atomone"
 }

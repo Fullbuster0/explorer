@@ -35,6 +35,10 @@
     {
       "address": "https://cosmoshub-mainnet-api.itrocket.net",
       "provider": "ITRocket"
+    },
+    {
+      "address": "https://cosmoshub.rest.lava.build",
+      "provider": "Lava"
     }
   ],
   "archived_api": [
@@ -65,8 +69,8 @@
       "provider": "cosmosrescue"
     },
     {
-      "address": "https://cosmoshub.tendermintrpc.lava.build:443",
-      "provider": "Lava"
+      "address": "https://cosmos-rpc.publicnode.com:443",
+      "provider": "publicnode"
     }
   ],
   "snapshot_provider": "",
@@ -85,9 +89,5 @@
       "logo": "/logos/atom.png"
     }
   ],
-  "keplr_features": [
-    "ibc-go",
-    "ibc-transfer",
-    "no-legacy-stdTx"
-  ]
+  "keplr_features": ["ibc-go", "ibc-transfer", "no-legacy-stdTx"]
 }

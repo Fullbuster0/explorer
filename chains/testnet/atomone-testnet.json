@@ -21,6 +21,10 @@
   "discord": "https://discord.com/invite/atomone",
   "api": [
     {
+      "address": "https://atomone-testnet-1-api.allinbits.services",
+      "provider": "allinbits"
+    },
+    {
       "address": "https://atomone-testnet-api.itrocket.net",
       "provider": "itrocket"
     },
@@ -30,6 +34,10 @@
     }
   ],
   "rpc": [
+    {
+      "address": "https://atomone-testnet-1-rpc.allinbits.services",
+      "provider": "allinbits"
+    },
     {
       "address": "https://atomone-testnet-rpc.itrocket.net",
       "provider": "itrocket"
@@ -61,10 +69,6 @@
       "logo": "/logos/atomone.png"
     }
   ],
-  "keplr_features": [
-    "ibc-go",
-    "ibc-transfer",
-    "no-legacy-stdTx"
-  ],
+  "keplr_features": ["ibc-go", "ibc-transfer", "no-legacy-stdTx"],
   "github": "https://github.com/atomone-hub/atomone"
 }

@@ -24,32 +24,16 @@
   "coingecko": "",
   "api": [
     {
-      "address": "https://gnoland-testnet-rpc.shazoes.xyz",
-      "provider": "Shazoes"
-    },
-    {
       "address": "https://rpc.topaz.testnets.gno.land",
       "provider": "Official"
     },
     {
-      "address": "https://topaz-gnoland-rpc.noderuner.xyz",
-      "provider": "NodeRuneR"
-    },
-    {
-      "address": "https://gnoland-testnet-rpc.sr20de.xyz",
-      "provider": "SR20DE"
-    },
-    {
-      "address": "https://gnoland-testnet-rpc.doresa.xyz",
-      "provider": "Doresa"
+      "address": "https://gnoland-testnet-rpc.shazoes.xyz",
+      "provider": "Shazoes"
     },
     {
       "address": "https://gnoland-topaz-rpc.hazennetworksolutions.com",
       "provider": "Hazen"
-    },
-    {
-      "address": "https://gnoland-topaz-rpc.corenodehq.xyz",
-      "provider": "Corenode"
     },
     {
       "address": "https://gnoland-testnet-rpc.itrocket.net",
@@ -62,44 +46,20 @@
     {
       "address": "https://gnoland-topaz-rpc.oshvank.xyz",
       "provider": "OshVanK"
-    },
-    {
-      "address": "https://lightnode-rpc-gnoland.grandvalleys.com",
-      "provider": "Grand Valley"
-    },
-    {
-      "address": "https://gnoland-topaz-testnet-rpc.1xp.vc",
-      "provider": "1XP"
     }
   ],
   "rpc": [
     {
-      "address": "https://gnoland-testnet-rpc.shazoes.xyz",
-      "provider": "Shazoes"
-    },
-    {
       "address": "https://rpc.topaz.testnets.gno.land",
       "provider": "Official"
     },
     {
-      "address": "https://topaz-gnoland-rpc.noderuner.xyz",
-      "provider": "NodeRuneR"
-    },
-    {
-      "address": "https://gnoland-testnet-rpc.sr20de.xyz",
-      "provider": "SR20DE"
-    },
-    {
-      "address": "https://gnoland-testnet-rpc.doresa.xyz",
-      "provider": "Doresa"
+      "address": "https://gnoland-testnet-rpc.shazoes.xyz",
+      "provider": "Shazoes"
     },
     {
       "address": "https://gnoland-topaz-rpc.hazennetworksolutions.com",
       "provider": "Hazen"
-    },
-    {
-      "address": "https://gnoland-topaz-rpc.corenodehq.xyz",
-      "provider": "Corenode"
     },
     {
       "address": "https://gnoland-testnet-rpc.itrocket.net",
@@ -112,14 +72,6 @@
     {
       "address": "https://gnoland-topaz-rpc.oshvank.xyz",
       "provider": "OshVanK"
-    },
-    {
-      "address": "https://lightnode-rpc-gnoland.grandvalleys.com",
-      "provider": "Grand Valley"
-    },
-    {
-      "address": "https://gnoland-topaz-testnet-rpc.1xp.vc",
-      "provider": "1XP"
     }
   ],
   "snapshot_provider": "",

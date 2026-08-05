@@ -22,6 +22,10 @@
   "github": "https://github.com/lavanet/lava",
   "api": [
     {
+      "address": "https://lava-api.polkachu.com",
+      "provider": "Polkachu"
+    },
+    {
       "address": "https://lava.rest.lava.build",
       "provider": "Lava Over Lava"
     },
@@ -33,16 +37,17 @@
       "address": "https://lava.api.liveraven.net",
       "provider": "LiveRaveN"
     },
-    {
-      "address": "https://lava-api.polkachu.com",
-      "provider": "Polkachu"
-    },
+
     {
       "address": "https://lava-api.w3coins.io:443",
       "provider": "w3coins"
     }
   ],
   "rpc": [
+    {
+      "address": "https://lava-rpc.polkachu.com:443",
+      "provider": "Polkachu"
+    },
     {
       "address": "https://lava.rpc.stakevillage.net:443",
       "provider": "Stake Village"
@@ -54,10 +59,6 @@
     {
       "address": "https://lava.rpc.liveraven.net",
       "provider": "LiveRaveN"
-    },
-    {
-      "address": "https://lava-rpc.polkachu.com:443",
-      "provider": "Polkachu"
     },
     {
       "address": "https://lava-rpc.bluestake.net:443",
@@ -80,13 +81,9 @@
       "logo": "https://raw.githubusercontent.com/cosmos/chain-registry/master/lava/images/lava.png"
     }
   ],
-  "keplr_features": [
-    "ibc-go",
-    "ibc-transfer",
-    "no-legacy-stdTx"
-  ],
+  "keplr_features": ["ibc-go", "ibc-transfer", "no-legacy-stdTx"],
   "keplr_price_step": {
-    "low": 2e-05,
+    "low": 2e-5,
     "average": 0.025,
     "high": 0.05
   },
