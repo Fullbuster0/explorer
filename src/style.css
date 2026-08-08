@@ -327,11 +327,30 @@ html[data-theme='dark'] .sz-beam-2 {
   100% { transform: rotate(22deg) translateX(6%); opacity: 0.9; }
 }
 
-@media (prefers-reduced-motion: reduce), (max-width: 768px) {
-  .sz-aurora { display: none !important; }
+/* ---- Mobile: kill heavy aurora (rings/beams/sparks) but keep 3 static
+ * orbs as colored gradient — zero GPU cost (no animation, no transform,
+ * no will-change) yet the page still has visual warmth instead of flat. */
+@media (max-width: 768px) {
+  .sz-ring, .sz-beam, .sz-spark {
+    display: none !important;
+  }
+  .sz-aurora { overflow: hidden; }
+  /* keep only orbs a, b, c — the three biggest, most visible glows */
+  .sz-orb-d, .sz-orb-e, .sz-orb-f, .sz-orb-g, .sz-orb-h {
+    display: none !important;
+  }
+  .sz-orb {
+    animation: none !important;
+    will-change: auto !important;
+    opacity: 0.7 !important;
+  }
+}
+
+/* ---- Reduced motion (desktop): freeze animations but keep all orbs visible */
+@media (prefers-reduced-motion: reduce) {
   .sz-orb, .sz-ring, .sz-beam, .sz-spark {
     animation: none !important;
-    display: none !important;
+    will-change: auto !important;
   }
 }
 
