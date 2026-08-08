@@ -48,8 +48,13 @@ blockchain.$subscribe((m, s) => {
   }
   if (current.value != s.chainName) {
     current.value = s.chainName;
-    // chain switch — clear previous chain height so navbar doesn't lag
+    temp.value = ''; // clear stale endpoint so we don't trigger the endpoint-switch branch
+    // chain switch — clear previous chain state so navbar doesn't lag
     baseStore.resetBlockState();
+    // Reset connection phase immediately so user doesn't see "Reconnecting"
+    // from the previous chain lingering while the new probe runs.
+    blockchain.connPhase = 'ok';
+    blockchain.connErr = '';
     blockchain.randomSetupEndpoint();
   }
 });

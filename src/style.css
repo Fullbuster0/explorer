@@ -327,16 +327,11 @@ html[data-theme='dark'] .sz-beam-2 {
   100% { transform: rotate(22deg) translateX(6%); opacity: 0.9; }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .sz-orb,
-  .sz-ring,
-  .sz-beam,
-  .sz-spark {
+@media (prefers-reduced-motion: reduce), (max-width: 768px) {
+  .sz-aurora { display: none !important; }
+  .sz-orb, .sz-ring, .sz-beam, .sz-spark {
     animation: none !important;
-  }
-  .sz-ring,
-  .sz-spark {
-    display: none;
+    display: none !important;
   }
 }
 

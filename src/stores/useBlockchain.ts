@@ -82,6 +82,8 @@ export const useBlockchain = defineStore('blockchain', {
       justRecovered: false,
       /** How many auto-fallback sweeps ran since last healthy connect. */
       fallbackAttempts: 0,
+      /** Epoch guard: bumped on every chain switch so stale probes can't set connPhase. */
+      _setupEpoch: 0,
       // Declared in state so watchers (validator page power-events) react to it.
       // For Gno/TM2 chains this is a GnoTm2Client (same method surface).
       rpc: undefined as CosmosRestClient | GnoTm2Client | undefined,
@@ -1298,9 +1300,15 @@ export const useBlockchain = defineStore('blockchain', {
         return;
       }
 
+      // Epoch guard: if the user switches chain mid-probe, stale results
+      // from the previous chain must NOT mutate connPhase/endpoint.
+      const myEpoch = ++this._setupEpoch;
       this.connPhase = 'reconnecting';
+      const probeChain = this.chainName;
       try {
         const ranked = await this.rankRestEndpoints(4500);
+        // Stale probe guard: user may have switched chain while we waited
+        if (myEpoch !== this._setupEpoch || probeChain !== this.chainName) return;
         const tip = pickTipPeers(ranked);
 
         // Honor localStorage only if that peer is still a tip-quality host
@@ -1358,6 +1366,7 @@ export const useBlockchain = defineStore('blockchain', {
           this.connErr = "We can't reach the network right now. Please try again in a moment.";
         }
       } catch (e: any) {
+        if (myEpoch !== this._setupEpoch || probeChain !== this.chainName) return;
         console.warn('[explorer] randomSetupEndpoint rank failed', e?.message || e);
         // Degrade gracefully to legacy path
         const endpoint = this.randomEndpoint(this.chainName);
