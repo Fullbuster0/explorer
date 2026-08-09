@@ -424,6 +424,16 @@ const majorityPrecommitHash = computed(() => {
 });
 const hasHashDivergence = computed(() => voteHashes.value.prevote.size > 1 || voteHashes.value.precommit.size > 1);
 
+/** Precommit hash distribution: [{ hash, count, percent }] sorted by count desc */
+const hashDistribution = computed(() => {
+  const map = voteHashes.value.precommit.size > 0 ? voteHashes.value.precommit : voteHashes.value.prevote;
+  const total = [...map.values()].reduce((s, n) => s + n, 0);
+  if (total === 0) return [];
+  return [...map.entries()]
+    .map(([hash, count]) => ({ hash, count, percent: (count / total) * 100 }))
+    .sort((a, b) => b.count - a.count);
+});
+
 const filteredRows = computed(() => {
   let list = rows.value;
   if (showFilter.value === 'online') list = list.filter((r) => r.online);
@@ -793,6 +803,22 @@ function exportCsv() {
             <span class="text-slate-400">Validators</span>
             <b class="font-mono text-slate-200">{{ rows.length }}</b>
           </div>
+          <!-- hash distribution -->
+          <div v-if="hashDistribution.length > 0" class="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <span class="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Block Hash</span>
+            <span
+              v-for="(h, i) in hashDistribution.slice(0, 4)"
+              :key="h.hash"
+              class="inline-flex items-center gap-1.5"
+            >
+              <span
+                class="w-2 h-2 rounded-full"
+                :class="i === 0 ? 'bg-sky-400' : 'bg-rose-400'"
+              ></span>
+              <span class="font-mono text-[10px] text-slate-300" :title="h.hash">{{ shortHash(h.hash, 6) }}</span>
+              <b class="font-mono text-[10px]" :class="i === 0 ? 'text-sky-300' : 'text-rose-300'">{{ h.percent.toFixed(0) }}%</b>
+            </span>
+          </div>
           <div class="ml-auto flex items-center gap-2.5">
             <span class="text-[10px] font-bold uppercase tracking-[0.18em] text-amber-300">Proposer</span>
             <div class="flex items-center gap-2">
@@ -813,24 +839,6 @@ function exportCsv() {
     </section>
 
     <!-- ===== VALIDATOR SET ===== -->
-    <!-- Apphash divergence warning -->
-    <div
-      v-if="hasHashDivergence && rows.length > 0"
-      class="flex items-center gap-3 rounded-xl border border-rose-500/40 bg-rose-950/40 px-4 py-3"
-    >
-      <svg class="h-5 w-5 shrink-0 text-rose-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-      <div class="min-w-0">
-        <div class="text-sm font-bold text-rose-300">Consensus divergence detected</div>
-        <div class="text-xs text-rose-400/80">
-          {{ voteHashes.prevote.size }} different prevote hash{{ voteHashes.prevote.size > 1 ? 'es' : '' }}
-          · {{ voteHashes.precommit.size }} precommit hash{{ voteHashes.precommit.size > 1 ? 'es' : '' }}
-          — validators may be voting on different blocks (wrong apphash).
-        </div>
-      </div>
-    </div>
-
     <section class="overflow-hidden rounded-xl border border-base-300 bg-base-100 shadow-sm">
       <!-- toolbar -->
       <div class="flex flex-wrap items-center justify-between gap-3 border-b border-base-300 bg-base-200/60 px-4 py-3">
@@ -894,7 +902,7 @@ function exportCsv() {
             <tr
               v-for="r in filteredRows"
               :key="r.address"
-              :class="{ 'row-proposer': r.isProposer, 'row-offline': !r.online, 'row-divergent': r.precommitHash && majorityPrecommitHash && r.precommitHash !== majorityPrecommitHash }"
+              :class="{ 'row-proposer': r.isProposer, 'row-offline': !r.online }"
             >
               <td class="font-mono text-xs opacity-60">{{ r.rank }}</td>
               <td>
@@ -927,8 +935,7 @@ function exportCsv() {
               <td class="text-center hidden md:table-cell">
                 <span
                   v-if="r.precommitHash"
-                  class="font-mono text-[10px] tracking-tight"
-                  :class="r.precommitHash !== majorityPrecommitHash ? 'text-rose-400 font-bold' : 'text-slate-400'"
+                  class="font-mono text-[10px] tracking-tight text-slate-400"
                   :title="r.precommitHash"
                 >{{ shortHash(r.precommitHash) }}</span>
                 <span v-else-if="r.prevoteHash" class="font-mono text-[10px] tracking-tight text-sky-400/60" :title="r.prevoteHash">
@@ -1074,10 +1081,6 @@ function exportCsv() {
 .row-offline { opacity: 0.45; }
 .row-proposer {
   box-shadow: inset 3px 0 0 0 hsl(var(--wa));
-}
-.row-divergent {
-  background: rgba(244, 63, 94, 0.08) !important;
-  border-left: 3px solid #f43f5e;
 }
 
 /* ---- status dot ---- */
