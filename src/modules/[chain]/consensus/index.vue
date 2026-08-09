@@ -295,32 +295,47 @@ function isSigned(vote?: any): boolean {
   if (vote === undefined || vote === null) return false;
   return !String(vote).toLowerCase().includes('nil');
 }
-/** Extract block_id.hash from a vote. Tendermint votes are objects with
- *  { block_id: { hash, parts } } — nil votes have no hash. */
+/** Extract block hash prefix from a vote.
+ *  dump_consensus_state votes are strings like:
+ *    "Vote{0:8A948A32DC69 9810161/00/SIGNED_MSG_TYPE_PREVOTE(Prevote) 574ABC123DEF ... @ ...}"
+ *  nil votes are the string "nil-Vote".
+ *  We extract the hash prefix (first 6 hex chars after "Prevote) " or "Precommit) "). */
 function voteBlockHash(vote?: any): string {
   if (!vote) return '';
-  if (typeof vote === 'object') {
-    return String(vote?.block_id?.hash || '');
-  }
-  // String form (canonical/serialized): try JSON parse
   const s = String(vote);
   if (s.toLowerCase().includes('nil')) return '';
-  try {
-    const obj = JSON.parse(s);
-    return String(obj?.block_id?.hash || '');
-  } catch {
-    // Regex fallback
-    const m = s.match(/"hash"\s*:\s*"([0-9A-Fa-f]+)"/i);
-    return m ? m[1] : '';
+  // Try "Prevote) " or "Precommit) " format (dump_consensus_state)
+  const m = s.match(/(?:Prevote|Precommit\)\s+)([0-9A-Fa-f]{6,})/);
+  if (m) return m[1].slice(0, 6).toUpperCase();
+  // Object form (consensus_state — rare in modern TM)
+  if (typeof vote === 'object') {
+    return String(vote?.block_id?.hash || '').slice(0, 6).toUpperCase();
   }
+  return '';
 }
 function shortHash(h: string, len = 8): string {
   if (!h) return '—';
-  return h.length > len * 2 ? `${h.slice(0, len)}…${h.slice(-len)}` : h;
+  if (h.length <= len) return h;
+  return `${h.slice(0, len)}…`;
 }
 
 // ---- current vote set (match round, else best prevote rate) ----
+// dump_consensus_state puts live votes in round_state.votes[];
+// consensus_state puts them in height_vote_set[] (modern TM: all "nil-Vote").
 const currentVoteSet = computed(() => {
+  // Prefer dump_consensus_state's `votes` array (has real hash strings)
+  const dumpVotes = roundState.value?.votes;
+  if (Array.isArray(dumpVotes) && dumpVotes.length > 0) {
+    const r = Number(round.value);
+    const match = dumpVotes.find((x: any) => Number(x.round) === r);
+    if (match) return match;
+    return dumpVotes.reduce(
+      (best: any, x: any) =>
+        parseBitArrayRate(x.prevotes_bit_array) > parseBitArrayRate(best.prevotes_bit_array) ? x : best,
+      dumpVotes[0]
+    );
+  }
+  // Fallback: consensus_state height_vote_set (TM2 synthetic, etc.)
   const set = roundState.value?.height_vote_set;
   if (!Array.isArray(set) || set.length === 0) return null;
   const r = Number(round.value);
@@ -604,7 +619,22 @@ async function synthesizeTm2RoundState(base: string) {
 async function update() {
   if (!rpc.value) return;
   try {
-    const data = await fetch(`${rpc.value}/consensus_state`);
+    // Primary: dump_consensus_state (exposes vote hash strings via votes[])
+    let data = await fetch(`${rpc.value}/dump_consensus_state`);
+    httpstatus.value = data.status;
+    httpStatusText.value = data.statusText;
+    if (data.ok) {
+      const res = await data.json();
+      roundState.value = res?.result?.round_state || {};
+      tm2Synthetic.value = false;
+      const raw = String(roundState.value?.['height/round/step'] || '').split('/');
+      height.value = raw[0] || '';
+      round.value = raw[1] || '0';
+      step.value = raw[2] || '';
+      return;
+    }
+    // Fallback: consensus_state (modern TM, votes are all nil-Vote)
+    data = await fetch(`${rpc.value}/consensus_state`);
     httpstatus.value = data.status;
     httpStatusText.value = data.statusText;
     if (!data.ok) {
@@ -613,7 +643,6 @@ async function update() {
     }
     const res = await data.json();
     let rs = res?.result?.round_state || {};
-    // TM2: height_vote_set is {} (object) not an array — synthesize from dump+block.
     const hvs = rs.height_vote_set;
     const hvsEmpty =
       !hvs ||
@@ -654,7 +683,7 @@ async function fallbackRpc() {
   const order = tip.length ? tip : ranked.filter((r) => r.ok && r.address !== current);
   for (const ep of order) {
     try {
-      const probe = await fetch(`${ep.address}/consensus_state`);
+      const probe = await fetch(`${ep.address}/dump_consensus_state`);
       if (probe.ok) {
         rpc.value = ep.address;
         httpstatus.value = 200;
