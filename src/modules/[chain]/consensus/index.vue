@@ -32,7 +32,17 @@ let loading = false;
 let started = false;
 /** Supersede concurrent startMonitor runs (endpoint swap / SPA remount). */
 let monitorGen = 0;
-const positions = ref([] as any[]);
+/** Persist last known vote hash + signed status per validator so it doesn't vanish during step 1 (NewHeight). */
+const lastValidatorHashes: Record<string, { prevoteHash?: string; precommitHash?: string; prevoteSigned?: boolean; precommitSigned?: boolean }> = {};
+/** Active validator set — derived from roundState.value.validators.validators
+ *  to guarantee index alignment with votes[].prevotes/precommits arrays.
+ *  Falls back to /validators endpoint (committed set) if dump_consensus_state unavailable. */
+const validatorsFallback = ref([] as any[]);
+const positions = computed(() => {
+  const rsVals = roundState.value?.validators?.validators;
+  if (Array.isArray(rsVals) && rsVals.length > 0) return rsVals;
+  return validatorsFallback.value;
+});
 const validatorsData = ref([] as any);
 
 // ---- UI state (NodesHub-style) ----
@@ -197,7 +207,9 @@ async function startMonitor() {
     }
     if (ok) {
       clearTime();
-      timer = setInterval(() => update(), Math.max(1000, Math.round(baseStore.blocktime / 2) || 3000));
+      // Poll fast (500ms) — consensus voting phase (step 4-6) is only ~1s in a 1s block.
+      // Slower polling catches only step 1 (NewHeight) where all votes are nil.
+      timer = setInterval(() => update(), 500);
     } else {
       if (httpstatus.value === 200) httpstatus.value = 503;
       if (!httpStatusText.value) {
@@ -246,7 +258,7 @@ watch(
     clearTime();
     started = false;
     loading = false; // unlock any stuck in-flight startMonitor
-    positions.value = [];
+    validatorsFallback.value = [];
     roundState.value = {};
     await startMonitor();
   }
@@ -304,12 +316,14 @@ function voteBlockHash(vote?: any): string {
   if (!vote) return '';
   const s = String(vote);
   if (s.toLowerCase().includes('nil')) return '';
-  // Try "Prevote) " or "Precommit) " format (dump_consensus_state)
-  const m = s.match(/(?:Prevote|Precommit\)\s+)([0-9A-Fa-f]{6,})/);
-  if (m) return m[1].slice(0, 6).toUpperCase();
+  // dump_consensus_state vote strings:
+  //   "Vote{0:8A948A32DC69 9810161/00/SIGNED_MSG_TYPE_PREVOTE(Prevote) 5384C09C597D 000000000000 @ ...}"
+  // Northa/consensus extracts: prevote.split("Prevote) ")[1].split(" ")[0][:3]
+  const m = s.match(/(?:Prevote\)|Precommit\))\s+([0-9A-Fa-f]{6,})/);
+  if (m) return m[1].slice(0, 3).toUpperCase();
   // Object form (consensus_state — rare in modern TM)
   if (typeof vote === 'object') {
-    return String(vote?.block_id?.hash || '').slice(0, 6).toUpperCase();
+    return String(vote?.block_id?.hash || '').slice(0, 3).toUpperCase();
   }
   return '';
 }
@@ -371,7 +385,11 @@ const rows = computed<Row[]>(() => {
   const vs = currentVoteSet.value;
   const totalVP = positions.value.reduce((s: number, p: any) => s + Number(p.voting_power || 0), 0);
   // Gno TM2: proposer.address is bech32; Cosmos: often hex. Compare case-insensitively raw.
-  const proposerAddr = String(roundState.value?.proposer?.address || '');
+  // dump_consensus_state stores proposer at validators.proposer (NOT top-level proposer)
+  const proposerAddr = String(
+    roundState.value?.validators?.proposer?.address ||
+    roundState.value?.proposer?.address || ''
+  );
   const built = positions.value.map((p: any, i: number) => {
     const addr = String(p.address || '');
     const addrU = addr.toUpperCase();
@@ -381,6 +399,18 @@ const rows = computed<Row[]>(() => {
     });
     const prevote = vs?.prevotes?.[i];
     const precommit = vs?.precommits?.[i];
+    const pvHash = voteBlockHash(prevote);
+    const pcHash = voteBlockHash(precommit);
+    const pvSigned = isSigned(prevote);
+    const pcSigned = isSigned(precommit);
+    // Persist last known hash + signed status per validator so it doesn't vanish during step 1 (NewHeight)
+    const lastPv = pvHash || lastValidatorHashes[addr]?.prevoteHash || '';
+    const lastPc = pcHash || lastValidatorHashes[addr]?.precommitHash || '';
+    // Persist signed status: if validator voted ✓ in last round, keep showing ✓ until new round data arrives
+    const lastPvSigned = pvSigned || lastValidatorHashes[addr]?.prevoteSigned || false;
+    const lastPcSigned = pcSigned || lastValidatorHashes[addr]?.precommitSigned || false;
+    if (pvHash || pvSigned) lastValidatorHashes[addr] = { ...lastValidatorHashes[addr], prevoteHash: pvHash || lastValidatorHashes[addr]?.prevoteHash, prevoteSigned: pvSigned || lastValidatorHashes[addr]?.prevoteSigned };
+    if (pcHash || pcSigned) lastValidatorHashes[addr] = { ...lastValidatorHashes[addr], precommitHash: pcHash || lastValidatorHashes[addr]?.precommitHash, precommitSigned: pcSigned || lastValidatorHashes[addr]?.precommitSigned };
     return {
       consensusIndex: i,
       rank: 0,
@@ -389,11 +419,12 @@ const rows = computed<Row[]>(() => {
       identity: val?.description?.identity || lookupGnoValoper(addr)?.identity || '',
       votingPower: Number(p.voting_power || 0),
       vpPercent: totalVP > 0 ? (Number(p.voting_power || 0) / totalVP) * 100 : 0,
-      prevote,
-      precommit,
-      prevoteHash: voteBlockHash(prevote),
-      precommitHash: voteBlockHash(precommit),
-      online: isSigned(prevote),
+      // Use persisted signed status so ✓ doesn't reset to nil every new height
+      prevote: lastPvSigned ? 'TM2-COMMIT' : 'nil-Vote',
+      precommit: lastPcSigned ? 'TM2-COMMIT' : 'nil-Vote',
+      prevoteHash: lastPv,
+      precommitHash: lastPc,
+      online: lastPvSigned || (!!lastPv),
       isProposer:
         proposerAddr !== '' &&
         (proposerAddr === addr || proposerAddr.toUpperCase() === addrU),
@@ -439,14 +470,27 @@ const majorityPrecommitHash = computed(() => {
 });
 const hasHashDivergence = computed(() => voteHashes.value.prevote.size > 1 || voteHashes.value.precommit.size > 1);
 
-/** Precommit hash distribution: [{ hash, count, percent }] sorted by count desc */
+/** Hash distribution weighted by voting power (like Northa/consensus).
+ *  Groups validators by their precommit hash (fallback prevote), sums VP%.
+ *  nil-Vote validators are included as "nil-Vote" bucket.
+ *  Persists last non-nil distribution so UI doesn't go blank during step 1 (NewHeight). */
+let lastHashDistribution: any[] = [];
 const hashDistribution = computed(() => {
-  const map = voteHashes.value.precommit.size > 0 ? voteHashes.value.precommit : voteHashes.value.prevote;
-  const total = [...map.values()].reduce((s, n) => s + n, 0);
-  if (total === 0) return [];
-  return [...map.entries()]
-    .map(([hash, count]) => ({ hash, count, percent: (count / total) * 100 }))
-    .sort((a, b) => b.count - a.count);
+  const map = new Map<string, number>();
+  for (const r of rows.value) {
+    const h = r.precommitHash || r.prevoteHash || 'nil-Vote';
+    map.set(h, (map.get(h) || 0) + r.vpPercent);
+  }
+  const result = [...map.entries()]
+    .map(([hash, percent]) => ({ hash, count: 0, percent }))
+    .sort((a, b) => b.percent - a.percent);
+  // If current round has no real votes (all nil), keep showing last non-nil distribution
+  const hasRealVotes = result.some(r => r.hash !== 'nil-Vote' && r.percent > 0);
+  if (hasRealVotes) {
+    lastHashDistribution = result;
+    return result;
+  }
+  return lastHashDistribution.length > 0 ? lastHashDistribution : result;
 });
 
 const filteredRows = computed(() => {
@@ -471,15 +515,15 @@ async function refetch() {
   httpstatus.value = 200;
   httpStatusText.value = '';
   roundState.value = {};
-  positions.value = [];
+  validatorsFallback.value = [];
   clearTime();
   try {
+    // Call update() first to populate roundState.value (has active validator set)
+    await update();
     await fetchPosition();
     if (httpstatus.value === 200 && positions.value.length > 0) {
-      await update();
-      if (httpstatus.value === 200) {
-        timer = setInterval(() => update(), Math.max(1000, Math.round(baseStore.blocktime / 2) || 3000));
-      }
+      // Start polling — 500ms to catch voting phase (step 4-6, ~1s window)
+      timer = setInterval(() => update(), 500);
     }
   } finally {
     loading = false;
@@ -489,11 +533,21 @@ async function fetchPosition() {
   if (!rpc.value) {
     httpstatus.value = 0;
     httpStatusText.value = 'No RPC selected';
-    positions.value = [];
+    validatorsFallback.value = [];
     return;
   }
   const base = rpc.value;
   try {
+    // positions computed derives from roundState.value.validators.validators automatically.
+    // Only need to fetch /validators as fallback when roundState has no validators.
+    const rs = roundState.value;
+    const rsValidators = rs?.validators?.validators;
+    if (Array.isArray(rsValidators) && rsValidators.length > 0) {
+      httpstatus.value = 200;
+      httpStatusText.value = 'OK (from dump_consensus_state)';
+      return;
+    }
+    // Fallback: /validators endpoint (committed set)
     const all: any[] = [];
     let page = 1;
     let total = 0;
@@ -502,7 +556,7 @@ async function fetchPosition() {
       if (!res.ok) {
         httpstatus.value = res.status;
         httpStatusText.value = res.statusText || `HTTP ${res.status}`;
-        positions.value = [];
+        validatorsFallback.value = [];
         return;
       }
       const data = await res.json();
@@ -511,7 +565,7 @@ async function fetchPosition() {
       all.push(...vals);
       page++;
     } while (all.length < total && page <= 10);
-    positions.value = all;
+    validatorsFallback.value = all;
     if (all.length === 0) {
       httpstatus.value = 204;
       httpStatusText.value = '/validators returned empty set';
@@ -522,7 +576,7 @@ async function fetchPosition() {
   } catch (error: any) {
     httpstatus.value = error?.status || 500;
     httpStatusText.value = error?.message || String(error) || 'Error fetching /validators';
-    positions.value = [];
+    validatorsFallback.value = [];
   }
 }
 /**
@@ -627,10 +681,13 @@ async function update() {
       const res = await data.json();
       roundState.value = res?.result?.round_state || {};
       tm2Synthetic.value = false;
-      const raw = String(roundState.value?.['height/round/step'] || '').split('/');
-      height.value = raw[0] || '';
-      round.value = raw[1] || '0';
-      step.value = raw[2] || '';
+      // dump_consensus_state returns height/round/step as separate fields
+      // (NOT the combined "height/round/step" string which is empty in TM 0.38+)
+      const rs = roundState.value;
+      const newH = String(rs?.height ?? (rs?.['height/round/step'] || '').split('/')[0] ?? '');
+      height.value = newH;
+      round.value = String(rs?.round ?? (rs?.['height/round/step'] || '').split('/')[1] ?? '0');
+      step.value = String(rs?.step ?? (rs?.['height/round/step'] || '').split('/')[2] ?? '');
       return;
     }
     // Fallback: consensus_state (modern TM, votes are all nil-Vote)
@@ -656,9 +713,10 @@ async function update() {
     }
     roundState.value = rs;
     const raw = String(roundState.value?.['height/round/step'] || '').split('/');
-    height.value = raw[0] || '';
-    round.value = raw[1] || '0';
-    step.value = raw[2] || '';
+    // dump_consensus_state: height/round/step as separate fields OR combined string
+    height.value = String(rs?.height ?? raw[0] ?? '');
+    round.value = String(rs?.round ?? raw[1] ?? '0');
+    step.value = String(rs?.step ?? raw[2] ?? '');
   } catch (err: any) {
     httpstatus.value = 500;
     httpStatusText.value = err?.message || String(err);
@@ -832,20 +890,20 @@ function exportCsv() {
             <span class="text-slate-400">Validators</span>
             <b class="font-mono text-slate-200">{{ rows.length }}</b>
           </div>
-          <!-- hash distribution -->
+          <!-- hash distribution (Northa/consensus style) -->
           <div v-if="hashDistribution.length > 0" class="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <span class="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Block Hash</span>
+            <span class="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Consensus</span>
             <span
-              v-for="(h, i) in hashDistribution.slice(0, 4)"
+              v-for="(h, i) in hashDistribution.slice(0, 5)"
               :key="h.hash"
               class="inline-flex items-center gap-1.5"
             >
               <span
                 class="w-2 h-2 rounded-full"
-                :class="i === 0 ? 'bg-sky-400' : 'bg-rose-400'"
+                :class="h.hash === 'nil-Vote' ? 'bg-rose-400' : (i === 0 ? 'bg-sky-400' : 'bg-emerald-400')"
               ></span>
-              <span class="font-mono text-[10px] text-slate-300" :title="h.hash">{{ shortHash(h.hash, 6) }}</span>
-              <b class="font-mono text-[10px]" :class="i === 0 ? 'text-sky-300' : 'text-rose-300'">{{ h.percent.toFixed(0) }}%</b>
+              <span class="font-mono text-[10px] text-slate-300">{{ h.hash === 'nil-Vote' ? 'nil-Vote' : 'hash ' + h.hash }}</span>
+              <b class="font-mono text-[10px]" :class="h.hash === 'nil-Vote' ? 'text-rose-300' : 'text-sky-300'">{{ h.percent.toFixed(1) }}%</b>
             </span>
           </div>
           <div class="ml-auto flex items-center gap-2.5">
@@ -921,10 +979,10 @@ function exportCsv() {
             <tr>
               <th class="w-12">#</th>
               <th>Validator</th>
+              <th class="text-center">Hash</th>
               <th class="text-right">Voting Power</th>
               <th class="text-center">Prevote</th>
               <th class="text-center">Precommit</th>
-              <th class="text-center hidden md:table-cell">Voted Hash</th>
             </tr>
           </thead>
           <tbody>
@@ -945,6 +1003,15 @@ function exportCsv() {
                   <span v-if="r.isProposer" class="badge badge-warning badge-xs shrink-0 font-bold">P</span>
                 </div>
               </td>
+              <td class="text-center">
+                <span
+                  v-if="r.precommitHash || r.prevoteHash"
+                  class="font-mono text-[10px] tracking-tight"
+                  :class="r.precommitHash ? 'text-slate-300' : 'text-sky-400/60'"
+                  :title="r.precommitHash || r.prevoteHash"
+                >{{ r.precommitHash || r.prevoteHash }}</span>
+                <span v-else class="text-slate-600 text-xs">—</span>
+              </td>
               <td class="text-right">
                 <div class="flex items-center justify-end gap-2">
                   <div class="vp-track hidden sm:block">
@@ -960,17 +1027,6 @@ function exportCsv() {
               <td class="text-center">
                 <span v-if="isSigned(r.precommit)" class="vote-chip vote-chip--yes">✓</span>
                 <span v-else class="vote-chip vote-chip--no">nil</span>
-              </td>
-              <td class="text-center hidden md:table-cell">
-                <span
-                  v-if="r.precommitHash"
-                  class="font-mono text-[10px] tracking-tight text-slate-400"
-                  :title="r.precommitHash"
-                >{{ shortHash(r.precommitHash) }}</span>
-                <span v-else-if="r.prevoteHash" class="font-mono text-[10px] tracking-tight text-sky-400/60" :title="r.prevoteHash">
-                  {{ shortHash(r.prevoteHash) }}
-                </span>
-                <span v-else class="text-slate-600 text-xs">—</span>
               </td>
             </tr>
           </tbody>
