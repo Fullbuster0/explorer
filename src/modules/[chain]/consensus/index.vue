@@ -27,6 +27,12 @@ const height = ref('');
 const round = ref('');
 const step = ref('');
 const tm2Synthetic = ref(false);
+/** Validators that signed the last committed block (from /block last_commit).
+ *  Used to cross-reference online/offline status — dump_consensus_state may
+ *  show nil votes for validators that ARE actually signing (e.g. POSTHUMAN on
+ *  AtomOne). This set is populated by fetchLastCommitSigners() and checked
+ *  in the `online` field of rows. */
+const lastCommitSigners = ref(new Set<string>());
 let timer: any = null;
 let loading = false;
 let started = false;
@@ -424,7 +430,7 @@ const rows = computed<Row[]>(() => {
       precommit: lastPcSigned ? 'TM2-COMMIT' : 'nil-Vote',
       prevoteHash: lastPv,
       precommitHash: lastPc,
-      online: lastPvSigned || (!!lastPv),
+      online: lastPvSigned || (!!lastPv) || lastCommitSigners.value.has(addrU),
       isProposer:
         proposerAddr !== '' &&
         (proposerAddr === addr || proposerAddr.toUpperCase() === addrU),
@@ -670,6 +676,32 @@ async function synthesizeTm2RoundState(base: string) {
   };
 }
 
+/** Fetch /block and extract last_commit signers — validators that actually
+ *  signed (precommitted) the previous block. This is the ground truth for
+ *  online/offline status, more reliable than dump_consensus_state which may
+ *  show nil for validators that ARE signing. */
+async function fetchLastCommitSigners(base: string) {
+  try {
+    const res = await fetch(`${base}/block`);
+    if (!res.ok) return;
+    const data = await res.json();
+    const sigs = data?.result?.block?.last_commit?.signatures || [];
+    const signers = new Set<string>();
+    for (const sig of sigs) {
+      if (!sig) continue;
+      // block_id_flag: 2 = COMMIT (signed), 1 = ABSENT, 3 = NIL
+      const flag = sig.block_id_flag ?? sig.block_id_flag;
+      const addr = String(sig.validator_address || '').trim().toUpperCase();
+      if (flag === 2 && addr) {
+        signers.add(addr);
+      }
+    }
+    lastCommitSigners.value = signers;
+  } catch {
+    /* ignore — keep previous set */
+  }
+}
+
 async function update() {
   if (!rpc.value) return;
   try {
@@ -688,6 +720,8 @@ async function update() {
       height.value = newH;
       round.value = String(rs?.round ?? (rs?.['height/round/step'] || '').split('/')[1] ?? '0');
       step.value = String(rs?.step ?? (rs?.['height/round/step'] || '').split('/')[2] ?? '');
+      // Cross-reference last_commit signers for accurate online/offline status
+      fetchLastCommitSigners(rpc.value);
       return;
     }
     // Fallback: consensus_state (modern TM, votes are all nil-Vote)
@@ -1033,19 +1067,6 @@ function exportCsv() {
         </table>
       </div>
     </section>
-
-    <!-- tips -->
-    <details class="rounded-xl border border-base-300 bg-base-100 shadow-sm">
-      <summary class="cursor-pointer select-none px-4 py-3 text-sm font-semibold opacity-80 hover:opacity-100">
-        {{ $t('consensus.tips') }}
-      </summary>
-      <div class="border-t border-base-300 px-5 py-4 text-sm opacity-80">
-        <ul class="list-disc space-y-1 pl-5">
-          <li>{{ $t('consensus.tips_description_1') }}</li>
-          <li>{{ $t('consensus.tips_description_2') }}</li>
-        </ul>
-      </div>
-    </details>
   </div>
 </template>
 
