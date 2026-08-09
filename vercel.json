@@ -1,8 +1,8 @@
 {
-  "buildCommand": "yarn build-only",
+  "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "framework": "vite",
-  "installCommand": "yarn install --frozen-lockfile",
+  "installCommand": "npm install",
   "rewrites": [
     {
       "source": "/vote-api/:path*",
