@@ -34,9 +34,6 @@ const isTest = computed(() => {
     :to="`/${name}`"
     class="sz-chain-card group relative flex items-center gap-3.5 rounded-xl border px-3.5 py-3.5 transition"
   >
-    <!-- signature left accent rail -->
-    <span class="sz-rail" aria-hidden="true"></span>
-
     <div class="sz-chain-logo relative flex-shrink-0">
       <img
         :src="conf.logo"
@@ -73,36 +70,15 @@ const isTest = computed(() => {
 </template>
 
 <style scoped>
-/* Frosted tile — the animated block field shows through behind it */
+/* Solid matte card — clean, no glassmorphism, no rail */
 .sz-chain-card {
-  /* solid-ish card — no per-tile backdrop-filter (N cards × blur = scroll jank) */
-  background: color-mix(in srgb, hsl(var(--b1)) 96%, transparent);
+  background: hsl(var(--b1));
   border-color: var(--sz-border);
   box-shadow: 0 1px 2px color-mix(in srgb, hsl(var(--bc)) 5%, transparent);
-  overflow: hidden;
 }
 .sz-chain-card:hover {
-  border-color: color-mix(in srgb, hsl(var(--p)) 45%, var(--sz-border));
-  transform: translateY(-3px);
-  box-shadow: 0 16px 32px -18px var(--sz-glow);
-}
-
-/* Shazoes signature: a short primary rail on the left edge */
-.sz-rail {
-  position: absolute;
-  left: 0;
-  top: 18%;
-  bottom: 18%;
-  width: 3px;
-  border-radius: 0 3px 3px 0;
-  background: linear-gradient(180deg, hsl(var(--p)), color-mix(in srgb, hsl(var(--p)) 30%, transparent));
-  opacity: 0.55;
-  transition: opacity 0.18s ease, top 0.18s ease, bottom 0.18s ease;
-}
-.sz-chain-card:hover .sz-rail {
-  opacity: 1;
-  top: 10%;
-  bottom: 10%;
+  border-color: color-mix(in srgb, hsl(var(--p)) 35%, var(--sz-border));
+  box-shadow: 0 4px 12px -6px var(--sz-glow);
 }
 
 .sz-netbadge {
@@ -124,18 +100,5 @@ const isTest = computed(() => {
   color: var(--sz-warn);
   background: color-mix(in srgb, var(--sz-warn) 12%, transparent);
   border-color: color-mix(in srgb, var(--sz-warn) 28%, transparent);
-}
-
-.sz-chain-logo::after {
-  content: '';
-  position: absolute;
-  inset: -3px;
-  border-radius: 999px;
-  border: 1px solid color-mix(in srgb, hsl(var(--p)) 55%, transparent);
-  opacity: 0;
-  transition: opacity 0.15s ease;
-}
-.sz-chain-card:hover .sz-chain-logo::after {
-  opacity: 1;
 }
 </style>

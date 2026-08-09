@@ -291,8 +291,32 @@ function parseBitArrayRate(s?: string): number {
   const m = raw.match(/([0-9]*\.?[0-9]+)\s*$/);
   return m ? parseFloat(m[1]) : 0;
 }
-function isSigned(vote?: string): boolean {
-  return vote !== undefined && vote !== null && !String(vote).toLowerCase().includes('nil');
+function isSigned(vote?: any): boolean {
+  if (vote === undefined || vote === null) return false;
+  return !String(vote).toLowerCase().includes('nil');
+}
+/** Extract block_id.hash from a vote. Tendermint votes are objects with
+ *  { block_id: { hash, parts } } — nil votes have no hash. */
+function voteBlockHash(vote?: any): string {
+  if (!vote) return '';
+  if (typeof vote === 'object') {
+    return String(vote?.block_id?.hash || '');
+  }
+  // String form (canonical/serialized): try JSON parse
+  const s = String(vote);
+  if (s.toLowerCase().includes('nil')) return '';
+  try {
+    const obj = JSON.parse(s);
+    return String(obj?.block_id?.hash || '');
+  } catch {
+    // Regex fallback
+    const m = s.match(/"hash"\s*:\s*"([0-9A-Fa-f]+)"/i);
+    return m ? m[1] : '';
+  }
+}
+function shortHash(h: string, len = 8): string {
+  if (!h) return '—';
+  return h.length > len * 2 ? `${h.slice(0, len)}…${h.slice(-len)}` : h;
 }
 
 // ---- current vote set (match round, else best prevote rate) ----
@@ -323,6 +347,8 @@ interface Row {
   vpPercent: number;
   prevote?: string;
   precommit?: string;
+  prevoteHash: string;
+  precommitHash: string;
   online: boolean;
   isProposer: boolean;
 }
@@ -350,6 +376,8 @@ const rows = computed<Row[]>(() => {
       vpPercent: totalVP > 0 ? (Number(p.voting_power || 0) / totalVP) * 100 : 0,
       prevote,
       precommit,
+      prevoteHash: voteBlockHash(prevote),
+      precommitHash: voteBlockHash(precommit),
       online: isSigned(prevote),
       isProposer:
         proposerAddr !== '' &&
@@ -369,6 +397,32 @@ const proposerRow = computed(() => rows.value.find((r) => r.isProposer));
 
 const prevoteSigned = computed(() => currentVoteSet.value?.prevotes?.filter((v: any) => isSigned(v)).length || 0);
 const precommitSigned = computed(() => currentVoteSet.value?.precommits?.filter((v: any) => isSigned(v)).length || 0);
+
+/** Detect apphash divergence — different block hashes in the same round */
+const voteHashes = computed(() => {
+  const vs = currentVoteSet.value;
+  if (!vs) return { prevote: new Map<string, number>(), precommit: new Map<string, number>() };
+  const pv = new Map<string, number>();
+  const pc = new Map<string, number>();
+  (vs.prevotes || []).forEach((v: any) => {
+    const h = voteBlockHash(v);
+    if (h) pv.set(h, (pv.get(h) || 0) + 1);
+  });
+  (vs.precommits || []).forEach((v: any) => {
+    const h = voteBlockHash(v);
+    if (h) pc.set(h, (pc.get(h) || 0) + 1);
+  });
+  return { prevote: pv, precommit: pc };
+});
+const majorityPrevoteHash = computed(() => {
+  const m = [...voteHashes.value.prevote.entries()].sort((a, b) => b[1] - a[1])[0];
+  return m ? m[0] : '';
+});
+const majorityPrecommitHash = computed(() => {
+  const m = [...voteHashes.value.precommit.entries()].sort((a, b) => b[1] - a[1])[0];
+  return m ? m[0] : '';
+});
+const hasHashDivergence = computed(() => voteHashes.value.prevote.size > 1 || voteHashes.value.precommit.size > 1);
 
 const filteredRows = computed(() => {
   let list = rows.value;
@@ -605,7 +659,7 @@ async function fallbackRpc() {
   }
 }
 function exportCsv() {
-  const header = ['Rank', 'Moniker', 'Address', 'VotingPower', 'VP%', 'Online', 'Prevote', 'Precommit'];
+  const header = ['Rank', 'Moniker', 'Address', 'VotingPower', 'VP%', 'Online', 'Prevote', 'PrevoteHash', 'Precommit', 'PrecommitHash'];
   // Moniker is validator-controlled on-chain free text. A leading = + - @ (or
   // tab/CR) makes Excel/LibreOffice evaluate the cell as a formula even when
   // CSV-quoted (CSV formula injection → e.g. =cmd|'/C calc'!A0). Prefix a single
@@ -624,7 +678,9 @@ function exportCsv() {
       r.vpPercent.toFixed(2),
       r.online ? 'yes' : 'no',
       isSigned(r.prevote) ? 'signed' : 'nil',
+      r.prevoteHash || '',
       isSigned(r.precommit) ? 'signed' : 'nil',
+      r.precommitHash || '',
     ].join(',')
   );
   const blob = new Blob([[header.join(','), ...lines].join('\n')], { type: 'text/csv' });
@@ -757,6 +813,24 @@ function exportCsv() {
     </section>
 
     <!-- ===== VALIDATOR SET ===== -->
+    <!-- Apphash divergence warning -->
+    <div
+      v-if="hasHashDivergence && rows.length > 0"
+      class="flex items-center gap-3 rounded-xl border border-rose-500/40 bg-rose-950/40 px-4 py-3"
+    >
+      <svg class="h-5 w-5 shrink-0 text-rose-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <div class="min-w-0">
+        <div class="text-sm font-bold text-rose-300">Consensus divergence detected</div>
+        <div class="text-xs text-rose-400/80">
+          {{ voteHashes.prevote.size }} different prevote hash{{ voteHashes.prevote.size > 1 ? 'es' : '' }}
+          · {{ voteHashes.precommit.size }} precommit hash{{ voteHashes.precommit.size > 1 ? 'es' : '' }}
+          — validators may be voting on different blocks (wrong apphash).
+        </div>
+      </div>
+    </div>
+
     <section class="overflow-hidden rounded-xl border border-base-300 bg-base-100 shadow-sm">
       <!-- toolbar -->
       <div class="flex flex-wrap items-center justify-between gap-3 border-b border-base-300 bg-base-200/60 px-4 py-3">
@@ -813,13 +887,14 @@ function exportCsv() {
               <th class="text-right">Voting Power</th>
               <th class="text-center">Prevote</th>
               <th class="text-center">Precommit</th>
+              <th class="text-center hidden md:table-cell">Voted Hash</th>
             </tr>
           </thead>
           <tbody>
             <tr
               v-for="r in filteredRows"
               :key="r.address"
-              :class="{ 'row-proposer': r.isProposer, 'row-offline': !r.online }"
+              :class="{ 'row-proposer': r.isProposer, 'row-offline': !r.online, 'row-divergent': r.precommitHash && majorityPrecommitHash && r.precommitHash !== majorityPrecommitHash }"
             >
               <td class="font-mono text-xs opacity-60">{{ r.rank }}</td>
               <td>
@@ -848,6 +923,18 @@ function exportCsv() {
               <td class="text-center">
                 <span v-if="isSigned(r.precommit)" class="vote-chip vote-chip--yes">✓</span>
                 <span v-else class="vote-chip vote-chip--no">nil</span>
+              </td>
+              <td class="text-center hidden md:table-cell">
+                <span
+                  v-if="r.precommitHash"
+                  class="font-mono text-[10px] tracking-tight"
+                  :class="r.precommitHash !== majorityPrecommitHash ? 'text-rose-400 font-bold' : 'text-slate-400'"
+                  :title="r.precommitHash"
+                >{{ shortHash(r.precommitHash) }}</span>
+                <span v-else-if="r.prevoteHash" class="font-mono text-[10px] tracking-tight text-sky-400/60" :title="r.prevoteHash">
+                  {{ shortHash(r.prevoteHash) }}
+                </span>
+                <span v-else class="text-slate-600 text-xs">—</span>
               </td>
             </tr>
           </tbody>
@@ -987,6 +1074,10 @@ function exportCsv() {
 .row-offline { opacity: 0.45; }
 .row-proposer {
   box-shadow: inset 3px 0 0 0 hsl(var(--wa));
+}
+.row-divergent {
+  background: rgba(244, 63, 94, 0.08) !important;
+  border-left: 3px solid #f43f5e;
 }
 
 /* ---- status dot ---- */
