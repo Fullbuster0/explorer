@@ -61,6 +61,7 @@ const addresses = ref(
   }
 );
 const selfBonded = ref({} as Delegation);
+const selfBondLoading = ref(false);
 const txs = ref({} as PaginatedTxs);
 const events = ref({} as PaginatedTxs);
 const delegatorTotal = ref(0);
@@ -370,6 +371,7 @@ if (!isGno.value) {
 // otherwise resolve undefined silently and leave this stuck at "—".
 function loadSelfBond(force = false) {
   if (!blockchain.rpc || !validator.value) return;
+  selfBondLoading.value = true;
   if (isGno.value) return; // Gno has no Cosms self-bond LCD path
   // Keep account derivation in sync (valoper → account) every call.
   if (!addresses.value.account) {
@@ -381,6 +383,7 @@ function loadSelfBond(force = false) {
     .fetchValidatorDelegation(validator.value, addresses.value.account)
     .then((x) => {
       if (x?.delegation_response) selfBonded.value = x.delegation_response;
+      selfBondLoading.value = false;
     })
     .catch((e: any) => {
       // Many public LCDs 500 on the single-delegation path; fall back by
@@ -399,12 +402,21 @@ function loadSelfBond(force = false) {
           const hit = rows.find(
             (r: any) => r?.delegation?.delegator_address === addresses.value.account
           );
-          if (hit) selfBonded.value = hit;
+          if (hit) {
+            selfBonded.value = hit;
+            selfBondRetryCount = 0;
+            selfBondLoading.value = false;
+          }
         })
         .catch((e2: any) => {
           console.warn('[val] self-bond fallback failed:', e2?.message || e2);
           if (!selfBonded.value.balance?.amount) {
-            setTimeout(() => loadSelfBond(true), 2000);
+            if (selfBondRetryCount < 3) {
+              selfBondRetryCount += 1;
+              setTimeout(() => loadSelfBond(true), 2000 * selfBondRetryCount);
+            } else {
+              selfBondLoading.value = false;
+            }
           }
         });
     });
@@ -437,6 +449,7 @@ async function loadAnnualProfitInputs() {
 }
 
 const selfRate = computed(() => {
+  if (selfBondLoading.value) return '…';
   if (selfBonded.value.balance?.amount) {
     return format.calculatePercent(selfBonded.value.balance.amount, v.value.tokens);
   }
@@ -549,6 +562,7 @@ const delLoadError = ref(false);
 let delLoadToken = 0;
 let delRetryTimer: ReturnType<typeof setTimeout> | null = null;
 let delRetryCount = 0;
+let selfBondRetryCount = 0;
 
 async function fetchDelPage(pr: PageRequest, page: number, token: number) {
   for (let attempt = 0; attempt < 3; attempt++) {
@@ -1630,7 +1644,7 @@ watch(
       <div class="sz-stat" style="--stat-hue: #764bc8">
         <div class="sz-stat-head"><i class="sz-stat-tick"></i><span class="sz-stat-label">{{ $t('staking.self_bonded') }}</span></div>
         <div class="sz-stat-value">
-          {{ format.formatToken(selfBonded.balance, false, '0,0') || '—' }}
+          {{ selfBondLoading ? '…' : (format.formatToken(selfBonded.balance, false, '0,0') || '—') }}
           <span class="sz-stat-unit">{{ bondDenomDisplay }}</span>
         </div>
         <div class="sz-stat-sub">{{ selfRate }}</div>
