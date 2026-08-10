@@ -309,6 +309,39 @@ export const useBlockchain = defineStore('blockchain', {
       return this.current?.endpoints?.archive || [];
     },
 
+    /** Fetch validator delegation data archive-first without changing live RPC. */
+    async fetchValidatorDelegationArchiveFirst(validator: string, delegator: string): Promise<any | null> {
+      const path = `/cosmos/staking/v1beta1/validators/${validator}/delegations/${delegator}`;
+      for (const ep of this.historicalRestOrder(false)) {
+        const base = (ep.address || '').replace(/\/$/, '');
+        if (!base) continue;
+        try {
+          const res = await fetch(`${base}${path}`);
+          if (!res.ok) continue;
+          const data = await res.json();
+          if (data?.delegation_response?.balance?.amount != null) return data;
+        } catch { /* try next provider */ }
+      }
+      return null;
+    },
+
+    /** Fetch validator delegations archive-first with schema validation. */
+    async fetchValidatorDelegationsArchiveFirst(validator: string, offset = 0, limit = 100): Promise<any | null> {
+      const query = `?pagination.limit=${limit}&pagination.offset=${offset}&pagination.count_total=true`;
+      const path = `/cosmos/staking/v1beta1/validators/${validator}/delegations${query}`;
+      for (const ep of this.historicalRestOrder(false)) {
+        const base = (ep.address || '').replace(/\/$/, '');
+        if (!base) continue;
+        try {
+          const res = await fetch(`${base}${path}`);
+          if (!res.ok) continue;
+          const data = await res.json();
+          if (Array.isArray(data?.delegation_responses) && data?.pagination) return data;
+        } catch { /* try next provider */ }
+      }
+      return null;
+    },
+
     // Historical REST order: explicit archive endpoints first, then any
     // provider/url substring matches (archive/full/history/allinbits/...), then
     // the rest of the list. Used only for one-shot historical lookups (tx
@@ -1282,7 +1315,10 @@ export const useBlockchain = defineStore('blockchain', {
       // Mirror deny/good for sticky randomEndpoint compatibility
       for (const r of ranked) {
         if (r.ok) markGood(this.chainName, r.address);
-        else markBad(this.chainName, r.address, r.reason || 'rank-fail');
+        // CORS is a browser capability of an individual peer, not proof that
+        // the chain is offline. Do not poison the denylist during every chain
+        // switch; a later browser/session may reach the same peer.
+        else if (r.reason !== 'cors-or-timeout') markBad(this.chainName, r.address, r.reason || 'rank-fail');
       }
       return ranked;
     },
@@ -1420,12 +1456,19 @@ export const useBlockchain = defineStore('blockchain', {
       this.lastFallbackAt = now;
       this.connPhase = 'reconnecting';
       this.fallbackAttempts += 1;
+      // A fallback sweep can outlive a route/chain change. Capture the
+      // identity it started for and never let a stale response mutate the
+      // newly selected chain's endpoint or connection state.
+      const fallbackEpoch = this._setupEpoch;
+      const fallbackChain = this.chainName;
+      const stillCurrent = () => fallbackEpoch === this._setupEpoch && fallbackChain === this.chainName;
       try {
         const current = (this.endpoint?.address || '').replace(/\/+$/, '');
 
         if (all.length === 1) {
           const only = all[0];
           const ok = await this.healthCheck(only.address, 5000);
+          if (!stillCurrent()) return;
           if (ok) {
             this.connErr = '';
             this.connPhase = 'ok';
@@ -1442,6 +1485,7 @@ export const useBlockchain = defineStore('blockchain', {
         }
 
         const ranked = await this.rankRestEndpoints(5000);
+        if (!stillCurrent()) return;
         const tip = pickTipPeers(ranked);
         // Prefer a tip peer that isn't the failing current (unless current is still tip-best)
         let best =
@@ -1459,8 +1503,10 @@ export const useBlockchain = defineStore('blockchain', {
           this.connPhase = 'ok';
           this.fallbackAttempts = 0;
           if (switched) {
+            if (!stillCurrent()) return;
             this.justRecovered = true;
             await this.setRestEndpoint(ep);
+            if (!stillCurrent()) return;
             this.initial();
             setTimeout(() => {
               if (this.justRecovered) this.justRecovered = false;
@@ -1504,18 +1550,30 @@ export const useBlockchain = defineStore('blockchain', {
       localStorage.setItem(`endpoint-${this.chainName}`, JSON.stringify(endpoint));
     },
     async setCurrent(name: string) {
+      // Each navigation gets its own generation. Rapid A→B→C navigation can
+      // leave the earlier dashboard load resolving last; stale calls must not
+      // overwrite the newest route's chain selection.
+      const switchEpoch = ++this._setupEpoch;
       // Ensure chains are loaded due to asynchronous calls.
       if (this.dashboard.length === 0) {
         await this.dashboard.initial();
+        if (switchEpoch !== this._setupEpoch) return;
       }
 
       // Find the case-sensitive name for the chainName, else simply use the parameter-value.
-      const caseSensitiveName =
-        Object.keys(this.dashboard.chains).find((x) => x.toLowerCase() === name.toLowerCase()) || name;
+      const wanted = name.toLowerCase();
+      const caseSensitiveName = Object.keys(this.dashboard.chains).find((x) => {
+        const key = x.toLowerCase();
+        return key === wanted || key.replace(/-(mainnet|testnet)$/, '') === wanted;
+      }) || name;
 
       // Update chainName if needed
       if (caseSensitiveName !== this.chainName) {
         this.chainName = caseSensitiveName;
+        // Invalidate in-flight endpoint probes/fallbacks immediately; the
+        // layout watcher may run on the next reactive flush.
+        this._setupEpoch += 1;
+        this.fallbackInProgress = false;
       }
     },
     supportModule(mod: string) {

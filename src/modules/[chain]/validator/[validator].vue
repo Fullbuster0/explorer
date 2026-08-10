@@ -379,8 +379,11 @@ function loadSelfBond(force = false) {
   }
   if (!addresses.value.account) return;
   if (!force && selfBonded.value.balance?.amount) return; // already loaded
-  staking
-    .fetchValidatorDelegation(validator.value, addresses.value.account)
+  const archiveFirst = (blockchain as any).fetchValidatorDelegationArchiveFirst?.(
+    validator.value, addresses.value.account
+  );
+  Promise.resolve(archiveFirst)
+    .then((x) => x || staking.fetchValidatorDelegation(validator.value, addresses.value.account))
     .then((x) => {
       if (x?.delegation_response) selfBonded.value = x.delegation_response;
       selfBondLoading.value = false;
@@ -569,7 +572,10 @@ async function fetchDelPage(pr: PageRequest, page: number, token: number) {
     if (token !== delLoadToken) return null; // aborted
     try {
       pr.setPage(page);
-      return await blockchain.rpc.getStakingValidatorsDelegations(validator.value, pr);
+      const archive = await (blockchain as any).fetchValidatorDelegationsArchiveFirst?.(
+        validator.value, (page - 1) * 100, 100
+      );
+      return archive || await blockchain.rpc.getStakingValidatorsDelegations(validator.value, pr);
     } catch {
       if (attempt < 2) await new Promise((r) => setTimeout(r, 800));
     }
