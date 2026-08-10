@@ -398,7 +398,12 @@ function loadSelfBond(force = false) {
           );
           if (hit) selfBonded.value = hit;
         })
-        .catch((e2: any) => console.warn('[val] self-bond fallback failed:', e2?.message || e2));
+        .catch((e2: any) => {
+          console.warn('[val] self-bond fallback failed:', e2?.message || e2);
+          if (!selfBonded.value.balance?.amount) {
+            setTimeout(() => loadSelfBond(true), 2000);
+          }
+        });
     });
 }
 loadSelfBond();
@@ -527,6 +532,8 @@ const loadAvatar = (id: string) => {
 const allDelegations = ref<any[]>([]);
 const delLoadError = ref(false);
 let delLoadToken = 0;
+let delRetryTimer: ReturnType<typeof setTimeout> | null = null;
+let delRetryCount = 0;
 
 async function fetchDelPage(pr: PageRequest, page: number, token: number) {
   for (let attempt = 0; attempt < 3; attempt++) {
@@ -595,7 +602,21 @@ async function loadAllDelegations() {
     if (!delegatorTotal.value) {
       delegatorTotal.value = allDelegations.value.length;
     }
-    if (failedPages && !allDelegations.value.length) delLoadError.value = true;
+    if (failedPages && !allDelegations.value.length) {
+      delLoadError.value = true;
+      // A cold REST client can fail before its fallback endpoint is ready.
+      // Retry a few times so the UI does not remain at `—` permanently.
+      if (delRetryCount < 3 && token === delLoadToken) {
+        delRetryCount += 1;
+        if (delRetryTimer) clearTimeout(delRetryTimer);
+        delRetryTimer = setTimeout(() => {
+          delRetryTimer = null;
+          if (blockchain.rpc && validator.value) loadAllDelegations();
+        }, 1500 * delRetryCount);
+      }
+    } else {
+      delRetryCount = 0;
+    }
   } finally {
     if (token === delLoadToken) delegationsLoading.value = false;
   }
