@@ -65,6 +65,9 @@ const txs = ref({} as PaginatedTxs);
 const events = ref({} as PaginatedTxs);
 const delegatorTotal = ref(0);
 const delegationsLoading = ref(false);
+const annualInflation = ref<number | null>(null);
+const annualCommunityTax = ref<number | null>(null);
+const annualSupply = ref<number | null>(null);
 
 /** Gno/TM2 — full valoper profile from the official realm registry (Indonode-style). */
 const gnoMeta = ref<GnoValoper | undefined>(undefined);
@@ -413,13 +416,25 @@ loadSelfBond();
 
 const apr = computed(() => {
   const rate = Number(v.value.commission?.commission_rates.rate || 0);
-  const inflation = useMintStore().inflation;
-  const communityTax = Number(useDistributionStore().params.community_tax);
-  const bondedRatio =
-    Number(staking.pool.bonded_tokens) / Number(useBankStore().supply.amount);
-  if (!bondedRatio || !Number.isFinite(bondedRatio)) return '—';
-  return format.percent(((1 - communityTax) * (1 - rate) * Number(inflation)) / bondedRatio);
+  const inflation = annualInflation.value ?? Number(useMintStore().inflation || 0);
+  const communityTax = annualCommunityTax.value ?? Number(useDistributionStore().params.community_tax || 0);
+  const supply = annualSupply.value ?? Number(useBankStore().supply.amount || 0);
+  const bondedRatio = Number(staking.pool.bonded_tokens || 0) / supply;
+  if (!inflation || !bondedRatio || !Number.isFinite(bondedRatio)) return '—';
+  return format.percent(((1 - communityTax) * (1 - rate) * inflation) / bondedRatio);
 });
+
+async function loadAnnualProfitInputs() {
+  if (!blockchain.rpc || isGno.value) return;
+  const [inflation, distribution, supply] = await Promise.all([
+    blockchain.rpc.getMintInflation().catch(() => null),
+    blockchain.rpc.getDistributionParams().catch(() => null),
+    blockchain.rpc.getBankSupplyByDenom(staking.params.bond_denom).catch(() => null),
+  ]);
+  if (inflation?.inflation != null) annualInflation.value = Number(inflation.inflation);
+  if (distribution?.params?.community_tax != null) annualCommunityTax.value = Number(distribution.params.community_tax);
+  if (supply?.amount?.amount != null) annualSupply.value = Number(supply.amount.amount);
+}
 
 const selfRate = computed(() => {
   if (selfBonded.value.balance?.amount) {
@@ -1124,6 +1139,7 @@ onMounted(() => {
   if (blockchain.rpc) {
     loadAllDelegations();
     loadPowerEvents(1, EventType.Delegate);
+    loadAnnualProfitInputs();
   }
   // Prefetch votes in background so Activities → Votes is instant
   loadVotes(1);
@@ -1421,6 +1437,7 @@ watch(
     if (!allDelegations.value.length && !delegationsLoading.value) {
       loadAllDelegations();
     }
+    loadAnnualProfitInputs();
     if (!selfBonded.value.balance?.amount) {
       loadSelfBond();
     }
@@ -1477,6 +1494,9 @@ watch(
       delegationsLoading.value = false;
       events.value = { tx_responses: [], pagination: { total: '0', next_key: null } } as unknown as PaginatedTxs;
       selfBonded.value = {} as Delegation;
+      annualInflation.value = null;
+      annualCommunityTax.value = null;
+      annualSupply.value = null;
       loadValidatorCore();
       if (isGno.value) startGnoHeightWatch();
       if (blockchain.rpc) {
