@@ -24,6 +24,7 @@ const tx = ref(
 );
 const loading = ref(false);
 const error = ref('');
+let loadSequence = 0;
 /** Gno extras from onbloc detail (storage deposit, signer, network). */
 const gnoMeta = ref<Record<string, any> | null>(null);
 
@@ -134,6 +135,7 @@ async function enrichGnoTx(res: any, routeHash: string) {
 }
 
 async function loadTx(hash?: string) {
+  const sequence = ++loadSequence;
   const h = normalizeRouteHash(hash);
   if (!h) return;
   loading.value = true;
@@ -168,9 +170,11 @@ async function loadTx(hash?: string) {
     }
     if (res && res.tx_response) {
       if (isGno) res = await enrichGnoTx(res, h);
+      if (sequence !== loadSequence) return;
       tx.value = res as any;
       error.value = '';
     } else {
+      if (sequence !== loadSequence) return;
       tx.value = {} as any;
       error.value =
         lastErr?.message ||
@@ -179,10 +183,11 @@ async function loadTx(hash?: string) {
           : 'Transaction not found on active or archive REST endpoints.');
     }
   } catch (e: any) {
+    if (sequence !== loadSequence) return;
     tx.value = {} as any;
     error.value = e?.message || String(e);
   } finally {
-    loading.value = false;
+    if (sequence === loadSequence) loading.value = false;
   }
 }
 
