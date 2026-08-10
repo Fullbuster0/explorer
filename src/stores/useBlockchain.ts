@@ -874,7 +874,18 @@ export const useBlockchain = defineStore('blockchain', {
      * a block-header fetch per unique height (batched, capped at 40).
      */
     async rpcTxSearchFallback(address: string): Promise<{ rows: TxResponse[]; total: number }> {
-      const rpcs = (this.current?.endpoints?.rpc || []).slice(0, 8);
+      // History must prefer archive-capable, indexed RPCs. Active RPC is only
+      // a fallback: it may be pruned and can silently return an incomplete set.
+      const configured = this.current?.endpoints?.rpc || [];
+      const rpcs = [...configured]
+        .sort((a: any, b: any) => {
+          const score = (ep: any) => {
+            const s = `${ep?.address || ''} ${ep?.provider || ''} ${ep?.name || ''}`.toLowerCase();
+            return /(archive|historical|allinbits|citizenweb3|publicnode|itrocket|aviaone)/.test(s) ? 0 : 1;
+          };
+          return score(a) - score(b);
+        })
+        .slice(0, 8);
       if (!rpcs.length) return { rows: [], total: 0 };
 
       // address is interpolated raw into the tx_search query string below
