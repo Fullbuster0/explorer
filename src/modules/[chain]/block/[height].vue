@@ -17,6 +17,7 @@ const format = useFormatter();
 const current = ref({} as Block);
 const target = ref(Number(props.height || 0));
 const loading = ref(true);
+const loadError = ref('');
 let loadSequence = 0;
 
 const height = computed(() => {
@@ -40,7 +41,8 @@ const estimateTime = computed(() => {
 });
 
 const estimateDate = computed(() => {
-  return new Date(new Date().getTime() + estimateTime.value);
+  // estimateTime is seconds (Countdown also consumes seconds); Date needs ms.
+  return new Date(new Date().getTime() + estimateTime.value * 1000);
 });
 
 const edit = ref(false);
@@ -53,6 +55,12 @@ function updateTarget() {
 async function loadBlock(h: number | string) {
   const sequence = ++loadSequence;
   loading.value = true;
+  loadError.value = '';
+  if (!Number.isSafeInteger(Number(h)) || Number(h) <= 0) {
+    loadError.value = 'Invalid block height';
+    loading.value = false;
+    return;
+  }
   try {
     // Wait for base store / chain rpc readiness (Gno cold nav race)
     if (!store.latest?.block?.header?.height) {
@@ -133,6 +141,11 @@ onBeforeRouteUpdate(async (to, from, next) => {
 <template>
   <div>
     <Loading v-if="loading" />
+    <div v-else-if="loadError" class="block-error text-center">
+      <h2>{{ loadError }}</h2>
+      <p>Block height: {{ props.height }}</p>
+      <RouterLink class="btn btn-primary" :to="`/${chain}/block`">Back to blocks</RouterLink>
+    </div>
     <div v-else-if="isFutureBlock" class="text-center">
       <div v-if="remainingBlocks > 0">
         <div class="text-primary font-bold text-lg my-10">#{{ target }}</div>
