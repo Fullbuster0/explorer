@@ -12,6 +12,23 @@ export interface PriceMeta {
 }
 
 const LocalStoreKey = 'currency';
+const CACHE_TTL_MS = 60_000;
+const responseCache = new Map<string, { at: number; value: any }>();
+const inFlight = new Map<string, Promise<any>>();
+
+function cachedGet(url: string): Promise<any> {
+  const now = Date.now();
+  const cached = responseCache.get(url);
+  if (cached && now - cached.at < CACHE_TTL_MS) return Promise.resolve(cached.value);
+  const pending = inFlight.get(url);
+  if (pending) return pending;
+  const request = get(url, { headers: coingeckoHeaders }).then((value) => {
+    responseCache.set(url, { at: Date.now(), value });
+    return value;
+  }).finally(() => inFlight.delete(url));
+  inFlight.set(url, request);
+  return request;
+}
 
 export const coingeckoUrl = import.meta.env.VITE_COINGECKO_URL || 'https://api.coingecko.com';
 
@@ -39,7 +56,7 @@ export async function fetchPriceMap(
     `&ids=${encodeURIComponent(coinIds.join(','))}` +
     `&price_change_percentage=24h&per_page=250`;
   try {
-    const rows: any[] = await get(url, { headers: coingeckoHeaders });
+    const rows: any[] = await cachedGet(url);
     const out: Record<string, PriceMeta> = {};
     if (!Array.isArray(rows)) return out;
     for (const r of rows) {
@@ -74,9 +91,9 @@ export const useCoingecko = defineStore('coingecko', {
 
   actions: {
     getMarketChart(days = 30, coinId = 'cosmos') {
-      return get(`${coingeckoUrl}/api/v3/coins/${coinId}/market_chart?vs_currency=usd&days=${days}`, {
-        headers: coingeckoHeaders,
-      });
+      return cachedGet(
+        `${coingeckoUrl}/api/v3/coins/${encodeURIComponent(coinId)}/market_chart?vs_currency=usd&days=${days}`
+      );
     },
 
     fetchCoinPrice(ids: string[]) {
@@ -91,7 +108,7 @@ export const useCoingecko = defineStore('coingecko', {
         .catch((e) => console.warn('[coingecko] price fetch failed:', e?.message || e));
     },
     getCoinInfo(coinId: string) {
-      return get(`${coingeckoUrl}/api/v3/coins/${coinId}`, { headers: coingeckoHeaders });
+      return cachedGet(`${coingeckoUrl}/api/v3/coins/${encodeURIComponent(coinId)}`);
     },
     setSecondaryCurrency(currency: string) {
       if (currency !== 'usd') {

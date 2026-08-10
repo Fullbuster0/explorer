@@ -51,6 +51,7 @@ export const useIndexModule = defineStore('module-index', {
   state: () => {
     return {
       days: 14,
+      dashboardRequestEpoch: 0,
       tickerIndex: 0,
       coinInfo: {
         name: '',
@@ -288,7 +289,8 @@ export const useIndexModule = defineStore('module-index', {
   actions: {
     async loadDashboard() {
       this.$reset();
-      this.initCoingecko();
+      const epoch = ++this.dashboardRequestEpoch;
+      this.initCoingecko(epoch);
       // Seed hero from manual chain meta so testnets without CoinGecko
       // still show description + socials (CoinGecko overwrites when present).
       this.seedManualHero();
@@ -350,7 +352,7 @@ export const useIndexModule = defineStore('module-index', {
       }
     },
 
-    initCoingecko() {
+    initCoingecko(epoch: number) {
       this.tickerIndex = 0;
       const [firstAsset] = this.blockchain?.assets || [];
       // Prefer asset coingecko_id; fall back to top-level chain.coingecko
@@ -366,6 +368,7 @@ export const useIndexModule = defineStore('module-index', {
         this.coingecko
           .getCoinInfo(cgId)
           .then((x) => {
+            if (epoch !== this.dashboardRequestEpoch) return;
             this.coinInfo = x;
             // CoinGecko overwrites seedManualHero — re-fill any empty slots
             // from chain JSON (unlisted / partial CG profiles).
@@ -380,6 +383,7 @@ export const useIndexModule = defineStore('module-index', {
         this.coingecko
           .getMarketChart(this.days, cgId)
           .then((x) => {
+            if (epoch !== this.dashboardRequestEpoch) return;
             this.marketData = x;
           })
           .catch((e: any) => {
