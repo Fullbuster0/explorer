@@ -48,6 +48,7 @@ html[data-theme='dark'] {
   --sz-border: rgba(148, 163, 184, 0.12);
   --sz-glow: rgba(153, 204, 255, 0.12);
   --sz-accent-soft: rgba(0, 95, 204, 0.18);
+  --sz-accent: #79d8c4;
   --sz-page-bg: #08090a;
   --sz-page-glow-1: rgba(0, 95, 204, 0.14);
   --sz-page-glow-2: rgba(118, 75, 200, 0.1);

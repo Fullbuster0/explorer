@@ -242,7 +242,14 @@ onBeforeRouteUpdate(async (to, from, next) => {
 .block-facts strong { display:block; margin-top:7px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:14px; }
 .block-panel { padding:22px; border:1px solid var(--sz-border); border-radius:18px; background:var(--sz-surface, #fff); box-shadow:0 7px 20px rgba(33,55,80,.05); overflow:hidden; }
 html.dark .block-panel, html[data-theme='dark'] .block-panel { box-shadow:0 10px 28px rgba(0,0,0,.22); }
-.block-id { color:var(--text-main); background:var(--bg-active); }
+.block-id { color:var(--text-main); background:var(--bg-active); overflow-x:auto; }
+.block-id :deep(table), .block-id :deep(tbody), .block-id :deep(thead) { width:100%; color:var(--text-main) !important; background:transparent !important; }
+.block-id :deep(tr), .block-id :deep(td), .block-id :deep(th) { color:var(--text-main) !important; background:transparent !important; border-color:var(--sz-border) !important; }
+.block-id :deep(td:first-child), .block-id :deep(th:first-child) { color:var(--text-secondary) !important; }
+.block-id :deep(td:last-child) { overflow-wrap:anywhere; word-break:break-word; }
+html.dark .block-id, html[data-theme='dark'] .block-id { background:#0b1220 !important; color:#e8ecf4 !important; }
+html.dark .block-id :deep(table), html.dark .block-id :deep(tbody), html.dark .block-id :deep(thead), html[data-theme='dark'] .block-id :deep(table), html[data-theme='dark'] .block-id :deep(tbody), html[data-theme='dark'] .block-id :deep(thead) { color:#e8ecf4 !important; background:transparent !important; }
+html.dark .block-id :deep(td), html.dark .block-id :deep(th), html[data-theme='dark'] .block-id :deep(td), html[data-theme='dark'] .block-id :deep(th) { color:#e8ecf4 !important; background:transparent !important; }
 .block-panel__head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:16px; }
 .block-panel__head h2 { margin:2px 0 0; font-size:20px; letter-spacing:-.025em; }
 .block-panel__head > svg { color:#3985a6; font-size:22px; }

@@ -101,7 +101,7 @@ const txs = computed(() => {
             <RouterLink
               v-if="item.linkable"
               :to="`/${chain.chainName}/tx/${encodeURIComponent(item.hashHref)}`"
-              class="text-primary dark:invert break-all font-mono text-xs"
+              class="text-primary break-all font-mono text-xs"
               :title="item.hashHex || item.hash"
             >
               {{ item.hash }}
