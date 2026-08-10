@@ -85,7 +85,7 @@ const txs = computed(() => {
 </script>
 <template>
   <div class="overflow-x-auto mt-4">
-    <table class="table w-full" density="compact" v-if="txs.length > 0">
+    <table class="table w-full sz-payload-table" density="compact" v-if="txs.length > 0">
       <thead>
         <tr>
           <th>Type</th>

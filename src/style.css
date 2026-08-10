@@ -54,6 +54,14 @@ html[data-theme='dark'] {
   --sz-surface: #111827;
 }
 
+/* block detail payload table — explicit theme contrast */
+.sz-payload-table { color: var(--text-main); background: transparent; }
+.sz-payload-table thead th { color: var(--text-secondary); background: transparent; border-color: var(--sz-border); }
+.sz-payload-table tbody td { color: var(--text-main); background: transparent; border-color: var(--sz-border); }
+html.dark .sz-payload-table, html[data-theme='dark'] .sz-payload-table { color: #e8ecf4; }
+html.dark .sz-payload-table tbody td, html[data-theme='dark'] .sz-payload-table tbody td { color: #e8ecf4; }
+.sz-payload-table .text-primary { color: var(--sz-accent); }
+
 /* ambient page canvas */
 .sz-page-shell {
   position: relative;
