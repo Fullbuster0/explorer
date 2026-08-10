@@ -17,6 +17,7 @@ const format = useFormatter();
 const current = ref({} as Block);
 const target = ref(Number(props.height || 0));
 const loading = ref(true);
+let loadSequence = 0;
 
 const height = computed(() => {
   return Number(current.value.block?.header?.height || props.height || 0);
@@ -50,6 +51,7 @@ function updateTarget() {
 }
 
 async function loadBlock(h: number | string) {
+  const sequence = ++loadSequence;
   loading.value = true;
   try {
     // Wait for base store / chain rpc readiness (Gno cold nav race)
@@ -70,7 +72,9 @@ async function loadBlock(h: number | string) {
       let lastErr: any = null;
       for (let attempt = 0; attempt < 3; attempt++) {
         try {
-          current.value = await store.fetchBlock(h);
+          const fetched = await store.fetchBlock(h);
+          if (sequence !== loadSequence) return;
+          current.value = fetched;
           if (current.value?.block?.header?.height) {
             lastErr = null;
             break;
@@ -88,7 +92,7 @@ async function loadBlock(h: number | string) {
       current.value = {} as Block;
     }
   } finally {
-    loading.value = false;
+    if (sequence === loadSequence) loading.value = false;
   }
 }
 
@@ -233,10 +237,12 @@ onBeforeRouteUpdate(async (to, from, next) => {
 .block-nav { display:grid; place-items:center; width:42px; height:42px; border:1px solid #3b4b63; border-radius:12px; color:#d9e7f5; font-size:22px; }
 .block-nav--next { background:#79d8c4; border-color:#79d8c4; color:#102033; }
 .block-facts { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; }
-.block-facts > div { padding:16px 18px; border:1px solid rgba(79,106,137,.16); border-radius:14px; background:var(--fallback-b1, #fff); }
+.block-facts > div { padding:16px 18px; border:1px solid var(--sz-border); border-radius:14px; background:var(--sz-surface, #fff); }
 .block-facts span,.block-id > span { display:block; color:#718198; font-size:10px; font-weight:800; letter-spacing:.12em; }
 .block-facts strong { display:block; margin-top:7px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:14px; }
-.block-panel { padding:22px; border:1px solid rgba(79,106,137,.16); border-radius:18px; background:var(--fallback-b1, #fff); box-shadow:0 7px 20px rgba(33,55,80,.05); overflow:hidden; }
+.block-panel { padding:22px; border:1px solid var(--sz-border); border-radius:18px; background:var(--sz-surface, #fff); box-shadow:0 7px 20px rgba(33,55,80,.05); overflow:hidden; }
+html.dark .block-panel, html[data-theme='dark'] .block-panel { box-shadow:0 10px 28px rgba(0,0,0,.22); }
+.block-id { color:var(--text-main); background:var(--bg-active); }
 .block-panel__head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:16px; }
 .block-panel__head h2 { margin:2px 0 0; font-size:20px; letter-spacing:-.025em; }
 .block-panel__head > svg { color:#3985a6; font-size:22px; }

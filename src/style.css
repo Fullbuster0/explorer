@@ -37,6 +37,7 @@ body {
   --sz-page-bg: #f4f7fc;
   --sz-page-glow-1: rgba(0, 95, 204, 0.08);
   --sz-page-glow-2: rgba(118, 75, 200, 0.06);
+  --sz-surface: #ffffff;
 }
 
 html.dark,
@@ -50,6 +51,7 @@ html[data-theme='dark'] {
   --sz-page-bg: #08090a;
   --sz-page-glow-1: rgba(0, 95, 204, 0.14);
   --sz-page-glow-2: rgba(118, 75, 200, 0.1);
+  --sz-surface: #111827;
 }
 
 /* ambient page canvas */
