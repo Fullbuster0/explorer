@@ -180,50 +180,69 @@ onBeforeRouteUpdate(async (to, from, next) => {
         </div>
       </div>
     </div>
-    <div v-else>
-      <div class="bg-base-100 px-4 pt-3 pb-4 rounded mb-4 shadow">
-        <h2 class="card-title flex flex-row justify-between">
-          <p class="">#{{ current.block?.header?.height }}</p>
-          <div class="flex" v-if="props.height">
-            <RouterLink
-              :to="`/${store.blockchain.chainName}/block/${height - 1}`"
-              class="btn btn-primary btn-sm p-1 text-2xl mr-2"
-            >
-              <Icon icon="mdi-arrow-left" class="w-full h-full" />
-            </RouterLink>
-            <RouterLink
-              :to="`/${store.blockchain.chainName}/block/${height + 1}`"
-              class="btn btn-primary btn-sm p-1 text-2xl"
-            >
-              <Icon icon="mdi-arrow-right" class="w-full h-full" />
-            </RouterLink>
-          </div>
-        </h2>
+    <div v-else class="block-detail">
+      <section class="block-hero">
         <div>
-          <DynamicComponent :value="current.block_id" />
+          <div class="sz-section-kicker">Block record</div>
+          <h1 class="block-hero__title">#{{ current.block?.header?.height }}</h1>
+          <p class="block-hero__meta">{{ store.blockchain.chainId }} · {{ format.toLocaleDate(current.block?.header?.time) }}</p>
         </div>
-      </div>
+        <div v-if="props.height" class="block-hero__nav">
+          <RouterLink :to="`/${store.blockchain.chainName}/block/${height - 1}`" class="block-nav" aria-label="Previous block"><Icon icon="mdi-arrow-left" /></RouterLink>
+          <RouterLink :to="`/${store.blockchain.chainName}/block/${height + 1}`" class="block-nav block-nav--next" aria-label="Next block"><Icon icon="mdi-arrow-right" /></RouterLink>
+        </div>
+      </section>
 
-      <div class="bg-base-100 px-4 pt-3 pb-4 rounded mb-4 shadow">
-        <h2 class="card-title flex flex-row justify-between">
-          {{ $t('block.block_header') }}
-        </h2>
+      <section class="block-facts">
+        <div><span>CHAIN ID</span><strong>{{ current.block?.header?.chain_id }}</strong></div>
+        <div><span>HEIGHT</span><strong>#{{ current.block?.header?.height }}</strong></div>
+        <div><span>PROPOSER</span><strong>{{ current.block?.header?.proposer_address ? format.validator(current.block.header.proposer_address) : '—' }}</strong></div>
+        <div><span>TRANSACTIONS</span><strong>{{ current.block?.data?.txs?.length || 0 }}</strong></div>
+      </section>
+
+      <section class="block-panel block-panel--identity">
+        <div class="block-panel__head"><div><div class="sz-section-kicker">Identity</div><h2>Block fingerprint</h2></div><span class="block-status">FINALIZED</span></div>
+        <div class="block-id"><span>BLOCK ID</span><DynamicComponent :value="current.block_id" /></div>
+      </section>
+
+      <section class="block-panel">
+        <div class="block-panel__head"><div><div class="sz-section-kicker">Consensus data</div><h2>Header fields</h2></div><Icon icon="mdi-tune-variant" /></div>
         <DynamicComponent :value="current.block?.header" />
-      </div>
+      </section>
 
-      <div class="bg-base-100 px-4 pt-3 pb-4 rounded mb-4 shadow">
-        <h2 class="card-title flex flex-row justify-between">
-          {{ $t('account.transactions') }}
-        </h2>
+      <section class="block-panel">
+        <div class="block-panel__head"><div><div class="sz-section-kicker">Payload</div><h2>{{ $t('account.transactions') }}</h2></div><span class="block-count">{{ current.block?.data?.txs?.length || 0 }} tx</span></div>
         <TxsElement :value="current.block?.data?.txs" />
-      </div>
+      </section>
 
-      <div class="bg-base-100 px-4 pt-3 pb-4 rounded shadow">
-        <h2 class="card-title flex flex-row justify-between">
-          {{ $t('block.last_commit') }}
-        </h2>
+      <section class="block-panel block-panel--commit">
+        <div class="block-panel__head"><div><div class="sz-section-kicker">Validator signatures</div><h2>{{ $t('block.last_commit') }}</h2></div><Icon icon="mdi-check-decagram-outline" /></div>
         <DynamicComponent :value="current.block?.last_commit" />
-      </div>
+      </section>
     </div>
   </div>
 </template>
+
+<style scoped>
+.block-detail { display:grid; gap:16px; }
+.block-hero { display:flex; justify-content:space-between; align-items:center; padding:28px 30px; border-radius:20px; color:#f7fbff; background:#111b2d; box-shadow:0 12px 30px rgba(17,27,45,.16); }
+.block-hero__title { margin:4px 0 2px; font-size:clamp(2rem,5vw,3.2rem); letter-spacing:-.06em; font-weight:800; }
+.block-hero__meta { margin:0; color:#a9bad2; font-size:13px; }
+.block-hero .sz-section-kicker { color:#79d8c4; }
+.block-hero__nav { display:flex; gap:8px; }
+.block-nav { display:grid; place-items:center; width:42px; height:42px; border:1px solid #3b4b63; border-radius:12px; color:#d9e7f5; font-size:22px; }
+.block-nav--next { background:#79d8c4; border-color:#79d8c4; color:#102033; }
+.block-facts { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; }
+.block-facts > div { padding:16px 18px; border:1px solid rgba(79,106,137,.16); border-radius:14px; background:var(--fallback-b1, #fff); }
+.block-facts span,.block-id > span { display:block; color:#718198; font-size:10px; font-weight:800; letter-spacing:.12em; }
+.block-facts strong { display:block; margin-top:7px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:14px; }
+.block-panel { padding:22px; border:1px solid rgba(79,106,137,.16); border-radius:18px; background:var(--fallback-b1, #fff); box-shadow:0 7px 20px rgba(33,55,80,.05); overflow:hidden; }
+.block-panel__head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:16px; }
+.block-panel__head h2 { margin:2px 0 0; font-size:20px; letter-spacing:-.025em; }
+.block-panel__head > svg { color:#3985a6; font-size:22px; }
+.block-status,.block-count { padding:5px 9px; border-radius:999px; color:#176d5f; background:#d9f4ec; font-size:10px; font-weight:800; letter-spacing:.08em; }
+.block-id { padding:14px 16px; border-radius:12px; background:#f2f6fa; }
+.block-id :deep(table) { margin-top:5px; }
+.block-panel--commit { border-top:3px solid #79d8c4; }
+@media (max-width: 640px) { .block-hero { padding:22px 18px; border-radius:16px; } .block-facts { grid-template-columns:repeat(2,minmax(0,1fr)); } .block-panel { padding:17px 14px; border-radius:15px; } .block-panel__head h2 { font-size:17px; } }
+</style>
