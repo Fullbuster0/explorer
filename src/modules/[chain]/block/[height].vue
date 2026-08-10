@@ -41,8 +41,8 @@ const estimateTime = computed(() => {
 });
 
 const estimateDate = computed(() => {
-  // estimateTime is seconds (Countdown also consumes seconds); Date needs ms.
-  return new Date(new Date().getTime() + estimateTime.value * 1000);
+  // blocktime is milliseconds; Countdown and Date both consume milliseconds.
+  return new Date(new Date().getTime() + estimateTime.value);
 });
 
 const edit = ref(false);
