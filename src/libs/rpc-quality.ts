@@ -135,6 +135,8 @@ async function probeOne(ep: Endpoint, opts: ProbeOpts): Promise<RpcQuality> {
       score: height * 1000,
     };
   } catch {
+    // A browser CORS failure is endpoint-local. Do not let one blocked peer
+    // make the whole chain look offline; rankRpcs still keeps other peers.
     return { ...base, reason: 'cors-or-timeout' };
   }
 }

@@ -22,13 +22,18 @@ import type {
 import dayjs from 'dayjs';
 
 const dashboard = useDashboard();
-dashboard.initial();
 const blockchain = useBlockchain();
-// Only wire RPC when a chain is actually selected (chain pages). Home uses
-// blank layout and never auto-loads a chain.
-if (blockchain.chainName) {
-  blockchain.randomSetupEndpoint();
+// Dashboard config loading is async. Do not probe before it has populated the
+// current chain: that produced a permanent degraded state (empty endpoint
+// list) on cold loads and rapid route changes.
+let setupPromise: Promise<void> | undefined;
+async function setupCurrentChain() {
+  setupPromise ||= dashboard.initial().then(async () => {
+    if (blockchain.chainName) await blockchain.randomSetupEndpoint();
+  });
+  await setupPromise;
 }
+setupCurrentChain().catch((e) => console.warn('[explorer] chain setup failed:', e));
 const baseStore = useBaseStore();
 
 /** Gno has no staking/delegation — hide Wallet Helper (Keplr suggest) too. */
@@ -55,7 +60,8 @@ blockchain.$subscribe((m, s) => {
     // from the previous chain lingering while the new probe runs.
     blockchain.connPhase = 'ok';
     blockchain.connErr = '';
-    blockchain.randomSetupEndpoint();
+    setupPromise = undefined;
+    setupCurrentChain().catch((e) => console.warn('[explorer] chain switch setup failed:', e));
   }
 });
 
