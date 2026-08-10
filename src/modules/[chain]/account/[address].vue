@@ -6,6 +6,7 @@ import { onMounted, watch } from 'vue';
 import { RouterLink } from 'vue-router';
 
 import { PageRequest } from '@/types';
+import { fromBech32 } from '@cosmjs/encoding';
 import type { AuthAccount, Delegation, TxResponse, DelegatorRewards, UnbondingResponses } from '@/types';
 import type { Coin } from '@cosmjs/amino';
 import Countdown from '@/components/Countdown.vue';
@@ -489,6 +490,16 @@ function loadAccount(address: string) {
   unbonding.value = [];
 
   const token = ++accountLoadToken.value;
+  try {
+    const decoded = fromBech32(address);
+    const expected = (blockchain.current as any)?.bech32Prefix;
+    if (expected && decoded.prefix !== expected) throw new Error('address prefix mismatch');
+  } catch {
+    accountLoadError.value = 'invalid account address';
+    accountLoaded.value = true;
+    txsLoading.value = false;
+    return;
+  }
   const rpc = blockchain.rpc;
   if (!rpc) {
     // Wait for endpoint — watch below will retry
@@ -692,7 +703,14 @@ function findTokenAmount(
 }
 </script>
 <template>
-  <div v-if="account && (account['@type'] || Object.keys(account).length)" class="sz-account-page">
+  <div v-if="accountLoadError === 'invalid account address'" class="sz-account-page p-6">
+    <section class="sz-section sz-glass">
+      <div class="sz-section-kicker">Account</div>
+      <div class="sz-section-title">Invalid account address</div>
+      <p class="mt-2 opacity-70">The address format or network prefix is not valid for this chain.</p>
+    </section>
+  </div>
+  <div v-else-if="account && (account['@type'] || Object.keys(account).length)" class="sz-account-page">
     <!-- ====== HERO ====== -->
     <section class="sz-section sz-acc-hero mb-4 overflow-hidden">
       <!-- blueprint grid background (signature Shazoes motif) -->
