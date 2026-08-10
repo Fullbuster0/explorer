@@ -959,7 +959,10 @@ const sortedDelegations = computed(() => {
  *  optional chaining) would otherwise throw on undefined and leave
  *  v / rewards / commission empty — which also zeroes the self-rate tile,
  *  since selfRate = calculatePercent(selfBond, v.tokens). */
+let validatorLoadSequence = 0;
+
 function loadValidatorCore() {
+  const sequence = ++validatorLoadSequence;
   const valAddr = validator.value;
   if (!valAddr) return;
   // Gno/TM2: no Cosmos LCD validator endpoint — pull identity/logo from the
@@ -1049,6 +1052,7 @@ function loadValidatorCore() {
     staking
       .fetchValidator(valAddr)
       .then((res) => {
+        if (sequence !== validatorLoadSequence) return;
         v.value = res.validator;
         identity.value = res.validator?.description?.identity || '';
         if (identity.value && !avatars.value[identity.value]) loadAvatar(identity.value);
@@ -1066,6 +1070,7 @@ function loadValidatorCore() {
     blockchain.rpc
       .getDistributionValidatorOutstandingRewards(valAddr)
       .then((res) => {
+        if (sequence !== validatorLoadSequence) return;
         rewards.value = res.rewards?.rewards?.sort((a, b) => Number(b.amount) - Number(a.amount));
         res.rewards?.rewards?.forEach((x) => {
           if (x.denom.startsWith('ibc/')) format.fetchDenomTrace(x.denom);
@@ -1077,6 +1082,7 @@ function loadValidatorCore() {
     blockchain.rpc
       .getDistributionValidatorCommission(valAddr)
       .then((res) => {
+        if (sequence !== validatorLoadSequence) return;
         commission.value = res.commission?.commission?.sort((a, b) => Number(b.amount) - Number(a.amount));
         res.commission?.commission?.forEach((x) => {
           if (x.denom.startsWith('ibc/')) format.fetchDenomTrace(x.denom);
