@@ -382,9 +382,9 @@ export const useBlockchain = defineStore('blockchain', {
     },
 
     /**
-     * Fetch a tx by hash with archive/non-pruned REST fallback.
-     * 1) try active endpoint
-     * 2) on miss/404/pruned error, walk REST list archive-first
+     * Fetch a tx by hash with archive-first historical REST lookup.
+     * 1) try curated/archive-capable endpoints
+     * 2) fall back to active REST only when history providers miss/fail
      * Never permanently switches the live endpoint.
      *
      * Gno/TM2: use the live GnoTm2Client directly (RPC /tx) — do NOT walk
@@ -427,24 +427,13 @@ export const useBlockchain = defineStore('blockchain', {
         return null;
       };
 
-      // 1) active endpoint first (fast path for recent txs)
-      const active = this.endpoint?.address;
-      if (active && this.rpc) {
-        try {
-          const hit = await tryOne(active);
-          if (hit) return hit as any;
-        } catch (e: any) {
-          // fall through — pruned / 404 / network
-          console.info(`[explorer] tx miss on active REST (${active}): ${e?.message || e}`);
-        }
-      }
-
-      // 2) walk remaining REST, archive-first
+      // Historical transaction lookups must try archive-capable providers first.
+      // Active REST is retained as a final fallback for recent transactions.
+      const active = (this.endpoint?.address || '').replace(/\/$/, '');
       const seen = new Set<string>();
-      if (active) seen.add(active.replace(/\/$/, ''));
       for (const ep of this.historicalRestOrder(false)) {
         const addr = (ep.address || '').replace(/\/$/, '');
-        if (!addr || seen.has(addr)) continue;
+        if (!addr || addr === active || seen.has(addr)) continue;
         seen.add(addr);
         try {
           const hit = await tryOne(addr);
@@ -454,6 +443,17 @@ export const useBlockchain = defineStore('blockchain', {
           }
         } catch (e: any) {
           // keep walking
+        }
+      }
+      if (active) {
+        try {
+          const hit = await tryOne(active);
+          if (hit) {
+            console.info(`[explorer] tx found via active REST fallback: ${active}`);
+            return hit as any;
+          }
+        } catch (e: any) {
+          console.info(`[explorer] tx miss on active REST fallback (${active}): ${e?.message || e}`);
         }
       }
       return null;
