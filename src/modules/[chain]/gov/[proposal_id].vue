@@ -1053,7 +1053,7 @@ onUnmounted(() => {
             v-model="voteSearch"
             type="search"
             placeholder="Search moniker"
-            class="input input-sm input-bordered w-36 font-normal"
+            class="gov-vote-search input input-sm input-bordered w-36 max-w-full font-normal"
           />
         </div>
       </div>
@@ -1354,4 +1354,8 @@ onUnmounted(() => {
 .sz-tally-seg--no { background: #ef4444; }
 .sz-tally-seg--veto { background: #991b1b; }
 .sz-tally-seg--abstain { background: #f59e0b; }
+.gov-vote-search { min-width: 9rem; }
+@media (max-width: 640px) {
+  .gov-vote-search { width: min(100%, 16rem); min-width: 0; }
+}
 </style>
