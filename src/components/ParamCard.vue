@@ -190,7 +190,7 @@ const moduleTone = computed(() => {
         >
           <div class="sz-params-key" :title="tip(it.subtitle)">
             {{ prettyKey(it.subtitle) }}
-            <span v-if="tip(it.subtitle)" class="sz-params-tip">ⓘ</span>
+            <span v-if="tip(it.subtitle)" class="sz-params-tip" :data-tip="tip(it.subtitle)" tabindex="0" role="img" aria-label="Parameter explanation">ⓘ</span>
           </div>
           <div class="sz-params-val" :data-tone="renderValue(it).tone">
             {{ renderValue(it).display }}
@@ -219,7 +219,7 @@ const moduleTone = computed(() => {
             >
               <div class="sz-params-key" :title="tip(it.subtitle)">
                 {{ prettyKey(it.subtitle) }}
-                <span v-if="tip(it.subtitle)" class="sz-params-tip">ⓘ</span>
+                <span v-if="tip(it.subtitle)" class="sz-params-tip" :data-tip="tip(it.subtitle)" tabindex="0" role="img" aria-label="Parameter explanation">ⓘ</span>
               </div>
               <div class="sz-params-val" :data-tone="renderValue(it).tone">
                 {{ renderValue(it).display }}

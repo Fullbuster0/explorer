@@ -1601,8 +1601,40 @@ html:not(.dark):not([data-theme='dark']) .sz-gh-cell[data-level="4"] { backgroun
   transition: opacity 0.15s ease;
   flex-shrink: 0;
 }
-.sz-params-tip:hover {
+.sz-params-tip {
+  position: relative;
+}
+.sz-params-tip:hover,
+.sz-params-tip:focus-visible {
   opacity: 1;
+}
+.sz-params-tip::after {
+  content: attr(data-tip);
+  position: absolute;
+  z-index: 30;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  width: min(260px, 70vw);
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, hsl(var(--bc)) 18%, transparent);
+  border-radius: 8px;
+  color: hsl(var(--b1));
+  background: hsl(var(--bc));
+  box-shadow: 0 8px 24px rgba(0,0,0,.18);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.35;
+  text-align: left;
+  white-space: normal;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, 4px);
+  transition: opacity .15s ease, transform .15s ease;
+}
+.sz-params-tip:hover::after,
+.sz-params-tip:focus-visible::after {
+  opacity: 1;
+  transform: translate(-50%, 0);
 }
 
 .sz-params-val {
