@@ -412,9 +412,11 @@ const rows = computed<Row[]>(() => {
     // Persist last known hash + signed status per validator so it doesn't vanish during step 1 (NewHeight)
     const lastPv = pvHash || lastValidatorHashes[addr]?.prevoteHash || '';
     const lastPc = pcHash || lastValidatorHashes[addr]?.precommitHash || '';
-    // Persist signed status: if validator voted ✓ in last round, keep showing ✓ until new round data arrives
-    const lastPvSigned = pvSigned || lastValidatorHashes[addr]?.prevoteSigned || false;
-    const lastPcSigned = pcSigned || lastValidatorHashes[addr]?.precommitSigned || false;
+    // Only retain the previous vote while the current endpoint has no vote set.
+    // Once a live vote set exists, rows must agree with the aggregate counters.
+    const hasLiveVoteSet = !!vs;
+    const lastPvSigned = hasLiveVoteSet ? pvSigned : (pvSigned || lastValidatorHashes[addr]?.prevoteSigned || false);
+    const lastPcSigned = hasLiveVoteSet ? pcSigned : (pcSigned || lastValidatorHashes[addr]?.precommitSigned || false);
     if (pvHash || pvSigned) lastValidatorHashes[addr] = { ...lastValidatorHashes[addr], prevoteHash: pvHash || lastValidatorHashes[addr]?.prevoteHash, prevoteSigned: pvSigned || lastValidatorHashes[addr]?.prevoteSigned };
     if (pcHash || pcSigned) lastValidatorHashes[addr] = { ...lastValidatorHashes[addr], precommitHash: pcHash || lastValidatorHashes[addr]?.precommitHash, precommitSigned: pcSigned || lastValidatorHashes[addr]?.precommitSigned };
     return {
