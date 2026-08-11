@@ -159,8 +159,28 @@ async function startMonitor() {
       return;
     }
 
-    // Shared quality gate (same as block/tx store): tip height + !catching_up + valset.
-    // Old bug: Shazoes-first + "HTTP 200 && positions>0" stuck on 2-val lagging node.
+    // Consensus is a live monitor: try the configured active RPC immediately.
+    // Do not make the first paint wait for archive/public RPC quality probes.
+    const active = chainStore.endpoint?.address
+      ? candidates.find((x) => baseOf(x.address) === baseOf(chainStore.endpoint.address))
+      : undefined;
+    if (active) {
+      rpc.value = baseOf(active.address);
+      await fetchPosition();
+      if (gen !== monitorGen) return;
+      if (httpstatus.value === 200 && positions.value.length > 0) {
+        await update();
+        if (gen !== monitorGen) return;
+        if (httpstatus.value === 200) {
+          console.info(`[consensus] active RPC ${rpc.value} h=${height.value} vals=${positions.value.length}`);
+          loading = false;
+          timer = setInterval(() => update(), 500);
+          return;
+        }
+      }
+    }
+
+    // Fallback only after active RPC failed: quality-rank the remaining peers.
     const engine = chainStore.current?.engine;
     const ranked: RpcQuality[] = await rankRpcs(candidates, { engine, timeoutMs: 4500 });
     if (gen !== monitorGen) return;
