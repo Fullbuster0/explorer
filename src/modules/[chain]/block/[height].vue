@@ -269,6 +269,8 @@ html.dark .block-id :deep(td), html.dark .block-id :deep(th), html[data-theme='d
 .block-status,.block-count { padding:5px 9px; border-radius:999px; color:#176d5f; background:#d9f4ec; font-size:10px; font-weight:800; letter-spacing:.08em; }
 .block-id { padding:14px 16px; border-radius:12px; background:#f2f6fa; }
 .block-id :deep(table) { margin-top:5px; }
-.block-panel--commit { border-top:3px solid #79d8c4; }
+.block-panel--commit { border-top:3px solid #79d8c4; overflow-x:auto; }
+.block-panel--commit :deep(table) { min-width:760px; }
+.block-panel--commit :deep(td), .block-panel--commit :deep(th) { overflow-wrap:anywhere; word-break:break-word; }
 @media (max-width: 640px) { .block-hero { padding:22px 18px; border-radius:16px; } .block-facts { grid-template-columns:repeat(2,minmax(0,1fr)); } .block-panel { padding:17px 14px; border-radius:15px; } .block-panel__head h2 { font-size:17px; } }
 </style>
