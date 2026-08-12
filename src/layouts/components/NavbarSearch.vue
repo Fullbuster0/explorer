@@ -364,7 +364,24 @@ function buildHits(raw: string): SearchHit[] {
     return results.sort((a, b) => (b.score || 0) - (a.score || 0));
   }
 
-  // --- Full bech32 FIRST (before base64 tx) ---
+  // --- Full Cosmos tx hash MUST precede bech32/account classification ---
+  // A 64-character hex hash can contain `1`; the legacy permissive bech32
+  // fallback then mistook it for an account. Check the authoritative Cosmos
+  // tx shape before any address heuristic.
+  const fullHash = isHexHash(keyCompact);
+  if (fullHash && !isGno.value) {
+    push({
+      kind: 'tx',
+      query: fullHash,
+      path: `/${current}/tx/${fullHash}`,
+      title: `${fullHash.slice(0, 10)}…${fullHash.slice(-8)}`,
+      subtitle: 'Transaction · ' + chainPretty.value,
+      score: 1000,
+    });
+    return results;
+  }
+
+  // --- Full bech32 FIRST (before Gno base64 tx) ---
   // Gno `g1…` is 40 chars of base64-looking alnum and was false-positive as tx.
   const bechCandidate = isFullBech32(keyCompact)
     ? keyCompact
@@ -482,19 +499,8 @@ function buildHits(raw: string): SearchHit[] {
     return results;
   }
 
-  // --- Full tx hash (hex / 0x-hex) ---
-  const fullHash = isHexHash(keyCompact);
-  if (fullHash) {
-    push({
-      kind: 'tx',
-      query: fullHash,
-      path: `/${current}/tx/${fullHash}`,
-      title: `${fullHash.slice(0, 10)}…${fullHash.slice(-8)}`,
-      subtitle: (isGno.value ? 'Gno tx · ' : 'Transaction · ') + chainPretty.value,
-      score: 990,
-    });
-    return results;
-  }
+  // Full Cosmos hashes were handled before address classification above.
+  // Gno keeps its native/base64 handling separate.
 
   // --- Short / truncated hash: Recent full-hash match only ---
   const hashPrefix = isHexPrefix(keyCompact);
