@@ -348,6 +348,32 @@ onMounted(() => {
   transition: opacity 0.16s ease, transform 0.16s ease;
   z-index: 30;
 }
+/* Mobile: keep the Headroom explanation below its label so it cannot cover the meter. */
+@media (max-width: 640px) {
+  .sz-comm-stats {
+    position: relative;
+    z-index: 1;
+  }
+
+  .sz-comm-stat:last-child .sz-comm-tip-text {
+    top: calc(100% + 8px);
+    bottom: auto;
+    right: 0;
+    left: auto;
+    width: min(230px, calc(100vw - 48px));
+    max-width: calc(100vw - 48px);
+    z-index: 40;
+  }
+
+  .sz-comm-stat:last-child .sz-comm-tip-text::after {
+    top: auto;
+    bottom: 100%;
+    right: 10px;
+    border-top-color: transparent;
+    border-bottom-color: color-mix(in srgb, hsl(var(--bc)) 90%, hsl(var(--b1)));
+  }
+}
+
 .sz-comm-tip-text em {
   font-style: normal;
   font-family: 'JetBrains Mono', ui-monospace, monospace;
