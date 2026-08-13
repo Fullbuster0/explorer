@@ -363,13 +363,19 @@ export function isGnoChain(chain: any): boolean {
   if (
     name.includes('gnoland') ||
     name.includes('gnotopaz') ||
+    name.includes('gnosapphire') ||
     name === 'gno' ||
     name.startsWith('gno-') ||
     name.startsWith('gno_')
   ) {
     return true;
   }
-  if (id.startsWith('topaz') || id.startsWith('gnoland') || id.includes('gnoland')) return true;
+  if (
+    id.startsWith('topaz') ||
+    id.startsWith('sapphire') ||
+    id.startsWith('gnoland') ||
+    id.includes('gnoland')
+  ) return true;
   const sdk = String(chain.versions?.cosmosSdk || chain.sdk_version || '').toLowerCase();
   if (sdk.includes('tm2') || sdk.startsWith('gno/') || sdk === 'gno') return true;
   return false;

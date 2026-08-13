@@ -110,10 +110,10 @@ const CHAINS = {
   },
   'gnoland-testnet': {
     'pretty': 'gnoland',
-    'chain_id': 'topaz-1',
+    'chain_id': 'sapphire-1',
     'logo': 'https://shazoes-explorer.vercel.app/logos/gno.png',
     'card': 'summary_large_image',
-    'description': 'Gnoland Tendermint2 testnet (topaz-1) · 89 validators · RPC-only block explorer by Shazoes.'
+    'description': 'Gnoland Tendermint2 testnet (sapphire-1) · RPC-only block explorer by Shazoes.'
   },
   'hippo-testnet': {
     'pretty': 'Hippo Protocol (testnet)',

@@ -1,6 +1,6 @@
 {
   "chain_name": "gnoland-testnet",
-  "chain_id": "topaz-1",
+  "chain_id": "sapphire-1",
   "network_type": "testnet",
   "engine": "gno",
   "features": [
@@ -24,16 +24,12 @@
   "coingecko": "",
   "api": [
     {
-      "address": "https://rpc.topaz.testnets.gno.land",
+      "address": "https://rpc.sapphire.testnets.gno.land",
       "provider": "Official"
     },
     {
       "address": "https://gnoland-testnet-rpc.shazoes.xyz",
       "provider": "Shazoes"
-    },
-    {
-      "address": "https://gnoland-topaz-rpc.hazennetworksolutions.com",
-      "provider": "Hazen"
     },
     {
       "address": "https://gnoland-testnet-rpc.itrocket.net",
@@ -42,24 +38,16 @@
     {
       "address": "https://gnoland.test.rpc.nodeshub.online",
       "provider": "NodesHub"
-    },
-    {
-      "address": "https://gnoland-topaz-rpc.oshvank.xyz",
-      "provider": "OshVanK"
     }
   ],
   "rpc": [
     {
-      "address": "https://rpc.topaz.testnets.gno.land",
+      "address": "https://rpc.sapphire.testnets.gno.land",
       "provider": "Official"
     },
     {
       "address": "https://gnoland-testnet-rpc.shazoes.xyz",
       "provider": "Shazoes"
-    },
-    {
-      "address": "https://gnoland-topaz-rpc.hazennetworksolutions.com",
-      "provider": "Hazen"
     },
     {
       "address": "https://gnoland-testnet-rpc.itrocket.net",
@@ -68,10 +56,6 @@
     {
       "address": "https://gnoland.test.rpc.nodeshub.online",
       "provider": "NodesHub"
-    },
-    {
-      "address": "https://gnoland-topaz-rpc.oshvank.xyz",
-      "provider": "OshVanK"
     }
   ],
   "snapshot_provider": "",
@@ -93,10 +77,10 @@
   "keplr_features": [],
   "valopers_source": {
     "type": "gno-realm",
-    "base_url": "https://topaz.testnets.gno.land/r/gnops/valopers",
-    "note": "Official gnops valoper registry. Swap base_url for mainnet. Cron scrapes this server-side."
+    "base_url": "https://sapphire.testnets.gno.land/r/gnops/valopers",
+    "note": "Official Sapphire gnops valoper registry. Cron scrapes this server-side."
   },
   "valopers_live_url": "https://gnoland-testnet-rpc.shazoes.xyz/static/gno-valopers.json",
-  "indexer_api": "https://topaz.api.onbloc.xyz/v1",
-  "gnoweb": "https://topaz.testnets.gno.land"
+  "indexer_api": "https://sapphire.api.onbloc.xyz/v1",
+  "gnoweb": "https://sapphire.testnets.gno.land"
 }

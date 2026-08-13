@@ -54,7 +54,7 @@ function isGnoEngine(): boolean {
 function indexerBase(): string {
   // ChainConfig field is indexer_api (convertFromLocal). NOT indexer.api.
   return String(
-    (blockchain.current as any)?.indexer_api || 'https://topaz.api.onbloc.xyz/v1'
+    (blockchain.current as any)?.indexer_api || 'https://sapphire.api.onbloc.xyz/v1'
   );
 }
 

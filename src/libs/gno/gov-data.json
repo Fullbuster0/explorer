@@ -1,8 +1,8 @@
 {
   "source": {
-    "chain_id": "topaz-1",
+    "chain_id": "sapphire-1",
     "realm_path": "gno.land/r/gov/dao",
-    "gnoweb_base": "https://topaz.testnets.gno.land",
+    "gnoweb_base": "https://sapphire.testnets.gno.land",
     "scraped_at": "2026-08-02T06:38:36.836Z",
     "page_count": 6,
     "proposal_count": 26,

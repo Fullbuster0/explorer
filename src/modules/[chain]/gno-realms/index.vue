@@ -62,8 +62,8 @@ function formatGas(v: { value?: string; denom?: string } | null): string {
 }
 
 function gnowebUrl(path: string): string {
-  // Prefer chain gnoweb if present, else topaz default
-  const base = (chainStore.current as any)?.gnoweb || 'https://topaz.testnets.gno.land';
+  // Prefer chain gnoweb if present, else Sapphire default
+  const base = (chainStore.current as any)?.gnoweb || 'https://sapphire.testnets.gno.land';
   // path is like gno.land/r/demo/boards → /r/demo/boards
   // Always join with exactly one '/'. Without the separator a crafted realm
   // path like `gno.land@evil.com` would yield `https://<gnoweb>@evil.com`,

@@ -176,7 +176,7 @@ function decodeCfEmail(hex) {
 
 /**
  * Parse a single valoper detail HTML page into a rich profile.
- * Source: https://topaz.testnets.gno.land/r/gnops/valopers:<operator>
+ * Source: https://sapphire.testnets.gno.land/r/gnops/valopers:<operator>
  * Layout is markdown-rendered inside <md-renderer class="c-realm-view">.
  */
 async function fetchDetail(operatorAddress) {

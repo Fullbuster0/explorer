@@ -41,7 +41,7 @@ function actionTone(a: string): string {
   return 'update';
 }
 function gnowebProposalUrl(): string {
-  const base = (chainStore.current as any)?.gnoweb || gov.value?.source?.gnoweb_base || 'https://topaz.testnets.gno.land';
+  const base = (chainStore.current as any)?.gnoweb || gov.value?.source?.gnoweb_base || 'https://sapphire.testnets.gno.land';
   return `${base.replace(/\/$/, '')}/r/gov/dao:${props.proposal_id}`;
 }
 

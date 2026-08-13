@@ -1,7 +1,7 @@
 /**
  * Gno Indexer API client — onbloc REST API.
  *
- * Source: https://topaz.api.onbloc.xyz/v1
+ * Source: https://sapphire.api.onbloc.xyz/v1
  * CORS: access-control-allow-origin: * (browser-safe)
  *
  * Provides transactions, realms, and GRC20 token data that the

@@ -60,7 +60,7 @@ export interface LocalChainConfig {
   engine?: 'cosmos' | 'gno' | 'tm2';
   /**
    * Gno/TM2 only: onbloc-style indexer REST base URL (e.g.
-   * https://topaz.api.onbloc.xyz/v1). Public Gno RPC has tx_index=off, so
+   * https://sapphire.api.onbloc.xyz/v1). Public Gno RPC has tx_index=off, so
    * transactions / realms / tokens / validator statuses come from here.
    */
   indexer_api?: string;
@@ -73,12 +73,12 @@ export interface LocalChainConfig {
   valopers_live_url?: string;
   /**
    * Optional gnoweb base (realms/tokens deep links). e.g.
-   * https://topaz.testnets.gno.land
+   * https://sapphire.testnets.gno.land
    */
   gnoweb?: string;
   /**
    * Gno valoper registry realm source (cron + SPA profile links).
-   * e.g. { type: 'gno-realm', base_url: 'https://topaz…/r/gnops/valopers' }
+   * e.g. { type: 'gno-realm', base_url: 'https://sapphire…/r/gnops/valopers' }
    */
   valopers_source?: {
     type?: string;

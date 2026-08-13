@@ -58,7 +58,7 @@ if (!vs || vs.type !== 'gno-realm') {
 // base_url includes the valopers realm path (.../r/gnops/valopers) — strip to
 // the gnoweb ROOT so we can address a different realm (gov/dao) below.
 const BASE = vs.base_url.replace(/\/r\/gnops\/valopers.*$/, '').replace(/\/$/, '');
-const CHAIN_ID = config.chain_id || 'topaz-1';
+const CHAIN_ID = config.chain_id || 'sapphire-1';
 console.log(`Chain: ${chainArg} (${CHAIN_ID}) | gnoweb: ${BASE} | realm: ${REALM} | out: ${OUTPUT_FILE}`);
 
 // --- fetch helper (3 attempts, exponential backoff — cron runs unattended) ---

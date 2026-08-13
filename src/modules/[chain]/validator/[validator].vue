@@ -1058,7 +1058,7 @@ function loadValidatorCore() {
         v.value.operator_address = meta.operatorAddress || v.value.operator_address;
         // Gno addresses: signing (account), operator, consensus pubkey (hex slot),
         // and the g1 signing address also doubles as the "signer" display.
-        // SoT (topaz valopers): Signing Address ≠ Operator Address — do not swap.
+        // SoT (Sapphire valopers): Signing Address ≠ Operator Address — do not swap.
         addresses.value.account = meta.signingAddress || addresses.value.account;
         addresses.value.operAddress = meta.operatorAddress || addresses.value.operAddress;
         addresses.value.hex = meta.pubKey || addresses.value.hex;

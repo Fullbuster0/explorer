@@ -15,6 +15,7 @@
  *
  * Live source (preferred, no git/deploy):
  *   https://gnoland-testnet-rpc.shazoes.xyz/static/gno-valopers.json
+ * Registry realm: https://sapphire.testnets.gno.land/r/gnops/valopers
  */
 import staticRegistry from './valopers-data';
 import type { GnoValoperRow } from './valopers-data';
@@ -402,8 +403,8 @@ export function listGnoValopers(): GnoValoper[] {
 export function gnoGnowebBase(chain?: any): string {
   const raw = String(chain?.gnoweb || chain?.valopers_source?.base_url || '').replace(/\/r\/gnops\/valopers\/?$/, '');
   if (raw) return raw.replace(/\/$/, '');
-  // Last-resort Topaz — only when chain JSON omitted gnoweb
-  return 'https://topaz.testnets.gno.land';
+  // Last-resort Sapphire — only when chain JSON omitted gnoweb.
+  return 'https://sapphire.testnets.gno.land';
 }
 
 /** Valopers realm profile URL for an operator. */

@@ -94,7 +94,7 @@ function normalize(raw: any): GnoGovData | null {
   }
   return {
     source: {
-      chain_id: String(raw.source?.chain_id || 'topaz-1'),
+      chain_id: String(raw.source?.chain_id || 'sapphire-1'),
       realm_path: String(raw.source?.realm_path || 'gno.land/r/gov/dao'),
       gnoweb_base: raw.source?.gnoweb_base,
       scraped_at: String(raw.source?.scraped_at || ''),
