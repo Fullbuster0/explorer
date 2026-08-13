@@ -245,7 +245,7 @@ cat > .env.production <<'EOF'
 VITE_REFRESH_INTERVAL=6000
 VITE_FETCH_ALL_BLOCKS=false
 VITE_RECENT_BLOCK_LIMIT=50
-VITE_COINGECKO_URL=https://api.coingecko.com
+VITE_COINGECKO_URL=https://api.shazoes.xyz
 VITE_GITHUB_API_URL=https://api.github.com/repos/cosmos/chain-registry/contents
 VITE_PINGPUB_API_URL=https://registry.ping.pub
 VITE_IBC_USE_GITHUB_API=false

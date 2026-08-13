@@ -246,7 +246,7 @@ const chainSymbol = computed(() => {
   const [a] = blockchain.current?.assets || [];
   return a?.symbol || '';
 });
-const hasMarket = computed(() => !!(coinInfo.value && coinInfo.value.name));
+const hasMarket = computed(() => ticker.value?.converted_last?.usd != null);
 const isGno = computed(
   () => blockchain.current?.engine === 'gno' || blockchain.current?.engine === 'tm2'
 );

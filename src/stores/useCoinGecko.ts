@@ -30,13 +30,131 @@ function cachedGet(url: string): Promise<any> {
   return request;
 }
 
-export const coingeckoUrl = import.meta.env.VITE_COINGECKO_URL || 'https://api.coingecko.com';
+const configuredCoingeckoUrl = (import.meta.env.VITE_COINGECKO_URL || 'https://api.coingecko.com').replace(/\/$/, '');
+export const usingMarketCache = (() => {
+  try {
+    return new URL(configuredCoingeckoUrl).hostname.toLowerCase() === 'api.shazoes.xyz';
+  } catch {
+    // Keep the direct CoinGecko fallback for malformed local environment values.
+    return false;
+  }
+})();
+export const coingeckoUrl = configuredCoingeckoUrl;
 
-// Optional free demo API key — raises rate limits. Set VITE_COINGECKO_API_KEY.
+// The custom market cache is already public and must not receive CoinGecko keys.
+// Direct CoinGecko remains supported for local/dev deployments.
 const cgApiKey = import.meta.env.VITE_COINGECKO_API_KEY as string | undefined;
-export const coingeckoHeaders: Record<string, string> = cgApiKey
+export const coingeckoHeaders: Record<string, string> = !usingMarketCache && cgApiKey
   ? { 'x-cg-demo-api-key': cgApiKey }
   : {};
+
+const marketCacheUrl = `${coingeckoUrl}/v1/market`;
+const marketCacheGet = (url: string) => cachedGet(url);
+
+function marketPriceMap(ids: string[]): Promise<Record<string, PriceMeta>> {
+  const query = ids.length ? `?ids=${encodeURIComponent([...new Set(ids)].join(','))}` : '';
+  return marketCacheGet(`${marketCacheUrl}/prices${query}`).then((payload: any) => {
+    const out: Record<string, PriceMeta> = {};
+    for (const [id, row] of Object.entries(payload?.data || {})) {
+      const value = row as any;
+      const meta: PriceMeta = {};
+      if (value.current_price != null) meta.usd = String(value.current_price);
+      if (value.price_change_percentage_24h != null) meta.usd_24h_change = String(value.price_change_percentage_24h);
+      out[id] = meta;
+    }
+    return out;
+  });
+}
+
+export async function fetchPortfolioMarketRows(ids: string[], currency = 'usd') {
+  const cleanIds = [...new Set(ids.filter(Boolean))];
+  if (!cleanIds.length) return [];
+
+  if (!usingMarketCache) {
+    const url =
+      `${coingeckoUrl}/api/v3/coins/markets?vs_currency=${encodeURIComponent(currency)}` +
+      `&ids=${encodeURIComponent(cleanIds.join(','))}` +
+      '&order=market_cap_desc&per_page=100&page=1&sparkline=true&price_change_percentage=14d&locale=en';
+    return cachedGet(url);
+  }
+
+  const payload: any = await marketCacheGet(
+    `${marketCacheUrl}/prices?ids=${encodeURIComponent(cleanIds.join(','))}`
+  );
+  const rows = payload?.data || {};
+  return Promise.all(
+    cleanIds.map(async (id) => {
+      const row = rows[id] || {};
+      let sparkline: number[] = [];
+      try {
+        const chart = await marketChart(id);
+        // The cache stores 14 days of points. Keep the most recent 7 days;
+        // tolerate an empty/short chart during an upstream refresh gap.
+        sparkline = Array.isArray(chart?.prices)
+          ? chart.prices
+              .slice(-168)
+              .map((point: any) => Number(point?.[1]))
+              .filter(Number.isFinite)
+          : [];
+      } catch (e: any) {
+        console.warn('[market-cache] portfolio chart failed:', e?.message || e);
+      }
+      const current = Number(row.current_price) || 0;
+      const changePct = Number(row.price_change_percentage_24h) || 0;
+      return {
+        id,
+        symbol: id,
+        name: id,
+        current_price: current,
+        market_cap: Number(row.market_cap) || 0,
+        market_cap_rank: Number(row.market_cap_rank) || 0,
+        price_change_24h: current * changePct / 100,
+        price_change_percentage_24h: changePct,
+        sparkline_in_7d: { prices: sparkline },
+      };
+    })
+  );
+}
+
+function marketChart(coinId: string): Promise<any> {
+  return marketCacheGet(`${marketCacheUrl}/charts/${encodeURIComponent(coinId)}`).then((payload: any) => payload?.data || { prices: [] });
+}
+
+function marketCoinInfo(coinId: string): Promise<any> {
+  return marketCacheGet(`${marketCacheUrl}/prices?ids=${encodeURIComponent(coinId)}`).then((payload: any) => {
+    const row = payload?.data?.[coinId] || {};
+    const current = Number(row.current_price);
+    const hasPrice = Number.isFinite(current);
+    return {
+      id: coinId,
+      // The cache intentionally stores market numbers, not CoinGecko project
+      // metadata. Chain JSON remains the title/symbol/socials source.
+      symbol: '',
+      name: '',
+      market_cap_rank: row.market_cap_rank || 0,
+      market_data: {
+        current_price: { usd: row.current_price },
+        price_change_percentage_24h: row.price_change_percentage_24h,
+        market_cap: { usd: row.market_cap },
+        market_cap_rank: row.market_cap_rank,
+      },
+      links: { homepage: [], twitter_screen_name: '', repos_url: { github: [] } },
+      description: { en: '' },
+      tickers: hasPrice
+        ? [{
+            market: { name: 'Shazoes Market', identifier: 'shazoes' },
+            coin_id: coinId,
+            target_coin_id: 'usd',
+            trust_score: 'green',
+            trade_url: '',
+            converted_last: { btc: 0, eth: 0, usd: current },
+            base: coinId,
+            target: 'USD',
+          }]
+        : [],
+    };
+  });
+}
 
 /**
  * CoinGecko locked the free `/simple/price` endpoint behind an API key
@@ -49,6 +167,14 @@ export async function fetchPriceMap(
   vsCurrencies: string[]
 ): Promise<Record<string, PriceMeta>> {
   if (!coinIds.length) return {};
+  if (usingMarketCache) {
+    try {
+      return await marketPriceMap(coinIds);
+    } catch (e: any) {
+      console.warn('[market-cache] fetchPriceMap failed:', e?.message || e);
+      return {};
+    }
+  }
   const vs = vsCurrencies.filter((c) => !!c);
   const primary = vs[0] || 'usd';
   const url =
@@ -91,6 +217,12 @@ export const useCoingecko = defineStore('coingecko', {
 
   actions: {
     getMarketChart(days = 30, coinId = 'cosmos') {
+      if (usingMarketCache) {
+        return marketChart(coinId).catch((e: any) => {
+          console.warn('[market-cache] market chart failed:', e?.message || e);
+          return { prices: [] };
+        });
+      }
       return cachedGet(
         `${coingeckoUrl}/api/v3/coins/${encodeURIComponent(coinId)}/market_chart?vs_currency=usd&days=${days}`
       );
@@ -108,6 +240,20 @@ export const useCoingecko = defineStore('coingecko', {
         .catch((e) => console.warn('[coingecko] price fetch failed:', e?.message || e));
     },
     getCoinInfo(coinId: string) {
+      if (usingMarketCache) {
+        return marketCoinInfo(coinId).catch((e: any) => {
+          console.warn('[market-cache] coin info failed:', e?.message || e);
+          return {
+            id: coinId,
+            symbol: '',
+            name: '',
+            market_data: {},
+            links: { homepage: [], twitter_screen_name: '', repos_url: { github: [] } },
+            description: { en: '' },
+            tickers: [],
+          };
+        });
+      }
       return cachedGet(`${coingeckoUrl}/api/v3/coins/${encodeURIComponent(coinId)}`);
     },
     setSecondaryCurrency(currency: string) {

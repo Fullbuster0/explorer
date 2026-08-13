@@ -4,10 +4,17 @@ import type { Coin, Delegation } from '@/types';
 import { ref, watchEffect } from 'vue';
 import type { AccountEntry } from './utils';
 import { computed } from 'vue';
-import { useBaseStore, useBlockchain, useFormatter, useStorageStore } from '@/stores';
+import {
+  fetchPortfolioMarketRows,
+  usingMarketCache,
+  useBaseStore,
+  useBlockchain,
+  useFormatter,
+  useStorageStore,
+} from '@/stores';
 import DonutChart from '@/components/charts/DonutChart.vue';
 import ApexCharts from 'vue3-apexcharts';
-import { get } from '@/libs';
+
 import { safeJsonParse } from '@/libs/utils';
 import { getMarketPriceChartConfig } from '@/components/charts/apexChartConfig';
 
@@ -27,7 +34,10 @@ const delegations = ref({} as Record<string, Delegation[]>);
 const tokenMeta = ref({} as Record<string, AccountEntry>);
 
 const priceloading = ref(false);
-const currency = ref(localStorage.getItem('currency') || 'usd');
+// The custom cache is intentionally USD-only. Do not let a remembered CNY/EUR
+// selection label USD numbers with the wrong symbol.
+const currency = ref(usingMarketCache ? 'usd' : localStorage.getItem('currency') || 'usd');
+const currencyOptions = usingMarketCache ? ['usd'] : ['usd', 'cny', 'eur', 'hkd', 'jpy', 'sgd', 'krw', 'btc', 'eth'];
 
 const prices = ref(
   [] as {
@@ -171,12 +181,21 @@ function loadPrice() {
   localStorage.setItem('currency', currency.value);
   const ids = Object.values(tokenQty.value)
     .map((x) => x.coinId)
+    .filter(Boolean)
     .join(',');
-  get(
-    `https://api.coingecko.com/api/v3/coins/markets?vs_currency=${currency.value}&ids=${ids}&order=market_cap_desc&per_page=100&page=1&sparkline=true&price_change_percentage=14d&locale=en`
-  ).then((res) => {
-    prices.value = res;
-  });
+  if (!ids) {
+    prices.value = [];
+    priceloading.value = false;
+    return;
+  }
+  fetchPortfolioMarketRows(ids.split(','), currency.value)
+    .then((res) => {
+      prices.value = Array.isArray(res) ? res : [];
+    })
+    .catch((e: any) => console.warn('[portfolio] price fetch failed:', e?.message || e))
+    .finally(() => {
+      priceloading.value = false;
+    });
 }
 const totalChangeIn24 = computed(() => {
   return Object.values(tokenQty.value)
@@ -194,7 +213,8 @@ const changeData = computed(() => {
       const token = tokenQty.value[denom];
       const marketData: any = prices.value.find((x) => x.id === token.coinId);
       if (marketData) {
-        return marketData.sparkline_in_7d?.price.map((p: number) => p * token.qty) as number[];
+        const points = marketData.sparkline_in_7d?.prices || marketData.sparkline_in_7d?.price;
+        return points?.map((p: number) => p * token.qty) as number[];
       }
       return [];
     })
@@ -257,15 +277,7 @@ const currencySign = computed(() => {
           <div class="flex items-center text-sm">
             Currency:
             <select v-model="currency" @change="loadPrice" class="ml-1 uppercase">
-              <option>usd</option>
-              <option>cny</option>
-              <option>eur</option>
-              <option>hkd</option>
-              <option>jpy</option>
-              <option>sgd</option>
-              <option>krw</option>
-              <option>btc</option>
-              <option>eth</option>
+              <option v-for="option in currencyOptions" :key="option">{{ option }}</option>
             </select>
           </div>
         </div>
