@@ -1,0 +1,8 @@
+{
+  "environment": "testnet",
+  "chain_id": "sapphire-1",
+  "source": "https://sapphire.testnets.gno.land",
+  "scraped_at": "2026-08-13T18:32:26.729Z",
+  "proposal_count": 32,
+  "source_ok": true
+}

@@ -65,10 +65,9 @@ export interface LocalChainConfig {
    */
   indexer_api?: string;
   /**
-   * Gno/TM2 only: public CORS JSON of the valoper registry (cron scrape).
-   * Served from the RPC host, e.g.
-   * https://gnoland-testnet-rpc.shazoes.xyz/static/gno-valopers.json
+   * Gno/TM2 only: public JSON of the chain-scoped valoper registry.
    * Copied through convertFromLocal → ChainConfig.valopers_live_url.
+   * Example: /data/gno-valopers/testnet/sapphire-1/valopers.json.
    */
   valopers_live_url?: string;
   /**

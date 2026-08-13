@@ -202,7 +202,7 @@ onBeforeRouteUpdate(async (to, from, next) => {
         <div>
           <div class="sz-section-kicker">Block record</div>
           <h1 class="block-hero__title">#{{ current.block?.header?.height }}</h1>
-          <p class="block-hero__meta">{{ store.blockchain.chainId }} · {{ format.toLocaleDate(current.block?.header?.time) }}</p>
+          <p class="block-hero__meta">{{ current.block?.header?.chain_id || '—' }} · {{ format.toLocaleDate(current.block?.header?.time) }}</p>
         </div>
         <div v-if="props.height" class="block-hero__nav">
           <RouterLink :to="`/${store.blockchain.chainName}/block/${height - 1}`" class="block-nav" aria-label="Previous block"><Icon icon="mdi-arrow-left" /></RouterLink>

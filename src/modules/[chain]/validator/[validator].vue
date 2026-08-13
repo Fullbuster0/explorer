@@ -432,7 +432,7 @@ loadSelfBond();
 const apr = computed(() => {
   const rate = Number(v.value.commission?.commission_rates.rate || 0);
   const inflation = annualInflation.value ?? Number(useMintStore().inflation || 0);
-  const communityTax = annualCommunityTax.value ?? Number(useDistributionStore().params.community_tax || 0);
+  const communityTax = annualCommunityTax.value ?? Number((useDistributionStore().params as any).community_tax || 0);
   const supply = annualSupply.value ?? Number(useBankStore().supply.amount || 0);
   const bondedRatio = Number(staking.pool.bonded_tokens || 0) / supply;
   if (!inflation || !bondedRatio || !Number.isFinite(bondedRatio)) return '—';
@@ -447,7 +447,8 @@ async function loadAnnualProfitInputs() {
     blockchain.rpc.getBankSupplyByDenom(staking.params.bond_denom).catch(() => null),
   ]);
   if (inflation?.inflation != null) annualInflation.value = Number(inflation.inflation);
-  if (distribution?.params?.community_tax != null) annualCommunityTax.value = Number(distribution.params.community_tax);
+  const distributionParams = distribution?.params as { community_tax?: string } | undefined;
+  if (distributionParams?.community_tax != null) annualCommunityTax.value = Number(distributionParams.community_tax);
   if (supply?.amount?.amount != null) annualSupply.value = Number(supply.amount.amount);
 }
 

@@ -16,47 +16,23 @@
     "parameters"
   ],
   "registry_name": "gnoland",
-  "description": "Gno.land is a next-generation smart contract platform using Gno, an interpreted version of the general-purpose Go programming language. On Gno.land, smart contracts can be uploaded on-chain only by publishing their full source code, making it trivial to verify the contract or fork it into an improved version. With a system to publish reusable code libraries on-chain, Gno.land serves as the \u201cGitHub\u201d of the ecosystem, with realms built using fully transparent, auditable code that anyone can inspect and reuse.",
+  "description": "Gno.land is a next-generation smart contract platform using Gno, an interpreted version of the general-purpose Go programming language. On Gno.land, smart contracts can be uploaded on-chain only by publishing their full source code, making it trivial to verify the contract or fork it into an improved version. With a system to publish reusable code libraries on-chain, Gno.land serves as the “GitHub” of the ecosystem, with realms built using fully transparent, auditable code that anyone can inspect and reuse.",
   "website": "https://gno.land",
   "twitter": "https://x.com/_gnoland",
   "discord": "https://discord.gg/S8nKUqwkPn",
   "github": "https://github.com/gnolang/gno",
   "coingecko": "",
   "api": [
-    {
-      "address": "https://rpc.sapphire.testnets.gno.land",
-      "provider": "Official"
-    },
-    {
-      "address": "https://gnoland-testnet-rpc.shazoes.xyz",
-      "provider": "Shazoes"
-    },
-    {
-      "address": "https://gnoland-testnet-rpc.itrocket.net",
-      "provider": "ITRocket"
-    },
-    {
-      "address": "https://gnoland.test.rpc.nodeshub.online",
-      "provider": "NodesHub"
-    }
+    { "address": "https://rpc.sapphire.testnets.gno.land", "provider": "Official" },
+    { "address": "https://gnoland-testnet-rpc.shazoes.xyz", "provider": "Shazoes" },
+    { "address": "https://gnoland-testnet-rpc.itrocket.net", "provider": "ITRocket" },
+    { "address": "https://gnoland.test.rpc.nodeshub.online", "provider": "NodesHub" }
   ],
   "rpc": [
-    {
-      "address": "https://rpc.sapphire.testnets.gno.land",
-      "provider": "Official"
-    },
-    {
-      "address": "https://gnoland-testnet-rpc.shazoes.xyz",
-      "provider": "Shazoes"
-    },
-    {
-      "address": "https://gnoland-testnet-rpc.itrocket.net",
-      "provider": "ITRocket"
-    },
-    {
-      "address": "https://gnoland.test.rpc.nodeshub.online",
-      "provider": "NodesHub"
-    }
+    { "address": "https://rpc.sapphire.testnets.gno.land", "provider": "Official" },
+    { "address": "https://gnoland-testnet-rpc.shazoes.xyz", "provider": "Shazoes" },
+    { "address": "https://gnoland-testnet-rpc.itrocket.net", "provider": "ITRocket" },
+    { "address": "https://gnoland.test.rpc.nodeshub.online", "provider": "NodesHub" }
   ],
   "snapshot_provider": "",
   "sdk_version": "gno-tm2",
@@ -66,21 +42,15 @@
   "theme_color": "#1a8f5b",
   "logo": "/logos/gno.svg",
   "assets": [
-    {
-      "base": "ugnot",
-      "symbol": "GNOT",
-      "exponent": "6",
-      "coingecko_id": "",
-      "logo": "/logos/gno.svg"
-    }
+    { "base": "ugnot", "symbol": "GNOT", "exponent": "6", "coingecko_id": "", "logo": "/logos/gno.svg" }
   ],
   "keplr_features": [],
   "valopers_source": {
     "type": "gno-realm",
     "base_url": "https://sapphire.testnets.gno.land/r/gnops/valopers",
-    "note": "Official Sapphire gnops valoper registry. Cron scrapes this server-side."
+    "note": "Official Sapphire gnops valoper registry. Data is refreshed independently by gno-valopers."
   },
-  "valopers_live_url": "https://gnoland-testnet-rpc.shazoes.xyz/static/gno-valopers.json",
+  "valopers_live_url": "/data/gno-valopers/testnet/sapphire-1/valopers.json",
   "indexer_api": "https://sapphire.api.onbloc.xyz/v1",
   "gnoweb": "https://sapphire.testnets.gno.land"
 }

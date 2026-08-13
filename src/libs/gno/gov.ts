@@ -1,15 +1,14 @@
 /**
  * gov.ts — Gnoland GovDAO proposal data layer.
  *
- * Source: realm gno.land/r/gov/dao, scraped server-side from gnoweb by
- * scripts/refresh-gno-gov.mjs (cron) → served as static JSON at
- * <rpc-origin>/static/gno-gov.json. Onbloc does NOT index Gno governance —
- * this is fully onbloc-independent.
+ * Source: realm gno.land/r/gov/dao, scraped independently by gno-valopers.
+ * The deployed explorer consumes the chain-scoped JSON artifact from
+ * `/data/gno-valopers/testnet/sapphire-1/gov.json`.
  *
  * Load order:
- *   1. live fetch `<valopers_live_url origin>/static/gno-gov.json` (freshest)
- *   2. bundled seed (gov-data.json) — keeps the page alive if the static host
- *      is down or nginx hasn't been wired yet.
+ *   1. chain-scoped runtime artifact (freshest deployment snapshot)
+ *   2. bundled seed (gov-data.json) — keeps the page alive if the artifact
+ *      is unavailable.
  */
 import seed from './gov-data.json';
 
@@ -108,12 +107,18 @@ function normalize(raw: any): GnoGovData | null {
 
 const SEED = normalize(seed) as GnoGovData;
 
-/** Derive the gov static JSON URL from the valopers live URL (same /static host). */
+/** Derive the chain-scoped governance JSON URL from the valopers URL. */
 export function govLiveUrl(valopersLiveUrl?: string): string | null {
-  if (!valopersLiveUrl || !/^https?:\/\//i.test(valopersLiveUrl)) return null;
+  if (!valopersLiveUrl) return null;
+  // Runtime artifacts are same-origin and chain-scoped. Keep this strict so a
+  // malformed config cannot turn the browser into an arbitrary fetch proxy.
+  if (valopersLiveUrl.startsWith('/') && !valopersLiveUrl.startsWith('//')) {
+    return valopersLiveUrl.replace(/\/valopers\.json(?:\?.*)?$/i, '/gov.json');
+  }
+  if (!/^https:\/\//i.test(valopersLiveUrl)) return null;
   try {
     const u = new URL(valopersLiveUrl);
-    return `${u.origin}/static/gno-gov.json`;
+    return `${u.origin}${u.pathname.replace(/\/valopers\.json(?:\?.*)?$/i, '/gov.json')}`;
   } catch {
     return null;
   }
@@ -139,8 +144,10 @@ export async function loadGnoGov(valopersLiveUrl?: string): Promise<GnoGovResult
         cache: 'no-store',
       });
       if (res.ok) {
+        const contentType = (res.headers.get('content-type') || '').toLowerCase();
+        if (contentType.includes('text/html')) throw new Error('governance artifact returned HTML');
         const fresh = normalize(await res.json());
-        if (fresh && fresh.proposals.length) return { data: fresh, live: true };
+        if (fresh && fresh.source.chain_id === 'sapphire-1') return { data: fresh, live: true };
       }
     } catch {
       /* static host down / not wired yet → seed */

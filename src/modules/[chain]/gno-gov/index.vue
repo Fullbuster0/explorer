@@ -89,7 +89,7 @@ onMounted(async () => {
       </div>
       <div class="sz-govdao-source" v-if="!loading">
         <span class="sz-chip" :class="live ? 'sz-chip--ok' : 'sz-chip--info'">
-          {{ live ? 'live · /static' : 'bundled snapshot' }}
+          {{ live ? 'chain-scoped snapshot' : 'bundled snapshot' }}
         </span>
       </div>
     </div>
