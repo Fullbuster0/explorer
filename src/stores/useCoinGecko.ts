@@ -124,7 +124,9 @@ function marketCoinInfo(coinId: string): Promise<any> {
   return marketCacheGet(`${marketCacheUrl}/prices?ids=${encodeURIComponent(coinId)}`).then((payload: any) => {
     const row = payload?.data?.[coinId] || {};
     const current = Number(row.current_price);
-    const hasPrice = Number.isFinite(current);
+    // `Number(null)` is 0; do not turn a partial/missing cache row into a
+    // false $0 market ticker and a misleading "market available" state.
+    const hasPrice = row.current_price != null && Number.isFinite(current);
     return {
       id: coinId,
       // The cache intentionally stores market numbers, not CoinGecko project
@@ -220,7 +222,7 @@ export const useCoingecko = defineStore('coingecko', {
       if (usingMarketCache) {
         return marketChart(coinId).catch((e: any) => {
           console.warn('[market-cache] market chart failed:', e?.message || e);
-          return { prices: [] };
+          return { prices: [], total_volumes: [], __error: true, __errorMessage: e?.message || 'request failed' };
         });
       }
       return cachedGet(

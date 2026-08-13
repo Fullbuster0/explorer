@@ -52,6 +52,8 @@ export const useIndexModule = defineStore('module-index', {
     return {
       days: 14,
       dashboardRequestEpoch: 0,
+      marketChartStatus: 'idle' as 'idle' | 'loading' | 'ready' | 'empty' | 'error',
+      marketChartError: '' as string,
       tickerIndex: 0,
       coinInfo: {
         name: '',
@@ -362,6 +364,8 @@ export const useIndexModule = defineStore('module-index', {
         this.blockchain?.coingecko ||
         '';
       if (cgId) {
+        this.marketChartStatus = 'loading';
+        this.marketChartError = '';
         // CoinGecko free tier is flaky (CORS / rate-limit / network). Never
         // let a rejection surface as an uncaught pageerror
         // (`TypeError: Network request failed` from cross-fetch).
@@ -385,9 +389,16 @@ export const useIndexModule = defineStore('module-index', {
           .then((x) => {
             if (epoch !== this.dashboardRequestEpoch) return;
             this.marketData = x;
+            const hasPoints = Array.isArray(x?.prices) && x.prices.length > 0;
+            this.marketChartStatus = x?.__error ? 'error' : hasPoints ? 'ready' : 'empty';
+            this.marketChartError = x?.__errorMessage || '';
           })
           .catch((e: any) => {
             console.warn('[dashboard] marketChart failed:', e?.message || e);
+            if (epoch === this.dashboardRequestEpoch) {
+              this.marketChartStatus = 'error';
+              this.marketChartError = e?.message || 'request failed';
+            }
           });
       }
     },

@@ -16,7 +16,21 @@ const activePairs = computed(() => {
     kind.value === 'price'
       ? md.prices
       : md.total_volumes;
-  return Array.isArray(raw) ? raw : [];
+  return Array.isArray(raw)
+    ? raw.filter(
+        (item: any) =>
+          Array.isArray(item) &&
+          item.length >= 2 &&
+          Number.isFinite(Number(item[0])) &&
+          Number.isFinite(Number(item[1]))
+      )
+    : [];
+});
+
+const emptyMessage = computed(() => {
+  if (store.marketChartStatus === 'loading') return 'Loading market data…';
+  if (store.marketChartStatus === 'error') return 'Market data unavailable';
+  return kind.value === 'volume' ? 'No volume data' : 'No price data';
 });
 
 const chartConfig = computed(() => {
@@ -70,18 +84,14 @@ function changeChart(type: 'price' | 'volume') {
 
     <div class="sz-mkt-chart">
       <ApexCharts
+        v-if="activePairs.length"
         :key="chartKey"
         type="area"
         height="220"
         :options="chartConfig"
         :series="series"
       />
-      <div
-        v-if="kind === 'volume' && activePairs.length === 0"
-        class="sz-mkt-empty"
-      >
-        No volume data
-      </div>
+      <div v-else class="sz-mkt-empty">{{ emptyMessage }}</div>
     </div>
   </div>
 </template>
