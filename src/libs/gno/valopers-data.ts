@@ -1,7 +1,7 @@
 /** Auto-generated Gnoland valoper moniker registry.
  * Source: https://sapphire.testnets.gno.land/r/gnops/valopers
  * Identity: AtomOne mainnet moniker match → Keybase (for logos)
- * Generated: 2026-08-13T15:49:04.878Z
+ * Generated: 2026-08-13T16:12:59.382Z
  * Do not hand-edit — run: node scripts/refresh-gno-valopers.mjs
  */
 export interface GnoValoperRow {
@@ -34,8 +34,8 @@ const registry: GnoValoperRow[] = [
     "twitter": "",
     "github": "",
     "telegram": "",
-    "discord": "/u/jjangg96 @jjangg96     /u/tedc @tedc",
-    "email": "hello@1xp.com",
+    "discord": "",
+    "email": "",
     "networks": []
   },
   {
@@ -141,7 +141,7 @@ const registry: GnoValoperRow[] = [
     "moniker": "BoyGau",
     "signingAddress": "g17jam3dz3carxshn7fgtq2l70txcrzhgmhexytn",
     "operatorAddress": "g1lyt8fg7e987jgh7kxa3fn8zlcx295kdzuj7d8d",
-    "website": "https://boygau.top",
+    "website": "",
     "identity": "",
     "serverType": "on-prem",
     "description": "Contributions: Experienced in 24/7 infrastructure monitoring, running secure hardened node topologies, providing optimized snapshots/automation scripts for the node runner community, and actively participating in governance decisions.\n\nContributions: Experienced in 24/7 infrastructure monitoring, running secure hardened node topologies, providing optimized snapshots/automation scripts for the node runner community, and actively participating in governance decisions.",
@@ -205,25 +205,17 @@ const registry: GnoValoperRow[] = [
     "moniker": "Chicharito",
     "signingAddress": "g1pk6yr9ss0cxe3ymzkd722j07tcuwldd46gm7ux",
     "operatorAddress": "g1vlvfudwxh8h569p8jruf2euemzqt3hqk3e3mx9",
-    "website": "https://node9x.com/",
+    "website": "",
     "identity": "",
     "serverType": "data-center",
     "description": "Trusted Node Validator",
     "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq7lnjuxk8p8flumq7ca3glrdcrxf0atqjh540p70cre8r870vyn4lmxtts",
     "twitter": "",
-    "github": "https://github.com/0xChicharito",
+    "github": "",
     "telegram": "",
-    "discord": "0xchicharito",
+    "discord": "",
     "email": "",
-    "networks": [
-      "Pactus",
-      "Jay",
-      "Latanda",
-      "Lumen",
-      "Paxi",
-      "Republic",
-      "Pluralis"
-    ]
+    "networks": []
   },
   {
     "moniker": "Chiter in Cosmos",
@@ -300,7 +292,7 @@ const registry: GnoValoperRow[] = [
     "serverType": "data-center",
     "description": "The Corenode community is a Turkish validator community. It is a workshop where people collaborate to develop new features and tools for the networks and help one another in this regard. Bringing the community and project managers together. Organizing special events for the Turkish community. Bringing together the projects we partner with. Explorer, RPC, Snap, and specialized tools for networks",
     "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zprn5pk4ezz8lgrvfrj9p5fyv6rysxxsy3xpgxyzkl5ulvcsq2l5s3snq7p",
-    "twitter": "https://x.com/corenodeHQ",
+    "twitter": "",
     "github": "",
     "telegram": "",
     "discord": "molla202",
@@ -348,7 +340,7 @@ const registry: GnoValoperRow[] = [
     "serverType": "data-center",
     "description": "cunum is a small solo validator, validating for NEAR protocol since January 2023, involved in the Cosmos ecosystem as user since 2021, validating for GovGen from genesis till sunset and for AtomOne from week 1 till today.\n\nWhy gno.land: The project is a promising and innovative new approach to blockchain tech and in general I want to support Jae as a thank you for all that he has done for the crypto community.\n\nContributions: Participation in Testnets",
     "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zp30znyrsmwm7uml359w5gml5xfc2xgnzk7t5gntj4tmrjdsxkzru9cjym5",
-    "twitter": "https://x.com/CunumStaking",
+    "twitter": "",
     "github": "",
     "telegram": "",
     "discord": "cunum_04458",
@@ -363,18 +355,16 @@ const registry: GnoValoperRow[] = [
     "signingAddress": "g1d6f9ath3aj65e70q8cv0294v6m6qptg2ysuvzx",
     "operatorAddress": "g1ykmwkqeyjzjy9ps4sp6saf7jke8jca56fte3mg",
     "website": "",
-    "identity": "F04B7F842706017A",
+    "identity": "",
     "serverType": "data-center",
-    "description": "Why gno.land: Why Gno.land? Embracing the New Language Standard &quot;We are deeply committed to the evolution of blockchain-specific languages. While Go is the backbone of the Cosmos ecosystem, its non-deterministic elements have historically required complex workarounds. Gno.land’s deterministic interpreter represents a paradigm shift. By validating on Gno.land, we are not just supporting a network; we are supporting the establishment of a new gold standard for smart contract development. We believe that Gno’s focus on readability, simplicity, and strict state management is the key to creating more secure",
+    "description": "",
     "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zp5xht8dvwmjr87svnh63l7jyqae94d20uvwtrnf4hgch8dkcfy8tvaj6yr",
     "twitter": "",
     "github": "",
     "telegram": "",
-    "discord": "/u/vovscorp @vovscorp",
-    "email": "trace.valoper@gmail.com",
-    "networks": [
-      "We operate our own proprietary bare"
-    ]
+    "discord": "",
+    "email": "",
+    "networks": []
   },
   {
     "moniker": "dnsarz",
@@ -388,8 +378,8 @@ const registry: GnoValoperRow[] = [
     "twitter": "",
     "github": "",
     "telegram": "",
-    "discord": "/u/dnsarz @dnsarz     ---",
-    "email": "dnsarz@gmail.com",
+    "discord": "",
+    "email": "",
     "networks": []
   },
   {
@@ -401,14 +391,12 @@ const registry: GnoValoperRow[] = [
     "serverType": "data-center",
     "description": "The name of your validator: doresa. Networks: CrossFi (~$220,000 AuM). Links: https://gnoscan.doresa.xyz/ | https://github.com/doresa0 | https://x.com/doresa0. Contact:  /cdn-cgi/l/email-protection [email protected]  | Telegram doresa0 | Discord doresa0. Why: mainnet validator experience, stable signing and long-term commitment to gno.land. Contributions: Gno Explorer, public RPC, operator guides and infra. Operator:  /u/g18lnmr5td4g5td0w0e3cmt5lvgd8xwzekat0dhy g18lnmr5td4g5td0w0e3cmt5lvgd8xwzekat0dhy    | Signing:  /u/g139sha43j4qdxqj2wmrezzj336tc255r25yu0uz g139sha43j4qdxqj2wmrezzj336tc255r25yu0uz\n\nContributions: Gno Explorer, public RPC, operator guides and infra. Operator:  /u/g18lnmr5td4g5td0w0e3cmt5lvgd8xwzekat0dhy g18lnmr5td4g5td0w0e3cmt5lvgd8xwzekat0dhy    | Signing:  /u/g139sha43j4qdxqj2wmrezzj336tc255r25yu0uz g139sha43j4qdxqj2wmrezzj336tc255r25yu0uz",
     "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq244ltyg9gw2ue9jg9aum2zdmmgtq2n2p6alp5elq9gg6q5j80yu8r38p2",
-    "twitter": "https://x.com/doresa0",
-    "github": "https://github.com/doresa0",
+    "twitter": "",
+    "github": "",
     "telegram": "",
-    "discord": "doresa0",
+    "discord": "",
     "email": "contact@doresa.xyz",
-    "networks": [
-      "and your"
-    ]
+    "networks": []
   },
   {
     "moniker": "EquinoxDao",
@@ -529,7 +517,7 @@ const registry: GnoValoperRow[] = [
     "twitter": "",
     "github": "",
     "telegram": "",
-    "discord": "@baconvalley   . Contact: X  @bacvalley",
+    "discord": "",
     "email": "",
     "networks": []
   },
@@ -848,7 +836,7 @@ const registry: GnoValoperRow[] = [
     "twitter": "",
     "github": "https://github.com/okannako",
     "telegram": "",
-    "discord": "nakoturk",
+    "discord": "",
     "email": "cryptochainnakoturk@gmail.com",
     "networks": []
   },
@@ -859,7 +847,7 @@ const registry: GnoValoperRow[] = [
     "website": "https://nodeist.net",
     "identity": "A2E180C6914F7F87",
     "serverType": "data-center",
-    "description": "Nodeist is the trusted staking service provider for blockchain projects. 100% refund for downtime slash. Contact us at  /cdn-cgi/l/email-protection#026a676e6e6d426c6d66676b71762c6c6776  [email protected]\n\nWhy gno.land: We've been following Gno.land's development with great enthusiasm since its early days. The platform's unique approach to smart contracts through the Gno language presents one of the most innovative solutions in the blockchain space today. Its modular, community-driven architecture aligns perfectly with our vision for decentralized infrastructure.\n\nContributions: Early Network Participation · Educational Resources · Community Support · Planned Infrastructure: Committed to launching public RPC endpoints and maintaining daily snapshots to enhance network accessibility",
+    "description": "Nodeist is the trusted staking service provider for blockchain projects. 100% refund for downtime slash. Contact us at  /cdn-cgi/l/email-protection#721a171e1e1d321c1d16171b01065c1c1706  [email protected]\n\nWhy gno.land: We've been following Gno.land's development with great enthusiasm since its early days. The platform's unique approach to smart contracts through the Gno language presents one of the most innovative solutions in the blockchain space today. Its modular, community-driven architecture aligns perfectly with our vision for decentralized infrastructure.\n\nContributions: Early Network Participation · Educational Resources · Community Support · Planned Infrastructure: Committed to launching public RPC endpoints and maintaining daily snapshots to enhance network accessibility",
     "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq0y38x3wplh8rxacma8d5aexts02punn7zkth45armkxuzl2v68d5akew8",
     "twitter": "https://x.com/Nodeistt",
     "github": "https://github.com/Nodeist",
@@ -1011,12 +999,12 @@ const registry: GnoValoperRow[] = [
     "website": "",
     "identity": "F1288C602793C380",
     "serverType": "on-prem",
-    "description": "© 2026 NewTendermint, LLC. NewTendermint provides software and user interfaces for interacting with the Gno.land blockchain network. The Network is decentralized and not controlled by NewTendermint. B",
+    "description": "",
     "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpeg7gty6tr900e7dzd73x9x8ckadryul865k7n6u64wejdvne4jxa3wnjc",
     "twitter": "",
     "github": "",
     "telegram": "",
-    "discord": "cougarmaster email: [email protected]",
+    "discord": "",
     "email": "voipster3@gmail.com",
     "networks": []
   },
@@ -1187,7 +1175,7 @@ const registry: GnoValoperRow[] = [
     "twitter": "",
     "github": "",
     "telegram": "",
-    "discord": "@rafinoo   ,  @ciskos_nuxianlabs",
+    "discord": "",
     "email": "contact@nuxian.ch",
     "networks": []
   },
@@ -1402,9 +1390,9 @@ const registry: GnoValoperRow[] = [
     "serverType": "data-center",
     "description": "Why gno.land: Why Gno.land Embracing the New Language Standard. We are deeply committed to the evolution of blockchain-specific languages. While Go is the backbone of the Cosmos ecosystem, its non-deterministic elements have historically required complex workarounds. Gno.land’s deterministic interpreter represents a paradigm shift. By validating on Gno.land, we are not just supporting a network; we are supporting the establishment of a new gold standard for smart contract development. We believe that Gno’s focus on readability, simplicity, and strict state management is the key to creating more secure and a",
     "pubKey": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zp5h3ku457gx9d9nkgzcgaez25ad7l0gfnnyqemq4mec0q9tp7k9tn08yvu",
-    "twitter": "https://x.com/vovscorp/",
+    "twitter": "https://x.com/vovscorp",
     "github": "",
-    "telegram": "",
+    "telegram": "https://t.me/vovscorp",
     "discord": "/u/vovscorp @vovscorp",
     "email": "trace.valoper@gmail.com",
     "networks": [
@@ -1470,8 +1458,8 @@ const registry: GnoValoperRow[] = [
     "twitter": "",
     "github": "",
     "telegram": "",
-    "discord": "lvalidarios",
-    "email": "validarais.com@gmail.com",
+    "discord": "",
+    "email": "",
     "networks": []
   },
   {
