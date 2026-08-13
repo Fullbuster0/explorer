@@ -50,7 +50,7 @@
     "base_url": "https://sapphire.testnets.gno.land/r/gnops/valopers",
     "note": "Official Sapphire gnops valoper registry. Data is refreshed independently by gno-valopers."
   },
-  "valopers_live_url": "/data/gno-valopers/testnet/sapphire-1/valopers.json",
+  "valopers_live_url": "https://data.shazoes.xyz/gno/testnet/sapphire-1/valopers.json",
   "indexer_api": "https://sapphire.api.onbloc.xyz/v1",
   "gnoweb": "https://sapphire.testnets.gno.land"
 }

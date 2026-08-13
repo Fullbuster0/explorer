@@ -1,9 +1,0 @@
-{
-  "environment": "testnet",
-  "chain_id": "sapphire-1",
-  "source": "https://sapphire.testnets.gno.land/r/gnops/valopers",
-  "scraped_at": "2026-08-13T18:31:19.342Z",
-  "count": 88,
-  "identity_count": 45,
-  "source_ok": true
-}
