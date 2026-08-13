@@ -730,7 +730,7 @@ loadAvatars();
           <span class="font-mono">{{ isGno ? (gnoValidators.length ? (gnoCounts.ACTIVE + gnoCounts.PENDING + gnoCounts.INACTIVE) : '…') : list.length }}</span>
           <template v-if="isGno && gnoValidators.length">
             validators · {{ gnoCounts.ACTIVE }} active · {{ gnoCounts.PENDING }} pending · {{ gnoCounts.INACTIVE }} inactive
-            <span v-if="gnoLoading" class="opacity-60"> · loading…</span>
+            <span v-if="gnoLoading && !gnoValidators.length" class="opacity-60"> · loading…</span>
             <span v-else-if="gnoError" class="text-amber-500"> · {{ gnoError }}</span>
           </template>
           <template v-else-if="isGno && gnoLoading">
