@@ -6,8 +6,8 @@ import type { Block } from '@/types';
 import { hashTx } from '@/libs';
 import { fromBase64 } from '@cosmjs/encoding';
 
-const FETCH_ALL_BLOCKS = import.meta.env.VITE_FETCH_ALL_BLOCKS || false;
-const RECENT_BLOCKS_LIMIT = import.meta.env.VITE_RECENT_BLOCK_LIMIT || 50;
+const FETCH_ALL_BLOCKS = String(import.meta.env.VITE_FETCH_ALL_BLOCKS || '').toLowerCase() === 'true';
+const RECENT_BLOCKS_LIMIT = Math.max(1, Number(import.meta.env.VITE_RECENT_BLOCK_LIMIT || 50) || 50);
 
 export const useBaseStore = defineStore('baseStore', {
   state: () => {
