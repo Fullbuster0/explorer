@@ -122,9 +122,10 @@ function applyUptime(rows: GnoIndexerValidator[]): GnoIndexerValidator[] {
 }
 
 function mergeWithUptime(rows: GnoIndexerValidator[]): GnoIndexerValidator[] {
-  // Apply before merge so deduplication uses the collector’s status, then
-  // apply again for registry-only synthetic PENDING rows.
-  return applyUptime(mergeRegistryPending(applyUptime(rows)));
+  // Deduplicate the indexer’s operator-registration PENDING rows before
+  // applying uptime. Otherwise operator lookup promotes those duplicates to
+  // ACTIVE and they survive the filter as a second copy.
+  return applyUptime(mergeRegistryPending(rows));
 }
 
 function uptimeLabel(g?: GnoIndexerValidator | null): string {
@@ -252,28 +253,43 @@ function mergeRegistryPending(indexerRows: GnoIndexerValidator[]): GnoIndexerVal
   const seenPend = new Set<string>();
 
   for (const g of indexerRows) {
-    if (g.status === 'ACTIVE' || g.status === 'INACTIVE') {
-      settled.add(g.address);
-      const meta = lookupGnoValoper(g.address);
-      // Only the paired op/sig for THIS address — never all rows with same moniker
-      if (meta?.operatorAddress) settled.add(meta.operatorAddress);
-      if (meta?.signingAddress) settled.add(meta.signingAddress);
-    } else if (g.status === 'PENDING') {
-      seenPend.add(g.address);
-    }
+    if (g.status !== 'ACTIVE' && g.status !== 'INACTIVE') continue;
+    settled.add(g.address);
+    const meta = lookupGnoValoper(g.address);
+    // Only the paired op/sig for THIS address — never all rows with same moniker.
+    if (meta?.operatorAddress) settled.add(meta.operatorAddress);
+    if (meta?.signingAddress) settled.add(meta.signingAddress);
   }
 
-  const out = indexerRows.slice();
+  const belongsToSettledPair = (g: GnoIndexerValidator): boolean => {
+    if (settled.has(g.address)) return true;
+    const meta = lookupGnoValoper(g.address);
+    return Boolean(
+      (meta?.operatorAddress && settled.has(meta.operatorAddress)) ||
+      (meta?.signingAddress && settled.has(meta.signingAddress))
+    );
+  };
+
+  // OnBloc keeps the original PENDING registration row after the same
+  // operator enters the set. Remove that duplicate BEFORE applying uptime;
+  // otherwise operator-address lookup promotes the duplicate to ACTIVE.
+  const out = indexerRows.filter(
+    (g) => g.status !== 'PENDING' || !belongsToSettledPair(g)
+  );
+  for (const g of out) {
+    if (g.status === 'PENDING') seenPend.add(g.address);
+  }
+
   let synthId = -1;
   for (const row of listGnoValopers()) {
     const op = (row.operatorAddress || '').trim();
     const sig = (row.signingAddress || '').trim();
     const mon = (row.moniker || '').trim();
     if (!op && !sig) continue;
-    // Address-only: already active/inactive (this valoper pair)
+    // Address-only: already active/inactive (this valoper pair).
     if (sig && settled.has(sig)) continue;
     if (op && settled.has(op)) continue;
-    // Already have an onbloc PENDING row for this operator/signing
+    // Already have an onbloc PENDING row for this operator/signing.
     if (op && seenPend.has(op)) continue;
     if (sig && seenPend.has(sig)) continue;
 
