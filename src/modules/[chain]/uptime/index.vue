@@ -583,17 +583,26 @@ function changeTab(v: string) {
         <h1 class="sz-page-title">{{ $t('module.uptime') }}</h1>
         <div class="sz-page-sub flex items-center gap-2">
           <span class="sz-live-dot"></span>
-          <span>
-            Live · window
-            <span class="font-mono">{{ slashingParam.signed_blocks_window || '—' }}</span>
-            · min
-            <span class="font-mono">{{ format.percent(slashingParam.min_signed_per_window) }}</span>
-          </span>
-          <span
-            v-if="isGnoUptime"
-            class="sz-chip !text-[10px]"
-            title="Gnoland has no on-chain slashing module. Window = last N blocks in the heatmap (explorer-defined)."
-          >explorer window · no on-chain slashing</span>
+          <template v-if="isGnoUptime">
+            <span>
+              Live · rolling window
+              <span class="font-mono">{{ (gnoSnapshot?.windowBlocks || 10000).toLocaleString() }}</span>
+              blocks · collector polling
+              <span class="font-mono">5s</span>
+            </span>
+            <span
+              class="sz-chip !text-[10px]"
+              title="Gnoland has no on-chain slashing module. Uptime is read from the bounded collector snapshot."
+            >collector snapshot · no on-chain slashing</span>
+          </template>
+          <template v-else>
+            <span>
+              Live · window
+              <span class="font-mono">{{ slashingParam.signed_blocks_window || '—' }}</span>
+              · min
+              <span class="font-mono">{{ format.percent(slashingParam.min_signed_per_window) }}</span>
+            </span>
+          </template>
         </div>
       </div>
       <div class="sz-tabs">
