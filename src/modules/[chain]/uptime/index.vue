@@ -26,6 +26,80 @@ const signingInfo = ref({} as Record<string, SigningInfo>);
 const inactiveValidators = ref([] as Validator[]);
 const consumerValidators = ref([] as { moniker: string; base64: string }[]);
 
+interface GnoUptimeValidator {
+  operatorAddress: string;
+  signingAddress?: string;
+  moniker: string;
+  status: 'ACTIVE' | 'INACTIVE' | 'PENDING' | string;
+  sampledBlocks: number;
+  signed: number;
+  missed: number;
+  uptime?: number | null;
+  consecutiveMissed?: number;
+  votingPower?: string;
+}
+
+interface GnoUptimeSnapshot {
+  observedHeight?: number;
+  windowBlocks?: number;
+  updatedAt?: string;
+  validators: GnoUptimeValidator[];
+}
+
+const gnoSnapshot = ref<GnoUptimeSnapshot | null>(null);
+const gnoSnapshotLoading = ref(false);
+const gnoSnapshotError = ref('');
+let gnoSnapshotTimer: ReturnType<typeof setInterval> | undefined;
+const gnoUptimeUrl = computed(() => (chainStore.current as any)?.uptime_live_url || '');
+
+async function fetchGnoSnapshot() {
+  if (!isGnoUptime.value || !gnoUptimeUrl.value) return;
+  gnoSnapshotLoading.value = !gnoSnapshot.value;
+  try {
+    const separator = gnoUptimeUrl.value.includes('?') ? '&' : '?';
+    const response = await fetch(`${gnoUptimeUrl.value}${separator}t=${Date.now()}`, {
+      cache: 'no-store',
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const payload = await response.json();
+    if (!payload || !Array.isArray(payload.validators)) throw new Error('invalid uptime snapshot');
+    gnoSnapshot.value = payload as GnoUptimeSnapshot;
+    gnoSnapshotError.value = '';
+  } catch (error: any) {
+    gnoSnapshotError.value = error?.message || 'Unable to load uptime snapshot';
+  } finally {
+    gnoSnapshotLoading.value = false;
+  }
+}
+
+const gnoSnapshotRows = computed(() => {
+  const order: Record<string, number> = { ACTIVE: 0, PENDING: 1, INACTIVE: 2 };
+  return (gnoSnapshot.value?.validators || [])
+    .filter((v) => matchGnoKeyword(v.moniker))
+    .slice()
+    .sort((a, b) => (order[a.status] ?? 9) - (order[b.status] ?? 9) || Number(b.votingPower || 0) - Number(a.votingPower || 0));
+});
+
+const gnoSnapshotStats = computed(() => {
+  const rows = gnoSnapshot.value?.validators || [];
+  return {
+    total: rows.length,
+    active: rows.filter((v) => v.status === 'ACTIVE').length,
+    pending: rows.filter((v) => v.status === 'PENDING').length,
+    inactive: rows.filter((v) => v.status === 'INACTIVE').length,
+  };
+});
+
+function matchGnoKeyword(moniker: string) {
+  const q = keyword.value.trim().toLowerCase();
+  return !q || moniker.toLowerCase().includes(q);
+}
+
+function gnoUptimeLabel(value?: number | null) {
+  return value == null ? 'PENDING' : `${Number(value).toFixed(2)}%`;
+}
+
 type BondStatus = 'active' | 'unbonding' | 'inactive';
 
 interface BlockColor {
@@ -268,6 +342,11 @@ async function loadAllValidators() {
 onMounted(() => {
   live.value = true;
 
+  if (isGnoUptime.value) {
+    fetchGnoSnapshot();
+    gnoSnapshotTimer = setInterval(fetchGnoSnapshot, 5_000);
+  }
+
   // fill the recent blocks
   baseStore.recents?.forEach((b) => {
     fillblock(b, 'start');
@@ -276,16 +355,21 @@ onMounted(() => {
   updateTotalSigningInfo();
   loadAllValidators();
 
-  // Gno/TM2: no on-chain slashing module — skip Cosms LCD noise.
-  const isGnoUptime =
-    chainStore.current?.engine === 'gno' || chainStore.current?.engine === 'tm2';
-  if (!isGnoUptime) {
+  // Gno/TM2: no on-chain slashing module — skip Cosmos LCD noise.
+  if (!isGnoUptime.value) {
     chainStore.rpc
       ?.getSlashingParams()
       .then((x) => {
         slashingParam.value = x.params;
       })
       .catch((e: any) => console.warn('[uptime] slashing params:', e?.message || e));
+  }
+});
+
+watch(isGnoUptime, (isGno) => {
+  if (isGno && !gnoSnapshotTimer) {
+    fetchGnoSnapshot();
+    gnoSnapshotTimer = setInterval(fetchGnoSnapshot, 5_000);
   }
 });
 
@@ -478,6 +562,10 @@ function statusLabel(status: BondStatus, jailed: boolean) {
 
 onUnmounted(() => {
   live.value = false;
+  if (gnoSnapshotTimer) {
+    clearInterval(gnoSnapshotTimer);
+    gnoSnapshotTimer = undefined;
+  }
 });
 
 //const tab = ref(window.location.hash.search("block")>-1?"2":"3")
@@ -521,7 +609,100 @@ function changeTab(v: string) {
       </div>
     </div>
 
-    <div class="sz-section p-4 sm:p-5">
+    <div v-if="isGnoUptime" class="sz-section p-4 sm:p-5">
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div>
+          <div class="text-[11px] font-bold uppercase tracking-wider text-secondary">Live collector snapshot</div>
+          <div class="text-sm text-secondary mt-1">
+            Rolling window:
+            <span class="font-mono text-main">{{ (gnoSnapshot?.windowBlocks || 10000).toLocaleString() }} blocks</span>
+            · observed height
+            <span class="font-mono text-main">#{{ gnoSnapshot?.observedHeight || '—' }}</span>
+          </div>
+        </div>
+        <div class="flex flex-wrap items-center gap-2 text-[11px]">
+          <span class="sz-chip sz-chip--ok"><span class="sz-live-dot mr-1"></span>Live · refreshes every 5s</span>
+          <span v-if="gnoSnapshot?.updatedAt" class="text-secondary">
+            Updated {{ new Date(gnoSnapshot.updatedAt).toLocaleTimeString() }}
+          </span>
+        </div>
+      </div>
+
+      <div v-if="gnoSnapshotError" class="mb-4 rounded-lg border border-error/30 bg-error/5 px-3 py-2 text-sm text-error">
+        {{ gnoSnapshotError }} · showing the last successful snapshot when available.
+      </div>
+      <div v-if="gnoSnapshotLoading && !gnoSnapshot" class="py-10 text-center text-secondary">
+        Loading live uptime snapshot…
+      </div>
+      <template v-else>
+        <div class="grid grid-cols-2 gap-2 sm:grid-cols-4 mb-4">
+          <div class="rounded-lg border border-base-content/10 bg-base-100 p-3">
+            <div class="text-[10px] uppercase tracking-wider text-secondary">Validators</div>
+            <div class="mt-1 text-lg font-semibold">{{ gnoSnapshotStats.total }}</div>
+          </div>
+          <div class="rounded-lg border border-success/20 bg-success/5 p-3">
+            <div class="text-[10px] uppercase tracking-wider text-secondary">Active</div>
+            <div class="mt-1 text-lg font-semibold text-success">{{ gnoSnapshotStats.active }}</div>
+          </div>
+          <div class="rounded-lg border border-warning/20 bg-warning/5 p-3">
+            <div class="text-[10px] uppercase tracking-wider text-secondary">Pending</div>
+            <div class="mt-1 text-lg font-semibold text-warning">{{ gnoSnapshotStats.pending }}</div>
+          </div>
+          <div class="rounded-lg border border-error/20 bg-error/5 p-3">
+            <div class="text-[10px] uppercase tracking-wider text-secondary">Inactive</div>
+            <div class="mt-1 text-lg font-semibold text-error">{{ gnoSnapshotStats.inactive }}</div>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-3 mb-4">
+          <input
+            v-model="keyword"
+            type="text"
+            placeholder="Filter validators…"
+            class="input input-sm w-full border border-base-content/10 bg-base-100 focus:border-primary"
+          />
+        </div>
+
+        <div class="overflow-x-auto -mx-4 sm:-mx-5">
+          <table class="sz-table min-w-[680px]">
+            <thead>
+              <tr>
+                <th class="w-10 text-right">#</th>
+                <th>Validator</th>
+                <th>Status</th>
+                <th class="text-right">Uptime</th>
+                <th class="text-right">Signed</th>
+                <th class="text-right">Missed</th>
+                <th class="text-right">Sample</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-if="!gnoSnapshotRows.length">
+                <td colspan="7" class="py-8 text-center text-sm text-secondary">No validators match the filter</td>
+              </tr>
+              <tr v-for="(v, i) in gnoSnapshotRows" :key="v.operatorAddress || v.signingAddress || i">
+                <td class="text-right font-mono text-[11px] text-secondary">{{ i + 1 }}</td>
+                <td><div class="max-w-[16rem] truncate font-medium">{{ v.moniker || v.operatorAddress }}</div></td>
+                <td>
+                  <span
+                    class="sz-chip !text-[10px]"
+                    :class="v.status === 'ACTIVE' ? 'sz-chip--ok' : v.status === 'INACTIVE' ? 'sz-chip--bad' : 'sz-chip--warn'"
+                  >{{ v.status }}</span>
+                </td>
+                <td class="text-right font-mono">
+                  <span :class="v.status === 'INACTIVE' ? 'text-error' : ''">{{ v.status === 'INACTIVE' ? '0.00%' : gnoUptimeLabel(v.uptime) }}</span>
+                </td>
+                <td class="text-right font-mono text-xs">{{ v.signed.toLocaleString() }}</td>
+                <td class="text-right font-mono text-xs">{{ v.missed.toLocaleString() }}</td>
+                <td class="text-right font-mono text-xs">{{ v.sampledBlocks.toLocaleString() }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </template>
+    </div>
+
+    <div v-else class="sz-section p-4 sm:p-5">
       <div class="flex flex-wrap items-center gap-3 mb-4">
         <input
           type="text"
