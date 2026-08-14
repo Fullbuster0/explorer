@@ -38,6 +38,7 @@ const gnoLoading = ref(false);
 const gnoError = ref('');
 const gnoUptime = ref<Record<string, GnoIndexerValidator['uptime']>>({});
 const gnoUptimeError = ref('');
+const gnoUptimeWindow = ref(10_000);
 /** Toast for real set changes (new pending register / activated / inactivated). */
 const gnoToast = ref('');
 let gnoToastTimer: ReturnType<typeof setTimeout> | null = null;
@@ -157,6 +158,7 @@ async function fetchGnoUptime() {
       if (op) next[op] = row;
       if (sig) next[sig] = row;
     }
+    gnoUptimeWindow.value = Number(payload?.windowBlocks) || 10_000;
     gnoUptime.value = next;
     // Do not let the indexer’s historical status override the collector’s
     // rolling-window policy. Re-apply it to the already loaded rows.
@@ -880,6 +882,21 @@ loadAvatars();
     </div>
 
     <!-- validator set -->
+    <div
+      v-if="isGno"
+      class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-base-content/10 bg-base-200/40 px-4 py-3"
+    >
+      <div class="flex items-start gap-3">
+        <Icon icon="mdi:information-outline" class="mt-0.5 shrink-0 text-primary" />
+        <div>
+          <div class="text-[12px] font-semibold text-base-content">Uptime rolling window</div>
+          <div class="mt-0.5 text-[11.5px] text-secondary">
+            Uptime dihitung dari {{ gnoUptimeWindow.toLocaleString() }} block terakhir. Setiap missed block menurunkan persentasenya.
+          </div>
+        </div>
+      </div>
+      <span class="sz-chip sz-chip--info font-mono !text-[10px]">{{ gnoUptimeWindow.toLocaleString() }} BLOCKS</span>
+    </div>
     <div class="sz-section mt-4 overflow-hidden">
       <div class="overflow-x-auto">
         <table class="sz-table">
@@ -887,9 +904,9 @@ loadAvatars();
             <tr>
               <th style="width: 3.5rem">{{ $t('staking.rank') }}</th>
               <th>{{ $t('staking.validator') }}</th>
-              <th v-if="isGno" class="text-right">Uptime</th>
               <th class="text-right">{{ $t('staking.voting_power') }}</th>
-              <th class="text-right">{{ isGno ? 'Share' : $t('staking.24h_changes') }}</th>
+              <th v-if="isGno" class="text-right">Uptime</th>
+              <th v-if="!isGno" class="text-right">{{ $t('staking.24h_changes') }}</th>
               <th class="text-right">{{ isGno ? $t('staking.status') : $t('staking.commission') }}</th>
               <th v-if="!isGno" class="text-center">{{ $t('staking.actions') }}</th>
             </tr>
@@ -949,17 +966,6 @@ loadAvatars();
                   </div>
                 </div>
               </td>
-              <!-- uptime (Gno collector) -->
-              <td v-if="gno" class="text-right font-mono text-[12px]">
-                <span
-                  :class="{
-                    'text-success': gno.status === 'ACTIVE',
-                    'text-error': gno.status === 'INACTIVE',
-                    'text-warning': gno.status === 'PENDING',
-                  }"
-                  :title="uptimeFor(gno)?.reason || ''"
-                >{{ uptimeLabel(gno) }}</span>
-              </td>
               <!-- voting power -->
               <td class="text-right">
                 <div class="font-mono text-[13px] font-semibold whitespace-nowrap">
@@ -976,10 +982,20 @@ loadAvatars();
                   <span class="text-[10.5px] text-secondary">{{ format.calculatePercent(v.delegator_shares, staking.totalPower) }}</span>
                 </div>
               </td>
-              <!-- share (Gno) / 24h change (Cosmos) -->
-              <td class="text-right font-mono text-[12px]" :class="gno ? '' : change24Color(v)">
-                <template v-if="gno">{{ gno.shareRate }}%</template>
-                <template v-else>{{ change24Text(v) || '—' }}</template>
+              <!-- uptime (Gno collector) -->
+              <td v-if="gno" class="text-right font-mono text-[12px]">
+                <span
+                  :class="{
+                    'text-success': gno.status === 'ACTIVE',
+                    'text-error': gno.status === 'INACTIVE',
+                    'text-warning': gno.status === 'PENDING',
+                  }"
+                  :title="uptimeFor(gno)?.reason || ''"
+                >{{ uptimeLabel(gno) }}</span>
+              </td>
+              <!-- 24h change (Cosmos only) -->
+              <td v-if="!gno" class="text-right font-mono text-[12px]" :class="change24Color(v)">
+                {{ change24Text(v) || '—' }}
               </td>
               <!-- status / uptime (Gno) or commission (Cosmos) -->
               <td class="text-right font-mono text-[12px]">
