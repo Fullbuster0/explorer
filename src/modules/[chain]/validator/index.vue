@@ -32,7 +32,7 @@ const tab = ref('active');
 const unbondList = ref([] as Validator[]);
 const slashing = ref({} as SlashingParam);
 
-// ---- Gno: ACTIVE / INACTIVE / PENDING come from the onbloc indexer ----
+// ---- Gno: status + uptime come from the bounded collector snapshot ----
 const gnoValidators = ref<GnoIndexerValidator[]>([]);
 const gnoLoading = ref(false);
 const gnoError = ref('');
@@ -128,6 +128,10 @@ function mergeWithUptime(rows: GnoIndexerValidator[]): GnoIndexerValidator[] {
 }
 
 function uptimeLabel(g?: GnoIndexerValidator | null): string {
+  // Inactive validators are intentionally shown as zero in the Inactive tab.
+  // Classification still comes from the collector snapshot; this is only the
+  // compact table presentation requested for this explorer.
+  if (g?.status === 'INACTIVE') return '0.00%';
   const u = g ? uptimeFor(g) : undefined;
   if (!u || u.uptime == null) return 'PENDING';
   return `${Number(u.uptime).toFixed(2)}%`;
@@ -862,6 +866,7 @@ loadAvatars();
             <tr>
               <th style="width: 3.5rem">{{ $t('staking.rank') }}</th>
               <th>{{ $t('staking.validator') }}</th>
+              <th v-if="isGno" class="text-right">Uptime</th>
               <th class="text-right">{{ $t('staking.voting_power') }}</th>
               <th class="text-right">{{ isGno ? 'Share' : $t('staking.24h_changes') }}</th>
               <th class="text-right">{{ isGno ? $t('staking.status') : $t('staking.commission') }}</th>
@@ -870,17 +875,17 @@ loadAvatars();
           </thead>
           <tbody>
             <tr v-if="isGno && gnoLoading && !gnoValidators.length">
-              <td :colspan="isGno ? 5 : 6" class="py-10 text-center text-[12.5px] text-secondary">
+              <td :colspan="isGno ? 6 : 6" class="py-10 text-center text-[12.5px] text-secondary">
                 Loading validators from indexer…
               </td>
             </tr>
             <tr v-else-if="isGno && gnoError && !gnoValidators.length">
-              <td :colspan="isGno ? 5 : 6" class="py-10 text-center text-[12.5px] text-error">
+              <td :colspan="isGno ? 6 : 6" class="py-10 text-center text-[12.5px] text-error">
                 {{ gnoError }}
               </td>
             </tr>
             <tr v-else-if="!list.length">
-              <td :colspan="isGno ? 5 : 6" class="py-10 text-center text-[12.5px] text-secondary">
+              <td :colspan="isGno ? 6 : 6" class="py-10 text-center text-[12.5px] text-secondary">
                 No validators in this status.
               </td>
             </tr>
@@ -923,6 +928,17 @@ loadAvatars();
                   </div>
                 </div>
               </td>
+              <!-- uptime (Gno collector) -->
+              <td v-if="gno" class="text-right font-mono text-[12px]">
+                <span
+                  :class="{
+                    'text-success': gno.status === 'ACTIVE',
+                    'text-error': gno.status === 'INACTIVE',
+                    'text-warning': gno.status === 'PENDING',
+                  }"
+                  :title="uptimeFor(gno)?.reason || ''"
+                >{{ uptimeLabel(gno) }}</span>
+              </td>
               <!-- voting power -->
               <td class="text-right">
                 <div class="font-mono text-[13px] font-semibold whitespace-nowrap">
@@ -956,9 +972,6 @@ loadAvatars();
                         'sz-chip--warn': gno.status === 'PENDING',
                       }"
                     >{{ gno.status }}</span>
-                    <span class="text-[10px] text-secondary" :title="uptimeFor(gno)?.reason || ''">
-                      {{ uptimeLabel(gno) }} uptime
-                    </span>
                   </div>
                 </template>
                 <template v-else>{{ format.formatCommissionRate(v.commission?.commission_rates?.rate) }}</template>
