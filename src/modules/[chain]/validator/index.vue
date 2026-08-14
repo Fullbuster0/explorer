@@ -53,6 +53,16 @@ function shortAddr(a: string): string {
   return a.length > 18 ? `${a.slice(0, 12)}…${a.slice(-6)}` : a;
 }
 
+/** Stable Gno order shared with the uptime page. */
+function compareGnoValidators(a: GnoIndexerValidator, b: GnoIndexerValidator): number {
+  const power = Number(b.votingPower || 0) - Number(a.votingPower || 0);
+  if (power !== 0) return power;
+  const aName = (lookupGnoValoper(a.address)?.moniker || a.monikerName || a.address || '').trim();
+  const bName = (lookupGnoValoper(b.address)?.moniker || b.monikerName || b.address || '').trim();
+  return aName.localeCompare(bName, undefined, { sensitivity: 'base' })
+    || String(a.address || '').localeCompare(String(b.address || ''));
+}
+
 /** Build a Validator-shaped object from an onbloc indexer entry.
  *  Moniker resolution: valopers realm registry first (covers ACTIVE signing
  *  addresses → operator moniker, and PENDING operator addresses), then onbloc
@@ -725,7 +735,7 @@ const list = computed(() => {
       // PENDING: drop onbloc double-entries that are already signing (Active tab)
       // or formerly active (Inactive tab) — residual Roomit/Provalidator case
       .filter((g) => (want === 'PENDING' ? isTruePending(g) : true))
-      .sort((a, b) => Number(b.votingPower) - Number(a.votingPower))
+      .sort(compareGnoValidators)
       .map((g, i) => {
         const v = gnoToValidator(g);
         return {

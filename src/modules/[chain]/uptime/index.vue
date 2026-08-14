@@ -81,12 +81,19 @@ async function fetchGnoSnapshot() {
   }
 }
 
+function compareGnoSnapshotRows(a: GnoUptimeValidator, b: GnoUptimeValidator): number {
+  const power = Number(b.votingPower || 0) - Number(a.votingPower || 0);
+  if (power !== 0) return power;
+  const moniker = String(a.moniker || '').localeCompare(String(b.moniker || ''), undefined, { sensitivity: 'base' });
+  return moniker || String(a.operatorAddress || a.signingAddress || '').localeCompare(String(b.operatorAddress || b.signingAddress || ''));
+}
+
 const gnoSnapshotRows = computed(() => {
   const order: Record<string, number> = { ACTIVE: 0, PENDING: 1, INACTIVE: 2 };
   return (gnoSnapshot.value?.validators || [])
     .filter((v) => matchGnoKeyword(v.moniker))
     .slice()
-    .sort((a, b) => (order[a.status] ?? 9) - (order[b.status] ?? 9) || Number(b.votingPower || 0) - Number(a.votingPower || 0));
+    .sort((a, b) => (order[a.status] ?? 9) - (order[b.status] ?? 9) || compareGnoSnapshotRows(a, b));
 });
 
 const gnoSnapshotStats = computed(() => {
