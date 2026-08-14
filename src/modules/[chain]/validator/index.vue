@@ -22,6 +22,7 @@ const isGno = computed(
 );
 
 const indexerUrl = computed(() => (chainStore.current as any)?.indexer_api || '');
+const uptimeUrl = computed(() => (chainStore.current as any)?.uptime_live_url || '');
 
 const cache = getLocalJson<Record<string, string>>('avatars', {});
 const avatars = ref(cache || {});
@@ -35,6 +36,8 @@ const slashing = ref({} as SlashingParam);
 const gnoValidators = ref<GnoIndexerValidator[]>([]);
 const gnoLoading = ref(false);
 const gnoError = ref('');
+const gnoUptime = ref<Record<string, GnoIndexerValidator['uptime']>>({});
+const gnoUptimeError = ref('');
 /** Toast for real set changes (new pending register / activated / inactivated). */
 const gnoToast = ref('');
 let gnoToastTimer: ReturnType<typeof setTimeout> | null = null;
@@ -95,6 +98,68 @@ function gnoToValidator(g: GnoIndexerValidator): Validator {
  * Fingerprint a validator for set-diff: status + address only.
  * Moniker is display-only — renames must NOT toast as set changes.
  */
+function uptimeFor(g: GnoIndexerValidator) {
+  const meta = lookupGnoValoper(g.address);
+  return gnoUptime.value[g.address]
+    || (meta?.signingAddress ? gnoUptime.value[meta.signingAddress] : undefined)
+    || (meta?.operatorAddress ? gnoUptime.value[meta.operatorAddress] : undefined);
+}
+
+/** Collector snapshot is authoritative for uptime-derived ACTIVE/INACTIVE/PENDING.
+ * Keep indexer metadata (moniker, proposal, voting power) and replace only the
+ * status/read-model fields when the matching operator or signing address exists.
+ */
+function applyUptime(rows: GnoIndexerValidator[]): GnoIndexerValidator[] {
+  return rows.map((row) => {
+    const uptime = uptimeFor(row);
+    if (!uptime) return row;
+    return {
+      ...row,
+      status: uptime.status || row.status,
+      uptime,
+    };
+  });
+}
+
+function mergeWithUptime(rows: GnoIndexerValidator[]): GnoIndexerValidator[] {
+  // Apply before merge so deduplication uses the collector’s status, then
+  // apply again for registry-only synthetic PENDING rows.
+  return applyUptime(mergeRegistryPending(applyUptime(rows)));
+}
+
+function uptimeLabel(g?: GnoIndexerValidator | null): string {
+  const u = g ? uptimeFor(g) : undefined;
+  if (!u || u.uptime == null) return 'PENDING';
+  return `${Number(u.uptime).toFixed(2)}%`;
+}
+
+async function fetchGnoUptime() {
+  if (!isGno.value || !uptimeUrl.value) return;
+  try {
+    const response = await fetch(uptimeUrl.value, { signal: AbortSignal.timeout(8000) });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const payload = await response.json();
+    const next: Record<string, GnoIndexerValidator['uptime']> = {};
+    for (const row of Array.isArray(payload?.validators) ? payload.validators : []) {
+      if (!row || typeof row !== 'object') continue;
+      const op = String(row.operatorAddress || '');
+      const sig = String(row.signingAddress || '');
+      if (op) next[op] = row;
+      if (sig) next[sig] = row;
+    }
+    gnoUptime.value = next;
+    // Do not let the indexer’s historical status override the collector’s
+    // rolling-window policy. Re-apply it to the already loaded rows.
+    if (gnoValidators.value.length) {
+      gnoValidators.value = applyUptime(gnoValidators.value);
+    }
+    gnoUptimeError.value = '';
+  } catch (e: any) {
+    gnoUptimeError.value = e?.message || String(e);
+    console.warn('[validator] gno uptime snapshot:', gnoUptimeError.value);
+  }
+}
+
 function gnoFingerprint(g: GnoIndexerValidator): string {
   return `${g.status}|${g.address}`;
 }
@@ -264,12 +329,12 @@ async function fetchGnoValidators(opts: { silent?: boolean } = {}) {
         if (gen !== gnoFetchGen) return;
         if (!paintProgressive) return; // silent: hold UI until full merge below
         // First paint only when list empty; later progressive appends for cold load
-        gnoValidators.value = mergeRegistryPending(partial);
+        gnoValidators.value = mergeWithUptime(partial);
         if (done) gnoError.value = '';
         if (partial.length) loadAvatars();
       });
       if (gen !== gnoFetchGen) return;
-      const next = mergeRegistryPending(nextRaw);
+      const next = mergeWithUptime(nextRaw);
       if (opts.silent && prevSnapshot) {
         // Compare identity fingerprints; toast only for real add/remove/status
         diffAndToast(prevSnapshot, next);
@@ -424,8 +489,10 @@ onMounted(() => {
       })
       .catch((e: any) => console.warn('[validator] slashing params:', e?.message || e));
   }
-  // Gno: pull the full ACTIVE/INACTIVE/PENDING set from the indexer
+  // Gno: pull the full ACTIVE/INACTIVE/PENDING set from the indexer and
+  // independently load rolling signing statistics from the collector.
   fetchGnoValidators();
+  fetchGnoUptime();
   // Re-fetch if indexer_api arrives after mount (race with chain init)
   watch(indexerUrl, (url, prev) => {
     if (url && url !== prev) fetchGnoValidators();
@@ -474,13 +541,20 @@ onMounted(() => {
   // Fetch is fully silent (no progressive paint, no loading spinner). Toast
   // only fires on real set changes (new pending / activated / inactivated).
   if (isGno.value) {
-    gnoPollTimer = setInterval(() => fetchGnoValidators({ silent: true }), 45_000);
+    gnoPollTimer = setInterval(() => {
+      fetchGnoValidators({ silent: true });
+      fetchGnoUptime();
+    }, 45_000);
   }
   // Start poller when isGno flips true after mount (chain switch / late engine)
   watch(isGno, (gno) => {
     if (gno && !gnoPollTimer) {
       fetchGnoValidators();
-      gnoPollTimer = setInterval(() => fetchGnoValidators({ silent: true }), 45_000);
+      fetchGnoUptime();
+      gnoPollTimer = setInterval(() => {
+        fetchGnoValidators({ silent: true });
+        fetchGnoUptime();
+      }, 45_000);
     }
   });
   // Visibility resume: re-pull when user returns to the tab (catch registrations
@@ -870,18 +944,22 @@ loadAvatars();
                 <template v-if="gno">{{ gno.shareRate }}%</template>
                 <template v-else>{{ change24Text(v) || '—' }}</template>
               </td>
-              <!-- status (Gno) / commission (Cosmos) -->
+              <!-- status / uptime (Gno) or commission (Cosmos) -->
               <td class="text-right font-mono text-[12px]">
                 <template v-if="gno">
-                  <span
-                    class="sz-chip !text-[10px]"
-                    :class="{
-                      'sz-chip--good': gno.status === 'ACTIVE',
-                      'sz-chip--ok': gno.status === 'ACTIVE',
-                      'sz-chip--bad': gno.status === 'INACTIVE',
-                      'sz-chip--warn': gno.status === 'PENDING',
-                    }"
-                  >{{ gno.status }}</span>
+                  <div class="flex flex-col items-end gap-1">
+                    <span
+                      class="sz-chip !text-[10px]"
+                      :class="{
+                        'sz-chip--good': gno.status === 'ACTIVE',
+                        'sz-chip--bad': gno.status === 'INACTIVE',
+                        'sz-chip--warn': gno.status === 'PENDING',
+                      }"
+                    >{{ gno.status }}</span>
+                    <span class="text-[10px] text-secondary" :title="uptimeFor(gno)?.reason || ''">
+                      {{ uptimeLabel(gno) }} uptime
+                    </span>
+                  </div>
                 </template>
                 <template v-else>{{ format.formatCommissionRate(v.commission?.commission_rates?.rate) }}</template>
               </td>

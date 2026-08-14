@@ -51,6 +51,7 @@
     "note": "Official Sapphire gnops valoper registry. Data is refreshed independently by gno-valopers."
   },
   "valopers_live_url": "https://data.shazoes.xyz/gno/testnet/sapphire-1/valopers.json",
+  "uptime_live_url": "https://data.shazoes.xyz/gno/testnet/sapphire-1/uptime.json",
   "indexer_api": "https://sapphire.api.onbloc.xyz/v1",
   "gnoweb": "https://sapphire.testnets.gno.land"
 }

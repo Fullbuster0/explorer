@@ -113,6 +113,18 @@ export interface GnoIndexerValidator {
   inActivatedHeight: number | null;
   firstCommittedTime: string | null;
   proposalId: string | null;
+  /** Optional server-side rolling uptime read model. */
+  uptime?: {
+    status?: 'ACTIVE' | 'INACTIVE' | 'PENDING' | string;
+    sampledBlocks?: number;
+    eligibleBlocks?: number;
+    signed?: number;
+    missed?: number;
+    uptime?: number | null;
+    consecutiveMissed?: number;
+    fullWindow?: boolean;
+    reason?: string;
+  };
 }
 
 export interface GnoPage<T> {

@@ -70,6 +70,8 @@ export interface LocalChainConfig {
    * Example: /data/gno-valopers/testnet/sapphire-1/valopers.json.
    */
   valopers_live_url?: string;
+  /** Gno rolling uptime read model; the explorer never reads the SQLite DB. */
+  uptime_live_url?: string;
   /**
    * Optional gnoweb base (realms/tokens deep links). e.g.
    * https://sapphire.testnets.gno.land
@@ -171,6 +173,8 @@ export interface ChainConfig {
   indexer_api?: string;
   /** Gno/TM2 live valoper registry JSON (CORS). See LocalChainConfig.valopers_live_url. */
   valopers_live_url?: string;
+  /** Gno rolling uptime read model (CORS); never the SQLite runtime DB. */
+  uptime_live_url?: string;
   /** Optional gnoweb base for realm/token deep links. */
   gnoweb?: string;
   /** Gno valoper registry realm (profile links + cron source meta). */
