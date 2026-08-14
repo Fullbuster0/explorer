@@ -6,8 +6,14 @@ import { Icon } from '@iconify/vue';
 import type { Key, SlashingParam, Validator } from '@/types';
 import { formatSeconds, getLocalJson } from '@/libs/utils';
 import { diff } from 'semver';
-import { getGnoIndexer, type GnoIndexerValidator } from '@/libs/gno/indexer';
+import type { GnoIndexerValidator } from '@/libs/gno/indexer';
 import { lookupGnoValoper, initGnoValopers, listGnoValopers } from '@/libs/gno/valopers';
+import {
+  DEFAULT_GNO_UPTIME_LIVE_URL,
+  DEFAULT_GNO_UPTIME_WINDOW,
+  fetchGnoUptimeSnapshot,
+  type GnoUptimeValidator,
+} from '@/libs/gno/uptime';
 
 const staking = useStakingStore();
 const base = useBaseStore();
@@ -21,8 +27,17 @@ const isGno = computed(
   () => chainStore.current?.engine === 'gno' || chainStore.current?.engine === 'tm2'
 );
 
-const indexerUrl = computed(() => (chainStore.current as any)?.indexer_api || '');
-const uptimeUrl = computed(() => (chainStore.current as any)?.uptime_live_url || '');
+/**
+ * Gno validator list source-of-truth: the published gno-valopers uptime
+ * read-model. It already contains the reconciled registry + consensus set,
+ * final ACTIVE/INACTIVE/PENDING status, voting power and rolling uptime.
+ *
+ * Onbloc is deliberately not referenced by this page. It remains history-only
+ * in validator detail because public Gno RPC commonly has tx_index=off.
+ */
+const uptimeUrl = computed(
+  () => (chainStore.current as any)?.uptime_live_url || DEFAULT_GNO_UPTIME_LIVE_URL,
+);
 
 const cache = getLocalJson<Record<string, string>>('avatars', {});
 const avatars = ref(cache || {});
@@ -38,7 +53,8 @@ const gnoLoading = ref(false);
 const gnoError = ref('');
 const gnoUptime = ref<Record<string, GnoIndexerValidator['uptime']>>({});
 const gnoUptimeError = ref('');
-const gnoUptimeWindow = ref(10_000);
+const gnoUptimeWindow = ref(DEFAULT_GNO_UPTIME_WINDOW);
+const gnoSnapshotHeight = ref(0);
 /** Toast for real set changes (new pending register / activated / inactivated). */
 const gnoToast = ref('');
 let gnoToastTimer: ReturnType<typeof setTimeout> | null = null;
@@ -74,6 +90,22 @@ function compareGnoValidators(a: GnoIndexerValidator, b: GnoIndexerValidator): n
  *  PENDING tab against the ACTIVE set (see activeOperatorAddrs) so a validator
  *  that is already signing only shows under Active.
  */
+function uptimeToValidator(row: GnoUptimeValidator, id: number): GnoIndexerValidator {
+  return {
+    id,
+    monikerName: row.moniker || '',
+    status: row.status,
+    address: row.signingAddress || row.operatorAddress,
+    votingPower: row.votingPower || '0',
+    shareRate: '0',
+    firstCommittedHeight: 0,
+    inActivatedHeight: null,
+    firstCommittedTime: null,
+    proposalId: null,
+    uptime: row,
+  };
+}
+
 function gnoToValidator(g: GnoIndexerValidator): Validator {
   const meta = lookupGnoValoper(g.address);
   const moniker = meta?.moniker || (g.monikerName || '').trim() || shortAddr(g.address);
@@ -111,7 +143,8 @@ function gnoToValidator(g: GnoIndexerValidator): Validator {
  */
 function uptimeFor(g: GnoIndexerValidator) {
   const meta = lookupGnoValoper(g.address);
-  return gnoUptime.value[g.address]
+  return g.uptime
+    || gnoUptime.value[g.address]
     || (meta?.signingAddress ? gnoUptime.value[meta.signingAddress] : undefined)
     || (meta?.operatorAddress ? gnoUptime.value[meta.operatorAddress] : undefined);
 }
@@ -152,34 +185,6 @@ function uptimeLabel(g?: GnoIndexerValidator | null): string {
   const u = g ? uptimeFor(g) : undefined;
   if (!u || u.uptime == null) return 'PENDING';
   return `${Number(u.uptime).toFixed(2)}%`;
-}
-
-async function fetchGnoUptime() {
-  if (!isGno.value || !uptimeUrl.value) return;
-  try {
-    const response = await fetch(uptimeUrl.value, { signal: AbortSignal.timeout(8000) });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const payload = await response.json();
-    const next: Record<string, GnoIndexerValidator['uptime']> = {};
-    for (const row of Array.isArray(payload?.validators) ? payload.validators : []) {
-      if (!row || typeof row !== 'object') continue;
-      const op = String(row.operatorAddress || '');
-      const sig = String(row.signingAddress || '');
-      if (op) next[op] = row;
-      if (sig) next[sig] = row;
-    }
-    gnoUptimeWindow.value = Number(payload?.windowBlocks) || 10_000;
-    gnoUptime.value = next;
-    // Do not let the indexer’s historical status override the collector’s
-    // rolling-window policy. Re-apply it to the already loaded rows.
-    if (gnoValidators.value.length) {
-      gnoValidators.value = applyUptime(gnoValidators.value);
-    }
-    gnoUptimeError.value = '';
-  } catch (e: any) {
-    gnoUptimeError.value = e?.message || String(e);
-    console.warn('[validator] gno uptime snapshot:', gnoUptimeError.value);
-  }
 }
 
 function gnoFingerprint(g: GnoIndexerValidator): string {
@@ -331,88 +336,35 @@ function mergeRegistryPending(indexerRows: GnoIndexerValidator[]): GnoIndexerVal
 
 async function fetchGnoValidators(opts: { silent?: boolean } = {}) {
   if (!isGno.value) return;
-  // Wait briefly for chain config to settle (indexer_api arrives with current)
-  if (!indexerUrl.value) {
-    await new Promise((r) => setTimeout(r, 400));
-  }
-  if (!indexerUrl.value) {
-    console.warn('[validator] no indexer_api — Active/Inactive/Pending tabs will be empty');
-    // Soft fallback: ACTIVE set from TM2 RPC so the page is never blank forever.
-    await fetchGnoValidatorsFromRpc();
-    return;
-  }
-  // Generation token: a new call always supersedes an older in-flight one.
-  // Never gate on gnoLoading — that caused "SPA nav blank until hard refresh"
-  // when a hung/slow indexer left loading=true and later mounts no-op'd.
   const gen = ++gnoFetchGen;
   if (!opts.silent) gnoLoading.value = true;
-  const maxAttempts = opts.silent ? 1 : 3;
-  let lastErr: any = null;
-  // Snapshot for silent poll toast (progressive assign would otherwise make prev===next)
-  const prevSnapshot = opts.silent ? gnoValidators.value.slice() : null;
-  // Silent background polls must NOT progressive-paint: swapping partial pages
-  // (20 → 40 → 88) several times per minute makes the table "refresh" and
-  // flicker for the user. Keep the current rows until the full set is ready,
-  // then swap once + toast only on real identity-set changes.
-  const paintProgressive = !opts.silent;
-  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+  try {
+    // Registry supplies the presentation metadata; uptime.json supplies the
+    // reconciled validator set, voting power and final status. No indexer call.
+    await initGnoValopers().catch((e: any) => console.warn('[gno-valopers] init:', e?.message || e));
+    const payload = await fetchGnoUptimeSnapshot(uptimeUrl.value);
     if (gen !== gnoFetchGen) return;
-    try {
-      // Ensure valopers registry is loaded (moniker + signing↔operator + pending synth)
-      // Bust HTTP cache so new registrations from cron land without hard refresh.
-      await initGnoValopers().catch((e: any) => console.warn('[gno-valopers] init:', e?.message || e));
-      if (gen !== gnoFetchGen) return;
-      const nextRaw = await getGnoIndexer(indexerUrl.value).getAllValidators((partial, done) => {
-        if (gen !== gnoFetchGen) return;
-        if (!paintProgressive) return; // silent: hold UI until full merge below
-        // First paint only when list empty; later progressive appends for cold load
-        gnoValidators.value = mergeWithUptime(partial);
-        if (done) gnoError.value = '';
-        if (partial.length) loadAvatars();
-      });
-      if (gen !== gnoFetchGen) return;
-      const next = mergeWithUptime(nextRaw);
-      if (opts.silent && prevSnapshot) {
-        // Compare identity fingerprints; toast only for real add/remove/status
-        diffAndToast(prevSnapshot, next);
-        // Skip DOM thrash if the set is identical (common every 30s poll)
-        if (gnoSetKey(prevSnapshot) !== gnoSetKey(next)) {
-          gnoValidators.value = next;
-          loadAvatars();
-        }
-      } else {
-        if (!gnoBaselineReady) gnoBaselineReady = true;
-        gnoValidators.value = next;
-        loadAvatars();
-      }
-      gnoError.value = '';
-      lastErr = null;
-      break;
-    } catch (e: any) {
-      lastErr = e;
-      console.warn(
-        `[validator] gno indexer fetch failed (attempt ${attempt + 1}/${maxAttempts}):`,
-        e?.message || e
-      );
-      if (attempt < maxAttempts - 1) {
-        await new Promise((r) => setTimeout(r, 800 * (attempt + 1)));
-      }
+    gnoUptimeWindow.value = Number(payload.windowBlocks) || DEFAULT_GNO_UPTIME_WINDOW;
+    gnoSnapshotHeight.value = Number(payload.observedHeight || 0);
+    const next = payload.validators.map((row, i) => uptimeToValidator(row, i));
+    if (opts.silent) {
+      diffAndToast(gnoValidators.value, next);
     }
+    gnoValidators.value = next;
+    gnoUptimeError.value = '';
+    gnoError.value = '';
+    gnoBaselineReady = true;
+    loadAvatars();
+  } catch (e: any) {
+    if (gen !== gnoFetchGen) return;
+    gnoError.value = e?.message || String(e);
+    console.warn('[validator] gno uptime snapshot failed:', gnoError.value);
+    // Official TM2 RPC is the only validator-set fallback. It provides the
+    // current ACTIVE set; registry-only rows remain PENDING.
+    if (!gnoValidators.value.length) await fetchGnoValidatorsFromRpc();
+  } finally {
+    if (gen === gnoFetchGen && !opts.silent) gnoLoading.value = false;
   }
-  if (gen !== gnoFetchGen) return;
-  if (lastErr) {
-    if (!opts.silent) gnoError.value = lastErr?.message || String(lastErr);
-    // Indexer down: keep existing rows if any; else RPC ACTIVE fallback + still show registry pending.
-    if (!gnoValidators.value.length) {
-      await fetchGnoValidatorsFromRpc();
-    } else {
-      // Re-merge in case registry JSON updated while indexer errored
-      gnoValidators.value = mergeRegistryPending(
-        gnoValidators.value.filter((g) => g.id >= 0) // drop prior synth, re-add
-      );
-    }
-  }
-  if (!opts.silent) gnoLoading.value = false;
 }
 
 /** TM2 /validators ACTIVE-only fallback when indexer is missing/down. */
@@ -526,15 +478,12 @@ onMounted(() => {
       })
       .catch((e: any) => console.warn('[validator] slashing params:', e?.message || e));
   }
-  // Gno: pull the full ACTIVE/INACTIVE/PENDING set from the indexer and
-  // independently load rolling signing statistics from the collector.
+  // Gno: the published gno-valopers uptime read-model is the complete
+  // ACTIVE/INACTIVE/PENDING set and independently includes rolling signing data.
   fetchGnoValidators();
-  fetchGnoUptime();
-  // Re-fetch if indexer_api arrives after mount (race with chain init)
-  watch(indexerUrl, (url, prev) => {
-    if (url && url !== prev) fetchGnoValidators();
-  });
-  // Also re-fetch when engine/current settles (first paint often has empty indexer_api)
+  // Re-fetch when the chain config/RPC settles. The validator list itself does
+  // not watch or call indexer_api; Onbloc is history-only.
+  // Also re-fetch when engine/current settles (first paint often has empty RPC).
   watch(
     () => [isGno.value, chainStore.current?.chainName, !!chainStore.rpc] as const,
     ([gno, , hasRpc], prev) => {
@@ -550,19 +499,19 @@ onMounted(() => {
           })
           .catch(() => undefined);
       }
-      // Gno: if rpc lands late and we still have zero rows (indexer miss), try again
+      // Gno: if RPC lands late and the snapshot fetch was still settling, try again
       if (gno && hasRpc && !gnoValidators.value.length && !gnoLoading.value) {
         fetchGnoValidators();
       }
     }
   );
-  // After RPC fallback swaps endpoint, re-pull active set / soft params without refresh
+  // After RPC fallback swaps endpoint, refresh the official RPC-derived detail data
   watch(
     () => chainStore.endpoint?.address,
     (addr, prev) => {
       if (!isGno.value || !addr || addr === prev) return;
       // Don't clear rows — just refresh; progressive will repaint
-      fetchGnoValidators({ silent: !!gnoValidators.value.length });
+      if (isGno.value) fetchGnoValidators({ silent: !!gnoValidators.value.length });
       const rpc = chainStore.rpc as any;
       if (rpc?.getSlashingParams) {
         rpc
@@ -580,17 +529,14 @@ onMounted(() => {
   if (isGno.value) {
     gnoPollTimer = setInterval(() => {
       fetchGnoValidators({ silent: true });
-      fetchGnoUptime();
     }, 45_000);
   }
   // Start poller when isGno flips true after mount (chain switch / late engine)
   watch(isGno, (gno) => {
     if (gno && !gnoPollTimer) {
       fetchGnoValidators();
-      fetchGnoUptime();
       gnoPollTimer = setInterval(() => {
         fetchGnoValidators({ silent: true });
-        fetchGnoUptime();
       }, 45_000);
     }
   });

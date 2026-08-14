@@ -101,7 +101,10 @@ export interface GnoToken {
   funcTypesList: string[];
 }
 
-/** Validator entry from onbloc indexer — has ACTIVE / INACTIVE / PENDING. */
+/**
+ * Legacy/history API validator shape. The validator list page no longer uses
+ * this type or endpoint; Onbloc remains available for transaction history only.
+ */
 export interface GnoIndexerValidator {
   id: number;
   monikerName: string;

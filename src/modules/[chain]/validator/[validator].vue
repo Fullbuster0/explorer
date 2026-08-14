@@ -28,6 +28,12 @@ import { stringToUint8Array, uint8ArrayToString, getLocalJson } from '@/libs/uti
 import { lookupGnoValoper, initGnoValopers, gnoValoperProfileUrl, type GnoValoper } from '@/libs/gno/valopers';
 import { getGnoIndexer, type GnoTx } from '@/libs/gno/indexer';
 import { tm2Get } from '@/libs/gno/tm2';
+import {
+  DEFAULT_GNO_UPTIME_LIVE_URL,
+  fetchGnoUptimeSnapshot,
+  findGnoUptimeValidator,
+  type GnoUptimeValidator,
+} from '@/libs/gno/uptime';
 
 const props = defineProps(['validator', 'chain']);
 
@@ -72,10 +78,15 @@ const annualSupply = ref<number | null>(null);
 
 /** Gno/TM2 — full valoper profile from the official realm registry (Indonode-style). */
 const gnoMeta = ref<GnoValoper | undefined>(undefined);
-/** Gno/TM2 — live on-chain status + voting power from the onbloc indexer. */
-const gnoChain = ref<{ status?: string; votingPower?: string; proposerPriority?: string } | undefined>(
-  undefined
-);
+/** Gno/TM2 — status/uptime from gno-valopers; live consensus power from TM2 RPC. */
+const gnoChain = ref<{
+  status?: string;
+  votingPower?: string;
+  proposerPriority?: string;
+  uptime?: number | null;
+  missed?: number;
+  sampledBlocks?: number;
+} | undefined>(undefined);
 
 /**
  * Sanitize an attacker-controllable URL before it goes into an <a :href>.
@@ -1073,33 +1084,34 @@ function loadValidatorCore() {
         loadGnoTxs();
         loadGnoBalances();
       });
-    // Live status + voting power from the onbloc indexer (Gno has no LCD validator endpoint).
-    const idxUrl = (blockchain.current as any)?.indexer_api;
-    if (idxUrl) {
-      getGnoIndexer(idxUrl)
-        .getAllValidators()
-        .then((list) => {
-          const match =
-            list.find((x) => x.address === valAddr) ||
-            list.find((x) => x.address === gnoMeta.value?.signingAddress) ||
-            list.find((x) => x.address === gnoMeta.value?.operatorAddress);
-          if (match) {
-            gnoChain.value = {
-              status: match.status,
-              votingPower: match.votingPower,
-            };
-            v.value.tokens = match.votingPower || v.value.tokens;
-            v.value.status =
-              match.status === 'ACTIVE'
-                ? 'BOND_STATUS_BONDED'
-                : match.status === 'INACTIVE'
-                  ? 'BOND_STATUS_UNBONDED'
-                  : 'BOND_STATUS_UNBONDING';
-            v.value.jailed = match.status === 'INACTIVE';
-          }
-        })
-        .catch(() => undefined);
-    }
+    // Final explorer status + rolling uptime come from gno-valopers.
+    // Consensus membership/power is independently confirmed by TM2 RPC below.
+    const uptimeUrl = (blockchain.current as any)?.uptime_live_url || DEFAULT_GNO_UPTIME_LIVE_URL;
+    fetchGnoUptimeSnapshot(uptimeUrl)
+      .then((snapshot) => {
+        const match = findGnoUptimeValidator(snapshot.validators, valAddr)
+          || (gnoMeta.value?.signingAddress
+            ? findGnoUptimeValidator(snapshot.validators, gnoMeta.value.signingAddress)
+            : undefined)
+          || (gnoMeta.value?.operatorAddress
+            ? findGnoUptimeValidator(snapshot.validators, gnoMeta.value.operatorAddress)
+            : undefined);
+        if (!match) return;
+        gnoChain.value = {
+          ...gnoChain.value,
+          status: match.status,
+          uptime: match.uptime,
+          missed: match.missed,
+          sampledBlocks: match.sampledBlocks,
+        };
+        v.value.status = match.status === 'ACTIVE'
+          ? 'BOND_STATUS_BONDED'
+          : match.status === 'INACTIVE'
+            ? 'BOND_STATUS_UNBONDED'
+            : 'BOND_STATUS_UNBONDING';
+        v.value.jailed = match.status === 'INACTIVE';
+      })
+      .catch((e: any) => console.warn('[val] gno uptime snapshot:', e?.message || e));
     loadGnoRpc(valAddr);
     loadGnoSigning(valAddr);
     return;
