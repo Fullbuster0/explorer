@@ -32,6 +32,8 @@ const proposal = ref({} as GovProposal);
 const loading = ref(true);
 const votesLoading = ref(true);
 const allVotes = ref([] as GovVote[]);
+const voteDataSource = ref<'vote-indexer' | 'lcd' | 'unavailable'>('unavailable');
+const activeTab = ref<'overview' | 'votes' | 'raw'>('overview');
 const deposits = ref(
   [] as { amount: { amount: string; denom: string }[]; proposal_id: string; depositor: string }[]
 );
@@ -559,6 +561,24 @@ const didNotVoteCount = computed(() => {
 const votes = allVotes;
 const depositList = deposits;
 
+const rawProposalJson = computed(() => JSON.stringify(proposal.value || {}, null, 2));
+const rawVotesJson = computed(() =>
+  JSON.stringify(
+    {
+      chain: props.chain,
+      proposal_id: String(props.proposal_id),
+      source: voteDataSource.value === 'vote-indexer' ? 'vote-indexer' : voteDataSource.value === 'lcd' ? 'LCD fallback' : 'unavailable',
+      endpoint: VOTE_INDEXER_URL
+        ? `${VOTE_INDEXER_URL}/v1/${encodeURIComponent(String(props.chain || ''))}/proposals/${encodeURIComponent(String(props.proposal_id))}/votes?limit=10000`
+        : null,
+      pagination: { total: allVotes.value.length },
+      votes: allVotes.value,
+    },
+    null,
+    2
+  )
+);
+
 function addCurrentParams(res: any) {
   if (proposal.value.content && res.params) {
     proposal.value.content.params = [proposal.value.content?.params];
@@ -631,7 +651,10 @@ async function fetchIndexerVotes(proposalId: string): Promise<GovVote[] | null> 
 async function fetchAllVotes(proposalId: string): Promise<GovVote[]> {
   // 1) Indexer first (closed proposals where LCD vote store is pruned)
   const indexed = await fetchIndexerVotes(proposalId);
-  if (indexed && indexed.length > 0) return indexed;
+  if (indexed && indexed.length > 0) {
+    voteDataSource.value = 'vote-indexer';
+    return indexed;
+  }
 
   // 2) Native LCD pagination
   const all: GovVote[] = [];
@@ -651,6 +674,7 @@ async function fetchAllVotes(proposalId: string): Promise<GovVote[]> {
       break;
     }
   }
+  voteDataSource.value = all.length > 0 ? 'lcd' : 'unavailable';
   return all;
 }
 
@@ -802,6 +826,7 @@ async function bootstrap() {
   stopTallyPoll();
   stopVotesPoll();
   allVotes.value = [];
+  voteDataSource.value = 'unavailable';
   voteFilter.value = 'all';
   voteSearch.value = '';
   valPage.value = 1;
@@ -874,8 +899,26 @@ onUnmounted(() => {
       </div>
     </div>
 
+    <!-- PRIMARY TABS -->
+    <div class="sz-tabs gov-primary-tabs mb-4" role="tablist" aria-label="Proposal sections">
+      <button
+        v-for="tab in [
+          { key: 'overview', label: 'Overview' },
+          { key: 'votes', label: 'Votes' },
+          { key: 'raw', label: 'Raw Data' },
+        ]"
+        :key="tab.key"
+        type="button"
+        role="tab"
+        :aria-selected="activeTab === tab.key"
+        class="sz-tab"
+        :class="{ 'sz-tab--active': activeTab === tab.key }"
+        @click="activeTab = tab.key as 'overview' | 'votes' | 'raw'"
+      >{{ tab.label }}</button>
+    </div>
+
     <!-- TALLY + TIMELINE -->
-    <div class="grid gap-4 mb-4 lg:!grid-cols-5">
+    <div v-if="activeTab === 'overview'" class="grid gap-4 mb-4 lg:!grid-cols-5">
       <!-- Tally -->
       <div class="sz-section lg:!col-span-3 overflow-hidden">
         <div class="sz-section-head">
@@ -1005,7 +1048,7 @@ onUnmounted(() => {
     </div>
 
     <!-- CONTENT -->
-    <div class="sz-section mb-4 overflow-hidden">
+    <div v-if="activeTab === 'overview'" class="sz-section mb-4 overflow-hidden">
       <div class="sz-section-head">
         <div>
           <div class="sz-section-kicker">Proposal</div>
@@ -1028,7 +1071,7 @@ onUnmounted(() => {
     </div>
 
     <!-- VALIDATOR VOTES -->
-    <div class="sz-section mb-4 overflow-hidden">
+    <div v-if="activeTab === 'votes'" class="sz-section mb-4 overflow-hidden">
       <div class="sz-section-head flex-wrap">
         <div>
           <div class="sz-section-kicker">Active set</div>
@@ -1187,7 +1230,7 @@ onUnmounted(() => {
 
     <!-- OTHER VOTES (non-validator) -->
     <div
-      v-if="otherVotes.length > 0 || votesUnavailable || (!votesLoading && hasVoteRecords)"
+      v-if="activeTab === 'votes' && (otherVotes.length > 0 || votesUnavailable || (!votesLoading && hasVoteRecords))"
       class="sz-section mb-4 overflow-hidden"
     >
       <div class="sz-section-head">
@@ -1293,7 +1336,7 @@ onUnmounted(() => {
     </div>
 
     <!-- DEPOSITS -->
-    <div class="sz-section mb-4 overflow-hidden">
+    <div v-if="activeTab === 'overview'" class="sz-section mb-4 overflow-hidden">
       <div class="sz-section-head">
         <div>
           <div class="sz-section-kicker">Funding</div>
@@ -1334,6 +1377,38 @@ onUnmounted(() => {
         </table>
       </div>
     </div>
+
+    <!-- RAW DATA -->
+    <template v-if="activeTab === 'raw'">
+      <div class="sz-section mb-4 overflow-hidden">
+        <div class="sz-section-head flex-wrap gap-2">
+          <div>
+            <div class="sz-section-kicker">On-chain payload</div>
+            <div class="sz-section-title">Proposal data</div>
+          </div>
+          <span class="sz-chip font-mono !text-[10px]">JSON</span>
+        </div>
+        <div class="gov-raw-wrap">
+          <pre class="gov-raw-json">{{ rawProposalJson }}</pre>
+        </div>
+      </div>
+
+      <div class="sz-section mb-4 overflow-hidden">
+        <div class="sz-section-head flex-wrap gap-2">
+          <div>
+            <div class="sz-section-kicker">Indexed vote records</div>
+            <div class="sz-section-title">Vote index response</div>
+          </div>
+          <span class="sz-chip font-mono !text-[10px]">{{ votes.length }} records · {{ voteDataSource }}</span>
+        </div>
+        <div class="px-4 py-3 text-[12px] text-secondary border-b border-base-content/10">
+          Raw vote records used to populate the validator and delegator tables.
+        </div>
+        <div class="gov-raw-wrap">
+          <pre class="gov-raw-json">{{ rawVotesJson }}</pre>
+        </div>
+      </div>
+    </template>
   </div>
 </template>
 
@@ -1355,6 +1430,17 @@ onUnmounted(() => {
 .sz-tally-seg--veto { background: #991b1b; }
 .sz-tally-seg--abstain { background: #f59e0b; }
 .gov-vote-search { min-width: 9rem; }
+.gov-primary-tabs { width: fit-content; max-width: 100%; overflow-x: auto; }
+.gov-primary-tabs .sz-tab { cursor: pointer; border: 0; background: transparent; }
+.gov-raw-wrap { max-height: 34rem; overflow: auto; background: color-mix(in srgb, hsl(var(--b2)) 65%, transparent); }
+.gov-raw-json {
+  margin: 0;
+  padding: 1rem;
+  min-width: max-content;
+  color: hsl(var(--bc));
+  font: 11.5px/1.6 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  white-space: pre;
+}
 @media (max-width: 640px) {
   .gov-vote-search { width: min(100%, 16rem); min-width: 0; }
 }
