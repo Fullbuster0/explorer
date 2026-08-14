@@ -43,6 +43,7 @@ interface GnoUptimeSnapshot {
   observedHeight?: number;
   windowBlocks?: number;
   updatedAt?: string;
+  recentBlocks?: { height: number; signed: string[] }[];
   validators: GnoUptimeValidator[];
 }
 
@@ -90,6 +91,18 @@ const gnoSnapshotStats = computed(() => {
     inactive: rows.filter((v) => v.status === 'INACTIVE').length,
   };
 });
+
+const gnoActiveSnapshotRows = computed(() =>
+  gnoSnapshotRows.value.filter((v) => v.status === 'ACTIVE')
+);
+
+function gnoRecentBars(v: GnoUptimeValidator) {
+  const address = v.signingAddress || v.operatorAddress;
+  return (gnoSnapshot.value?.recentBlocks || []).map((block) => ({
+    height: String(block.height),
+    color: block.signed.includes(address) ? 'bg-green-500' : 'bg-red-500',
+  }));
+}
 
 function matchGnoKeyword(moniker: string) {
   const q = keyword.value.trim().toLowerCase();
@@ -644,25 +657,6 @@ function changeTab(v: string) {
         Loading live uptime snapshot…
       </div>
       <template v-else>
-        <div class="grid grid-cols-2 gap-2 sm:grid-cols-4 mb-4">
-          <div class="rounded-lg border border-base-content/10 bg-base-100 p-3">
-            <div class="text-[10px] uppercase tracking-wider text-secondary">Validators</div>
-            <div class="mt-1 text-lg font-semibold">{{ gnoSnapshotStats.total }}</div>
-          </div>
-          <div class="rounded-lg border border-success/20 bg-success/5 p-3">
-            <div class="text-[10px] uppercase tracking-wider text-secondary">Active</div>
-            <div class="mt-1 text-lg font-semibold text-success">{{ gnoSnapshotStats.active }}</div>
-          </div>
-          <div class="rounded-lg border border-warning/20 bg-warning/5 p-3">
-            <div class="text-[10px] uppercase tracking-wider text-secondary">Pending</div>
-            <div class="mt-1 text-lg font-semibold text-warning">{{ gnoSnapshotStats.pending }}</div>
-          </div>
-          <div class="rounded-lg border border-error/20 bg-error/5 p-3">
-            <div class="text-[10px] uppercase tracking-wider text-secondary">Inactive</div>
-            <div class="mt-1 text-lg font-semibold text-error">{{ gnoSnapshotStats.inactive }}</div>
-          </div>
-        </div>
-
         <div class="flex items-center gap-3 mb-4">
           <input
             v-model="keyword"
@@ -672,41 +666,30 @@ function changeTab(v: string) {
           />
         </div>
 
-        <div class="overflow-x-auto -mx-4 sm:-mx-5">
-          <table class="sz-table min-w-[680px]">
-            <thead>
-              <tr>
-                <th class="w-10 text-right">#</th>
-                <th>Validator</th>
-                <th>Status</th>
-                <th class="text-right">Uptime</th>
-                <th class="text-right">Signed</th>
-                <th class="text-right">Missed</th>
-                <th class="text-right">Sample</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-if="!gnoSnapshotRows.length">
-                <td colspan="7" class="py-8 text-center text-sm text-secondary">No validators match the filter</td>
-              </tr>
-              <tr v-for="(v, i) in gnoSnapshotRows" :key="v.operatorAddress || v.signingAddress || i">
-                <td class="text-right font-mono text-[11px] text-secondary">{{ i + 1 }}</td>
-                <td><div class="max-w-[16rem] truncate font-medium">{{ v.moniker || v.operatorAddress }}</div></td>
-                <td>
-                  <span
-                    class="sz-chip !text-[10px]"
-                    :class="v.status === 'ACTIVE' ? 'sz-chip--ok' : v.status === 'INACTIVE' ? 'sz-chip--bad' : 'sz-chip--warn'"
-                  >{{ v.status }}</span>
-                </td>
-                <td class="text-right font-mono">
-                  <span :class="v.status === 'INACTIVE' ? 'text-error' : ''">{{ v.status === 'INACTIVE' ? '0.00%' : gnoUptimeLabel(v.uptime) }}</span>
-                </td>
-                <td class="text-right font-mono text-xs">{{ v.signed.toLocaleString() }}</td>
-                <td class="text-right font-mono text-xs">{{ v.missed.toLocaleString() }}</td>
-                <td class="text-right font-mono text-xs">{{ v.sampledBlocks.toLocaleString() }}</td>
-              </tr>
-            </tbody>
-          </table>
+        <div v-if="gnoActiveSnapshotRows.length" class="flex flex-row flex-wrap gap-x-4 gap-y-3 justify-center">
+          <div v-for="(v, i) in gnoActiveSnapshotRows" :key="v.operatorAddress || v.signingAddress || i" class="sz-uptime-unit">
+            <div class="flex justify-between items-center py-0 w-[248px] mb-1">
+              <label class="truncate text-[12.5px] font-medium">
+                <span class="text-secondary font-mono mr-1">{{ i + 1 }}.</span>
+                <span class="text-main">{{ v.moniker || v.operatorAddress }}</span>
+              </label>
+              <span
+                class="sz-chip font-mono !text-[10px]"
+                :class="v.missed > 0 ? 'sz-chip--bad' : 'sz-chip--ok'"
+                :title="`${v.missed.toLocaleString()} missed blocks in the ${gnoSnapshot?.windowBlocks || 10000} block rolling window`"
+              >
+                {{ v.missed.toLocaleString() }} missed
+              </span>
+            </div>
+            <UptimeBar :blocks="gnoRecentBars(v)" />
+          </div>
+        </div>
+        <div v-else class="py-8 text-center text-sm text-secondary">No active validators match the filter</div>
+
+        <div class="mt-5 flex flex-wrap items-center justify-center gap-3 text-[11.5px] text-secondary">
+          <span class="font-bold uppercase tracking-wider text-[10px]">Recent blocks</span>
+          <span class="inline-flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-sm bg-green-500"></span>Signed</span>
+          <span class="inline-flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-sm bg-red-500"></span>Missed</span>
         </div>
       </template>
     </div>
