@@ -161,13 +161,19 @@ function marketCoinInfo(coinId: string): Promise<any> {
       },
       links: { homepage: [], twitter_screen_name: '', repos_url: { github: [] } },
       description: { en: '' },
+      // The market cache currently exposes price metrics only. Never invent
+      // an exchange/market label; render one only when the cache actually
+      // provides it (for example `market_name` or `market.name`).
       tickers: hasPrice
         ? [{
-            market: { name: 'Shazoes Market', identifier: 'shazoes' },
+            market: {
+              name: String(row.market_name || row.market?.name || '').trim(),
+              identifier: String(row.market_identifier || row.market?.identifier || '').trim(),
+            },
             coin_id: coinId,
             target_coin_id: 'usd',
             trust_score: 'green',
-            trade_url: '',
+            trade_url: String(row.trade_url || '').trim(),
             converted_last: { btc: 0, eth: 0, usd: current },
             base: coinId,
             target: 'USD',
