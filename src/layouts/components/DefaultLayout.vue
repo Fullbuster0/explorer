@@ -49,6 +49,15 @@ function onGnoUptimeSnapshot(event: Event) {
 }
 onMounted(() => window.addEventListener('gno-uptime-snapshot', onGnoUptimeSnapshot));
 onUnmounted(() => window.removeEventListener('gno-uptime-snapshot', onGnoUptimeSnapshot));
+watch(
+  () => route.path,
+  (path) => {
+    // Do not carry a previous uptime snapshot height into a later visit.
+    // The page will publish its fresh snapshot height after it loads.
+    if (!path.endsWith('/uptime')) gnoUptimeObservedHeight.value = 0;
+  },
+  { immediate: true },
+);
 const headerHeight = computed(() => {
   const useCollectorHeight = isGno.value && route.path.endsWith('/uptime') && gnoUptimeObservedHeight.value > 0;
   return useCollectorHeight ? gnoUptimeObservedHeight.value : Number(baseStore.latest?.block?.header?.height || 0);
@@ -348,7 +357,7 @@ dayjs();
           <Icon icon="mdi-menu" />
         </button>
 
-        <ChainProfile />
+        <ChainProfile :height-override="headerHeight" />
 
         <div class="flex-1 w-0"></div>
 

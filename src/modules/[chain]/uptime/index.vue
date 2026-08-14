@@ -51,10 +51,12 @@ const gnoSnapshot = ref<GnoUptimeSnapshot | null>(null);
 const gnoSnapshotLoading = ref(false);
 const gnoSnapshotError = ref('');
 let gnoSnapshotTimer: ReturnType<typeof setInterval> | undefined;
+let gnoSnapshotInFlight = false;
 const gnoUptimeUrl = computed(() => (chainStore.current as any)?.uptime_live_url || '');
 
 async function fetchGnoSnapshot() {
-  if (!isGnoUptime.value || !gnoUptimeUrl.value) return;
+  if (!isGnoUptime.value || !gnoUptimeUrl.value || gnoSnapshotInFlight) return;
+  gnoSnapshotInFlight = true;
   gnoSnapshotLoading.value = !gnoSnapshot.value;
   try {
     const separator = gnoUptimeUrl.value.includes('?') ? '&' : '?';
@@ -78,6 +80,7 @@ async function fetchGnoSnapshot() {
     gnoSnapshotError.value = error?.message || 'Unable to load uptime snapshot';
   } finally {
     gnoSnapshotLoading.value = false;
+    gnoSnapshotInFlight = false;
   }
 }
 

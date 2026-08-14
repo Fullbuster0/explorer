@@ -3,6 +3,15 @@ import { computed } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useBlockchain, useBaseStore } from '@/stores';
 
+const props = defineProps<{
+  /**
+   * Some pages render a server-side snapshot.  The snapshot height is the
+   * height of the data the user is looking at and must not be mixed with a
+   * newer RPC tip in the same header.
+   */
+  heightOverride?: number;
+}>();
+
 const chainStore = useBlockchain();
 const baseStore = useBaseStore();
 // storeToRefs keeps nested latest.block.header.height reactive in template
@@ -36,6 +45,8 @@ const chainLabel = computed(() => {
 });
 
 const heightNum = computed(() => {
+  const override = Number(props.heightOverride || 0);
+  if (Number.isFinite(override) && override > 0) return override;
   const h = latest.value?.block?.header?.height;
   const n = Number(h);
   return Number.isFinite(n) && n > 0 ? n : 0;

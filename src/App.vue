@@ -8,8 +8,10 @@ import { useBaseStore } from '@/stores';
 // now follows the active chain's real blocktime instead of this fixed value.
 const REFRESH_INTERVAL = Number(import.meta.env.VITE_REFRESH_INTERVAL || 2000);
 
-// Adaptive poll bounds (ms): don't hammer fast (~1s) chains, keep slow chains alive.
-const POLL_MIN = 2000;
+// Adaptive poll bounds (ms). Polling at one full blocktime is prone to
+// sampling just before/after a commit and visibly jumping by two heights. A
+// half-block cadence catches each height reliably without a tight loop.
+const POLL_MIN = 1000;
 const POLL_MAX = 15000;
 
 const blockStore = useBaseStore();
@@ -38,14 +40,13 @@ async function tick() {
   }
 }
 
-// Next delay follows the active chain's measured blocktime (Ping.pub feel): fast
-// chains poll more often, slow chains less — clamped to [POLL_MIN, POLL_MAX].
-// Re-read every cycle so switching chains re-tunes automatically. The blocktime
-// getter returns 1000 before two blocks are seen → clamps up to POLL_MIN (2s).
+// Poll at roughly half the measured blocktime. Sampling once per full block
+// can land on the same side of two commits and make the visible height jump
+// from N to N+2. Re-read every cycle so switching chains re-tunes automatically.
 function nextDelay(): number {
   const bt = blockStore.blocktime; // ms per block
-  if (!Number.isFinite(bt) || bt <= 0) return Math.max(1000, REFRESH_INTERVAL);
-  return Math.min(POLL_MAX, Math.max(POLL_MIN, Math.round(bt)));
+  if (!Number.isFinite(bt) || bt <= 0) return Math.max(POLL_MIN, REFRESH_INTERVAL);
+  return Math.min(POLL_MAX, Math.max(POLL_MIN, Math.round(bt / 2)));
 }
 
 function scheduleNext(myEpoch: number) {
