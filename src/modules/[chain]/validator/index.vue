@@ -112,7 +112,12 @@ function uptimeFor(g: GnoIndexerValidator) {
 function applyUptime(rows: GnoIndexerValidator[]): GnoIndexerValidator[] {
   return rows.map((row) => {
     const uptime = uptimeFor(row);
-    if (!uptime) return row;
+    // The collector snapshot is authoritative for the Gno tabs. If an
+    // indexer row has not reached the collector yet, keep it out of Active;
+    // it is an unobserved/pending validator, not an ACTIVE+PENDING hybrid.
+    if (!uptime) {
+      return { ...row, status: 'PENDING', uptime: undefined };
+    }
     return {
       ...row,
       status: uptime.status || row.status,
