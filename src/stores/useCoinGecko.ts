@@ -12,7 +12,11 @@ export interface PriceMeta {
 }
 
 const LocalStoreKey = 'currency';
-const CACHE_TTL_MS = 60_000;
+// The backend cache refreshes on a 15-minute cadence. Keep a browser copy
+// longer than one request interval so a transient edge/provider error cannot
+// turn an already-known price into an empty/$0 state.
+const CACHE_TTL_MS = 5 * 60_000;
+const STALE_CACHE_TTL_MS = 30 * 60_000;
 const responseCache = new Map<string, { at: number; value: any }>();
 const inFlight = new Map<string, Promise<any>>();
 
@@ -22,15 +26,30 @@ function cachedGet(url: string): Promise<any> {
   if (cached && now - cached.at < CACHE_TTL_MS) return Promise.resolve(cached.value);
   const pending = inFlight.get(url);
   if (pending) return pending;
-  const request = get(url, { headers: coingeckoHeaders }).then((value) => {
-    responseCache.set(url, { at: Date.now(), value });
-    return value;
-  }).finally(() => inFlight.delete(url));
+  const request = get(url, { headers: coingeckoHeaders })
+    .then((value) => {
+      responseCache.set(url, { at: Date.now(), value });
+      return value;
+    })
+    .catch((error) => {
+      // Keep the last successful market response usable during a transient
+      // edge/provider failure. Never synthesize a numeric zero from failure.
+      if (cached && now - cached.at < STALE_CACHE_TTL_MS) {
+        console.warn('[market] request failed; serving stale cached response:', error?.message || error);
+        return cached.value;
+      }
+      throw error;
+    })
+    .finally(() => inFlight.delete(url));
   inFlight.set(url, request);
   return request;
 }
 
-const configuredCoingeckoUrl = (import.meta.env.VITE_COINGECKO_URL || 'https://api.coingecko.com').replace(/\/$/, '');
+// Production builds use the first-party cache even when Vercel has no
+// VITE_COINGECKO_URL environment variable. Local development may still opt in
+// to direct CoinGecko explicitly with VITE_COINGECKO_URL.
+const defaultCoingeckoUrl = import.meta.env.PROD ? 'https://api.shazoes.xyz' : 'https://api.coingecko.com';
+const configuredCoingeckoUrl = (import.meta.env.VITE_COINGECKO_URL || defaultCoingeckoUrl).replace(/\/$/, '');
 export const usingMarketCache = (() => {
   try {
     return new URL(configuredCoingeckoUrl).hostname.toLowerCase() === 'api.shazoes.xyz';
