@@ -891,7 +891,7 @@ loadAvatars();
         <div>
           <div class="text-[12px] font-semibold text-base-content">Uptime rolling window</div>
           <div class="mt-0.5 text-[11.5px] text-secondary">
-            Uptime dihitung dari {{ gnoUptimeWindow.toLocaleString() }} block terakhir. Setiap missed block menurunkan persentasenya.
+            Uptime is calculated from the last {{ gnoUptimeWindow.toLocaleString() }} blocks. Each missed block lowers the percentage.
           </div>
         </div>
       </div>
