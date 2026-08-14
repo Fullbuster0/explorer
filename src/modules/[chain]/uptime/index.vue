@@ -66,6 +66,13 @@ async function fetchGnoSnapshot() {
     const payload = await response.json();
     if (!payload || !Array.isArray(payload.validators)) throw new Error('invalid uptime snapshot');
     gnoSnapshot.value = payload as GnoUptimeSnapshot;
+    // Keep the shared network header aligned with the snapshot currently
+    // rendered by this page, rather than showing a newer RPC tip.
+    window.dispatchEvent(
+      new CustomEvent('gno-uptime-snapshot', {
+        detail: { observedHeight: Number(payload.observedHeight || 0) },
+      })
+    );
     gnoSnapshotError.value = '';
   } catch (error: any) {
     gnoSnapshotError.value = error?.message || 'Unable to load uptime snapshot';
@@ -357,7 +364,7 @@ onMounted(() => {
 
   if (isGnoUptime.value) {
     fetchGnoSnapshot();
-    gnoSnapshotTimer = setInterval(fetchGnoSnapshot, 5_000);
+    gnoSnapshotTimer = setInterval(fetchGnoSnapshot, 4_000);
   }
 
   // fill the recent blocks
@@ -382,7 +389,7 @@ onMounted(() => {
 watch(isGnoUptime, (isGno) => {
   if (isGno && !gnoSnapshotTimer) {
     fetchGnoSnapshot();
-    gnoSnapshotTimer = setInterval(fetchGnoSnapshot, 5_000);
+    gnoSnapshotTimer = setInterval(fetchGnoSnapshot, 4_000);
   }
 });
 
@@ -600,8 +607,8 @@ function changeTab(v: string) {
             <span>
               Live · rolling window
               <span class="font-mono">{{ (gnoSnapshot?.windowBlocks || 10000).toLocaleString() }}</span>
-              blocks · collector polling
-              <span class="font-mono">5s</span>
+              blocks · snapshot polling
+              <span class="font-mono">4s</span>
             </span>
             <span
               class="sz-chip !text-[10px]"
@@ -643,7 +650,7 @@ function changeTab(v: string) {
           </div>
         </div>
         <div class="flex flex-wrap items-center gap-2 text-[11px]">
-          <span class="sz-chip sz-chip--ok"><span class="sz-live-dot mr-1"></span>Live · refreshes every 5s</span>
+          <span class="sz-chip sz-chip--ok"><span class="sz-live-dot mr-1"></span>Live · refreshes every 4s</span>
           <span v-if="gnoSnapshot?.updatedAt" class="text-secondary">
             Updated {{ new Date(gnoSnapshot.updatedAt).toLocaleTimeString() }}
           </span>

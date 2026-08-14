@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import { Icon } from '@iconify/vue';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { useRoute } from 'vue-router';
 
 // Components
 import newFooter from '@/layouts/components/NavFooter.vue';
@@ -35,11 +36,23 @@ async function setupCurrentChain() {
 }
 setupCurrentChain().catch((e) => console.warn('[explorer] chain setup failed:', e));
 const baseStore = useBaseStore();
+const route = useRoute();
 
 /** Gno has no staking/delegation — hide Wallet Helper (Keplr suggest) too. */
 const isGno = computed(
   () => blockchain.current?.engine === 'gno' || blockchain.current?.engine === 'tm2'
 );
+const gnoUptimeObservedHeight = ref(0);
+function onGnoUptimeSnapshot(event: Event) {
+  const height = Number((event as CustomEvent<{ observedHeight?: number }>).detail?.observedHeight || 0);
+  gnoUptimeObservedHeight.value = Number.isFinite(height) && height > 0 ? height : 0;
+}
+onMounted(() => window.addEventListener('gno-uptime-snapshot', onGnoUptimeSnapshot));
+onUnmounted(() => window.removeEventListener('gno-uptime-snapshot', onGnoUptimeSnapshot));
+const headerHeight = computed(() => {
+  const useCollectorHeight = isGno.value && route.path.endsWith('/uptime') && gnoUptimeObservedHeight.value > 0;
+  return useCollectorHeight ? gnoUptimeObservedHeight.value : Number(baseStore.latest?.block?.header?.height || 0);
+});
 
 const current = ref(''); // the current chain
 const temp = ref('');
@@ -353,7 +366,7 @@ dayjs();
         </span>
         <span v-if="blockchain.justRecovered" class="sz-chip sz-chip--ok">Back online</span>
         <span class="sz-chip sz-chip--info font-mono">{{ baseStore.currentChainId || '—' }}</span>
-        <span class="sz-chip font-mono">#{{ Number(baseStore.latest?.block?.header?.height || 0).toLocaleString() }}</span>
+        <span class="sz-chip font-mono">#{{ headerHeight.toLocaleString() }}</span>
         <span class="sz-chip font-mono">
           {{ baseStore.blocktime ? (baseStore.blocktime / 1000).toFixed(1) + 's' : '—' }} / block
         </span>
