@@ -11,10 +11,17 @@ import {
   mergeEndpointLists,
   type RpcQuality,
 } from '@/libs/rpc-quality';
+import { fetchGnoUptimeSnapshot, type GnoUptimeValidator } from '@/libs/gno/uptime';
 
 const chainStore = useBlockchain();
 const stakingStore = useStakingStore();
 const baseStore = useBaseStore();
+
+/** Gno/TM2: uptime.json is the source-of-truth for ACTIVE/INACTIVE status. */
+const isGno = computed(() => chainStore.current?.engine === 'gno' || chainStore.current?.engine === 'tm2');
+/** Map: signingAddress → GnoUptimeValidator (from uptime.json cron snapshot). */
+const gnoUptimeMap = ref<Map<string, GnoUptimeValidator>>(new Map());
+const uptimeUrl = computed(() => (chainStore.current as any)?.uptime_live_url || 'https://data.shazoes.xyz/gno/testnet/sapphire-1/uptime.json');
 
 const rpcList = ref<{ address: string; provider?: string }[]>([]);
 const rpc = ref('');
@@ -388,8 +395,8 @@ const currentVoteSet = computed(() => {
   );
 });
 
-const prevoteRate = computed(() => (parseBitArrayRate(currentVoteSet.value?.prevotes_bit_array) * 100).toFixed(1));
-const precommitRate = computed(() => (parseBitArrayRate(currentVoteSet.value?.precommits_bit_array) * 100).toFixed(1));
+const prevoteRate = computed(() => rows.value.length > 0 ? ((prevoteSigned.value / rows.value.length) * 100).toFixed(1) : '0.0');
+const precommitRate = computed(() => rows.value.length > 0 ? ((precommitSigned.value / rows.value.length) * 100).toFixed(1) : '0.0');
 
 // ---- rows ----
 interface Row {
@@ -406,6 +413,8 @@ interface Row {
   precommitHash: string;
   online: boolean;
   isProposer: boolean;
+  /** Gno/TM2: status from uptime.json — 'ACTIVE' | 'INACTIVE' | 'PENDING' | undefined */
+  gnoStatus?: string;
 }
 const rows = computed<Row[]>(() => {
   const vs = currentVoteSet.value;
@@ -456,9 +465,15 @@ const rows = computed<Row[]>(() => {
       isProposer:
         proposerAddr !== '' &&
         (proposerAddr === addr || proposerAddr.toUpperCase() === addrU),
+      gnoStatus: gnoUptimeMap.value.get(addr)?.status,
     };
   });
-  const sorted = [...built].sort((a, b) => {
+  // Gno/TM2: filter out PENDING and unregistered validators — only show ACTIVE + INACTIVE
+  // (matches validator list page: 78 active + 4 inactive = 82, not 85 from raw RPC)
+  const filtered = isGno.value && gnoUptimeMap.value.size > 0
+    ? built.filter((r) => r.gnoStatus === 'ACTIVE' || r.gnoStatus === 'INACTIVE')
+    : built;
+  const sorted = [...filtered].sort((a, b) => {
     const d = b.votingPower - a.votingPower;
     if (d !== 0) return d;
     // Tie-break: moniker alpha (case-insensitive) → address —
@@ -478,8 +493,8 @@ const onlineVP = computed(() => rows.value.filter((r) => r.online).reduce((s, r)
 const offlineVP = computed(() => Math.max(0, 100 - onlineVP.value));
 const proposerRow = computed(() => rows.value.find((r) => r.isProposer));
 
-const prevoteSigned = computed(() => currentVoteSet.value?.prevotes?.filter((v: any) => isSigned(v)).length || 0);
-const precommitSigned = computed(() => currentVoteSet.value?.precommits?.filter((v: any) => isSigned(v)).length || 0);
+const prevoteSigned = computed(() => rows.value.filter((r) => r.prevote && r.prevote !== 'nil-Vote').length);
+const precommitSigned = computed(() => rows.value.filter((r) => r.precommit && r.precommit !== 'nil-Vote').length);
 
 /** Detect apphash divergence — different block hashes in the same round */
 const voteHashes = computed(() => {
@@ -532,8 +547,15 @@ const hashDistribution = computed(() => {
 
 const filteredRows = computed(() => {
   let list = rows.value;
-  if (showFilter.value === 'online') list = list.filter((r) => r.online);
-  else if (showFilter.value === 'offline') list = list.filter((r) => !r.online);
+  if (isGno.value) {
+    // Gno/TM2: Online tab = ACTIVE validators, Offline tab = INACTIVE validators
+    if (showFilter.value === 'online') list = list.filter((r) => r.gnoStatus === 'ACTIVE');
+    else if (showFilter.value === 'offline') list = list.filter((r) => r.gnoStatus === 'INACTIVE');
+  } else {
+    // Cosmos SDK: use online/offline from last commit signatures
+    if (showFilter.value === 'online') list = list.filter((r) => r.online);
+    else if (showFilter.value === 'offline') list = list.filter((r) => !r.online);
+  }
   const q = searchText.value.trim().toLowerCase();
   if (q) list = list.filter((r) => r.moniker.toLowerCase().includes(q) || r.address.toLowerCase().includes(q));
   return list;
@@ -555,6 +577,19 @@ async function refetch() {
   validatorsFallback.value = [];
   clearTime();
   try {
+    // Gno: fetch uptime.json snapshot for ACTIVE/INACTIVE status filtering
+    if (isGno.value) {
+      fetchGnoUptimeSnapshot(uptimeUrl.value)
+        .then((snap) => {
+          const m = new Map<string, GnoUptimeValidator>();
+          for (const v of snap.validators) {
+            if (v.signingAddress) m.set(v.signingAddress, v);
+            if (v.operatorAddress) m.set(v.operatorAddress, v);
+          }
+          gnoUptimeMap.value = m;
+        })
+        .catch((e: any) => console.warn('[consensus] gno uptime fetch:', e?.message || e));
+    }
     // Call update() first to populate roundState.value (has active validator set)
     await update();
     await fetchPosition();
