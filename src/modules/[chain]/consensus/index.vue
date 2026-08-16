@@ -415,6 +415,16 @@ interface Row {
   isProposer: boolean;
   /** Gno/TM2: status from uptime.json — 'ACTIVE' | 'INACTIVE' | 'PENDING' | undefined */
   gnoStatus?: string;
+  /** Gno/TM2: session uptime % since last reactivation (primary metric) */
+  gnoSessionUptime?: number | null;
+  /** Gno/TM2: window uptime % (sliding 10000, secondary/reference) */
+  gnoWindowUptime?: number | null;
+  /** Gno/TM2: consecutive missed blocks (for INACTIVE validators) */
+  gnoConsecutiveMissed?: number;
+  /** Gno/TM2: consecutive signed blocks (for ACTIVE validators) */
+  gnoConsecutiveSigned?: number;
+  /** Gno/TM2: reason from uptime.json */
+  gnoReason?: string;
 }
 const rows = computed<Row[]>(() => {
   const vs = currentVoteSet.value;
@@ -448,6 +458,7 @@ const rows = computed<Row[]>(() => {
     const lastPcSigned = hasLiveVoteSet ? pcSigned : (pcSigned || lastValidatorHashes[addr]?.precommitSigned || false);
     if (pvHash || pvSigned) lastValidatorHashes[addr] = { ...lastValidatorHashes[addr], prevoteHash: pvHash || lastValidatorHashes[addr]?.prevoteHash, prevoteSigned: pvSigned || lastValidatorHashes[addr]?.prevoteSigned };
     if (pcHash || pcSigned) lastValidatorHashes[addr] = { ...lastValidatorHashes[addr], precommitHash: pcHash || lastValidatorHashes[addr]?.precommitHash, precommitSigned: pcSigned || lastValidatorHashes[addr]?.precommitSigned };
+    const gnoUp = gnoUptimeMap.value.get(addr);
     return {
       consensusIndex: i,
       rank: 0,
@@ -465,7 +476,12 @@ const rows = computed<Row[]>(() => {
       isProposer:
         proposerAddr !== '' &&
         (proposerAddr === addr || proposerAddr.toUpperCase() === addrU),
-      gnoStatus: gnoUptimeMap.value.get(addr)?.status,
+      gnoStatus: gnoUp?.status,
+      gnoSessionUptime: gnoUp?.sessionUptime,
+      gnoWindowUptime: gnoUp?.windowUptime ?? gnoUp?.uptime,
+      gnoConsecutiveMissed: gnoUp?.consecutiveMissed,
+      gnoConsecutiveSigned: gnoUp?.consecutiveSigned,
+      gnoReason: gnoUp?.reason,
     };
   });
   // Gno/TM2: filter out PENDING and unregistered validators — only show ACTIVE + INACTIVE
@@ -495,6 +511,15 @@ const proposerRow = computed(() => rows.value.find((r) => r.isProposer));
 
 const prevoteSigned = computed(() => rows.value.filter((r) => r.prevote && r.prevote !== 'nil-Vote').length);
 const precommitSigned = computed(() => rows.value.filter((r) => r.precommit && r.precommit !== 'nil-Vote').length);
+
+/** Color helper for session uptime display */
+function sessionUptimeColor(uptime?: number | null): string {
+  if (uptime == null) return 'text-slate-400';
+  if (uptime >= 99) return 'text-emerald-400';
+  if (uptime >= 90) return 'text-sky-400';
+  if (uptime >= 50) return 'text-amber-400';
+  return 'text-rose-400';
+}
 
 /** Detect apphash divergence — different block hashes in the same round */
 const voteHashes = computed(() => {
@@ -577,18 +602,19 @@ async function refetch() {
   validatorsFallback.value = [];
   clearTime();
   try {
-    // Gno: fetch uptime.json snapshot for ACTIVE/INACTIVE status filtering
+    // Gno: fetch uptime.json snapshot for ACTIVE/INACTIVE status filtering (await so rows filter works on first render)
     if (isGno.value) {
-      fetchGnoUptimeSnapshot(uptimeUrl.value)
-        .then((snap) => {
-          const m = new Map<string, GnoUptimeValidator>();
-          for (const v of snap.validators) {
-            if (v.signingAddress) m.set(v.signingAddress, v);
-            if (v.operatorAddress) m.set(v.operatorAddress, v);
-          }
-          gnoUptimeMap.value = m;
-        })
-        .catch((e: any) => console.warn('[consensus] gno uptime fetch:', e?.message || e));
+      try {
+        const snap = await fetchGnoUptimeSnapshot(uptimeUrl.value);
+        const m = new Map<string, GnoUptimeValidator>();
+        for (const v of snap.validators) {
+          if (v.signingAddress) m.set(v.signingAddress, v);
+          if (v.operatorAddress) m.set(v.operatorAddress, v);
+        }
+        gnoUptimeMap.value = m;
+      } catch (e: any) {
+        console.warn('[consensus] gno uptime fetch:', e?.message || e);
+      }
     }
     // Call update() first to populate roundState.value (has active validator set)
     await update();
@@ -1010,6 +1036,20 @@ function exportCsv() {
             <span class="text-slate-400">Validators</span>
             <b class="font-mono text-slate-200">{{ rows.length }}</b>
           </div>
+          <!-- Gno/TM2: session-based status counts -->
+          <div v-if="isGno && gnoUptimeMap.size > 0" class="flex items-center gap-2">
+            <span class="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Session</span>
+            <span class="flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+              <b class="font-mono text-emerald-300">{{ rows.filter(r => r.gnoStatus === 'ACTIVE').length }}</b>
+              <span class="text-slate-500">active</span>
+            </span>
+            <span class="flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-rose-400"></span>
+              <b class="font-mono text-rose-300">{{ rows.filter(r => r.gnoStatus === 'INACTIVE').length }}</b>
+              <span class="text-slate-500">jailed</span>
+            </span>
+          </div>
           <!-- hash distribution (Northa/consensus style) -->
           <div v-if="hashDistribution.length > 0" class="flex flex-wrap items-center gap-x-3 gap-y-1">
             <span class="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Consensus</span>
@@ -1101,6 +1141,7 @@ function exportCsv() {
               <th>Validator</th>
               <th class="text-center">Hash</th>
               <th class="text-right">Voting Power</th>
+              <th v-if="isGno" class="text-center">Session</th>
               <th class="text-center">Prevote</th>
               <th class="text-center">Precommit</th>
             </tr>
@@ -1121,6 +1162,13 @@ function exportCsv() {
                   </div>
                   <span class="truncate font-medium" :title="r.moniker">{{ r.moniker }}</span>
                   <span v-if="r.isProposer" class="badge badge-warning badge-xs shrink-0 font-bold">P</span>
+                  <!-- Gno/TM2: status badge -->
+                  <span
+                    v-if="isGno && r.gnoStatus"
+                    class="badge badge-xs shrink-0 font-bold"
+                    :class="r.gnoStatus === 'ACTIVE' ? 'badge-success' : 'badge-error'"
+                    :title="r.gnoReason"
+                  >{{ r.gnoStatus === 'ACTIVE' ? '✓' : '✕' }}</span>
                 </div>
               </td>
               <td class="text-center">
@@ -1139,6 +1187,24 @@ function exportCsv() {
                   </div>
                   <span class="font-mono text-xs">{{ r.vpPercent.toFixed(1) }}%</span>
                 </div>
+              </td>
+              <!-- Gno/TM2: Session uptime column -->
+              <td v-if="isGno" class="text-center">
+                <div v-if="r.gnoStatus === 'ACTIVE'" class="flex flex-col items-center gap-0.5">
+                  <span class="font-mono text-xs font-semibold" :class="sessionUptimeColor(r.gnoSessionUptime)">
+                    {{ r.gnoSessionUptime != null ? r.gnoSessionUptime.toFixed(1) + '%' : '—' }}
+                  </span>
+                  <span class="text-[9px] text-slate-500" :title="`Window: ${r.gnoWindowUptime != null ? r.gnoWindowUptime.toFixed(1) + '%' : '—'}%`">
+                    {{ r.gnoConsecutiveSigned ? `↻${r.gnoConsecutiveSigned}` : '' }}
+                  </span>
+                </div>
+                <div v-else-if="r.gnoStatus === 'INACTIVE'" class="flex flex-col items-center gap-0.5">
+                  <span class="font-mono text-xs text-rose-400">offline</span>
+                  <span class="text-[9px] text-slate-500" :title="r.gnoReason">
+                    {{ r.gnoConsecutiveMissed ? `✕${r.gnoConsecutiveMissed}` : '' }}
+                  </span>
+                </div>
+                <span v-else class="text-slate-600 text-xs">—</span>
               </td>
               <td class="text-center">
                 <span v-if="isSigned(r.prevote)" class="vote-chip vote-chip--yes">✓</span>
