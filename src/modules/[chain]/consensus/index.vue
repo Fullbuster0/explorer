@@ -1063,7 +1063,7 @@ function exportCsv() {
             <span class="flex items-center gap-1.5">
               <span class="w-2 h-2 rounded-full bg-rose-400"></span>
               <b class="font-mono text-rose-300">{{ rows.filter(r => r.gnoStatus === 'INACTIVE').length }}</b>
-              <span class="text-slate-500">jailed</span>
+              <span class="text-slate-500">inactive</span>
             </span>
           </div>
           <!-- hash distribution (Northa/consensus style) -->
