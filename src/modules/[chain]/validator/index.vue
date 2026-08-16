@@ -827,7 +827,7 @@ loadAvatars();
         <div class="sz-page-sub">
           <span class="font-mono">{{ isGno ? (gnoValidators.length ? (gnoCounts.ACTIVE + gnoCounts.PENDING + gnoCounts.INACTIVE) : '…') : list.length }}</span>
           <template v-if="isGno && gnoValidators.length">
-            validators · {{ gnoCounts.ACTIVE }} active · {{ gnoCounts.PENDING }} pending · {{ gnoCounts.INACTIVE }} inactive
+            validators · {{ gnoCounts.ACTIVE }} active · {{ gnoCounts.INACTIVE }} inactive · {{ gnoCounts.PENDING }} pending
             <span v-if="gnoLoading && !gnoValidators.length" class="opacity-60"> · loading…</span>
             <span v-else-if="gnoError" class="text-amber-500"> · {{ gnoError }}</span>
           </template>
@@ -889,14 +889,14 @@ loadAvatars();
           <div class="text-[12px] font-semibold text-base-content">Session-based uptime</div>
           <div class="mt-0.5 text-[11.5px] text-secondary">
             Each validator has a rolling session of {{ gnoUptimeWindow.toLocaleString() }} blocks. Miss
-            {{ Math.floor(gnoUptimeWindow / 2).toLocaleString() }}+ blocks in a session → jailed. Sign 10 consecutive
+            {{ Math.floor(gnoUptimeWindow / 2).toLocaleString() }}+ blocks in a session → inactive. Sign 10 consecutive
             blocks to reactivate with a fresh session.
           </div>
         </div>
       </div>
       <div class="flex items-center gap-2">
         <span class="sz-chip sz-chip--ok font-mono !text-[10px]" title="Active validators in current session">ACTIVE</span>
-        <span class="sz-chip sz-chip--bad font-mono !text-[10px]" title="Missed 50%+ of session blocks">JAILED</span>
+        <span class="sz-chip sz-chip--bad font-mono !text-[10px]" title="Missed 50%+ of session blocks">INACTIVE</span>
       </div>
     </div>
     <div class="sz-section mt-4 overflow-hidden">
@@ -994,12 +994,6 @@ loadAvatars();
                   }"
                   :title="uptimeTooltip(gno)"
                 >{{ uptimeLabel(gno) }}</span>
-                <div v-if="gno.status === 'ACTIVE' && uptimeFor(gno)?.consecutiveSigned" class="text-[9px] text-secondary mt-0.5">
-                  ↻{{ uptimeFor(gno)?.consecutiveSigned }}
-                </div>
-                <div v-else-if="gno.status === 'INACTIVE' && uptimeFor(gno)?.consecutiveMissed" class="text-[9px] text-secondary mt-0.5">
-                  ✕{{ uptimeFor(gno)?.consecutiveMissed }}
-                </div>
               </td>
               <!-- 24h change (Cosmos only) -->
               <td v-if="!gno" class="text-right font-mono text-[12px]" :class="change24Color(v)">
