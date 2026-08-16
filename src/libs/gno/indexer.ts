@@ -125,8 +125,21 @@ export interface GnoIndexerValidator {
     missed?: number;
     uptime?: number | null;
     consecutiveMissed?: number;
+    consecutiveSigned?: number;
+    lastSignedHeight?: number | null;
+    jailedAtHeight?: number | null;
+    reactivatedAtHeight?: number | null;
     fullWindow?: boolean;
     reason?: string;
+    sessionStartHeight?: number | null;
+    sessionSigned?: number;
+    sessionMissed?: number;
+    sessionSampled?: number;
+    sessionUptime?: number | null;
+    windowSigned?: number;
+    windowMissed?: number;
+    windowSampled?: number;
+    windowUptime?: number | null;
   };
 }
 

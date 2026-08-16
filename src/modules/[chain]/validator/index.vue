@@ -102,7 +102,29 @@ function uptimeToValidator(row: GnoUptimeValidator, id: number): GnoIndexerValid
     inActivatedHeight: null,
     firstCommittedTime: null,
     proposalId: null,
-    uptime: row,
+    uptime: {
+      status: row.status,
+      sampledBlocks: row.sampledBlocks,
+      signed: row.signed,
+      missed: row.missed,
+      uptime: row.uptime,
+      consecutiveMissed: row.consecutiveMissed,
+      consecutiveSigned: row.consecutiveSigned,
+      lastSignedHeight: row.lastSignedHeight,
+      jailedAtHeight: row.jailedAtHeight,
+      reactivatedAtHeight: row.reactivatedAtHeight,
+      fullWindow: row.fullWindow,
+      reason: row.reason,
+      sessionStartHeight: row.sessionStartHeight,
+      sessionSigned: row.sessionSigned,
+      sessionMissed: row.sessionMissed,
+      sessionSampled: row.sessionSampled,
+      sessionUptime: row.sessionUptime,
+      windowSigned: row.windowSigned,
+      windowMissed: row.windowMissed,
+      windowSampled: row.windowSampled,
+      windowUptime: row.windowUptime,
+    },
   };
 }
 
@@ -179,12 +201,31 @@ function mergeWithUptime(rows: GnoIndexerValidator[]): GnoIndexerValidator[] {
 
 function uptimeLabel(g?: GnoIndexerValidator | null): string {
   // Inactive validators are intentionally shown as zero in the Inactive tab.
-  // Classification still comes from the collector snapshot; this is only the
-  // compact table presentation requested for this explorer.
   if (g?.status === 'INACTIVE') return '0.00%';
   const u = g ? uptimeFor(g) : undefined;
-  if (!u || u.uptime == null) return 'PENDING';
-  return `${Number(u.uptime).toFixed(2)}%`;
+  if (!u) return 'PENDING';
+  // Session uptime is the primary metric (resets after reactivation).
+  if (u.sessionUptime != null) return `${Number(u.sessionUptime).toFixed(2)}%`;
+  // Fall back to window uptime for older snapshots without session fields.
+  if (u.uptime != null) return `${Number(u.uptime).toFixed(2)}%`;
+  return 'PENDING';
+}
+
+/** Tooltip: session + window details for the uptime cell */
+function uptimeTooltip(g?: GnoIndexerValidator | null): string {
+  const u = g ? uptimeFor(g) : undefined;
+  if (!u) return '';
+  const parts: string[] = [];
+  if (u.sessionUptime != null) {
+    parts.push(`Session: ${Number(u.sessionUptime).toFixed(2)}% (${u.sessionSigned || 0}/${u.sessionSampled || 0})`);
+  }
+  if (u.windowUptime != null) {
+    parts.push(`Window: ${Number(u.windowUptime).toFixed(2)}% (${u.windowSigned || 0}/${u.windowSampled || 0})`);
+  }
+  if (u.consecutiveSigned) parts.push(`Consecutive signed: ${u.consecutiveSigned}`);
+  if (u.consecutiveMissed) parts.push(`Consecutive missed: ${u.consecutiveMissed}`);
+  if (u.reason) parts.push(u.reason);
+  return parts.join(' · ') || u.reason || '';
 }
 
 function gnoFingerprint(g: GnoIndexerValidator): string {
@@ -845,13 +886,18 @@ loadAvatars();
       <div class="flex items-start gap-3">
         <Icon icon="mdi:information-outline" class="mt-0.5 shrink-0 text-primary" />
         <div>
-          <div class="text-[12px] font-semibold text-base-content">Uptime rolling window</div>
+          <div class="text-[12px] font-semibold text-base-content">Session-based uptime</div>
           <div class="mt-0.5 text-[11.5px] text-secondary">
-            Uptime is calculated from the last {{ gnoUptimeWindow.toLocaleString() }} blocks. Each missed block lowers the percentage.
+            Each validator has a rolling session of {{ gnoUptimeWindow.toLocaleString() }} blocks. Miss
+            {{ Math.floor(gnoUptimeWindow / 2).toLocaleString() }}+ blocks in a session → jailed. Sign 10 consecutive
+            blocks to reactivate with a fresh session.
           </div>
         </div>
       </div>
-      <span class="sz-chip sz-chip--info font-mono !text-[10px]">{{ gnoUptimeWindow.toLocaleString() }} BLOCKS</span>
+      <div class="flex items-center gap-2">
+        <span class="sz-chip sz-chip--ok font-mono !text-[10px]" title="Active validators in current session">ACTIVE</span>
+        <span class="sz-chip sz-chip--bad font-mono !text-[10px]" title="Missed 50%+ of session blocks">JAILED</span>
+      </div>
     </div>
     <div class="sz-section mt-4 overflow-hidden">
       <div class="overflow-x-auto">
@@ -938,7 +984,7 @@ loadAvatars();
                   <span class="text-[10.5px] text-secondary">{{ format.calculatePercent(v.delegator_shares, staking.totalPower) }}</span>
                 </div>
               </td>
-              <!-- uptime (Gno collector) -->
+              <!-- uptime (Gno collector — session-based) -->
               <td v-if="gno" class="text-right font-mono text-[12px]">
                 <span
                   :class="{
@@ -946,8 +992,14 @@ loadAvatars();
                     'text-error': gno.status === 'INACTIVE',
                     'text-warning': gno.status === 'PENDING',
                   }"
-                  :title="uptimeFor(gno)?.reason || ''"
+                  :title="uptimeTooltip(gno)"
                 >{{ uptimeLabel(gno) }}</span>
+                <div v-if="gno.status === 'ACTIVE' && uptimeFor(gno)?.consecutiveSigned" class="text-[9px] text-secondary mt-0.5">
+                  ↻{{ uptimeFor(gno)?.consecutiveSigned }}
+                </div>
+                <div v-else-if="gno.status === 'INACTIVE' && uptimeFor(gno)?.consecutiveMissed" class="text-[9px] text-secondary mt-0.5">
+                  ✕{{ uptimeFor(gno)?.consecutiveMissed }}
+                </div>
               </td>
               <!-- 24h change (Cosmos only) -->
               <td v-if="!gno" class="text-right font-mono text-[12px]" :class="change24Color(v)">
