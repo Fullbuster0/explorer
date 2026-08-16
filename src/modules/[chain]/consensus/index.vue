@@ -41,6 +41,7 @@ const tm2Synthetic = ref(false);
  *  in the `online` field of rows. */
 const lastCommitSigners = ref(new Set<string>());
 let timer: any = null;
+let uptimeTimer: any = null;
 let loading = false;
 let started = false;
 /** Supersede concurrent startMonitor runs (endpoint swap / SPA remount). */
@@ -140,6 +141,22 @@ function setRpcFromList(preferAddress?: string) {
   }
   rpc.value = baseOf(rpcList.value[0].address);
   return true;
+}
+
+/** Gno: refresh uptime.json snapshot periodically so session metrics stay live. */
+async function refreshUptime() {
+  if (!isGno.value) return;
+  try {
+    const snap = await fetchGnoUptimeSnapshot(uptimeUrl.value);
+    const m = new Map<string, GnoUptimeValidator>();
+    for (const v of snap.validators) {
+      if (v.signingAddress) m.set(v.signingAddress, v);
+      if (v.operatorAddress) m.set(v.operatorAddress, v);
+    }
+    gnoUptimeMap.value = m;
+  } catch (e: any) {
+    // silent — keep last known snapshot
+  }
 }
 
 async function startMonitor() {
@@ -320,6 +337,8 @@ onUnmounted(() => {
 function clearTime() {
   clearInterval(timer);
   timer = null;
+  clearInterval(uptimeTimer);
+  uptimeTimer = null;
 }
 
 const vals = computed(() =>
@@ -638,6 +657,10 @@ async function refetch() {
     if (httpstatus.value === 200 && positions.value.length > 0) {
       // Start polling — 500ms to catch voting phase (step 4-6, ~1s window)
       timer = setInterval(() => update(), 500);
+      // Gno: refresh uptime.json every 60s so session metrics stay live
+      if (isGno.value) {
+        uptimeTimer = setInterval(() => refreshUptime(), 60_000);
+      }
     }
   } finally {
     loading = false;
