@@ -458,7 +458,16 @@ const rows = computed<Row[]>(() => {
         (proposerAddr === addr || proposerAddr.toUpperCase() === addrU),
     };
   });
-  const sorted = [...built].sort((a, b) => b.votingPower - a.votingPower);
+  const sorted = [...built].sort((a, b) => {
+    const d = b.votingPower - a.votingPower;
+    if (d !== 0) return d;
+    // Tie-break: moniker alpha (case-insensitive) → address —
+    // identical to compareGnoValidators on validator list & uptime page.
+    const an = String(a.moniker || a.address || '').trim();
+    const bn = String(b.moniker || b.address || '').trim();
+    return an.localeCompare(bn, undefined, { sensitivity: 'base' })
+      || String(a.address || '').localeCompare(String(b.address || ''));
+  });
   sorted.forEach((r, idx) => {
     r.rank = idx + 1;
   });
@@ -707,14 +716,20 @@ async function fetchLastCommitSigners(base: string) {
     const res = await fetch(`${base}/block`);
     if (!res.ok) return;
     const data = await res.json();
-    const sigs = data?.result?.block?.last_commit?.signatures || [];
+    const sigs = data?.result?.block?.last_commit?.precommits || data?.result?.block?.last_commit?.signatures || [];
     const signers = new Set<string>();
     for (const sig of sigs) {
       if (!sig) continue;
-      // block_id_flag: 2 = COMMIT (signed), 1 = ABSENT, 3 = NIL
-      const flag = sig.block_id_flag ?? sig.block_id_flag;
+      // TM2 (Gno): type === 2 (COMMIT). Cosmos: block_id_flag === 2.
+      // Adapted bundle: block_id_flag === "BLOCK_ID_FLAG_COMMIT".
+      // Last resort: signature field present = signed.
+      const flag = sig.type ?? sig.block_id_flag;
       const addr = String(sig.validator_address || '').trim().toUpperCase();
-      if (flag === 2 && addr) {
+      const signed =
+        flag === 2 ||
+        flag === 'BLOCK_ID_FLAG_COMMIT' ||
+        !!sig.signature;
+      if (signed && addr) {
         signers.add(addr);
       }
     }
@@ -733,15 +748,29 @@ async function update() {
     httpStatusText.value = data.statusText;
     if (data.ok) {
       const res = await data.json();
-      roundState.value = res?.result?.round_state || {};
-      tm2Synthetic.value = false;
+      let rs = res?.result?.round_state || {};
+      // Gno TM2: votes is an empty dict {} and height_vote_set is absent.
+      // Cosmos: votes is a populated array. Detect empty votes → synthesize
+      // from /block last_commit precommits so prevote/precommit counters work.
+      const rawVotes = rs?.votes;
+      const votesEmpty =
+        !rawVotes ||
+        (Array.isArray(rawVotes) && rawVotes.length === 0) ||
+        (!Array.isArray(rawVotes) && typeof rawVotes === 'object' && Object.keys(rawVotes).length === 0);
+      if (votesEmpty) {
+        rs = await synthesizeTm2RoundState(rpc.value);
+        tm2Synthetic.value = true;
+      } else {
+        tm2Synthetic.value = false;
+      }
+      roundState.value = rs;
       // dump_consensus_state returns height/round/step as separate fields
       // (NOT the combined "height/round/step" string which is empty in TM 0.38+)
-      const rs = roundState.value;
-      const newH = String(rs?.height ?? (rs?.['height/round/step'] || '').split('/')[0] ?? '');
+      const rs2 = roundState.value;
+      const newH = String(rs2?.height ?? (rs2?.['height/round/step'] || '').split('/')[0] ?? '');
       height.value = newH;
-      round.value = String(rs?.round ?? (rs?.['height/round/step'] || '').split('/')[1] ?? '0');
-      step.value = String(rs?.step ?? (rs?.['height/round/step'] || '').split('/')[2] ?? '');
+      round.value = String(rs2?.round ?? (rs2?.['height/round/step'] || '').split('/')[1] ?? '0');
+      step.value = String(rs2?.step ?? (rs2?.['height/round/step'] || '').split('/')[2] ?? '');
       // Cross-reference last_commit signers for accurate online/offline status
       fetchLastCommitSigners(rpc.value);
       return;
