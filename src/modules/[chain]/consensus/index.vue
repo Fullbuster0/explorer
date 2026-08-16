@@ -479,7 +479,7 @@ const rows = computed<Row[]>(() => {
       consensusIndex: i,
       rank: 0,
       address: addr,
-      moniker: gnoMoniker(addr, val?.description?.moniker) || gnoUp?.moniker || addr.slice(0, 14),
+      moniker: gnoMoniker(addr, val?.description?.moniker || gnoUp?.moniker),
       identity: val?.description?.identity || lookupGnoValoper(addr)?.identity || '',
       votingPower: Number(p.voting_power || 0),
       vpPercent: totalVP > 0 ? (Number(p.voting_power || 0) / totalVP) * 100 : 0,
