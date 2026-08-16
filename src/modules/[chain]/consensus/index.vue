@@ -479,7 +479,7 @@ const rows = computed<Row[]>(() => {
       consensusIndex: i,
       rank: 0,
       address: addr,
-      moniker: gnoMoniker(addr, val?.description?.moniker) || addr.slice(0, 14),
+      moniker: gnoMoniker(addr, val?.description?.moniker) || gnoUp?.moniker || addr.slice(0, 14),
       identity: val?.description?.identity || lookupGnoValoper(addr)?.identity || '',
       votingPower: Number(p.voting_power || 0),
       vpPercent: totalVP > 0 ? (Number(p.voting_power || 0) / totalVP) * 100 : 0,
@@ -1210,15 +1210,9 @@ function exportCsv() {
                   <span class="font-mono text-xs font-semibold" :class="sessionUptimeColor(r.gnoSessionUptime)">
                     {{ r.gnoSessionUptime != null ? r.gnoSessionUptime.toFixed(1) + '%' : '—' }}
                   </span>
-                  <span class="text-[9px] text-slate-500" :title="`Window: ${r.gnoWindowUptime != null ? r.gnoWindowUptime.toFixed(1) + '%' : '—'}%`">
-                    {{ r.gnoConsecutiveSigned ? `↻${r.gnoConsecutiveSigned}` : '' }}
-                  </span>
                 </div>
                 <div v-else-if="r.gnoStatus === 'INACTIVE'" class="flex flex-col items-center gap-0.5">
                   <span class="font-mono text-xs text-rose-400">offline</span>
-                  <span class="text-[9px] text-slate-500" :title="r.gnoReason">
-                    {{ r.gnoConsecutiveMissed ? `✕${r.gnoConsecutiveMissed}` : '' }}
-                  </span>
                 </div>
                 <span v-else class="text-slate-600 text-xs">—</span>
               </td>
