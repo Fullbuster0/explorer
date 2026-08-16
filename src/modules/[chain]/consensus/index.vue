@@ -149,6 +149,22 @@ async function startMonitor() {
   started = true;
   loading = true;
   try {
+    // Gno: fetch uptime.json snapshot for ACTIVE/INACTIVE status filtering.
+    // Must happen before first render so rows filter + Session column show on first paint.
+    if (isGno.value) {
+      try {
+        const snap = await fetchGnoUptimeSnapshot(uptimeUrl.value);
+        const m = new Map<string, GnoUptimeValidator>();
+        for (const v of snap.validators) {
+          if (v.signingAddress) m.set(v.signingAddress, v);
+          if (v.operatorAddress) m.set(v.operatorAddress, v);
+        }
+        gnoUptimeMap.value = m;
+      } catch (e: any) {
+        console.warn('[consensus] gno uptime fetch:', e?.message || e);
+      }
+    }
+
     try {
       validatorsData.value = await stakingStore.fetchAcitveValdiators();
       if (gen !== monitorGen) return;
