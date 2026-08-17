@@ -13,12 +13,13 @@
     "ibc",
     "parameters"
   ],
-  "registry_name": "Hippo",
-  "coingecko": "hippo",
-  "description": "Hippo is a Cosmos SDK based blockchain that provides a robust and scalable infrastructure for the Cosmos ecosystem, with a focus on DeFi, gaming, and NFT.",
-  "website": "https://hippo.xyz",
-  "twitter": "https://x.com/hippo_protocol",
-  "discord": "https://discord.gg/hippo",
+  "registry_name": "Hippo Protocol",
+  "coingecko": "",
+  "description": "Hippo Protocol is a purpose-built Layer 1 designed to unify fragmented healthcare systems with interoperable, privacy-preserving infrastructure. Experience true data sovereignty without compromising usability or regulatory compliance.",
+  "website": "https://hippoprotocol.ai/",
+  "twitter": "https://x.com/Hippo_Protocol",
+  "discord": "https://discord.com/invite/hippoprotocol",
+  "github": "https://github.com/hippo-protocol/hippo-protocol",
   "api": [
     {
       "address": "https://hippo-mainnet-api.shazoes.xyz",
