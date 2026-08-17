@@ -1,5 +1,5 @@
 {
-  "chain_name": "CosmosHub-mainnet",
+  "chain_name": "cosmoshub-mainnet",
   "chain_id": "cosmoshub-4",
   "network_type": "mainnet",
   "features": [

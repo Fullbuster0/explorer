@@ -18,7 +18,7 @@ const DEFAULT_IMAGE = `${SITE}/logo.png`;
 // Built from chains/mainnet + chains/testnet at commit time. Keep in sync
 // when adding a new chain (or regenerate — see scripts/gen-og-chains.mjs).
 const CHAINS = {
-  'CosmosHub-mainnet': {
+  'cosmoshub-mainnet': {
     'pretty': 'Cosmos Hub',
     'chain_id': 'cosmoshub-4',
     'logo': 'https://raw.githubusercontent.com/cosmos/chain-registry/master/cosmoshub/images/atom.png'
@@ -324,7 +324,7 @@ function renderHtml({ title, description, image, type, url, card }) {
 
 module.exports = async function handler(req, res) {
   try {
-    // path comes from rewrite: /api/og?path=CosmosHub-mainnet/validator/...
+    // path comes from rewrite: /api/og?path=cosmoshub-mainnet/validator/...
     // or from raw URL if called directly
     const url = new URL(req.url, SITE);
     let pathname = url.searchParams.get('path') || url.pathname || '/';
