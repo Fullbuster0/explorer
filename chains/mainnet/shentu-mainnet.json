@@ -42,6 +42,7 @@
       "provider": "Panthea EU"
     }
   ],
+
   "rpc": [
     {
       "address": "https://shentu-mainnet-rpc.shazoes.xyz",
@@ -83,12 +84,12 @@
   "keplr_features": ["ibc-go", "ibc-transfer", "no-legacy-stdTx"],
   "archived_api": [
     {
-      "address": "https://shentu-api.polkachu.com",
-      "provider": "Polkachu (Archive)"
+      "address": "https://rest.shentu.org",
+      "provider": "Shentu"
     },
     {
-      "address": "https://shentu-mainnet-api.shazoes.xyz",
-      "provider": "Shazoes"
+      "address": "https://shentu-api.polkachu.com",
+      "provider": "Polkachu (Archive)"
     }
   ]
 }

@@ -26,6 +26,12 @@
       "provider": "Hippo Protocol"
     }
   ],
+  "archived_api": [
+    {
+      "address": "https://api.testnet.hippo-protocol.com",
+      "provider": "Hippo Protocol"
+    }
+  ],
   "rpc": [
     {
       "address": "https://rpc.testnet.hippo-protocol.com",
@@ -48,9 +54,5 @@
       "logo": "/logos/hippo-protocol.png"
     }
   ],
-  "keplr_features": [
-    "ibc-go",
-    "ibc-transfer",
-    "no-legacy-stdTx"
-  ]
+  "keplr_features": ["ibc-go", "ibc-transfer", "no-legacy-stdTx"]
 }

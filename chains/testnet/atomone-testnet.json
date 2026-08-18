@@ -33,6 +33,16 @@
       "provider": "konsortech"
     }
   ],
+  "archived_api": [
+    {
+      "address": "https://atomone-testnet-1-api.allinbits.services",
+      "provider": "allinbits"
+    },
+    {
+      "address": "https://atomone-testnet-api.itrocket.net",
+      "provider": "itrocket"
+    }
+  ],
   "rpc": [
     {
       "address": "https://atomone-testnet-1-rpc.allinbits.services",

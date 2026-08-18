@@ -43,6 +43,16 @@
       "provider": "w3coins"
     }
   ],
+  "archived_api": [
+    {
+      "address": "https://lava.rest.lava.build",
+      "provider": "Lava Over Lava"
+    },
+    {
+      "address": "https://lava.api.liveraven.net",
+      "provider": "LiveRaveN"
+    }
+  ],
   "rpc": [
     {
       "address": "https://lava-rpc.polkachu.com:443",
@@ -86,6 +96,5 @@
     "low": 2e-5,
     "average": 0.025,
     "high": 0.05
-  },
-  "archived_api": []
+  }
 }

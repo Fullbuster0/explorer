@@ -89,10 +89,6 @@
     {
       "address": "https://terra-rest.publicnode.com",
       "provider": "PublicNode (Archive)"
-    },
-    {
-      "address": "https://terra-mainnet-api.shazoes.xyz",
-      "provider": "Shazoes"
     }
   ]
 }

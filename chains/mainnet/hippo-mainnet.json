@@ -38,6 +38,7 @@
       "provider": "Polkachu"
     }
   ],
+
   "rpc": [
     {
       "address": "https://hippo-mainnet-rpc.shazoes.xyz",
@@ -57,7 +58,12 @@
       "provider": "NodesHub"
     }
   ],
-  "archived_api": [],
+  "archived_api": [
+    {
+      "address": "https://api.hippo-protocol.com",
+      "provider": "Hippo Protocol"
+    }
+  ],
   "archived_rpc": [],
   "snapshot_provider": "",
   "sdk_version": "0.50.13",

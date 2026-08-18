@@ -35,10 +35,6 @@
     {
       "address": "https://api.atomone-1.atomone.aviaone.com",
       "provider": "AVIAONE.com 🟢"
-    },
-    {
-      "address": "https://rest.cosmos.directory/atomone",
-      "provider": "cosmos.directory"
     }
   ],
   "archived_api": [
@@ -49,6 +45,10 @@
     {
       "address": "https://atomone-mainnet-api.itrocket.net",
       "provider": "ITRocket (Archive)"
+    },
+    {
+      "address": "https://api.atomone-archive.citizenweb3.com",
+      "provider": "Citizen Web3 (Archive)"
     }
   ],
   "rpc": [
