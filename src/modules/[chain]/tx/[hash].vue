@@ -2,6 +2,7 @@
 import { useBlockchain, useFormatter } from '@/stores';
 import DynamicComponent from '@/components/dynamic/DynamicComponent.vue';
 import { computed, ref, watch } from 'vue';
+import { retryWithBackoff } from '@/libs/retry';
 import type { Tx, TxResponse } from '@/types';
 import { Icon } from '@iconify/vue';
 import { getGnoIndexer } from '@/libs/gno/indexer';
@@ -155,37 +156,28 @@ async function loadTx(hash?: string) {
       }
     }
     let res: any = null;
-    let lastErr: any = null;
-    for (let attempt = 0; attempt < 3; attempt++) {
-      try {
-        res = await blockchain.fetchTx(h);
-        if (res && res.tx_response) break;
-        res = null;
-      } catch (e: any) {
-        lastErr = e;
-        res = null;
-      }
-      if (res && res.tx_response) break;
-      await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
-    }
-    if (res && res.tx_response) {
+    try {
+      res = await retryWithBackoff(async () => {
+        const r = await blockchain.fetchTx(h);
+        if (!r || !r.tx_response) throw new Error('empty-tx');
+        return r;
+      }, 3, 400, (a, e) => console.warn(`[tx] fetchTx failed (attempt ${a}/3):`, e instanceof Error ? e.message : e));
       if (isGno) res = await enrichGnoTx(res, h);
       if (sequence !== loadSequence) return;
       tx.value = res as any;
       error.value = '';
-    } else {
+    } catch (e: any) {
       if (sequence !== loadSequence) return;
       tx.value = {} as any;
       error.value =
-        lastErr?.message ||
-        (isGno
-          ? 'Transaction not found on Gno RPC (tried base64 / 0x-hex forms).'
-          : 'Transaction not found on active or archive REST endpoints.');
+        e?.message === 'empty-tx'
+          ? (isGno
+            ? 'Transaction not found on Gno RPC (tried base64 / 0x-hex forms).'
+            : 'Transaction not found on active or archive REST endpoints.')
+          : (e?.message || (isGno
+            ? 'Transaction not found on Gno RPC (tried base64 / 0x-hex forms).'
+            : 'Transaction not found on active or archive REST endpoints.'));
     }
-  } catch (e: any) {
-    if (sequence !== loadSequence) return;
-    tx.value = {} as any;
-    error.value = e?.message || String(e);
   } finally {
     if (sequence === loadSequence) loading.value = false;
   }

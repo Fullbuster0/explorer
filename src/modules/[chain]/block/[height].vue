@@ -6,6 +6,7 @@ import DynamicComponent from '@/components/dynamic/DynamicComponent.vue';
 import Loading from '@/components/Loading.vue';
 import { computed } from '@vue/reactivity';
 import { onBeforeRouteUpdate } from 'vue-router';
+import { retryWithBackoff } from '@/libs/retry';
 import { useBaseStore, useFormatter } from '@/stores';
 import type { Block } from '@/types';
 import Countdown from '@/components/Countdown.vue';
@@ -77,23 +78,15 @@ async function loadBlock(h: number | string) {
     const latest = store.latest?.block?.header?.height;
     if (latest && Number(h) <= Number(latest)) {
       // light retry — first tick after endpoint swap can miss
-      let lastErr: any = null;
-      for (let attempt = 0; attempt < 3; attempt++) {
-        try {
+      try {
+        await retryWithBackoff(async () => {
           const fetched = await store.fetchBlock(h);
           if (sequence !== loadSequence) return;
+          if (!fetched || !fetched.block || !fetched.block.header) throw new Error('empty-block');
           current.value = fetched;
-          if (current.value?.block?.header?.height) {
-            lastErr = null;
-            break;
-          }
-        } catch (e: any) {
-          lastErr = e;
-        }
-        await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
-      }
-      if (lastErr && !current.value?.block?.header?.height) {
-        console.warn('[block] fetch failed:', lastErr?.message || lastErr);
+        }, 3, 400, (a, e) => console.warn(`[block] fetch failed (attempt ${a}/3):`, e instanceof Error ? e.message : e));
+      } catch (e: any) {
+        console.warn('[block] fetch failed (exhausted):', e?.message || e);
         current.value = {} as Block;
       }
     } else {

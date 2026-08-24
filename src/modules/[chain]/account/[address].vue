@@ -12,6 +12,7 @@ import type { Coin } from '@cosmjs/amino';
 import Countdown from '@/components/Countdown.vue';
 import { getGnoIndexer, type GnoTx } from '@/libs/gno/indexer';
 import { lookupGnoValoper, gnoMoniker, initGnoValopers } from '@/libs/gno/valopers';
+import { retryWithBackoff } from '@/libs/retry';
 
 const props = defineProps(['address', 'chain']);
 
@@ -184,25 +185,16 @@ async function loadTxHistory() {
         gnoTxs.value = [];
         return;
       }
-      const maxAttempts = 3;
-      let lastErr: any = null;
-      for (let attempt = 0; attempt < maxAttempts; attempt++) {
-        try {
+      try {
+        await retryWithBackoff(async () => {
           const page = await getGnoIndexer(idx).getAccountTransactions(props.address);
           gnoTxs.value = page.items || [];
           gnoTxsCursor.value = page.cursor;
           gnoTxsHasNext.value = !!page.hasNext;
           allTxs.value = []; // Cosmos table unused on Gno
-          lastErr = null;
-          break;
-        } catch (e: any) {
-          lastErr = e;
-          console.warn(`[account] gno tx history failed (attempt ${attempt + 1}/${maxAttempts}):`, e?.message || e);
-          if (attempt < maxAttempts - 1) await new Promise((r) => setTimeout(r, 600 * (attempt + 1)));
-        }
-      }
-      if (lastErr) {
-        gnoTxsError.value = lastErr?.message || String(lastErr);
+        }, 3, 600, (a, e) => console.warn(`[account] gno tx history failed (attempt ${a}/3):`, e instanceof Error ? e.message : e));
+      } catch (e: any) {
+        gnoTxsError.value = e?.message || String(e);
         gnoTxs.value = [];
         allTxs.value = [];
       }

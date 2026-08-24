@@ -7,6 +7,7 @@
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useBlockchain } from '@/stores';
 import { getGnoIndexer, type GnoToken, type GnoRealm } from '@/libs/gno/indexer';
+import { retryWithBackoff } from '@/libs/retry';
 
 const props = defineProps<{ chain: string; tokenId: string }>();
 const chainStore = useBlockchain();
@@ -78,22 +79,17 @@ async function load() {
   try {
     const client = getGnoIndexer(indexerUrl.value);
     let hit: GnoToken | undefined;
-    let lastErr: any = null;
-    for (let attempt = 0; attempt < 3; attempt++) {
-      try {
-        hit = await client.getTokenByKey(key.value);
-        lastErr = null;
-        break;
-      } catch (e) {
-        lastErr = e;
-        if (attempt < 2) await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
-      }
-    }
-    if (tokenN !== loadToken.value) return;
-    if (lastErr) {
+    try {
+      hit = await retryWithBackoff(async () => {
+        return await client.getTokenByKey(key.value);
+      }, 3, 500, (a, e) => console.warn(`[gno-token-detail] fetch failed (attempt ${a}/3):`, e instanceof Error ? e.message : e));
+    } catch (e) {
+      if (tokenN !== loadToken.value) return;
       errored.value = true;
+      console.warn('[gno-token-detail] fetch failed (exhausted):', e instanceof Error ? e.message : e);
       return;
     }
+    if (tokenN !== loadToken.value) return;
     if (!hit) {
       notFound.value = true;
       return;

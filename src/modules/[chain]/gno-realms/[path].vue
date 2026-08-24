@@ -7,6 +7,7 @@
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useBlockchain } from '@/stores';
 import { getGnoIndexer, type GnoRealm, type GnoTx } from '@/libs/gno/indexer';
+import { retryWithBackoff } from '@/libs/retry';
 
 const props = defineProps<{ chain: string; path: string }>();
 const chainStore = useBlockchain();
@@ -104,21 +105,14 @@ async function loadRealm() {
   try {
     const client = getGnoIndexer(indexerUrl.value);
     let hit: GnoRealm | undefined;
-    const maxAttempts = 3;
-    let lastErr: any = null;
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
-      try {
-        hit = await client.getRealmByPath(pkgPath.value);
-        lastErr = null;
-        break;
-      } catch (e) {
-        lastErr = e;
-        if (attempt < maxAttempts - 1) await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
-      }
-    }
-    if (token !== loadToken.value) return;
-    if (lastErr) {
+    try {
+      hit = await retryWithBackoff(async () => {
+        return await client.getRealmByPath(pkgPath.value);
+      }, 3, 500, (a, e) => console.warn(`[gno-realm-detail] fetch failed (attempt ${a}/3):`, e instanceof Error ? e.message : e));
+    } catch (e) {
+      if (token !== loadToken.value) return;
       errored.value = true;
+      console.warn('[gno-realm-detail] fetch failed (exhausted):', e instanceof Error ? e.message : e);
       return;
     }
     if (!hit) {

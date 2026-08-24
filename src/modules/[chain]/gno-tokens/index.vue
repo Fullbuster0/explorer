@@ -5,6 +5,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useBaseStore, useBlockchain } from '@/stores';
 import { getGnoIndexer, type GnoToken } from '@/libs/gno/indexer';
+import { retryWithBackoff } from '@/libs/retry';
 
 const props = defineProps(['chain']);
 const chainStore = useBlockchain();
@@ -65,27 +66,19 @@ async function fetchTokens() {
   const gen = ++fetchGen;
   loading.value = true;
   errored.value = false;
-  const maxAttempts = 3;
-  let lastErr: any = null;
-  for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    if (gen !== fetchGen) return;
-    try {
+  try {
+    await retryWithBackoff(async () => {
+      if (gen !== fetchGen) return;
       const client = getGnoIndexer(indexerUrl.value);
       const page = await client.getTokens();
       if (gen !== fetchGen) return;
       tokens.value = page.items;
-      lastErr = null;
-      break;
-    } catch (e) {
-      lastErr = e;
-      console.warn(`[gno-tokens] fetch failed (attempt ${attempt + 1}/${maxAttempts}):`, e);
-      if (attempt < maxAttempts - 1) {
-        await new Promise((r) => setTimeout(r, 600 * (attempt + 1)));
-      }
-    }
+    }, 3, 600, (a, e) => console.warn(`[gno-tokens] fetch failed (attempt ${a}/3):`, e instanceof Error ? e.message : e));
+  } catch (e) {
+    if (gen !== fetchGen) return;
+    errored.value = true;
+    console.warn('[gno-tokens] fetch failed (exhausted):', e instanceof Error ? e.message : e);
   }
-  if (gen !== fetchGen) return;
-  if (lastErr) errored.value = true;
   loading.value = false;
 }
 

@@ -28,6 +28,7 @@ import { stringToUint8Array, uint8ArrayToString, getLocalJson } from '@/libs/uti
 import { lookupGnoValoper, initGnoValopers, gnoValoperProfileUrl, type GnoValoper } from '@/libs/gno/valopers';
 import { getGnoIndexer, type GnoTx } from '@/libs/gno/indexer';
 import { tm2Get } from '@/libs/gno/tm2';
+import { retryWithBackoff } from '@/libs/retry';
 import {
   DEFAULT_GNO_UPTIME_LIVE_URL,
   fetchGnoUptimeSnapshot,
@@ -580,19 +581,18 @@ let delRetryCount = 0;
 let selfBondRetryCount = 0;
 
 async function fetchDelPage(pr: PageRequest, page: number, token: number) {
-  for (let attempt = 0; attempt < 3; attempt++) {
-    if (token !== delLoadToken) return null; // aborted
-    try {
+  try {
+    return await retryWithBackoff(async () => {
+      if (token !== delLoadToken) return null; // aborted
       pr.setPage(page);
       const archive = await (blockchain as any).fetchValidatorDelegationsArchiveFirst?.(
         validator.value, (page - 1) * 100, 100
       );
       return archive || await blockchain.rpc.getStakingValidatorsDelegations(validator.value, pr);
-    } catch {
-      if (attempt < 2) await new Promise((r) => setTimeout(r, 800));
-    }
+    }, 3, 800, (a, e) => console.warn(`[val] delPage fetch failed (attempt ${a}/3):`, e instanceof Error ? e.message : e));
+  } catch {
+    return null; // permanent failure for this page
   }
-  return null; // permanent failure for this page
 }
 
 async function loadAllDelegations() {
@@ -1404,10 +1404,8 @@ async function loadGnoTxs() {
   if (!idxUrl || !signing) return;
   gnoTxsLoading.value = true;
   gnoTxsError.value = false;
-  const maxAttempts = 3;
-  let lastErr: any = null;
-  for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    try {
+  try {
+    await retryWithBackoff(async () => {
       // Prefer meta already hydrated; fall back to registry lookup.
       const meta = gnoMeta.value || lookupGnoValoper(signing);
       const operator =
@@ -1422,15 +1420,11 @@ async function loadGnoTxs() {
       gnoTxsPrimaryAddr.value = page.primaryAddress;
       gnoTxsTick.value = Date.now();
       gnoTxHistoryPage.value = 1;
-      lastErr = null;
-      break;
-    } catch (e: any) {
-      lastErr = e;
-      console.warn(`[val] gno account txs failed (attempt ${attempt + 1}/${maxAttempts}):`, e?.message || e);
-      if (attempt < maxAttempts - 1) await new Promise((r) => setTimeout(r, 600 * (attempt + 1)));
-    }
+    }, 3, 600, (a, e) => console.warn(`[val] gno account txs failed (attempt ${a}/3):`, e instanceof Error ? e.message : e));
+  } catch (e: any) {
+    console.warn('[val] gno account txs failed (exhausted):', e?.message || e);
+    gnoTxsError.value = true;
   }
-  if (lastErr) gnoTxsError.value = true;
   gnoTxsLoading.value = false;
 }
 
