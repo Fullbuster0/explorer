@@ -98,6 +98,7 @@ Object.values(conf.value).forEach((imported) => {
               tokenMeta.value[b.denom] = x;
             });
           })
+          .catch(() => {})
           .finally(() => {
             loaded.value += 1;
           });
