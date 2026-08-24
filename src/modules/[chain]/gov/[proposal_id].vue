@@ -33,6 +33,13 @@ const loading = ref(true);
 const votesLoading = ref(true);
 const allVotes = ref([] as GovVote[]);
 const voteDataSource = ref<'vote-indexer' | 'lcd' | 'unavailable'>('unavailable');
+/**
+ * Validator operator addresses that were part of the active set when this
+ * proposal's voting period closed — provided by the vote-indexer. When present,
+ * the vote table is built against this HISTORICAL set (mintscan parity) rather
+ * than the live `stakingStore.validators`. Empty → fall back to live set.
+ */
+const activeValidators = ref<string[]>([]);
 const activeTab = ref<'overview' | 'votes' | 'raw'>('overview');
 const deposits = ref(
   [] as { amount: { amount: string; denom: string }[]; proposal_id: string; depositor: string }[]
@@ -346,14 +353,36 @@ const totalPower = computed(() => {
   return (stakingStore.validators || []).reduce((s, v) => s + Number(v.delegator_shares || 0), 0);
 });
 
-const valHexMap = computed(() => {
-  const map = new Map<string, Validator>();
+/**
+ * The validator set the vote table is built against. Prefer the HISTORICAL
+ * active set from the vote-indexer (operators active when voting closed —
+ * mintscan parity). Fall back to the live `stakingStore.validators` when the
+ * indexer didn't provide one (LCD-only path or indexer miss).
+ */
+const historicalActiveSet = computed((): Validator[] => {
+  // Map historical operator address → a rich Validator (moniker/identity/vp)
+  // from the live set, so unbonded validators still resolve a moniker when
+  // possible; unknown operators degrade to a minimal stub with operator addr.
+  const byOperator = new Map<string, Validator>();
   for (const v of stakingStore.validators || []) {
-    const hex = bech32DataHex(v.operator_address);
-    if (hex) map.set(hex, v);
+    byOperator.set(v.operator_address, v);
   }
-  return map;
+  if (activeValidators.value.length) {
+    return activeValidators.value
+      .map((op) => byOperator.get(op) || minimalValidatorStub(op))
+      .filter((v) => !!v.operator_address);
+  }
+  return stakingStore.validators || [];
 });
+
+function minimalValidatorStub(operator: string): Validator {
+  return {
+    operator_address: operator,
+    description: { moniker: '', identity: '' },
+    delegator_shares: '0',
+    tokens: '0',
+  } as unknown as Validator;
+}
 
 type ValVoteRow = {
   operator_address: string;
@@ -386,7 +415,12 @@ const validatorRows = computed((): ValVoteRow[] => {
   const voteByHex = new Map<string, GovVote>();
   for (const vote of allVotes.value) {
     const hex = bech32DataHex(vote.voter);
-    if (hex && valHexMap.value.has(hex)) voteByHex.set(hex, vote);
+    if (hex) voteByHex.set(hex, vote);
+  }
+  // Also index votes by operator string directly (voter == operator_address).
+  const voteByOperator = new Map<string, GovVote>();
+  for (const vote of allVotes.value) {
+    voteByOperator.set(vote.voter, vote);
   }
 
   // When records are pruned, never invent DID NOT VOTE — that contradicts tally.
@@ -394,8 +428,11 @@ const validatorRows = computed((): ValVoteRow[] => {
 
   const power = totalPower.value || 1;
   const rows: ValVoteRow[] = [];
-  for (const [hex, v] of valHexMap.value) {
-    const vote = voteByHex.get(hex);
+  // Iterate the HISTORICAL active set (mintscan parity) when available; else
+  // fall back to the live validator list.
+  for (const v of historicalActiveSet.value) {
+    const hex = bech32DataHex(v.operator_address);
+    const vote = (hex && voteByHex.get(hex)) || voteByOperator.get(v.operator_address) || undefined;
     const opt = vote ? primaryOption(vote) : '';
     const voted = !!vote;
     const vp = Number(v.delegator_shares || v.tokens || 0);
@@ -438,10 +475,16 @@ const validatorRows = computed((): ValVoteRow[] => {
 });
 
 const otherVotes = computed(() => {
+  const activeOps = new Set(historicalActiveSet.value.map((v) => v.operator_address));
+  const activeHex = new Set(
+    historicalActiveSet.value
+      .map((v) => bech32DataHex(v.operator_address))
+      .filter((x): x is string => !!x)
+  );
   return allVotes.value
     .filter((vote) => {
       const hex = bech32DataHex(vote.voter);
-      return !hex || !valHexMap.value.has(hex);
+      return !activeOps.has(vote.voter) && !(hex && activeHex.has(hex));
     })
     .map((vote) => ({
       voter: vote.voter,
@@ -640,6 +683,11 @@ async function fetchIndexerVotes(proposalId: string): Promise<GovVote[] | null> 
     const res = await fetch(url, { headers: { Accept: 'application/json' } });
     if (!res.ok) return null;
     const data = await res.json();
+    // Capture the historical active set when the indexer provides it.
+    const av = data?.active_validators;
+    if (Array.isArray(av) && av.length) {
+      activeValidators.value = av.filter((a: any) => typeof a === 'string');
+    }
     const votes = (data?.votes || []) as GovVote[];
     if (!votes.length) return null;
     return votes;
