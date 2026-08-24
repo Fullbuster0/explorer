@@ -75,7 +75,7 @@
     }
   ],
   "snapshot_provider": "",
-  "sdk_version": "0.45.1",
+  "sdk_version": "0.53.4",
   "coin_type": "118",
   "min_tx_fee": "800",
   "addr_prefix": "cosmos",
@@ -90,5 +90,9 @@
       "logo": "/logos/atom.png"
     }
   ],
-  "keplr_features": ["ibc-go", "ibc-transfer", "no-legacy-stdTx"]
+  "keplr_features": [
+    "ibc-go",
+    "ibc-transfer",
+    "no-legacy-stdTx"
+  ]
 }

@@ -65,7 +65,7 @@
     }
   ],
   "snapshot_provider": "",
-  "sdk_version": "0.47.5",
+  "sdk_version": "0.47.17",
   "coin_type": "330",
   "min_tx_fee": "5000",
   "addr_prefix": "terra",
@@ -80,7 +80,11 @@
       "logo": "/logos/terra.png"
     }
   ],
-  "keplr_features": ["ibc-go", "ibc-transfer", "no-legacy-stdTx"],
+  "keplr_features": [
+    "ibc-go",
+    "ibc-transfer",
+    "no-legacy-stdTx"
+  ],
   "archived_api": [
     {
       "address": "https://terra-api.polkachu.com",

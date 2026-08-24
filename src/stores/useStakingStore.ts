@@ -128,7 +128,7 @@ export const useStakingStore = defineStore('stakingStore', {
     },
 
     findRotatedHexAddress(key: { '@type': string; key: string }) {
-      const prefix = 'cosmos';
+      const prefix = this.blockchain.current?.bech32ConsensusPrefix || 'cosmos';
       const conskey = pubKeyToValcons(key, prefix);
       const rotated = this.keyRotation[conskey];
       if (rotated) {
@@ -147,14 +147,6 @@ export const useStakingStore = defineStore('stakingStore', {
         return client.getInterchainSecurityConsumerValidators(id_map[consumer_id]);
       } else {
         return { validators: [] };
-      }
-    },
-    async fetchAllKeyRotation(chain_id: string) {
-      let vs = [];
-      for (const val of this.validators) {
-        const { prefix } = fromBech32(val.operator_address);
-        const cons = pubKeyToValcons(val.consensus_pubkey, prefix.replace('valoper', 'valcons'));
-        vs.push(cons);
       }
     },
     async fetchValidators(status: string, limit = 300) {

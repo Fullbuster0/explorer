@@ -17,6 +17,16 @@ app.use(i18n);
 app.use(createPinia());
 app.use(router);
 app.use(LazyLoad, { component: true });
+
+// Global error handlers — prevent unhandled rejections bubbling to console
+app.config.errorHandler = (err, _instance, info) => {
+  console.warn('[vue error]', info, err instanceof Error ? err.message : err);
+};
+window.addEventListener('unhandledrejection', (event) => {
+  console.warn('[unhandled rejection]', event.reason instanceof Error ? event.reason.message : event.reason);
+  event.preventDefault();
+});
+
 // Mount vue app
 app.mount('#app');
 

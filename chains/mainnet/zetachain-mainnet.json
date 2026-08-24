@@ -65,7 +65,7 @@
     }
   ],
   "snapshot_provider": "",
-  "sdk_version": "0.46.8",
+  "sdk_version": "0.47.10",
   "coin_type": "60",
   "min_tx_fee": "3000000000000000",
   "addr_prefix": "zeta",
@@ -80,7 +80,11 @@
       "logo": "/logos/zetachain.png"
     }
   ],
-  "keplr_features": ["ibc-go", "ibc-transfer", "no-legacy-stdTx"],
+  "keplr_features": [
+    "ibc-go",
+    "ibc-transfer",
+    "no-legacy-stdTx"
+  ],
   "archived_api": [
     {
       "address": "https://zetachain-mainnet-archive.allthatnode.com:1317",

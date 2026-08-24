@@ -52,7 +52,7 @@ export function consumerKeyToBase64Address(consumerKey?: Record<string, string>)
   let raw = '';
   if (consumerKey.ed25519) {
     const pubkey = fromBase64(consumerKey.ed25519);
-    if (pubkey) return toBase64(sha256(pubkey)).slice(0, 40);
+    if (pubkey) return toBase64(sha256(pubkey).slice(0, 20));
   }
 
   if (consumerKey.secp256k1) {

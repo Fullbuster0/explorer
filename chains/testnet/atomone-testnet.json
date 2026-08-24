@@ -58,7 +58,7 @@
     }
   ],
   "snapshot_provider": "",
-  "sdk_version": "0.45.1",
+  "sdk_version": "0.500.2",
   "coin_type": "118",
   "min_tx_fee": "800",
   "addr_prefix": "atone",
@@ -79,6 +79,10 @@
       "logo": "/logos/atomone.png"
     }
   ],
-  "keplr_features": ["ibc-go", "ibc-transfer", "no-legacy-stdTx"],
+  "keplr_features": [
+    "ibc-go",
+    "ibc-transfer",
+    "no-legacy-stdTx"
+  ],
   "github": "https://github.com/atomone-hub/atomone"
 }

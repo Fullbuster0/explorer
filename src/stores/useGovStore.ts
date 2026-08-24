@@ -28,7 +28,6 @@ export const useGovStore = defineStore('govStore', {
   actions: {
     initial() {
       this.$reset();
-      this.fetchParams();
       this.fetchProposals('2');
     },
     async fetchProposals(status: string, pagination?: PageRequest) {
