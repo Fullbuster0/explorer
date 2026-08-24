@@ -325,23 +325,23 @@ const tokenomics = computed(() => {
 });
 
 
-const quantity = ref(100);
+const quantity = ref<number>(100);
 const aboutExpanded = ref(false);
 const qty = computed({
   get: () => {
-    return parseFloat(quantity.value.toFixed(6));
+    return parseFloat((quantity.value || 0).toFixed(6));
   },
   set: (val) => {
-    quantity.value = val;
+    quantity.value = typeof val === 'number' && Number.isFinite(val) ? val : 0;
   },
 });
 const amount = computed({
   get: () => {
-    return quantity.value * (ticker.value?.converted_last?.usd || 0) || 0;
+    return (quantity.value || 0) * (ticker.value?.converted_last?.usd || 0) || 0;
   },
   set: (val) => {
     const p = ticker.value?.converted_last?.usd || 0;
-    quantity.value = p ? val / p : 0;
+    quantity.value = p && typeof val === 'number' && Number.isFinite(val) ? val / p : 0;
   },
 });
 </script>
