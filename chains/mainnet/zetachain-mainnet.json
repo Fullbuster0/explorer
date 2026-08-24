@@ -87,10 +87,6 @@
   ],
   "archived_api": [
     {
-      "address": "https://zetachain-mainnet-archive.allthatnode.com:1317",
-      "provider": "All That Node"
-    },
-    {
       "address": "https://zetachain-api.polkachu.com",
       "provider": "Polkachu"
     }
