@@ -148,8 +148,8 @@ async function poll() {
       return;
     }
 
-    // decode in parallel but bounded
-    const decoded = await Promise.all(raw.map((b) => decodeTx(lcd, b).then((d) => ({ b, d }))));
+    // decode in parallel but bounded — per-item catch so one bad tx doesn't kill the whole batch
+    const decoded = await Promise.all(raw.map((b: string) => decodeTx(lcd, b).then((d: any) => ({ b, d })).catch(() => ({ b, d: null as any }))));
     const collected: PendingMsg[] = [];
     for (const { b, d } of decoded) {
       const msgs: any[] = d?.tx?.body?.messages || [];
