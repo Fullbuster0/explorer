@@ -16,8 +16,9 @@ import {
   useDistributionStore,
 } from '@/stores';
 import { LoadingStatus } from '@/stores/useDashboard';
-import { onMounted, ref, computed } from 'vue';
+import { onMounted, ref, computed, watch } from 'vue';
 import { useIndexModule, colorMap, tickerUrl } from './indexStore';
+import { useBaseStore } from '@/stores';
 import { formatSeconds, safeUrl } from '@/libs/utils';
 
 import ProposalListItem from '@/components/ProposalListItem.vue';
@@ -61,6 +62,19 @@ onMounted(() => {
   refreshDashboard();
 });
 const ticker = computed(() => store.coinInfo?.tickers?.[store.tickerIndex]);
+
+const baseStore = useBaseStore();
+// Community pool is fetched in loadDashboard() before the live REST client
+// exists on a cold load, so its value stays empty. Re-fire once the chain is
+// actually connected (same reactive pattern as gno-realms/gno-tx lists).
+watch(
+  () => baseStore.connected,
+  (connected, prev) => {
+    if (connected && !prev) {
+      store.fetchCommunityPool();
+    }
+  }
+);
 
 const currName = ref('');
 blockchain.$subscribe((m, s) => {

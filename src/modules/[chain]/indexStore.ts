@@ -299,21 +299,29 @@ export const useIndexModule = defineStore('module-index', {
       // kick github early; coingecko may refine repo URL after coinInfo loads
       this.loadGithubActivity();
       useMintStore().fetchInflation();
-      useDistributionStore()
-        .fetchCommunityPool()
-        .then((x) => {
-          this.communityPool = x?.pool
-            ?.filter((t: any) => t.denom.length < 10)
-            ?.map((t: any) => ({
-              amount: String(parseInt(t.amount)),
-              denom: t.denom,
-            }));
-        })
-        .catch((e: any) => console.warn('[dashboard] communityPool:', e?.message || e));
+      this.fetchCommunityPool();
       // const gov = useGovStore();
       // gov.fetchProposals('2').then((x) => {
       //   this.proposals = x;
       // });
+    },
+    /**
+     * Fetch the distribution community pool and map it into the store.
+     * Extracted so it can be re-fired once the RPC client is actually ready
+     * (cold load runs loadDashboard() before the live REST client exists).
+     */
+    async fetchCommunityPool() {
+      try {
+        const x = await useDistributionStore().fetchCommunityPool();
+        this.communityPool = x?.pool
+          ?.filter((t: any) => t.denom.length < 10)
+          ?.map((t: any) => ({
+            amount: String(parseInt(t.amount)),
+            denom: t.denom,
+          }));
+      } catch (e: any) {
+        console.warn('[dashboard] communityPool:', e?.message || e);
+      }
     },
     tickerColor(color: string) {
       return colorMap(color);
