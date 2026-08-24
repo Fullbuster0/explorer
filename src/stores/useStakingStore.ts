@@ -141,7 +141,7 @@ export const useStakingStore = defineStore('stakingStore', {
         const client = CosmosRestClient.newDefault(this.blockchain.current.providerChain.api[0].address);
         await client.getStakingValidators('BOND_STATUS_BONDED', 500).then((res) => {
           this.validators = res.validators;
-        });
+        }).catch((e: any) => console.warn('[staking] consumer validators:', e?.message || e));
         const id_map = { neutron: '0', stride: '1' } as Record<string, string>;
         const consumer_id = Object.keys(id_map).find((k) => chain_id.startsWith(k)) || 0;
         return client.getInterchainSecurityConsumerValidators(id_map[consumer_id]);

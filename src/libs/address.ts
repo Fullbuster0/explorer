@@ -67,6 +67,10 @@ export function pubKeyToValcons(consensusPubkey: { '@type': string; key: string 
   if (consensusPubkey && consensusPubkey.key) {
     const pubkey = fromBase64(consensusPubkey.key);
     if (pubkey) {
+      const t = consensusPubkey['@type'] || '';
+      if (t.endsWith('secp256k1.PubKey')) {
+        return toBech32(prefix, new Ripemd160().update(sha256(pubkey)).digest());
+      }
       const addressData = sha256(pubkey).slice(0, 20);
       return toBech32(prefix, addressData);
     }

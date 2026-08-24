@@ -48,22 +48,21 @@ export const useGovStore = defineStore('govStore', {
         proposals?.proposals?.forEach((item) => {
           this.fetchTally(item.proposal_id).then((res) => {
             item.final_tally_result = res?.tally;
-          });
+          }).catch(() => {});
           if (this.walletstore.currentAddress) {
             try {
               this.fetchProposalVotesVoter(item.proposal_id, this.walletstore.currentAddress)
                 .then((res) => {
-                  item.voterStatus = res?.vote?.option || 'VOTE_OPTION_NO_WITH_VETO';
-                  // 'No With Veto';
+                  item.voterStatus = res?.vote?.option || undefined;
                 })
-                .catch((reject) => {
-                  item.voterStatus = 'VOTE_OPTION_NO_WITH_VETO';
+                .catch(() => {
+                  item.voterStatus = undefined;
                 });
             } catch (error) {
-              item.voterStatus = 'VOTE_OPTION_NO_WITH_VETO';
+              item.voterStatus = undefined;
             }
           } else {
-            item.voterStatus = 'VOTE_OPTION_NO_WITH_VETO';
+            item.voterStatus = undefined;
           }
         });
       }

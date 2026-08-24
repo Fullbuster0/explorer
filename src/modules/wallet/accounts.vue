@@ -174,10 +174,10 @@ async function loadBalances(chainName: string, endpoint: string, address: string
   const client = CosmosRestClient.newDefault(endpointObj?.address || endpoint);
   await client.getBankBalances(address).then((res) => {
     balances.value[address] = res.balances.filter((x) => x.denom.length < 10);
-  });
+  }).catch((e: any) => console.warn('[wallet] balances:', e?.message || e));
   await client.getStakingDelegations(address).then((res) => {
     delegations.value[address] = res.delegation_responses;
-  });
+  }).catch((e: any) => console.warn('[wallet] delegations:', e?.message || e));
 }
 </script>
 <template>

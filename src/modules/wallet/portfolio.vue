@@ -102,11 +102,13 @@ Object.values(conf.value).forEach((imported) => {
             loaded.value += 1;
           });
         client.getStakingDelegations(x.address).then((res) => {
-          if (res && res.delegation_responses) delegations.value[x.address || ''] = res.delegation_responses;
-          res.delegation_responses.forEach((del) => {
-            tokenMeta.value[del.balance.denom] = x;
-          });
-        });
+          if (res && res.delegation_responses) {
+            delegations.value[x.address || ''] = res.delegation_responses;
+            res.delegation_responses.forEach((del) => {
+              tokenMeta.value[del.balance.denom] = x;
+            });
+          }
+        }).catch(() => {});
       }
     });
 });

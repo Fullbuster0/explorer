@@ -552,18 +552,18 @@ function loadAccount(address: string) {
   rpc.getDistributionDelegatorRewards?.(address).then((x) => {
     if (token !== accountLoadToken.value) return;
     rewards.value = x;
-  });
+  }).catch((e: any) => console.warn('[account] rewards:', e?.message || e));
   rpc.getStakingDelegations?.(address).then((x) => {
     if (token !== accountLoadToken.value) return;
     delegations.value = x.delegation_responses;
-  });
+  }).catch((e: any) => console.warn('[account] delegations:', e?.message || e));
   rpc.getStakingDelegatorUnbonding?.(address).then((x) => {
     if (token !== accountLoadToken.value) return;
     unbonding.value = x.unbonding_responses;
     x.unbonding_responses?.forEach((y) =>
       y.entries.forEach((z) => (unbondingTotal.value += Number(z.balance)))
     );
-  });
+  }).catch((e: any) => console.warn('[account] unbonding:', e?.message || e));
 }
 
 /** Classify a tx as inbound (this address receives funds) or outbound
