@@ -34,6 +34,11 @@ const height = ref('');
 const round = ref('');
 const step = ref('');
 const tm2Synthetic = ref(false);
+/** Render gate: the "synthetic / last-commit" presentation is a Gno/TM2-only concept.
+ *  Guarding on isGno makes it impossible for a stale flag (SPA param-only navigation
+ *  reuses this component, and update() can early-return via fallbackRpc) to paint
+ *  TM2 wording onto a Cosmos SDK chain. */
+const showTm2Synthetic = computed(() => tm2Synthetic.value && isGno.value);
 /** Validators that signed the last committed block (from /block last_commit).
  *  Used to cross-reference online/offline status — dump_consensus_state may
  *  show nil votes for validators that ARE actually signing (e.g. POSTHUMAN on
@@ -165,6 +170,10 @@ async function startMonitor() {
   const gen = ++monitorGen;
   started = true;
   loading = true;
+  // Reset TM2/synthetic flag on (re)start so a prior Gno/TM2 chain's synthetic
+  // state can't leak onto a Cosmos SDK chain during SPA param-only navigation
+  // (component is reused, not remounted). update() re-asserts it per-chain.
+  tm2Synthetic.value = false;
   try {
     // Gno: fetch uptime.json snapshot for ACTIVE/INACTIVE status filtering.
     // Must happen before first render so rows filter + Session column show on first paint.
@@ -326,6 +335,7 @@ watch(
     loading = false; // unlock any stuck in-flight startMonitor
     validatorsFallback.value = [];
     roundState.value = {};
+    tm2Synthetic.value = false;
     await startMonitor();
   }
 );
@@ -634,6 +644,7 @@ async function refetch() {
   httpstatus.value = 200;
   httpStatusText.value = '';
   roundState.value = {};
+  tm2Synthetic.value = false;
   validatorsFallback.value = [];
   clearTime();
   try {
@@ -857,9 +868,17 @@ async function update() {
         !rawVotes ||
         (Array.isArray(rawVotes) && rawVotes.length === 0) ||
         (!Array.isArray(rawVotes) && typeof rawVotes === 'object' && Object.keys(rawVotes).length === 0);
-      if (votesEmpty) {
+      if (votesEmpty && isGno.value) {
+        // Only Gno/TM2 legitimately returns empty votes ({}). Synthesize from last commit.
         rs = await synthesizeTm2RoundState(rpc.value);
         tm2Synthetic.value = true;
+      } else if (votesEmpty) {
+        // Cosmos SDK never has empty votes on a healthy node — this is a broken/incompatible
+        // endpoint (e.g. LCD returning 200 with "Not Implemented"). Do NOT brand it TM2;
+        // walk to a peer that supports consensus endpoints.
+        tm2Synthetic.value = false;
+        await fallbackRpc();
+        return;
       } else {
         tm2Synthetic.value = false;
       }
@@ -890,9 +909,15 @@ async function update() {
       !hvs ||
       (Array.isArray(hvs) && hvs.length === 0) ||
       (!Array.isArray(hvs) && typeof hvs === 'object' && Object.keys(hvs).length === 0);
-    if (hvsEmpty) {
+    if (hvsEmpty && isGno.value) {
       rs = await synthesizeTm2RoundState(rpc.value);
       tm2Synthetic.value = true;
+    } else if (hvsEmpty) {
+      // Cosmos SDK: empty height_vote_set means the endpoint doesn't really serve
+      // consensus (LCD "Not Implemented" 200s). Never label a Cosmos chain as TM2.
+      tm2Synthetic.value = false;
+      await fallbackRpc();
+      return;
     } else {
       tm2Synthetic.value = false;
     }
@@ -988,7 +1013,7 @@ function exportCsv() {
               Consensus Monitor
             </span>
             <span
-              v-if="tm2Synthetic"
+              v-if="showTm2Synthetic"
               class="inline-flex items-center gap-1 rounded-full border border-amber-700/60 bg-amber-900/30 px-2 py-0.5 text-[10px] font-semibold text-amber-300"
               title="Gnoland /consensus_state has empty height_vote_set. This view synthesizes online/offline from last block precommits — NOT live round votes."
             >TM2 · last commit (synthetic)</span>
@@ -1023,10 +1048,10 @@ function exportCsv() {
               <span>
                 Step
                 <b class="font-mono text-slate-200">{{ step || '—' }}</b>
-                <span v-if="!tm2Synthetic">/4</span>
+                <span v-if="!showTm2Synthetic">/4</span>
               </span>
               <span class="hidden sm:inline text-slate-600">·</span>
-              <span class="hidden sm:inline">{{ tm2Synthetic ? 'Last commit coverage' : 'Proposing now' }}</span>
+              <span class="hidden sm:inline">{{ showTm2Synthetic ? 'Last commit coverage' : 'Proposing now' }}</span>
             </div>
           </div>
 
