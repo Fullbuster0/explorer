@@ -16,7 +16,8 @@ import {
   useDistributionStore,
 } from '@/stores';
 import { LoadingStatus } from '@/stores/useDashboard';
-import { onMounted, ref, computed, watch } from 'vue';
+import { onMounted, onUnmounted, ref, computed, watch } from 'vue';
+import type { TxResponse } from '@/types';
 import { useIndexModule, colorMap, tickerUrl } from './indexStore';
 import { useBaseStore } from '@/stores';
 import { formatSeconds, safeUrl } from '@/libs/utils';
@@ -357,6 +358,96 @@ const amount = computed({
     const p = ticker.value?.converted_last?.usd || 0;
     quantity.value = p && typeof val === 'number' && Number.isFinite(val) ? val / p : 0;
   },
+});
+
+// ===== Latest Blocks + Latest Transactions (Cosmos SDK dashboard preview) =====
+// Shows the 3 newest blocks and 3 newest txs with a "View all" button that
+// deep-links to the full /block and /tx pages. Gno/TM2 chains are excluded
+// (their tx feed lives at /gno-tx and the LCD tx query does not exist on TM2).
+const DASH_PREVIEW = 3;
+
+/** Top-3 newest blocks from the global App.vue block poller (base.recents). */
+const latestBlocks = computed(() => {
+  const rows = Array.isArray(baseStore.recents) ? baseStore.recents : [];
+  return [...rows]
+    .filter((b: any) => b?.block?.header?.height)
+    .sort(
+      (a: any, b: any) =>
+        Number(b.block.header.height) - Number(a.block.header.height)
+    )
+    .slice(0, DASH_PREVIEW)
+    .map((b: any) => ({
+      height: b.block.header.height,
+      time: b.block?.header?.time,
+      txCount: b.block?.data?.txs?.length || 0,
+      proposer:
+        format.validator(b.block?.header?.proposer_address) ||
+        b.block?.header?.proposer_address ||
+        '—',
+    }));
+});
+
+// --- latest txs (indexer-backed, same source as /tx page) ---
+const dashTxs = ref<TxResponse[]>([]);
+const dashTxLoading = ref(false);
+let dashTxTimer: number | undefined;
+let dashTxGen = 0;
+
+async function fetchDashTxs() {
+  if (isGno.value) {
+    dashTxs.value = [];
+    return;
+  }
+  const gen = ++dashTxGen;
+  dashTxLoading.value = true;
+  try {
+    const res = await blockchain.fetchRecentTxs(DASH_PREVIEW);
+    if (gen !== dashTxGen) return;
+    const rows = (res?.tx_responses || []).slice(0, DASH_PREVIEW);
+    if (rows.length) dashTxs.value = rows;
+  } catch {
+    /* transient — keep prior rows, poller retries */
+  } finally {
+    if (gen === dashTxGen) dashTxLoading.value = false;
+  }
+}
+
+function dashShortHash(h?: string): string {
+  if (!h) return '';
+  return h.length > 14 ? `${h.slice(0, 8)}…${h.slice(-6)}` : h;
+}
+
+function dashTxLabel(tx: any): string {
+  const msgs = tx?.tx?.body?.messages || [];
+  if (!msgs.length) return '—';
+  const url = msgs[0]?.['@type'] || '';
+  const label = url.substring(url.lastIndexOf('.') + 1).replace('Msg', '') || 'Tx';
+  return msgs.length > 1 ? `${label} +${msgs.length - 1}` : label;
+}
+
+// Refresh tx preview whenever a new block lands (piggyback on the global poller).
+watch(
+  () => baseStore.latest?.block?.header?.height,
+  (h, prev) => {
+    if (h && h !== prev) fetchDashTxs();
+  }
+);
+
+// Re-fetch on chain switch (engine may resolve after mount).
+watch(
+  () => blockchain.chainName,
+  () => {
+    dashTxs.value = [];
+    fetchDashTxs();
+  }
+);
+
+onMounted(() => {
+  fetchDashTxs();
+  dashTxTimer = window.setInterval(fetchDashTxs, 12_000);
+});
+onUnmounted(() => {
+  if (dashTxTimer) window.clearInterval(dashTxTimer);
 });
 </script>
 
@@ -734,6 +825,86 @@ const amount = computed({
         </template>
       </section>
 
+    <!-- Row 1.5: Latest Blocks + Latest Transactions (Cosmos SDK only) -->
+    <div v-if="!isGno" class="sz-dash-row sz-dash-row--activity">
+      <!-- ===== Latest blocks ===== -->
+      <section class="sz-section sz-dash-blocks">
+        <div class="sz-section-head">
+          <div>
+            <div class="sz-section-kicker">Chain</div>
+            <div class="sz-section-title">Latest Blocks</div>
+          </div>
+          <RouterLink :to="`/${chain}/block`" class="btn btn-sm btn-outline gap-1">
+            <span>View all</span>
+            <Icon icon="mdi-arrow-right" class="text-base" />
+          </RouterLink>
+        </div>
+        <div class="px-4 pb-4 pt-3">
+          <div v-if="!latestBlocks.length" class="sz-dash-empty">Waiting for blocks…</div>
+          <RouterLink
+            v-for="b in latestBlocks"
+            :key="b.height"
+            :to="`/${chain}/block/${b.height}`"
+            class="sz-dash-act-row"
+          >
+            <div class="sz-dash-act-icon">
+              <Icon icon="mdi-cube-outline" />
+            </div>
+            <div class="min-w-0 flex-1">
+              <div class="sz-dash-act-primary">#{{ Number(b.height).toLocaleString() }}</div>
+              <div class="sz-dash-act-secondary truncate">{{ b.proposer }}</div>
+            </div>
+            <div class="shrink-0 text-right">
+              <div class="sz-chip sz-chip--ok font-mono !text-[10px]">{{ b.txCount }} tx</div>
+              <div class="sz-dash-act-time">{{ format.toDay(b.time, 'from') }}</div>
+            </div>
+          </RouterLink>
+        </div>
+      </section>
+
+      <!-- ===== Latest transactions ===== -->
+      <section class="sz-section sz-dash-txs">
+        <div class="sz-section-head">
+          <div>
+            <div class="sz-section-kicker">Chain</div>
+            <div class="sz-section-title">Latest Transactions</div>
+          </div>
+          <RouterLink :to="`/${chain}/tx`" class="btn btn-sm btn-outline gap-1">
+            <span>View all</span>
+            <Icon icon="mdi-arrow-right" class="text-base" />
+          </RouterLink>
+        </div>
+        <div class="px-4 pb-4 pt-3">
+          <div v-if="!dashTxs.length" class="sz-dash-empty">
+            {{ dashTxLoading ? 'Loading transactions…' : 'No recent transactions' }}
+          </div>
+          <RouterLink
+            v-for="t in dashTxs"
+            :key="t.txhash"
+            :to="`/${chain}/tx/${t.txhash}`"
+            class="sz-dash-act-row"
+          >
+            <div class="sz-dash-act-icon">
+              <Icon icon="mdi-swap-horizontal" />
+            </div>
+            <div class="min-w-0 flex-1">
+              <div class="sz-dash-act-primary font-mono">{{ dashShortHash(t.txhash) }}</div>
+              <div class="sz-dash-act-secondary truncate">{{ dashTxLabel(t) }}</div>
+            </div>
+            <div class="shrink-0 text-right">
+              <div
+                class="sz-chip font-mono !text-[10px]"
+                :class="t.code === 0 ? 'sz-chip--ok' : 'sz-chip--bad'"
+              >
+                {{ t.code === 0 ? 'OK' : 'FAIL' }}
+              </div>
+              <div class="sz-dash-act-time">{{ format.toDay(t.timestamp, 'from') }}</div>
+            </div>
+          </RouterLink>
+        </div>
+      </section>
+    </div><!-- /sz-dash-row Latest blocks+txs -->
+
     <!-- Row 2: Governance + Wallet side-by-side on desktop -->
     <div class="sz-dash-row sz-dash-row--bottom">
     <!-- ===== Active proposals ===== -->
@@ -907,6 +1078,12 @@ const amount = computed({
     gap: 1rem;
     align-items: stretch;
   }
+  .sz-dash-row.sz-dash-row--activity {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    align-items: stretch;
+  }
   .sz-dash-row > .sz-section {
     min-width: 0;
     height: 100%;
@@ -924,6 +1101,65 @@ const amount = computed({
   .sz-dash-row.sz-dash-row--bottom {
     grid-template-columns: 1.35fr 1fr;
   }
+  .sz-dash-row.sz-dash-row--activity {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* Latest blocks / transactions preview rows */
+.sz-dash-act-row {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.6rem 0.7rem;
+  border-radius: 12px;
+  border: 1px solid var(--sz-border);
+  background: color-mix(in srgb, hsl(var(--b2)) 55%, transparent);
+  text-decoration: none;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+.sz-dash-act-row + .sz-dash-act-row {
+  margin-top: 0.5rem;
+}
+.sz-dash-act-row:hover {
+  border-color: color-mix(in srgb, hsl(var(--p)) 42%, var(--sz-border));
+  background: color-mix(in srgb, hsl(var(--p)) 6%, transparent);
+}
+.sz-dash-act-icon {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border-radius: 9px;
+  background: color-mix(in srgb, hsl(var(--p)) 12%, transparent);
+  color: hsl(var(--p));
+  font-size: 15px;
+}
+.sz-dash-act-primary {
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--text-main);
+  line-height: 1.2;
+}
+.sz-dash-act-secondary {
+  margin-top: 0.15rem;
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.2;
+}
+.sz-dash-act-time {
+  margin-top: 0.2rem;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+.sz-dash-empty {
+  padding: 1.1rem 0.25rem;
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
 }
 
 .sz-chain-hero {
