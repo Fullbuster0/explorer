@@ -33,7 +33,8 @@ const hash = ref('');
 const current = chainStore?.current?.chainName || '';
 
 // --- live tx feed state ---
-const RECENT_LIMIT = 5;
+// tx-indexer stores the newest 100 txs/chain; show the full window.
+const RECENT_LIMIT = 100;
 const recentTxs = ref<TxResponse[]>([]);
 const loading = ref(false);
 const errored = ref(false);
