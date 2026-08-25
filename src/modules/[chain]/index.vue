@@ -366,26 +366,58 @@ const amount = computed({
 // (their tx feed lives at /gno-tx and the LCD tx query does not exist on TM2).
 const DASH_PREVIEW = 3;
 
-/** Top-3 newest blocks from the global App.vue block poller (base.recents). */
-const latestBlocks = computed(() => {
-  const rows = Array.isArray(baseStore.recents) ? baseStore.recents : [];
-  return [...rows]
-    .filter((b: any) => b?.block?.header?.height)
-    .sort(
-      (a: any, b: any) =>
-        Number(b.block.header.height) - Number(a.block.header.height)
-    )
-    .slice(0, DASH_PREVIEW)
-    .map((b: any) => ({
-      height: b.block.header.height,
-      time: b.block?.header?.time,
-      txCount: b.block?.data?.txs?.length || 0,
-      proposer:
-        format.validator(b.block?.header?.proposer_address) ||
-        b.block?.header?.proposer_address ||
-        '—',
-    }));
-});
+/**
+ * 3 newest CONTIGUOUS blocks for the dashboard preview.
+ *
+ * base.recents is a sparse rolling buffer — App.vue only stores `this.latest`
+ * per poll (FETCH_ALL_BLOCKS=false), so on fresh load / after a reconnect the
+ * older entries skip heights (e.g. 631, 630, 614). A 3-row preview makes that
+ * gap glaring. So we anchor on the latest height and backfill the 1-2 missing
+ * consecutive blocks directly, keeping the list truly sequential (H, H-1, H-2).
+ */
+const dashBlocks = ref<any[]>([]);
+let dashBlkGen = 0;
+
+function mapBlockRow(b: any) {
+  return {
+    height: b.block.header.height,
+    time: b.block?.header?.time,
+    txCount: b.block?.data?.txs?.length || 0,
+    proposer:
+      format.validator(b.block?.header?.proposer_address) ||
+      b.block?.header?.proposer_address ||
+      '—',
+  };
+}
+
+async function fetchDashBlocks() {
+  const gen = ++dashBlkGen;
+  const H = Number(baseStore.latest?.block?.header?.height || 0);
+  if (!H) return;
+  // Index whatever we already have by height (cheap, no network).
+  const byHeight = new Map<number, any>();
+  for (const b of Array.isArray(baseStore.recents) ? baseStore.recents : []) {
+    const h = Number(b?.block?.header?.height);
+    if (h) byHeight.set(h, b);
+  }
+  byHeight.set(H, baseStore.latest);
+
+  const wanted = [H, H - 1, H - 2].filter((h) => h > 0);
+  const rows: any[] = [];
+  for (const h of wanted) {
+    let blk = byHeight.get(h);
+    if (!blk?.block?.header?.height) {
+      try {
+        blk = await baseStore.fetchBlock(h); // backfill the missing consecutive height
+      } catch {
+        blk = undefined;
+      }
+    }
+    if (gen !== dashBlkGen) return; // superseded (new block / chain switch)
+    if (blk?.block?.header?.height) rows.push(mapBlockRow(blk));
+  }
+  if (rows.length) dashBlocks.value = rows;
+}
 
 // --- latest txs (indexer-backed, same source as /tx page) ---
 const dashTxs = ref<TxResponse[]>([]);
@@ -425,11 +457,14 @@ function dashTxLabel(tx: any): string {
   return msgs.length > 1 ? `${label} +${msgs.length - 1}` : label;
 }
 
-// Refresh tx preview whenever a new block lands (piggyback on the global poller).
+// Refresh both previews whenever a new block lands (piggyback on the global poller).
 watch(
   () => baseStore.latest?.block?.header?.height,
   (h, prev) => {
-    if (h && h !== prev) fetchDashTxs();
+    if (h && h !== prev) {
+      fetchDashBlocks();
+      fetchDashTxs();
+    }
   }
 );
 
@@ -437,12 +472,15 @@ watch(
 watch(
   () => blockchain.chainName,
   () => {
+    dashBlocks.value = [];
     dashTxs.value = [];
+    fetchDashBlocks();
     fetchDashTxs();
   }
 );
 
 onMounted(() => {
+  fetchDashBlocks();
   fetchDashTxs();
   dashTxTimer = window.setInterval(fetchDashTxs, 12_000);
 });
@@ -840,9 +878,9 @@ onUnmounted(() => {
           </RouterLink>
         </div>
         <div class="px-4 pb-4 pt-3">
-          <div v-if="!latestBlocks.length" class="sz-dash-empty">Waiting for blocks…</div>
+          <div v-if="!dashBlocks.length" class="sz-dash-empty">Waiting for blocks…</div>
           <RouterLink
-            v-for="b in latestBlocks"
+            v-for="b in dashBlocks"
             :key="b.height"
             :to="`/${chain}/block/${b.height}`"
             class="sz-dash-act-row"
