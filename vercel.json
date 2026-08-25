@@ -5,6 +5,10 @@
   "installCommand": "yarn install --frozen-lockfile",
   "rewrites": [
     {
+      "source": "/tx-api/:path*",
+      "destination": "https://tx-indexer.shazoes.xyz/:path*"
+    },
+    {
       "source": "/vote-api/:path*",
       "destination": "https://vote-tendermint.shazoes.xyz/:path*"
     },

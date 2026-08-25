@@ -14,6 +14,7 @@ import {
   type RpcQuality,
 } from '@/libs/rpc-quality';
 import { PageRequest, type PaginatedTxs, type TxResponse } from '@/types';
+import { fetchRecentTxsFromIndexer } from '@/libs/tx-indexer';
 import {
   useBankStore,
   useBaseStore,
@@ -610,16 +611,34 @@ export const useBlockchain = defineStore('blockchain', {
 
     /**
      * Fetch the latest N transactions chain-wide (most-recent first).
-     * Uses the indexed tx search (query=tx.height>0 + order_by desc) so it works
-     * even on low-traffic chains where the last 50 blocks are all empty.
-     * Fast path: active endpoint first (this feed refreshes every ~block, so we
-     * want the quickest healthy node); then archive; then remaining rest.
+     *
+     * SOURCE ORDER (validated live 2026-08-25):
+     *   1. tx-indexer  — newest 100 txs per chain, works for ALL 8 chains.
+     *   2. LCD walk    — `query=tx.height>0` + order_by desc (the original path).
+     *
+     * The LCD range query is REJECTED by most public nodes: cosmoshub / lava /
+     * terra answer HTTP 400 ("specify tx.height with strict equality"),
+     * zetachain times out and axone 500s — only atomone / hippo / shentu work.
+     * So the indexer is primary and the LCD walk is kept intact as fallback for
+     * when the indexer is down (it still rescues those 3 chains; the other 5
+     * degrade to the same empty feed they show today).
+     *
+     * Set VITE_TX_INDEXER_URL='' to disable the indexer and go LCD-only.
      */
     async fetchRecentTxs(limit = 5): Promise<PaginatedTxs | null> {
       // Gno uses /gno-tx indexer feed — Cosms tx.height search does not exist on TM2.
       if (this.current && isGnoChain(this.current as any)) {
         return null;
       }
+
+      // ── 1) tx-indexer (primary) ──────────────────────────────────────────
+      // Keyed by the explorer chain name, which matches the indexer's chain
+      // keys 1:1 (atomone-mainnet, cosmoshub-mainnet, …). Any failure returns
+      // null and we fall through to the LCD walk below.
+      const indexed = await fetchRecentTxsFromIndexer(String(this.chainName || ''), limit);
+      if (indexed?.tx_responses?.length) return indexed;
+
+      // ── 2) LCD walk (fallback, unchanged) ────────────────────────────────
       const query = `?query=tx.height>0`;
       const page = new PageRequest();
       page.setPageSize(limit);
