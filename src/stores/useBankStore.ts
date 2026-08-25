@@ -28,17 +28,19 @@ export const useBankStore = defineStore('bankstore', {
       const denom = this.staking.params.bond_denom || this.blockchain.current?.assets[0].base;
       if (denom) {
         // Some LCDs 500/501 on /supply/{denom} (Pocket, pruned nodes). Soft-fail.
+        // rpc may be unresolved on first paint (async setCurrent) — optional-chain
+        // both the client and the promise so a late engine can't unhandled-reject.
         this.blockchain.rpc
-          .getBankSupplyByDenom(denom)
-          .then((res) => {
+          ?.getBankSupplyByDenom(denom)
+          ?.then((res) => {
             if (res.amount) this.supply = res.amount;
           })
-          .catch((e: any) => console.warn('[bank] supply:', e?.message || e));
+          ?.catch((e: any) => console.warn('[bank] supply:', e?.message || e));
       }
     },
     async fetchSupply(denom: string) {
       try {
-        return await this.blockchain.rpc.getBankSupplyByDenom(denom);
+        return await this.blockchain.rpc?.getBankSupplyByDenom(denom);
       } catch (e: any) {
         console.warn('[bank] fetchSupply:', e?.message || e);
         return { amount: { amount: '0', denom } } as any;

@@ -35,6 +35,14 @@ const current = chainStore?.current?.chainName || '';
 // --- live tx feed state ---
 // tx-indexer stores the newest 100 txs/chain; show the full window.
 const RECENT_LIMIT = 100;
+/**
+ * Incremental poll size. Refetching all 100 rows every 10s costs ~2.4 MB per
+ * poll on busy chains (~14 MB/min/tab; 80% of the payload is the `raw` field,
+ * and 90% of those are truncated past the indexer's 20000-char cap so they're
+ * re-synthesised anyway). Polls fetch only the newest slice and MERGE it into
+ * the existing list by hash, so the rendered window stays at RECENT_LIMIT.
+ */
+const POLL_LIMIT = 15;
 const recentTxs = ref<TxResponse[]>([]);
 const loading = ref(false);
 const errored = ref(false);
@@ -99,14 +107,39 @@ async function fetchRecent(isInitial: boolean) {
   const gen = ++fetchGen;
   loading.value = true;
   try {
-    const res = await chainStore.fetchRecentTxs(RECENT_LIMIT);
+    // Initial mount / chain-switch fills the whole 100-row window once; polls
+    // fetch only the newest slice and merge, to avoid re-downloading ~2.4 MB
+    // every 10s. Diff-by-hash below already computes freshness, so a small
+    // slice is enough to catch every new tx between polls.
+    const wantAll = isInitial || !recentTxs.value.length;
+    const fetchLimit = wantAll ? RECENT_LIMIT : POLL_LIMIT;
+    const res = await chainStore.fetchRecentTxs(fetchLimit);
     if (gen !== fetchGen) return;
-    const rows = (res?.tx_responses || []).slice(0, RECENT_LIMIT);
-    if (!rows.length && !isInitial) {
+    const incoming = (res?.tx_responses || []).slice(0, fetchLimit);
+    if (!incoming.length && !isInitial) {
       // don't clobber the previous list on a transient miss
       errored.value = !isInitial;
       return;
     }
+
+    // Merge incoming (newest) ahead of the existing window, dedup by hash,
+    // and cap at RECENT_LIMIT. On a full fetch the incoming list already IS
+    // the authoritative window, so it simply replaces. On a poll, only the
+    // genuinely-new rows get prepended; the tail stays put (no re-render churn).
+    let rows: TxResponse[];
+    if (wantAll) {
+      rows = incoming;
+    } else {
+      const merged: TxResponse[] = [];
+      const seen = new Set<string>();
+      for (const r of [...incoming, ...recentTxs.value]) {
+        if (!r.txhash || seen.has(r.txhash)) continue;
+        seen.add(r.txhash);
+        merged.push(r);
+      }
+      rows = merged.slice(0, RECENT_LIMIT);
+    }
+
     // Diff by hash to compute freshness (skip on the very first mount so we
     // don't flash every row).
     const nextHashes = new Set(rows.map((r) => r.txhash));
