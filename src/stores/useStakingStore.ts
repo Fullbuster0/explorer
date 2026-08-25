@@ -150,13 +150,23 @@ export const useStakingStore = defineStore('stakingStore', {
       }
     },
     async fetchValidators(status: string, limit = 300) {
-      return this.blockchain.rpc?.getStakingValidators(status, limit).then((res) => {
-        const vals = res.validators.sort((a, b) => Number(b.delegator_shares) - Number(a.delegator_shares));
-        if (status === 'BOND_STATUS_BONDED') {
-          this.validators = vals;
-        }
-        return vals;
-      });
+      // `rpc` can be undefined while the chain/endpoint is still resolving. The
+      // optional-chain then short-circuits the whole .then() chain and this
+      // returns undefined, which callers used to treat as an array (→
+      // "Cannot read properties of undefined (reading 'forEach')"). Always
+      // resolve to an array so consumers can rely on the shape.
+      const rpc = this.blockchain.rpc;
+      if (!rpc?.getStakingValidators) return [] as Validator[];
+      const res = await rpc.getStakingValidators(status, limit);
+      // Some public LCDs answer HTTP 200 with an error envelope and no
+      // `validators` key (e.g. lava.build "upstream_error: Not Implemented").
+      const vals = Array.isArray(res?.validators)
+        ? res.validators.sort((a, b) => Number(b.delegator_shares) - Number(a.delegator_shares))
+        : ([] as Validator[]);
+      if (status === 'BOND_STATUS_BONDED') {
+        this.validators = vals;
+      }
+      return vals;
     },
   },
 });

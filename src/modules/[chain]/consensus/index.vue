@@ -94,7 +94,10 @@ function fetchAvatar(identity: string) {
 }
 function loadAvatars() {
   const ids = new Set<string>();
-  validatorsData.value.forEach((v: any) => {
+  // Defensive: fetchAcitveValdiators() can resolve to a non-array when the RPC
+  // is still resolving or an LCD answers 200 with an error envelope.
+  const list = Array.isArray(validatorsData.value) ? validatorsData.value : [];
+  list.forEach((v: any) => {
     const id = v?.description?.identity;
     if (id && !avatars.value[id]) ids.add(id);
   });
@@ -192,7 +195,8 @@ async function startMonitor() {
     }
 
     try {
-      validatorsData.value = await stakingStore.fetchAcitveValdiators();
+      const loaded = await stakingStore.fetchAcitveValdiators();
+      validatorsData.value = Array.isArray(loaded) ? loaded : [];
       if (gen !== monitorGen) return;
       loadAvatars();
     } catch (e) {
