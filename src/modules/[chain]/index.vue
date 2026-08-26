@@ -20,7 +20,9 @@ import { onMounted, onUnmounted, ref, computed, watch } from 'vue';
 import type { TxResponse } from '@/types';
 import { useIndexModule, colorMap, tickerUrl } from './indexStore';
 import { useBaseStore } from '@/stores';
-import { formatSeconds, safeUrl } from '@/libs/utils';
+import { formatSeconds, safeUrl, getLocalJson } from '@/libs/utils';
+import { fromBase64, toHex } from '@cosmjs/encoding';
+import { consensusPubkeyToHexAddress } from '@/libs';
 
 import ProposalListItem from '@/components/ProposalListItem.vue';
 import Loading from '@/components/Loading.vue';
@@ -378,15 +380,83 @@ const DASH_PREVIEW = 3;
 const dashBlocks = ref<any[]>([]);
 let dashBlkGen = 0;
 
+// ---- proposer avatars (keybase, cached in localStorage) — same pattern as the
+// /block list page so the dashboard preview shows the same validator logo. ----
+const dashAvatars = ref<Record<string, string>>(getLocalJson('avatars', {}));
+
+function dashLogo(identity?: string) {
+  if (!identity || !dashAvatars.value[identity]) return '';
+  const url = dashAvatars.value[identity] || '';
+  return url.startsWith('http')
+    ? url
+    : `https://s3.amazonaws.com/keybase_processed_uploads/${url}`;
+}
+
+function dashFetchAvatar(identity: string) {
+  return new Promise<void>((resolve) => {
+    stakingStore
+      .keybase(identity)
+      .then((d: any) => {
+        if (Array.isArray(d?.them) && d.them.length > 0) {
+          const uri = String(d.them[0]?.pictures?.primary?.url).replace(
+            'https://s3.amazonaws.com/keybase_processed_uploads/',
+            ''
+          );
+          dashAvatars.value[identity] = uri;
+        }
+        resolve();
+      })
+      .catch(() => resolve());
+  });
+}
+
+// Template can't touch the `localStorage` global (Vue resolves it as
+// _ctx.localStorage → undefined). Persist via a method.
+function dashPersistAvatars() {
+  try {
+    localStorage.setItem('avatars', JSON.stringify(dashAvatars.value));
+  } catch {
+    /* quota */
+  }
+}
+
+function dashLoadAvatars(identities: string[]) {
+  const ids = identities.filter((id) => id && !dashAvatars.value[id]);
+  if (!ids.length) return;
+  Promise.all(ids.map((id) => dashFetchAvatar(id))).then(() => dashPersistAvatars());
+}
+
+/** proposer_address (base64 cons address on Cosmos) → moniker + identity. */
+function dashResolveProposer(proposerAddress?: string) {
+  if (!proposerAddress) return { moniker: '—', identity: '' };
+  try {
+    const hex = toHex(fromBase64(proposerAddress)).toUpperCase();
+    const val = stakingStore.validators.find(
+      (x: any) => consensusPubkeyToHexAddress(x.consensus_pubkey) === hex
+    );
+    return {
+      moniker:
+        val?.description?.moniker ||
+        format.validator(proposerAddress) ||
+        proposerAddress,
+      identity: val?.description?.identity || '',
+    };
+  } catch {
+    return {
+      moniker: format.validator(proposerAddress) || proposerAddress,
+      identity: '',
+    };
+  }
+}
+
 function mapBlockRow(b: any) {
+  const p = dashResolveProposer(b.block?.header?.proposer_address);
   return {
     height: b.block.header.height,
     time: b.block?.header?.time,
     txCount: b.block?.data?.txs?.length || 0,
-    proposer:
-      format.validator(b.block?.header?.proposer_address) ||
-      b.block?.header?.proposer_address ||
-      '—',
+    proposer: p.moniker || '—',
+    identity: p.identity,
   };
 }
 
@@ -416,7 +486,10 @@ async function fetchDashBlocks() {
     if (gen !== dashBlkGen) return; // superseded (new block / chain switch)
     if (blk?.block?.header?.height) rows.push(mapBlockRow(blk));
   }
-  if (rows.length) dashBlocks.value = rows;
+  if (rows.length) {
+    dashBlocks.value = rows;
+    dashLoadAvatars([...new Set(rows.map((r) => r.identity).filter(Boolean))]);
+  }
 }
 
 // --- latest txs (indexer-backed, same source as /tx page) ---
@@ -476,6 +549,15 @@ watch(
     dashTxs.value = [];
     fetchDashBlocks();
     fetchDashTxs();
+  }
+);
+
+// Re-resolve proposer monikers once the staking validator set finishes loading
+// (a cold load renders raw cons addresses otherwise).
+watch(
+  () => stakingStore.validators?.length,
+  (n) => {
+    if (n && dashBlocks.value.length) fetchDashBlocks();
   }
 );
 
@@ -713,6 +795,93 @@ onUnmounted(() => {
     </section>
     </div><!-- /sz-dash-row Tokenomics+Market -->
 
+    <!-- Row 1.5: Latest Blocks + Latest Transactions (Cosmos SDK only) -->
+    <div v-if="!isGno" class="sz-dash-row sz-dash-row--activity">
+      <!-- ===== Latest blocks ===== -->
+      <section class="sz-section sz-dash-blocks">
+        <div class="sz-section-head">
+          <div>
+            <div class="sz-section-kicker">Chain</div>
+            <div class="sz-section-title">Latest Blocks</div>
+          </div>
+          <RouterLink :to="`/${chain}/block`" class="btn btn-sm btn-outline gap-1">
+            <span>View all</span>
+            <Icon icon="mdi-arrow-right" class="text-base" />
+          </RouterLink>
+        </div>
+        <div class="px-4 pb-4 pt-3">
+          <div v-if="!dashBlocks.length" class="sz-dash-empty">Waiting for blocks…</div>
+          <RouterLink
+            v-for="b in dashBlocks"
+            :key="b.height"
+            :to="`/${chain}/block/${b.height}`"
+            class="sz-dash-act-row"
+          >
+            <div class="sz-dash-act-icon sz-dash-act-avatar" :title="b.proposer">
+              <img
+                v-if="dashLogo(b.identity)"
+                :src="dashLogo(b.identity)"
+                class="h-full w-full object-cover"
+                alt=""
+                @error="() => { if (b.identity) dashFetchAvatar(b.identity).then(dashPersistAvatars); }"
+              />
+              <span v-else class="sz-dash-act-avatar-fallback">{{ (b.proposer || '?').slice(0, 1) }}</span>
+            </div>
+            <div class="min-w-0 flex-1">
+              <div class="sz-dash-act-primary">#{{ Number(b.height).toLocaleString() }}</div>
+              <div class="sz-dash-act-secondary truncate">{{ b.proposer }}</div>
+            </div>
+            <div class="shrink-0 text-right">
+              <div class="sz-chip sz-chip--ok font-mono !text-[10px]">{{ b.txCount }} tx</div>
+              <div class="sz-dash-act-time">{{ format.toDay(b.time, 'from') }}</div>
+            </div>
+          </RouterLink>
+        </div>
+      </section>
+
+      <!-- ===== Latest transactions ===== -->
+      <section class="sz-section sz-dash-txs">
+        <div class="sz-section-head">
+          <div>
+            <div class="sz-section-kicker">Chain</div>
+            <div class="sz-section-title">Latest Transactions</div>
+          </div>
+          <RouterLink :to="`/${chain}/tx`" class="btn btn-sm btn-outline gap-1">
+            <span>View all</span>
+            <Icon icon="mdi-arrow-right" class="text-base" />
+          </RouterLink>
+        </div>
+        <div class="px-4 pb-4 pt-3">
+          <div v-if="!dashTxs.length" class="sz-dash-empty">
+            {{ dashTxLoading ? 'Loading transactions…' : 'No recent transactions' }}
+          </div>
+          <RouterLink
+            v-for="t in dashTxs"
+            :key="t.txhash"
+            :to="`/${chain}/tx/${t.txhash}`"
+            class="sz-dash-act-row"
+          >
+            <div class="sz-dash-act-icon">
+              <Icon icon="mdi-swap-horizontal" />
+            </div>
+            <div class="min-w-0 flex-1">
+              <div class="sz-dash-act-primary font-mono">{{ dashShortHash(t.txhash) }}</div>
+              <div class="sz-dash-act-secondary truncate">{{ dashTxLabel(t) }}</div>
+            </div>
+            <div class="shrink-0 text-right">
+              <div
+                class="sz-chip font-mono !text-[10px]"
+                :class="t.code === 0 ? 'sz-chip--ok' : 'sz-chip--bad'"
+              >
+                {{ t.code === 0 ? 'OK' : 'FAIL' }}
+              </div>
+              <div class="sz-dash-act-time">{{ format.toDay(t.timestamp, 'from') }}</div>
+            </div>
+          </RouterLink>
+        </div>
+      </section>
+    </div><!-- /sz-dash-row Latest blocks+txs -->
+
     <!-- GitHub: full width (heatmap needs the room) -->
       <section
         v-if="githubCard.fullName || githubCard.loading"
@@ -863,85 +1032,6 @@ onUnmounted(() => {
         </template>
       </section>
 
-    <!-- Row 1.5: Latest Blocks + Latest Transactions (Cosmos SDK only) -->
-    <div v-if="!isGno" class="sz-dash-row sz-dash-row--activity">
-      <!-- ===== Latest blocks ===== -->
-      <section class="sz-section sz-dash-blocks">
-        <div class="sz-section-head">
-          <div>
-            <div class="sz-section-kicker">Chain</div>
-            <div class="sz-section-title">Latest Blocks</div>
-          </div>
-          <RouterLink :to="`/${chain}/block`" class="btn btn-sm btn-outline gap-1">
-            <span>View all</span>
-            <Icon icon="mdi-arrow-right" class="text-base" />
-          </RouterLink>
-        </div>
-        <div class="px-4 pb-4 pt-3">
-          <div v-if="!dashBlocks.length" class="sz-dash-empty">Waiting for blocks…</div>
-          <RouterLink
-            v-for="b in dashBlocks"
-            :key="b.height"
-            :to="`/${chain}/block/${b.height}`"
-            class="sz-dash-act-row"
-          >
-            <div class="sz-dash-act-icon">
-              <Icon icon="mdi-cube-outline" />
-            </div>
-            <div class="min-w-0 flex-1">
-              <div class="sz-dash-act-primary">#{{ Number(b.height).toLocaleString() }}</div>
-              <div class="sz-dash-act-secondary truncate">{{ b.proposer }}</div>
-            </div>
-            <div class="shrink-0 text-right">
-              <div class="sz-chip sz-chip--ok font-mono !text-[10px]">{{ b.txCount }} tx</div>
-              <div class="sz-dash-act-time">{{ format.toDay(b.time, 'from') }}</div>
-            </div>
-          </RouterLink>
-        </div>
-      </section>
-
-      <!-- ===== Latest transactions ===== -->
-      <section class="sz-section sz-dash-txs">
-        <div class="sz-section-head">
-          <div>
-            <div class="sz-section-kicker">Chain</div>
-            <div class="sz-section-title">Latest Transactions</div>
-          </div>
-          <RouterLink :to="`/${chain}/tx`" class="btn btn-sm btn-outline gap-1">
-            <span>View all</span>
-            <Icon icon="mdi-arrow-right" class="text-base" />
-          </RouterLink>
-        </div>
-        <div class="px-4 pb-4 pt-3">
-          <div v-if="!dashTxs.length" class="sz-dash-empty">
-            {{ dashTxLoading ? 'Loading transactions…' : 'No recent transactions' }}
-          </div>
-          <RouterLink
-            v-for="t in dashTxs"
-            :key="t.txhash"
-            :to="`/${chain}/tx/${t.txhash}`"
-            class="sz-dash-act-row"
-          >
-            <div class="sz-dash-act-icon">
-              <Icon icon="mdi-swap-horizontal" />
-            </div>
-            <div class="min-w-0 flex-1">
-              <div class="sz-dash-act-primary font-mono">{{ dashShortHash(t.txhash) }}</div>
-              <div class="sz-dash-act-secondary truncate">{{ dashTxLabel(t) }}</div>
-            </div>
-            <div class="shrink-0 text-right">
-              <div
-                class="sz-chip font-mono !text-[10px]"
-                :class="t.code === 0 ? 'sz-chip--ok' : 'sz-chip--bad'"
-              >
-                {{ t.code === 0 ? 'OK' : 'FAIL' }}
-              </div>
-              <div class="sz-dash-act-time">{{ format.toDay(t.timestamp, 'from') }}</div>
-            </div>
-          </RouterLink>
-        </div>
-      </section>
-    </div><!-- /sz-dash-row Latest blocks+txs -->
 
     <!-- Row 2: Governance + Wallet side-by-side on desktop -->
     <div class="sz-dash-row sz-dash-row--bottom">
@@ -1173,6 +1263,20 @@ onUnmounted(() => {
   background: color-mix(in srgb, hsl(var(--p)) 12%, transparent);
   color: hsl(var(--p));
   font-size: 15px;
+}
+/* Latest-blocks preview uses the proposer avatar (same as /block list) */
+.sz-dash-act-avatar {
+  overflow: hidden;
+  background: color-mix(in srgb, hsl(var(--p)) 8%, transparent);
+}
+.sz-dash-act-avatar img {
+  border-radius: 9px;
+}
+.sz-dash-act-avatar-fallback {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: color-mix(in srgb, hsl(var(--p)) 75%, var(--text-secondary));
 }
 .sz-dash-act-primary {
   font-size: 0.8rem;

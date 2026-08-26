@@ -118,11 +118,19 @@ function resolveProposer(proposerAddress?: string) {
   }
 }
 
+// base.recents is appended oldest→newest (fetchLatest pushes then slices the
+// tail), so rendering it as-is puts the OLDEST block first. Sort by height
+// descending so the newest block leads the grid.
 const list = computed(() => {
-  return (base.recents || []).map((item) => {
-    const proposer = resolveProposer(item.block?.header?.proposer_address);
-    return { item, proposer };
-  });
+  return [...(base.recents || [])]
+    .sort(
+      (a, b) =>
+        Number(b?.block?.header?.height || 0) - Number(a?.block?.header?.height || 0)
+    )
+    .map((item) => {
+      const proposer = resolveProposer(item.block?.header?.proposer_address);
+      return { item, proposer };
+    });
 });
 
 // Prefetch avatars for proposers currently in view
