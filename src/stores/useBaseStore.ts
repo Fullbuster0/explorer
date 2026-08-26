@@ -9,6 +9,39 @@ import { fromBase64 } from '@cosmjs/encoding';
 const FETCH_ALL_BLOCKS = String(import.meta.env.VITE_FETCH_ALL_BLOCKS || '').toLowerCase() === 'true';
 const RECENT_BLOCKS_LIMIT = Math.max(1, Number(import.meta.env.VITE_RECENT_BLOCK_LIMIT || 50) || 50);
 
+/**
+ * Normalises the recents buffer: sorts ascending by height, drops duplicates,
+ * keeps only the newest CONTIGUOUS run, then trims to `limit`.
+ *
+ * Rationale: the block list renders this buffer directly. If a height was
+ * missed (backgrounded tab, RPC hiccup, N→N+2 commit) and backfill couldn't
+ * recover it, the list shows a visible jump (…126, 116, 115). Rather than
+ * display a lying "recent blocks" feed, we cut at the hole and show only the
+ * unbroken tail — shorter list, but every row is truly sequential.
+ */
+function trimToContiguousTail(blocks: any[], limit: number): any[] {
+  const seen = new Set<number>();
+  const sorted = blocks
+    .filter((b) => Number(b?.block?.header?.height) > 0)
+    .sort((a, b) => Number(a.block.header.height) - Number(b.block.header.height))
+    .filter((b) => {
+      const h = Number(b.block.header.height);
+      if (seen.has(h)) return false;
+      seen.add(h);
+      return true;
+    });
+  if (sorted.length <= 1) return sorted.slice(-limit);
+  // Walk backwards from the newest block until the sequence breaks.
+  let start = sorted.length - 1;
+  for (let i = sorted.length - 1; i > 0; i--) {
+    const cur = Number(sorted[i].block.header.height);
+    const prev = Number(sorted[i - 1].block.header.height);
+    if (cur - prev !== 1) break;
+    start = i - 1;
+  }
+  return sorted.slice(start).slice(-limit);
+}
+
 export const useBaseStore = defineStore('baseStore', {
   state: () => {
     return {
@@ -137,23 +170,34 @@ export const useBaseStore = defineStore('baseStore', {
       ) {
         const newBlocks = await this.fetchNewBlocks();
         const combined = [...this.recents, ...newBlocks];
-        this.recents = combined.slice(-RECENT_BLOCKS_LIMIT);
+        this.recents = trimToContiguousTail(combined, RECENT_BLOCKS_LIMIT);
       }
       return this.latest;
     },
     /**
-     * Fetches all blocks since the last block in recents.
-     * Only fetches blocks with height greater than this.recents[-1].block.header.height.
-     * Returns an array of new blocks to be added to recents.
+     * Fetches new blocks since the last block in recents and keeps the buffer
+     * CONTIGUOUS. Under FETCH_ALL_BLOCKS=false the poller only samples
+     * `this.latest` per tick, so any skipped height (backgrounded tab, N→N+2
+     * commit jump, a slow tick) leaves a hole — the block list then shows a
+     * non-sequential feed (e.g. …126, 116, 115). We backfill the missing
+     * consecutive heights via fetchBlock, capped so a long pause (huge gap)
+     * can't hammer the RPC with thousands of requests.
      */
     async fetchNewBlocks() {
       if (!this.latest?.block?.header?.height) return [];
-      if (!FETCH_ALL_BLOCKS) return [this.latest];
-      const oldHeight = Number(this.recents[this.recents.length - 1]?.block?.header?.height);
       const newHeight = Number(this.latest.block.header.height);
+      const lastH = Number(this.recents[this.recents.length - 1]?.block?.header?.height);
+      // Cold load / no anchor yet → just seed with the latest block.
+      if (!Number.isFinite(lastH) || lastH <= 0) return [this.latest];
+      const gap = newHeight - lastH;
+      if (gap <= 0) return []; // regression guard (RPC lag)
+      if (gap === 1) return [this.latest]; // already sequential, no backfill needed
+      // Backfill the interior heights. FETCH_ALL_BLOCKS keeps the old
+      // unbounded behaviour; otherwise cap so a background pause stays cheap.
+      const BACKFILL_CAP = FETCH_ALL_BLOCKS ? Number.MAX_SAFE_INTEGER : 24;
+      const from = gap - 1 > BACKFILL_CAP ? newHeight - BACKFILL_CAP : lastH + 1;
       let newBlocks = [];
-      // Fetch all blocks between oldHeight+1 and less than newHeight
-      for (let h = oldHeight + 1; h < newHeight; h++) {
+      for (let h = from; h < newHeight; h++) {
         const block = await this.fetchBlock(h);
         if (!block?.block?.header?.height) continue; // skip if block not found
         newBlocks.push(block);
