@@ -37,6 +37,12 @@ const channel_id = ref('');
 const port_id = ref('');
 const page = ref(new PageRequest());
 page.value.limit = 5;
+// Chain-wide total for this channel query. The Cosmos LCD tx-search endpoint
+// IGNORES pagination.limit/offset (page.toQueryString) but honours top-level
+// page/limit, and reports the count in the top-level `total` field with
+// `pagination` = null. So we drive server paging via page/limit appended to the
+// query string and read the count from `total ?? pagination.total`.
+const txsTotal = ref('0');
 
 const localChainId = computed(
   () => baseStore.latest?.block?.header?.chain_id || chainStore.current?.chainName || props.chain
@@ -100,6 +106,16 @@ function pageload(pageNum: number) {
   else fetchSendingTxs(channel_id.value, port_id.value, pageNum - 1);
 }
 
+/** Top-level `page`/`limit` — the only paging params the LCD tx-search honours. */
+function serverPaging(pageNum: number) {
+  return `&page=${pageNum + 1}&limit=${page.value.limit}`;
+}
+/** LCD returns the count in top-level `total`; `pagination` is null here. */
+function readTotal(res: any): string {
+  const t = res?.total ?? res?.pagination?.total;
+  return t !== undefined && t !== null ? String(t) : '0';
+}
+
 function fetchSendingTxs(channel: string, port: string, pageNum = 0) {
   page.value.setPage(pageNum);
   loading.value = true;
@@ -109,11 +125,15 @@ function fetchSendingTxs(channel: string, port: string, pageNum = 0) {
   txs.value = {} as PaginatedTxs;
   chainStore.rpc
     .getTxs(
-      "?order_by=2&events=send_packet.packet_src_channel='{channel}'&events=send_packet.packet_src_port='{port}'",
+      "?order_by=2&events=send_packet.packet_src_channel='{channel}'&events=send_packet.packet_src_port='{port}'" +
+        serverPaging(pageNum),
       { channel, port },
       page.value
     )
-    .then((res) => (txs.value = res))
+    .then((res) => {
+      txs.value = res;
+      txsTotal.value = readTotal(res);
+    })
     .finally(() => (loading.value = false));
 }
 
@@ -126,11 +146,15 @@ function fetchReceivingTxs(channel: string, port: string, pageNum = 0) {
   txs.value = {} as PaginatedTxs;
   chainStore.rpc
     .getTxs(
-      "?order_by=2&events=recv_packet.packet_dst_channel='{channel}'&events=recv_packet.packet_dst_port='{port}'",
+      "?order_by=2&events=recv_packet.packet_dst_channel='{channel}'&events=recv_packet.packet_dst_port='{port}'" +
+        serverPaging(pageNum),
       { channel, port },
       page.value
     )
-    .then((res) => (txs.value = res))
+    .then((res) => {
+      txs.value = res;
+      txsTotal.value = readTotal(res);
+    })
     .finally(() => (loading.value = false));
 }
 
@@ -432,7 +456,7 @@ function isPreferredChannel(ch: Channel) {
         </table>
       </div>
       <div class="border-t border-base-content/10 px-4 py-2">
-        <PaginationBar :limit="page.limit" :total="txs.pagination?.total" :callback="pageload" />
+        <PaginationBar :limit="page.limit" :total="txsTotal" :callback="pageload" />
       </div>
     </div>
   </div>
