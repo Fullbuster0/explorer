@@ -30,6 +30,7 @@ const chain = computed(() => props.chain);
 
 const proposal = ref({} as GovProposal);
 const loading = ref(true);
+const notFound = ref(false);
 const votesLoading = ref(true);
 const allVotes = ref([] as GovVote[]);
 const voteDataSource = ref<'vote-indexer' | 'lcd' | 'unavailable'>('unavailable');
@@ -787,7 +788,12 @@ async function loadProposal() {
     }
 
     const res = await store.fetchProposal(props.proposal_id);
-    if (!res?.proposal) return;
+    if (!res?.proposal) {
+      // LCD answered but carried no proposal → the id doesn't exist.
+      if (!proposal.value?.proposal_id) notFound.value = true;
+      return;
+    }
+    notFound.value = false;
     const detail = reactive(normalizeProposal(res.proposal)) as GovProposal;
 
     // Live tally for voting period; also fill if final_tally is empty/zero on closed proposals
@@ -811,6 +817,13 @@ async function loadProposal() {
     await loadParamContext(detail);
   } catch (e) {
     console.warn('[gov] loadProposal failed', e);
+    // 404/400 from the LCD = the proposal id doesn't exist. Only flag not-found
+    // when we have nothing loaded; a transient failure on a refresh must not
+    // wipe an already-rendered proposal.
+    const msg = String((e as any)?.message || e || '');
+    if (/\b(400|404)\b/.test(msg) && !proposal.value?.proposal_id) {
+      notFound.value = true;
+    }
   } finally {
     loading.value = false;
   }
@@ -947,6 +960,20 @@ onUnmounted(() => {
       </div>
     </div>
 
+    <!-- NOT FOUND — the proposal id doesn't exist on this chain (404/400 from
+         the LCD). Without this guard the Overview still rendered with a zeroed
+         tally ("Turnout 0%", "Yes 0", status "—"), which is indistinguishable
+         from a real proposal that has no votes yet. -->
+    <div v-if="notFound" class="sz-section p-8 text-center">
+      <div class="text-3xl mb-2 opacity-40">◇</div>
+      <div class="font-medium mb-1">Proposal not found</div>
+      <div class="text-[13px] text-secondary">
+        No proposal <span class="font-mono">#{{ proposal_id }}</span> exists on this chain.
+      </div>
+      <RouterLink :to="`/${chain}/gov`" class="btn btn-sm btn-outline mt-4">Back to Governance</RouterLink>
+    </div>
+
+    <template v-else>
     <!-- PRIMARY TABS -->
     <div class="sz-tabs gov-primary-tabs mb-4" role="tablist" aria-label="Proposal sections">
       <button
@@ -1456,6 +1483,7 @@ onUnmounted(() => {
           <pre class="gov-raw-json">{{ rawVotesJson }}</pre>
         </div>
       </div>
+    </template>
     </template>
   </div>
 </template>

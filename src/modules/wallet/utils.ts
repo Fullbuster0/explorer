@@ -49,12 +49,29 @@ export function scanCompatibleAccounts(keys: LocalKey[]) {
   const dashboard = useDashboard();
   const available = [] as AccountEntry[];
   keys.forEach((wallet) => {
+    // fromBech32 THROWS on partial/invalid input ("No separator character",
+    // "Data too short", "Unknown character"). This function runs inside a
+    // computed that re-evaluates on every keystroke of the import field, so an
+    // unguarded throw propagates as a Vue render error and blanks the whole
+    // page until the address happens to be complete. Decode once, skip the
+    // whole key if it isn't a valid bech32 address yet.
+    let data: Uint8Array;
+    try {
+      data = fromBech32(wallet.cosmosAddress).data;
+    } catch {
+      return;
+    }
     Object.values(dashboard.chains).forEach((chain) => {
-      const { data } = fromBech32(wallet.cosmosAddress);
+      let address: string;
+      try {
+        address = toBech32(chain.bech32Prefix, data);
+      } catch {
+        return;
+      }
       available.push({
         chainName: chain.chainName,
         logo: chain.logo,
-        address: toBech32(chain.bech32Prefix, data),
+        address,
         coinType: chain.coinType,
         compatiable: wallet.hdPath.indexOf(chain.coinType) > 0,
         endpoint: chain.endpoints.rest?.at(0)?.address,

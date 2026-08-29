@@ -79,8 +79,15 @@ export function pubKeyToValcons(consensusPubkey: { '@type': string; key: string 
 }
 
 export function valconsToBase64(address: string) {
-  if (address) return toBase64(fromBech32(address).data);
-  return '';
+  if (!address) return '';
+  // Reachable from findRotatedHexAddress() with a value read out of the
+  // `key-rotation-*` localStorage entry — guard the decode so a corrupted
+  // persisted value can't throw into the validator/uptime render path.
+  try {
+    return toBase64(fromBech32(address).data);
+  } catch {
+    return '';
+  }
 }
 
 export function toETHAddress(cosmosAddress: string) {

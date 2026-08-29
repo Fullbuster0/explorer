@@ -98,7 +98,7 @@ function gotoHistory() {
             <td>{{ v.creator }}</td>
             <td>
               {{ v.instantiate_permission?.permission }}
-              <span>{{ v.instantiate_permission?.address }} {{ v.instantiate_permission?.addresses.join(', ') }}</span>
+              <span>{{ v.instantiate_permission?.address }} {{ v.instantiate_permission?.addresses?.join(', ') }}</span>
             </td>
           </tr>
         </tbody>

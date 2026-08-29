@@ -122,9 +122,18 @@ export const useWalletStore = defineStore('walletStore', {
     },
     currentAddress() {
       if (!this.connectedWallet?.cosmosAddress) return '';
-      const { prefix, data } = fromBech32(this.connectedWallet.cosmosAddress);
-      const chainStore = useBlockchain();
-      return toBech32(chainStore.current?.bech32Prefix || prefix, data);
+      // Never let a malformed persisted address (poisoned localStorage, or a
+      // wallet extension handing back a non-bech32 string) throw out of a
+      // getter — this one is read by the navbar and every wallet widget, so a
+      // throw here cascades into render errors and unhandled rejections on
+      // every page. Degrade to "no address" instead.
+      try {
+        const { prefix, data } = fromBech32(this.connectedWallet.cosmosAddress);
+        const chainStore = useBlockchain();
+        return toBech32(chainStore.current?.bech32Prefix || prefix, data);
+      } catch {
+        return '';
+      }
     },
     shortAddress() {
       const address: string = this.currentAddress;

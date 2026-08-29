@@ -148,9 +148,14 @@ function removeAddress(addr: string) {
 
 // add address to the local list
 async function addAddress(acc: AccountEntry) {
-  const { data } = fromBech32(acc.address);
-  const key = toBase64(data);
-
+  // Guard the decode: acc.address comes from the derived-account list, which is
+  // rebuilt from user input. A throw here leaves the click handler rejected.
+  let key: string;
+  try {
+    key = toBase64(fromBech32(acc.address).data);
+  } catch {
+    return;
+  }
   if (conf.value[key]) {
     // existed
     if (conf.value[key].findIndex((x) => x.address === acc.address) > -1) {

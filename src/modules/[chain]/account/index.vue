@@ -2,7 +2,7 @@
 import { computed, ref } from '@vue/reactivity';
 import { useBaseStore, useBlockchain, useFormatter } from '@/stores';
 import { PageRequest, type AuthAccount, type Pagination } from '@/types';
-import { onMounted } from 'vue';
+import { onMounted, watch } from 'vue';
 import PaginationBar from '@/components/PaginationBar.vue';
 const props = defineProps(['chain']);
 
@@ -18,13 +18,36 @@ onMounted(() => {
   pageload(1);
 });
 
+// First paint often races chain connect (rpc client not built yet). Retry once
+// a working endpoint lands so the list doesn't sit on the "connecting" notice.
+watch(
+  () => chainStore.endpoint?.address,
+  (addr, prev) => {
+    if (addr && addr !== prev && !accounts.value.length) pageload(1);
+  }
+);
+
 function pageload(p: number) {
   pageRequest.value.setPage(p);
   loading.value = true;
   errorMsg.value = '';
-  chainStore.rpc
+  // `chainStore.rpc` is undefined during the chain-connect / "Reconnecting"
+  // window. A bare `chainStore.rpc.getAuthAccounts(...)` throws a SYNCHRONOUS
+  // TypeError that escapes `.catch()` (which only traps promise rejection), so
+  // `loading` never resets and the table hangs on "Loading accounts…" forever.
+  // Guard the deref: if the client isn't ready, surface a message and let the
+  // endpoint watcher retry once it connects.
+  const client: any = chainStore.rpc;
+  if (!client || typeof client.getAuthAccounts !== 'function') {
+    accounts.value = [];
+    pageResponse.value = {} as Pagination;
+    loading.value = false;
+    errorMsg.value = 'Connecting to the network… accounts will load once a working endpoint is ready.';
+    return;
+  }
+  client
     .getAuthAccounts(pageRequest.value)
-    .then((x) => {
+    .then((x: any) => {
       accounts.value = x?.accounts || [];
       pageResponse.value = x?.pagination || ({} as Pagination);
       if (!accounts.value.length) {

@@ -1,24 +1,42 @@
 <script lang="ts" setup>
 import { useGovStore } from '@/stores';
+import { useBlockchain } from '@/stores';
 import ProposalListItem from '@/components/ProposalListItem.vue';
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import PaginationBar from '@/components/PaginationBar.vue';
 import { PageRequest } from '@/types';
 
 const tab = ref('2');
 const store = useGovStore();
+const chainStore = useBlockchain();
 const pageRequest = ref(new PageRequest());
 
-onMounted(() => {
+function bootstrap() {
   store.fetchProposals('2').then((x) => {
     if (x?.proposals?.length === 0) {
       tab.value = '3';
-      store.fetchProposals('3');
     }
+    // '3' was previously fetched twice (once inside the branch above, once
+    // here) — the duplicate request could resolve out of order and clobber the
+    // list. One call per status is enough.
     store.fetchProposals('3');
     store.fetchProposals('4');
   });
+}
+
+onMounted(() => {
+  bootstrap();
 });
+
+// First paint races chain connect: `blockchain.rpc` is undefined then, so
+// getGovProposals resolves to undefined and every tab renders the empty state
+// with no retry. Re-run once a working endpoint lands.
+watch(
+  () => chainStore.endpoint?.address,
+  (addr, prev) => {
+    if (addr && addr !== prev) bootstrap();
+  }
+);
 
 const changeTab = (val: '2' | '3' | '4') => {
   tab.value = val;
@@ -32,8 +50,13 @@ function page(p: number) {
 }
 
 const total = computed(() => {
-  const cur = store?.proposals?.[tab.value]?.pagination?.total;
-  return Number(cur || 0);
+  const bucket = store?.proposals?.[tab.value];
+  const cur = Number(bucket?.pagination?.total || 0);
+  // Several public LCDs (polkachu among them) answer gov queries with
+  // `pagination.total: "0"` even when `proposals[]` is populated. Falling back
+  // to the row count keeps the header from claiming there are no proposals
+  // while the list right below it renders them.
+  return cur || Number(bucket?.proposals?.length || 0);
 });
 const hasAny = computed(() => total.value > 0);
 
