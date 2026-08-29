@@ -12,4 +12,7 @@ dist
 **/wallet-audit/
 **/.seed
 scripts/tx-audit-*.local.*
+
+# local audit working dir (crawl dumps, probe results, fixtures)
+.audit/
 .cache/

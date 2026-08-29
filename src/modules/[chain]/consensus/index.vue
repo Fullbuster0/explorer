@@ -121,12 +121,26 @@ function pickRpcList() {
   return (chainStore.current?.endpoints?.rpc || []).filter((x) => x?.address);
 }
 
-/** rpc[] + rest/api[] + active client — same pool philosophy as store rank. */
+/**
+ * Candidate pool for the consensus monitor.
+ *
+ * MUST be Tendermint JSON-RPC hosts only. `/dump_consensus_state`,
+ * `/consensus_state` and `/validators` are TM RPC routes — a Cosmos SDK
+ * REST/LCD host answers 501 {"code":12,"message":"Not Implemented"} for all
+ * three (verified on ecostake / polkachu / itrocket / citizenweb3) or 410
+ * (lava). Previously `endpoints.rest` and the active REST client were merged
+ * in here, so whenever a REST host was picked first the page painted
+ * "RPC error 501" and an empty validator set until fallbackRpc's 10s cooldown
+ * expired.
+ *
+ * Gno/TM2 is the one engine where the active client address IS a TM2 RPC, so
+ * it stays eligible there and only there.
+ */
 function consensusCandidateList() {
+  const isTm2Client = isGno.value;
   return mergeEndpointLists(
     chainStore.current?.endpoints?.rpc,
-    chainStore.current?.endpoints?.rest,
-    chainStore.endpoint?.address
+    isTm2Client && chainStore.endpoint?.address
       ? [{ address: chainStore.endpoint.address, provider: 'active' }]
       : []
   );
@@ -234,8 +248,10 @@ async function startMonitor() {
     }
 
     // Fallback only after active RPC failed: quality-rank the remaining peers.
+    // probe: 'tm' — the pool is Tendermint RPC, so probe with /status. The LCD
+    // default would 404 on every peer and produce an all-unhealthy ranking.
     const engine = chainStore.current?.engine;
-    const ranked: RpcQuality[] = await rankRpcs(candidates, { engine, timeoutMs: 4500 });
+    const ranked: RpcQuality[] = await rankRpcs(candidates, { engine, probe: 'tm', timeoutMs: 4500 });
     if (gen !== monitorGen) return;
     rpcList.value = ranked.map((r) => ({ address: r.address, provider: r.provider }));
 
@@ -939,17 +955,21 @@ async function update() {
 }
 
 // Auto-fallback: if the active RPC dies mid-session, walk tip-quality peers.
+// Cooldown stops a 500ms poll loop from re-ranking every tick, but it must NOT
+// apply on a cold start (no validator set painted yet) — otherwise a single bad
+// first pick leaves the page showing an error for a full 10s.
 let fallbackCooldown = 0;
 async function fallbackRpc() {
+  const coldStart = positions.value.length === 0;
   const now = Date.now();
-  if (now - fallbackCooldown < 10000) return;
+  if (!coldStart && now - fallbackCooldown < 10000) return;
   fallbackCooldown = now;
   if (!rpcList.value || rpcList.value.length <= 1) return;
   const current = rpc.value;
   const engine = chainStore.current?.engine;
   const ranked = await rankRpcs(
     rpcList.value.map((x) => ({ address: x.address, provider: x.provider })),
-    { engine, timeoutMs: 4000 }
+    { engine, probe: 'tm', timeoutMs: 4000 }
   );
   const tip = pickTipPeers(ranked).filter((r) => r.address !== current);
   const order = tip.length ? tip : ranked.filter((r) => r.ok && r.address !== current);

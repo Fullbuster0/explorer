@@ -50,6 +50,20 @@ type ProbeOpts = {
   /** gno/tm2 → /status + /validators; else Cosmos LCD latest block */
   engine?: string;
   timeoutMs?: number;
+  /**
+   * Force the probe transport instead of inferring it from `engine`.
+   *
+   * `'tm'`  → Tendermint JSON-RPC (`/status` + `/validators`)
+   * `'lcd'` → Cosmos REST/LCD (`/cosmos/base/tendermint/v1beta1/blocks/latest`)
+   *
+   * Needed because a Cosmos SDK chain has BOTH transports, on different hosts.
+   * A Tendermint RPC answers 404 for the LCD path, so probing an RPC list with
+   * the LCD default marks every healthy RPC `ok: false` — the ranking then has
+   * no tip/lag signal at all. Callers that rank an RPC pool (consensus monitor)
+   * must pass `probe: 'tm'`. Callers that rank a REST pool (useBlockchain)
+   * keep the default and are unaffected.
+   */
+  probe?: 'tm' | 'lcd';
 };
 
 async function probeOne(ep: Endpoint, opts: ProbeOpts): Promise<RpcQuality> {
@@ -67,13 +81,14 @@ async function probeOne(ep: Endpoint, opts: ProbeOpts): Promise<RpcQuality> {
   if (!address) return { ...base, reason: 'empty-address' };
 
   const timeoutMs = opts.timeoutMs ?? 4500;
-  const isGno = opts.engine === 'gno' || opts.engine === 'tm2';
+  // `probe` wins when set; otherwise fall back to engine inference (legacy behaviour).
+  const useTm = opts.probe ? opts.probe === 'tm' : opts.engine === 'gno' || opts.engine === 'tm2';
 
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
 
-    if (isGno) {
+    if (useTm) {
       const [stRes, valRes] = await Promise.all([
         fetch(`${address}/status`, { signal: controller.signal }),
         fetch(`${address}/validators?per_page=100&page=1`, { signal: controller.signal }),

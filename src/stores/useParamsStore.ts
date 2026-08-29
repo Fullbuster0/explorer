@@ -211,6 +211,9 @@ export const useParamStore = defineStore('paramstore', {
         if (p.goal_bonded !== undefined) items.push({ subtitle: 'goal_bonded', value: p.goal_bonded, kind: 'percent' });
         if (p.blocks_per_year !== undefined) items.push({ subtitle: 'blocks_per_year', value: p.blocks_per_year, kind: 'integer' });
         this.mint.items = items;
+        // A prior cold-start attempt may have hidden this card when the
+        // endpoint wasn't ready yet. This run succeeded — un-hide it.
+        this.modulesHidden.mint = false;
         // Also fetch live inflation rate — populate the chain overview card.
         try {
           const inflation = await this.getInflationRate();
@@ -266,6 +269,7 @@ export const useParamStore = defineStore('paramstore', {
         });
         this.slashing.items = windows;
         this.slashing.subGroups = [{ title: 'Slash fractions', items: penalties }];
+        this.modulesHidden.slashing = false;
       } catch (e: any) {
         console.warn('[params] slashing:', e?.message || e);
       }
@@ -302,6 +306,7 @@ export const useParamStore = defineStore('paramstore', {
           if (!known.has(k)) general.push(tag(k, v));
         });
         this.distribution.items = general;
+        this.modulesHidden.distribution = false;
         // nakamoto_bonus is atomone-specific and structured — render as a sub-card.
         if (p.nakamoto_bonus) {
           const nb = p.nakamoto_bonus;
@@ -365,15 +370,19 @@ export const useParamStore = defineStore('paramstore', {
         if (tp.quorum !== undefined) items.push(tag('quorum', tp.quorum, 'percent'));
         if (tp.threshold !== undefined) items.push(tag('threshold', tp.threshold, 'percent'));
         if (tp.veto_threshold !== undefined) items.push(tag('veto_threshold', tp.veto_threshold, 'percent'));
-        if (items.length) subGroups.push({ title: 'Tally', items });
-        else this.modulesHidden.gov_tally = true;
+        if (items.length) {
+          subGroups.push({ title: 'Tally', items });
+          this.modulesHidden.gov_tally = false;
+        } else this.modulesHidden.gov_tally = true;
       } catch (e) {
         this.modulesHidden.gov_tally = true;
       }
       // Don't keep an empty top-level `items` — render via subGroups only.
       this.gov.items = [];
       this.gov.subGroups = subGroups;
-      if (!subGroups.length) this.modulesHidden.gov = true;
+      // Re-evaluate both ways: a retry after a cold-start failure must be
+      // able to un-hide the card, not just hide it.
+      this.modulesHidden.gov = subGroups.length === 0;
     },
     async handleAbciInfo() {
       try {

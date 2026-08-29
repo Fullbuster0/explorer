@@ -222,7 +222,17 @@ function isPreferredChannel(ch: Channel) {
             {{ remoteChainId }}
           </div>
           <div class="mt-1 font-mono text-[11.5px] text-secondary">
-            {{ conn.counterparty?.connection_id || '—' }} · {{ clientState.client_id || '—' }}
+            <!--
+              Counterparty block must show the REMOTE client id
+              (`conn.counterparty.client_id`). `clientState.client_id` is the
+              identified_client_state returned by
+              /connections/{id}/client_state, which is OUR OWN client — printing
+              it here mislabelled every connection page (e.g. connection-809
+              showed `connection-0 · 07-tendermint-1119` when the remote client
+              is actually `07-tendermint-0`).
+            -->
+            {{ conn.counterparty?.connection_id || '—' }} ·
+            {{ conn.counterparty?.client_id || '—' }}
           </div>
         </div>
       </div>
