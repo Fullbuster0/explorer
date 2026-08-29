@@ -37,10 +37,14 @@ export const requests: Partial<RequestRegistry> = {
   gov_proposals: {
     url: '/cosmos/gov/v1/proposals',
     adapter: async (source: any): Promise<PaginatedProposals> => {
-      const proposals = source.proposals.map((p: any) => proposalAdapter(p));
+      // Some public LCDs (e.g. BlockPI under rate-limit) answer HTTP 200
+      // with an error body that has no `proposals` array. Guard so a
+      // malformed/errored response yields an empty list instead of an
+      // unhandled TypeError that blanks the whole gov page.
+      const proposals = (source?.proposals || []).map((p: any) => proposalAdapter(p));
       return {
         proposals,
-        pagination: source.pagination,
+        pagination: source?.pagination || { next_key: null, total: String(proposals.length) },
       };
     },
   },
@@ -48,7 +52,7 @@ export const requests: Partial<RequestRegistry> = {
     url: '/cosmos/gov/v1/proposals/{proposal_id}',
     adapter: async (source: any): Promise<{ proposal: GovProposal }> => {
       return {
-        proposal: proposalAdapter(source.proposal),
+        proposal: proposalAdapter(source?.proposal),
       };
     },
   },

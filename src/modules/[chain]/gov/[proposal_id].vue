@@ -271,11 +271,24 @@ const proposalTitle = computed(() => {
   return meta.title || `Proposal #${props.proposal_id}`;
 });
 
+// Some proposals are submitted with the metadata/summary JSON-escaped twice, so
+// the chain stores the two characters `\` `n` instead of a real newline (seen on
+// axone-1 proposal #1). Markdown then renders the whole body as one run-on
+// paragraph with visible \n litter. Only unescape when the text contains no real
+// newlines at all, so correctly-authored proposals are left untouched.
+function unescapeLiteralNewlines(text: string): string {
+  if (!text || /\r|\n/.test(text)) return text;
+  if (!/\\[nrt]/.test(text)) return text;
+  return text.replace(/\\r\\n|\\n/g, '\n').replace(/\\r/g, '\n').replace(/\\t/g, '\t');
+}
+
 const proposalSummary = computed(() => {
   const p = proposal.value;
-  if (p?.summary) return p.summary;
-  if (p?.content?.description) return p.content.description;
-  return metaItem(p?.metadata).summary || '';
+  let raw = '';
+  if (p?.summary) raw = p.summary;
+  else if (p?.content?.description) raw = p.content.description;
+  else raw = metaItem(p?.metadata).summary || '';
+  return unescapeLiteralNewlines(raw);
 });
 
 // Proposal summary/description is ON-CHAIN, authored by ANY account — the

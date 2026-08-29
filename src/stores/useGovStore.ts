@@ -33,18 +33,27 @@ export const useGovStore = defineStore('govStore', {
     async fetchProposals(status: string, pagination?: PageRequest) {
       //if (!this.loading[status]) {
       this.loading[status] = LoadingStatus.Loading;
-      const proposals = reactive(await this.blockchain.rpc?.getGovProposals(status, pagination));
+      let proposals: any;
+      try {
+        proposals = reactive(await this.blockchain.rpc?.getGovProposals(status, pagination));
+      } catch (e) {
+        // A dead/rate-limited LCD (HTTP 500 on the v1beta1 path for SDK>=0.50
+        // chains, aborts, etc.) must not become an unhandled rejection that
+        // leaves the tab spinning. Fall back to an empty bucket.
+        console.warn('[gov] fetchProposals failed', status, e);
+        proposals = reactive({ proposals: [], pagination: { total: '0' } });
+      }
 
       //filter spam proposals
       if (proposals?.proposals) {
-        proposals.proposals = proposals.proposals.filter((item) => {
+        proposals.proposals = proposals.proposals.filter((item: any) => {
           const title = item.title || '';
           return title.toLowerCase().indexOf('airdrop') === -1;
         });
       }
 
       if (status === '2') {
-        proposals?.proposals?.forEach((item) => {
+        proposals?.proposals?.forEach((item: any) => {
           this.fetchTally(item.proposal_id).then((res) => {
             item.final_tally_result = res?.tally;
           }).catch(() => {});

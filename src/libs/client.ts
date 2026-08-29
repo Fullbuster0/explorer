@@ -174,12 +174,15 @@ export class CosmosRestClient extends BaseRestClient<RequestRegistry> {
   }
   async getGovProposalTally(proposal_id: string) {
     return this.request(this.registry.gov_proposals_tally, { proposal_id }, undefined, (source: any) => {
+      // `tally` is absent when the LCD answers 200 with an error body, or when
+      // a proposal is still in deposit period on some forks.
+      const t = source?.tally || {};
       return Promise.resolve({
         tally: {
-          yes: source.tally.yes || source.tally.yes_count,
-          abstain: source.tally.abstain || source.tally.abstain_count,
-          no: source.tally.no || source.tally.no_count,
-          no_with_veto: source.tally.no_with_veto || source.tally.no_with_veto_count,
+          yes: t.yes || t.yes_count,
+          abstain: t.abstain || t.abstain_count,
+          no: t.no || t.no_count,
+          no_with_veto: t.no_with_veto || t.no_with_veto_count,
         },
       });
     });
