@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { useWasmStore } from '../WasmStore';
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import type { ContractInfo, PaginabledContracts } from '../types';
 import DynamicComponent from '@/components/dynamic/DynamicComponent.vue';
 import PaginationBar from '@/components/PaginationBar.vue';
@@ -17,6 +17,7 @@ const dialog = useTxDialog();
 const infoDialog = ref(false);
 const wasmStore = useWasmStore();
 function loadContract(pageNum: number) {
+  if (!wasmStore.wasmReady) return; // endpoint not resolved yet — watcher retries
   const pr = new PageRequest();
   pr.setPage(pageNum);
   if (String(props.code_id).search(/^[\d]+$/) > -1) {
@@ -35,6 +36,14 @@ function loadContract(pageNum: number) {
   }
 }
 loadContract(1);
+
+// Cold navigation: endpoint resolves after setup. Load once it lands.
+watch(
+  () => wasmStore.wasmReady,
+  (ready) => {
+    if (ready && !response.value?.contracts) loadContract(1);
+  }
+);
 
 function showInfo(address: string) {
   wasmStore.wasmClient.getWasmContracts(address).then((x) => {

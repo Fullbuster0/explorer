@@ -44,8 +44,8 @@
   ],
   "archived_api": [
     {
-      "address": "/archive-proxy/cosmoshub",
-      "provider": "Citizen Web3 (Archive · Shazoes proxy)"
+      "address": "https://cosmos-rest.publicnode.com",
+      "provider": "PublicNode (Archive)"
     },
     {
       "address": "https://rest.lavenderfive.com:443/cosmoshub",

@@ -50,8 +50,15 @@ export const useBankStore = defineStore('bankstore', {
       const hash = denom.replace('ibc/', '');
       let trace = this.ibcDenoms[hash];
       if (!trace) {
-        trace = (await this.blockchain.rpc.getIBCAppTransferDenom(hash)).denom_trace;
-        this.ibcDenoms[hash] = trace;
+        // Same soft-fail as useFormatter: legacy /denom_traces/{hash} 501s on
+        // ibc-go v8 chains and callers don't always await.
+        try {
+          trace = (await this.blockchain.rpc.getIBCAppTransferDenom(hash)).denom_trace;
+          this.ibcDenoms[hash] = trace;
+        } catch (e: any) {
+          console.warn('[bank] denom trace unavailable:', hash, e?.message || e);
+          return undefined;
+        }
       }
       return trace;
     },

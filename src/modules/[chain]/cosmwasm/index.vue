@@ -2,7 +2,7 @@
 import { useBlockchain, useFormatter, useTxDialog } from '@/stores';
 import { getLocalJson } from '@/libs/utils';
 import { useWasmStore } from './WasmStore';
-import { onMounted, ref } from 'vue';
+import { onMounted, ref, watch } from 'vue';
 import type { PaginabledCodeInfos } from './types';
 import { PageRequest } from '@/types';
 import PaginationBar from '@/components/PaginationBar.vue';
@@ -20,17 +20,29 @@ const field = ref('contract');
 const history = ref([]);
 
 function pageload(pageNum: number) {
+  if (!wasmStore.wasmReady) return; // endpoint not resolved yet — watcher retries
   pageRequest.value.setPage(pageNum);
-  wasmStore.wasmClient.getWasmCodeList(pageRequest.value).then((x) => {
-    codes.value = x;
-  });
+  wasmStore.wasmClient
+    .getWasmCodeList(pageRequest.value)
+    .then((x) => {
+      codes.value = x;
+    })
+    .catch((e) => console.warn('[cosmwasm] code list failed:', e?.message || e));
 }
-pageload(1);
 
 onMounted(() => {
+  pageload(1);
   const historyStore = getLocalJson<Record<string, any>>('contract_history', {});
   history.value = historyStore[props.chain] || [];
 });
+
+// Cold navigation: endpoint resolves after setup. Load once it lands.
+watch(
+  () => wasmStore.wasmReady,
+  (ready) => {
+    if (ready && !codes.value?.code_infos) pageload(1);
+  }
+);
 
 function myContracts() {
   if (field.value === 'contract') router.push(`/${props.chain}/cosmwasm/0/transactions?contract=${creator.value}`);

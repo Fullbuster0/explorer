@@ -237,7 +237,10 @@ export const useBlockchain = defineStore('blockchain', {
         to: { path: '/' },
         badgeContent: this.dashboard.length,
         badgeClass: 'bg-primary',
-        i18n: true,
+        // Not an i18n key (real keys are `module.*`). Leaving i18n:true made
+        // vue-i18n log "Not found 'All Blockchains' key" on every nav render —
+        // dozens of warnings per page load. Rendered text is identical.
+        i18n: false,
         icon: { icon: 'mdi-grid', size: '22' },
       } as NavLink);
 

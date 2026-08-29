@@ -23,7 +23,7 @@ import {
   type Validator,
 } from '@/types';
 import PaginationBar from '@/components/PaginationBar.vue';
-import { fromBase64, toBase64 } from '@cosmjs/encoding';
+import { fromBase64, toBase64, fromBech32 } from '@cosmjs/encoding';
 import { stringToUint8Array, uint8ArrayToString, getLocalJson } from '@/libs/utils';
 import { lookupGnoValoper, initGnoValopers, gnoValoperProfileUrl, type GnoValoper } from '@/libs/gno/valopers';
 import { getGnoIndexer, type GnoTx } from '@/libs/gno/indexer';
@@ -374,7 +374,24 @@ const POWER_MAX = 500;
 
 // Cosms only: valoper→account. Gno uses g1 signing/operator from valopers meta
 // (operatorAddressToAccount on bare g1 is a no-op / wrong race before meta loads).
-if (!isGno.value) {
+//
+// Guard: fromBech32() inside operatorAddressToAccount throws on a malformed
+// route param ("No separator character for <x>"). Thrown from setup scope it
+// aborts the whole component and leaves a blank page while <title> still
+// advertises the raw input as a valid validator. Mirrors the
+// "Invalid account address" guard in account/[address].vue.
+const addressValid = computed(() => {
+  if (isGno.value) return true; // Gno/TM2 addresses are resolved via valopers meta
+  if (!validator.value) return false;
+  try {
+    const { prefix } = fromBech32(validator.value);
+    return prefix.endsWith('valoper') || prefix === 'iva' || prefix === 'crocncl';
+  } catch {
+    return false;
+  }
+});
+
+if (!isGno.value && addressValid.value) {
   addresses.value.account = operatorAddressToAccount(validator.value);
 }
 
@@ -383,6 +400,7 @@ if (!isGno.value) {
 // otherwise resolve undefined silently and leave this stuck at "—".
 function loadSelfBond(force = false) {
   if (!blockchain.rpc || !validator.value) return;
+  if (!addressValid.value) return; // malformed route param — nothing to derive
   selfBondLoading.value = true;
   if (isGno.value) return; // Gno has no Cosms self-bond LCD path
   // Keep account derivation in sync (valoper → account) every call.
@@ -1536,7 +1554,15 @@ watch(
 );
 </script>
 <template>
-  <div class="sz-val-detail">
+  <div v-if="!addressValid" class="sz-val-detail p-6">
+    <section class="sz-section sz-glass">
+      <div class="sz-section-kicker">Validator</div>
+      <div class="sz-section-title">Invalid validator address</div>
+      <p class="mt-2 opacity-70">The operator address format is not valid for this chain.</p>
+      <RouterLink class="btn btn-primary mt-4" :to="`/${chain}/validator`">Back to validators</RouterLink>
+    </section>
+  </div>
+  <div v-else class="sz-val-detail">
     <!-- HERO -->
     <section class="sz-section sz-val-hero mb-4 overflow-hidden">
       <div class="sz-val-hero-inner">

@@ -8,9 +8,17 @@ export const useWasmStore = defineStore('module-wasm', {
     return {};
   },
   getters: {
+    /** True once the chain's REST endpoint is resolved. Guard eager loads with
+     *  this: building a client before it resolves yields a base URL of
+     *  `undefined`, so requests hit /undefined/cosmwasm/... which the SPA
+     *  fallback answers with index.html (200 text/html) → JSON.parse failure. */
+    wasmReady(): boolean {
+      const blockchain = useBlockchain();
+      return !!blockchain.endpoint?.address;
+    },
     wasmClient() {
       const blockchain = useBlockchain();
-      return new WasmRestClient(blockchain.endpoint.address, DEFAULT_VERSION);
+      return new WasmRestClient(blockchain.endpoint?.address, DEFAULT_VERSION);
     },
     // fetchVerification() {
     //   get("https://prod.neutron.compiler.welldonestudio.io/neutron-deploy-histories/pion-1?contract=neutron1gesll6lepas7xzt22pg7r07v9vd652md82z8m2fqp5zt43rznu5sl42s74")

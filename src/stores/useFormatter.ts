@@ -63,8 +63,17 @@ export const useFormatter = defineStore('formatter', {
       const hash = denom.replace('ibc/', '');
       let trace = this.ibcDenoms[hash];
       if (!trace) {
-        trace = (await this.blockchain.rpc.getIBCAppTransferDenom(hash)).denom_trace;
-        this.ibcDenoms[hash] = trace;
+        // Callers fire this without awaiting (validator commissions/rewards
+        // loops), so a rejected promise here surfaces as an unhandled
+        // rejection and can abort the surrounding forEach. Soft-fail: the
+        // denom just renders as the raw ibc/… hash.
+        try {
+          trace = (await this.blockchain.rpc.getIBCAppTransferDenom(hash)).denom_trace;
+          this.ibcDenoms[hash] = trace;
+        } catch (e: any) {
+          console.warn('[format] denom trace unavailable:', hash, e?.message || e);
+          return undefined;
+        }
       }
       return trace;
     },

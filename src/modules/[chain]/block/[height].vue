@@ -87,6 +87,13 @@ async function loadBlock(h: number | string) {
         }, 3, 400, (a, e) => console.warn(`[block] fetch failed (attempt ${a}/3):`, e instanceof Error ? e.message : e));
       } catch (e: any) {
         console.warn('[block] fetch failed (exhausted):', e?.message || e);
+        // Every endpoint (incl. auto-fallback) refused this height — usually
+        // pruned. Without loadError the template falls through to the block
+        // detail branch and paints an empty card labelled FINALIZED with
+        // "0 tx", which asserts something untrue about a real block.
+        if (sequence === loadSequence) {
+          loadError.value = 'Block data unavailable';
+        }
         current.value = {} as Block;
       }
     } else {

@@ -337,9 +337,26 @@ export class CosmosRestClient extends BaseRestClient<RequestRegistry> {
 
   // ibc
   async getIBCAppTransferDenom(hash: string) {
-    return this.request(this.registry.ibc_app_transfer_denom_traces_hash, {
-      hash,
-    });
+    try {
+      return await this.request(this.registry.ibc_app_transfer_denom_traces_hash, {
+        hash,
+      });
+    } catch (err) {
+      // ibc-go v8 / SDK 0.50+ removed `/denom_traces/{hash}` (returns
+      // 501 "Not Implemented") and replaced it with `/denoms/{hash}`, which
+      // answers `{denom:{base,trace:[{port_id,channel_id}]}}` instead of
+      // `{denom_trace:{path,base_denom}}`. Normalize back to the legacy
+      // shape so every caller (ibcDenoms cache, formatTokenAmount) keeps
+      // working on both old and new chains.
+      const res: any = await this.request(
+        { url: '/ibc/apps/transfer/v1/denoms/{hash}', adapter } as Request<any>,
+        { hash }
+      );
+      const d = res?.denom;
+      if (!d) throw err;
+      const path = (d.trace || []).map((t: any) => `${t.port_id}/${t.channel_id}`).join('/');
+      return { denom_trace: { path, base_denom: d.base } } as any;
+    }
   }
   async getIBCConnections(page?: PageRequest) {
     if (!page) page = new PageRequest();
