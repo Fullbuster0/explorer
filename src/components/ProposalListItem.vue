@@ -4,6 +4,7 @@ import { select } from '@/components/dynamic/index';
 import type { PaginatedProposals, GovProposal } from '@/types';
 import type { PropType } from 'vue';
 import { computed, ref } from 'vue';
+import { unescapeLiteralNewlines } from '@/libs/utils';
 
 defineProps({
   proposals: { type: Object as PropType<PaginatedProposals> },
@@ -54,7 +55,10 @@ function proposalTitle(item: GovProposal): string {
 }
 
 function proposalSummary(item: GovProposal): string {
-  return item.summary || item.content?.description || metaItem(item.metadata)?.summary || '';
+  // Double-escaped summaries would otherwise show visible \n litter in the card preview.
+  return unescapeLiteralNewlines(
+    item.summary || item.content?.description || metaItem(item.metadata)?.summary || ''
+  );
 }
 
 function metaItem(metadata?: string): { title?: string; summary?: string } {

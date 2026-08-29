@@ -18,6 +18,18 @@ export function getLocalJson<T = any>(name: string, fallback: T): T {
   return safeJsonParse<T>(localStorage.getItem(name), fallback);
 }
 
+/**
+ * Some proposals are submitted with the summary/metadata JSON-escaped twice, so
+ * the chain stores the two characters `\` `n` instead of a real newline (seen on
+ * axone-1 #1 and older terra proposals). Only unescape when the text has no real
+ * newline at all, leaving correctly-authored bodies untouched.
+ */
+export function unescapeLiteralNewlines(text: string): string {
+  if (!text || /\r|\n/.test(text)) return text;
+  if (!/\\[nrt]/.test(text)) return text;
+  return text.replace(/\\r\\n|\\n/g, '\n').replace(/\\r/g, '\n').replace(/\\t/g, '\t');
+}
+
 export function getLocalObject(name: string) {
   return safeJsonParse(localStorage.getItem(name), null);
 }

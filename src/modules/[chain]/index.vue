@@ -1168,9 +1168,9 @@ onUnmounted(() => {
       </div>
       <Teleport to="body">
         <ping-token-convert
-          :chain-name="blockchain?.current?.prettyName"
-          :endpoint="blockchain?.endpoint?.address"
-          :hd-path="walletStore?.connectedWallet?.hdPath"
+          :chain-name="blockchain?.current?.prettyName || ''"
+          :endpoint="blockchain?.endpoint?.address || ''"
+          :hd-path="walletStore?.connectedWallet?.hdPath || ''"
         ></ping-token-convert>
       </Teleport>
     </section>
