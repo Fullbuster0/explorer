@@ -5,7 +5,6 @@ import { fromBase64, toHex } from '@cosmjs/encoding';
 import { useBaseStore, useFormatter, useStakingStore } from '@/stores';
 import { consensusPubkeyToHexAddress } from '@/libs';
 import { gnoMoniker, lookupGnoValoper } from '@/libs/gno/valopers';
-import TxsInBlocksChart from '@/components/charts/TxsInBlocksChart.vue';
 import { Icon } from '@iconify/vue';
 
 const props = defineProps(['chain']);
@@ -171,8 +170,6 @@ watch(
     </div>
 
     <div v-show="tab === 'blocks'">
-      <TxsInBlocksChart />
-
       <div class="grid grid-cols-1 gap-3 md:!grid-cols-4 xl:!grid-cols-6 mt-4">
         <RouterLink
           v-for="{ item, proposer } in list"
