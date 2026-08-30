@@ -30,7 +30,10 @@ const blockchain = useBlockchain();
 let setupPromise: Promise<void> | undefined;
 async function setupCurrentChain() {
   setupPromise ||= dashboard.initial().then(async () => {
-    if (blockchain.chainName) await blockchain.randomSetupEndpoint();
+    // Unknown/unconfigured chain slug has no endpoints at all. Probing it only
+    // produces a false "can't reach the network" degraded state — the shell
+    // renders a "Chain not found" panel instead, so skip the probe entirely.
+    if (blockchain.chainName && blockchain.current) await blockchain.randomSetupEndpoint();
   });
   await setupPromise;
 }
@@ -140,8 +143,24 @@ const behind = computed(() => {
   return blocktime.value.isBefore(current);
 });
 
+/**
+ * Unknown chain slug guard.
+ *
+ * A URL like `/xxx-mainnet/gov` resolves the route (`[chain]` matches anything)
+ * but `blockchain.current` stays undefined, so `restEndpoints()` is empty and
+ * `randomSetupEndpoint()` parks the shell in `degraded` forever. The user got
+ * "Trouble connecting / We can't reach the network right now" plus an empty
+ * module page — both wrong: the network is fine, the chain simply is not
+ * configured here. Only trust this once the async dashboard config has landed
+ * (`dashboard.length > 0`), otherwise cold loads would flash a false negative.
+ */
+const unknownChain = computed(
+  () => dashboard.length > 0 && !!route.params.chain && !blockchain.current
+);
+
 /** Status chip: never ask users to pick an RPC. Auto-heal is the product. */
 const statusLabel = computed(() => {
+  if (unknownChain.value) return 'Chain not found';
   if (blockchain.connPhase === 'reconnecting' || blockchain.fallbackInProgress) return 'Reconnecting';
   if (blockchain.connPhase === 'degraded') return 'Trouble connecting';
   if (baseStore.connected) return 'Connected';
@@ -164,9 +183,10 @@ const statusDotClass = computed(() => {
 });
 const showConnBanner = computed(
   () =>
-    blockchain.connPhase === 'reconnecting' ||
-    blockchain.connPhase === 'degraded' ||
-    blockchain.justRecovered
+    !unknownChain.value &&
+    (blockchain.connPhase === 'reconnecting' ||
+      blockchain.connPhase === 'degraded' ||
+      blockchain.justRecovered)
 );
 function onTryAgain() {
   blockchain.reconnectNow();
@@ -382,7 +402,7 @@ dayjs();
         <span v-if="behind" class="sz-chip sz-chip--warn">Out of sync</span>
         <!-- Recovery is one tap — never an endpoint list for normal users -->
         <button
-          v-if="blockchain.connPhase === 'degraded' || blockchain.connPhase === 'reconnecting'"
+          v-if="!unknownChain && (blockchain.connPhase === 'degraded' || blockchain.connPhase === 'reconnecting')"
           type="button"
           class="sz-chip sz-chip--info ml-auto cursor-pointer hover:opacity-90"
           :disabled="blockchain.fallbackInProgress"
@@ -455,7 +475,23 @@ dayjs();
           → user sees chrome+statusbar but blank main until hard refresh.
           Instant swap is correct for data pages; keep Transition only if named.
         -->
-        <RouterView />
+        <!--
+          Unknown chain slug: render an explicit not-found panel instead of the
+          module page. Before this, `[chain]` matched any slug so the module
+          rendered with no data while the statusbar claimed a network problem.
+        -->
+        <div v-if="unknownChain" class="text-center my-16">
+          <div class="text-5xl mb-4 opacity-40">◇</div>
+          <div class="text-xl font-bold mb-2">Chain not found</div>
+          <p class="opacity-70 max-w-md mx-auto">
+            "{{ route.params.chain }}" is not one of the networks configured on this
+            explorer. Pick a chain from the list below.
+          </p>
+          <div class="pt-8 flex justify-center gap-3">
+            <RouterLink class="btn btn-primary" to="/">All blockchains</RouterLink>
+          </div>
+        </div>
+        <RouterView v-else />
       </main>
 
       <newFooter />
