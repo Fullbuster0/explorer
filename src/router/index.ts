@@ -7,7 +7,17 @@ import routes from '~pages';
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
-  routes: [...setupLayouts(routes)],
+  routes: [
+    ...setupLayouts(routes),
+    // `/{chain}/ibc` has no index page (only `ibc/connection` + `ibc/connection/[id]`),
+    // so typing/sharing the bare section URL hit the 404 page. Redirect the
+    // section root to the relayer/connection list instead. Additive only — the
+    // sidebar link and every existing route are untouched.
+    {
+      path: '/:chain/ibc',
+      redirect: (to: any) => `/${to.params.chain}/ibc/connection`,
+    },
+  ],
 });
 
 const SITE = 'Shazoes Explorer';
