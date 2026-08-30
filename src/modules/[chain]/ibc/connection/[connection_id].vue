@@ -52,6 +52,35 @@ const remoteChainId = computed(() => clientState.value.client_state?.chain_id ||
 const isOpen = computed(() => (conn.value.state || '').indexOf('_OPEN') > -1);
 const openChannels = computed(() => channels.value.filter((c) => (c.state || '').indexOf('_OPEN') > -1).length);
 const localChannelIds = computed(() => channels.value.map((c) => c.channel_id).filter(Boolean) as string[]);
+
+/**
+ * Client-side paging for the channels table.
+ *
+ * Busy hub connections are huge: cosmoshub `connection-809` carries 491
+ * channels, and rendering them in one `v-for` produced ~7,958 DOM nodes,
+ * 982 buttons and a ~31,000px scroll height — you had to scroll past 30
+ * screens to find one channel, and the whole table sat in the tab order.
+ * The channel list arrives in a single LCD response, so paging is purely a
+ * render concern: no extra network cost, no change to what data is loaded.
+ */
+const CHANNELS_PER_PAGE = 25;
+const channelPage = ref(1);
+const channelsTotal = computed(() => String(channels.value.length));
+const pagedChannels = computed(() => {
+  const start = (channelPage.value - 1) * CHANNELS_PER_PAGE;
+  return channels.value.slice(start, start + CHANNELS_PER_PAGE);
+});
+/** Human range label ("1–25 of 491") so the count is never ambiguous. */
+const channelRangeLabel = computed(() => {
+  const total = channels.value.length;
+  if (!total) return '';
+  const start = (channelPage.value - 1) * CHANNELS_PER_PAGE + 1;
+  const end = Math.min(start + CHANNELS_PER_PAGE - 1, total);
+  return `${start}–${end} of ${total}`;
+});
+function gotoChannelPage(p: number) {
+  channelPage.value = p;
+}
 const counterpartyClientId = computed(
   () => (conn.value as any)?.counterparty?.client_id || ''
 );
@@ -120,6 +149,15 @@ watch(
   () => [props.connection_id, chainStore.endpoint?.address, chainStore.chainName] as const,
   ([, addr]) => {
     if (addr && !(connLoaded.value && clientStateLoaded.value && channelsLoaded.value)) loadDetail();
+  }
+);
+
+// Navigating connection-809 (491 channels, page 12) -> connection-5 (2 channels)
+// must not leave the channels table on an out-of-range page and render blank.
+watch(
+  () => [props.connection_id, chainStore.chainName] as const,
+  () => {
+    channelPage.value = 1;
   }
 );
 
@@ -406,7 +444,7 @@ function isPreferredChannel(ch: Channel) {
             </tr>
           </thead>
           <tbody>
-            <tr v-for="v in channels" :key="v.channel_id + v.port_id" :class="{ 'bg-success/5': isPreferredChannel(v) }">
+            <tr v-for="v in pagedChannels" :key="v.channel_id + v.port_id" :class="{ 'bg-success/5': isPreferredChannel(v) }">
               <td class="font-mono text-[12.5px] font-semibold">
                 {{ v.channel_id }}
                 <span v-if="isPreferredChannel(v)" class="sz-chip sz-chip--ok !px-1.5 !py-0 !text-[9px] ml-1">★ preferred</span>
@@ -444,6 +482,23 @@ function isPreferredChannel(ch: Channel) {
             </tr>
           </tbody>
         </table>
+      </div>
+      <!-- Paging footer: only appears when the connection actually has more
+           channels than one page holds, so small connections look unchanged. -->
+      <div
+        v-if="channelsLoaded && channels.length > 25"
+        class="border-t border-base-content/10 px-4 py-2 flex flex-wrap items-center justify-between gap-2"
+      >
+        <span class="text-[11.5px] text-secondary font-mono">{{ channelRangeLabel }}</span>
+        <!-- PaginationBar keeps its highlighted page in internal state; key it to
+             the connection so 809 (page 12) -> 344 doesn't leave a stale "12"
+             highlighted while the table is actually back on page 1. -->
+        <PaginationBar
+          :key="`ch-${props.chain}-${props.connection_id}`"
+          :limit="25"
+          :total="channelsTotal"
+          :callback="gotoChannelPage"
+        />
       </div>
     </div>
 
