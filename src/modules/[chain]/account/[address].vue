@@ -552,8 +552,14 @@ function loadAccount(address: string) {
   rpc.getStakingDelegatorUnbonding?.(address).then((x) => {
     if (token !== accountLoadToken.value) return;
     unbonding.value = x.unbonding_responses;
-    x.unbonding_responses?.forEach((y) =>
-      y.entries.forEach((z) => (unbondingTotal.value += Number(z.balance)))
+    // `entries` and `balance` come straight off the LCD: guard both so a
+    // malformed unbonding record can't throw here (killing the rest of the
+    // account load) or poison the total with NaN.
+    x.unbonding_responses?.forEach((y: any) =>
+      y?.entries?.forEach((z: any) => {
+        const n = Number(z?.balance);
+        if (Number.isFinite(n)) unbondingTotal.value += n;
+      })
     );
   }).catch((e: any) => console.warn('[account] unbonding:', e?.message || e));
 }

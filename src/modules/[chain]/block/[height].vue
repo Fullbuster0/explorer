@@ -46,6 +46,15 @@ const estimateDate = computed(() => {
   return new Date(new Date().getTime() + estimateTime.value);
 });
 
+/** ~10 years of blocks ahead. Beyond that the ETA is meaningless: a height like
+ *  99999999999 passes Number.isSafeInteger and produced a confident
+ *  "Estimated Time: 11/2/18299" — an invented fact. Show a horizon notice
+ *  instead of a fabricated timestamp/countdown. */
+const HORIZON_MS = 10 * 365 * 24 * 60 * 60 * 1000;
+const estimateBeyondHorizon = computed(
+  () => !Number.isFinite(estimateTime.value) || estimateTime.value > HORIZON_MS
+);
+
 const edit = ref(false);
 const newHeight = ref(props.height);
 function updateTarget() {
@@ -147,7 +156,21 @@ onBeforeRouteUpdate(async (to, from, next) => {
       <RouterLink class="btn btn-primary" :to="`/${chain}/block`">Back to blocks</RouterLink>
     </div>
     <div v-else-if="isFutureBlock" class="text-center">
-      <div v-if="remainingBlocks > 0">
+      <div v-if="remainingBlocks > 0 && estimateBeyondHorizon" class="my-10">
+        <div class="text-primary font-bold text-lg mb-4">#{{ target }}</div>
+        <p class="text-secondary">
+          This height is more than 10 years of blocks away at the current average block
+          time, so no estimated date is shown.
+        </p>
+        <div class="mt-4 text-sm text-secondary">
+          Current height: #{{ store.latest?.block?.header.height }} · remaining blocks:
+          {{ remainingBlocks }}
+        </div>
+        <div class="pt-8 flex justify-center">
+          <RouterLink class="btn btn-primary" :to="`/${chain}/block`">Back to blocks</RouterLink>
+        </div>
+      </div>
+      <div v-else-if="remainingBlocks > 0">
         <div class="text-primary font-bold text-lg my-10">#{{ target }}</div>
         <Countdown :time="estimateTime" css="md:!text-5xl font-sans md:mx-5" />
         <div class="my-5">

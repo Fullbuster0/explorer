@@ -192,8 +192,12 @@ watch(
 );
 
 const messages = computed(() => {
+  // `messages` must be optional-chained too: some LCDs return a tx `body` with
+  // no `messages` array (indexer-shaped or partially-decoded responses), and a
+  // bare `.map` there throws inside this computed, which cascades into every
+  // consumer below and blanks the page.
   return (
-    tx.value.tx?.body?.messages.map((x: any) => {
+    tx.value.tx?.body?.messages?.map((x: any) => {
       if (x.packet?.data) x.message = format.base64ToString(x.packet.data);
       return x;
     }) || []

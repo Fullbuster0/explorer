@@ -17,9 +17,24 @@ const format = useFormatter();
 const chainStore = useBlockchain();
 const dashboard = useDashboard();
 // storage local uptime-validator ids
-const local = ref(
-  getLocalJson('uptime-validators', {} as Record<string, { name: string; address: string }[]>) as Record<string, { name: string; address: string }[]>
-);
+type UptimeEntry = { name: string; address: string };
+// `getLocalJson` guards the PARSE, not the SHAPE. A stale or hand-edited
+// `uptime-validators` blob holding an object (or anything non-array) per chain
+// used to reach `vals.forEach(...)` below and blank the whole page with
+// "n.forEach is not a function". Normalise to arrays of well-formed entries on
+// load and drop anything that doesn't fit.
+function normalizeUptimeLocal(raw: any): Record<string, UptimeEntry[]> {
+  const out: Record<string, UptimeEntry[]> = {};
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
+  Object.keys(raw).forEach((chainName) => {
+    const vals = raw[chainName];
+    if (!Array.isArray(vals)) return;
+    const clean = vals.filter((v: any) => v && typeof v.address === 'string');
+    if (clean.length) out[chainName] = clean.map((v: any) => ({ name: String(v.name ?? v.address), address: v.address }));
+  });
+  return out;
+}
+const local = ref<Record<string, UptimeEntry[]>>(normalizeUptimeLocal(getLocalJson('uptime-validators', {})));
 const signingInfo = ref({} as Record<string, SigningInfo[]>);
 const selected = ref([] as string[]);
 const selectChain = ref(chainStore.chainName);
@@ -45,7 +60,7 @@ if (local.value)
 
 function initial() {
   const vals = local.value[selectChain.value];
-  if (vals) {
+  if (Array.isArray(vals)) {
     selected.value = vals.map((x) => x.address);
   }
 }
@@ -63,7 +78,7 @@ const list = computed(() => {
     Object.keys(local.value).map((chainName) => {
       const vals = local.value[chainName];
       const info = signingInfo.value[chainName];
-      if (vals && info) {
+      if (Array.isArray(vals) && Array.isArray(info)) {
         vals.forEach((v) => {
           const sigingInfo = info.find((x) => valconsToBase64(x.address) === v.address);
           list.push({
@@ -107,7 +122,7 @@ function changeChain() {
   });
 
   const vals = local.value[selectChain.value];
-  if (vals) {
+  if (Array.isArray(vals)) {
     selected.value = vals.map((x) => x.address);
   } else {
     selected.value = [];

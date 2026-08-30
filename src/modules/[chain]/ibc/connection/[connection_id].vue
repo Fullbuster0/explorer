@@ -27,6 +27,7 @@ const channels = ref([] as Channel[]);
 const clientStateLoaded = ref(false);
 const channelsLoaded = ref(false);
 const connLoaded = ref(false);
+const connNotFound = ref(false);
 
 const connId = computed(() => props.connection_id || 0);
 
@@ -55,6 +56,14 @@ const counterpartyClientId = computed(
   () => (conn.value as any)?.counterparty?.client_id || ''
 );
 
+function isNotFound(e: any): boolean {
+  const msg = String(e?.message || e || '');
+  // fetchData throws `HTTP error: <status>, <statusText>`; a bogus/nonexistent
+  // connection id answers 404 (connection not found) and /channels can answer
+  // 501 Not Implemented on some LCDs. Neither is retryable.
+  return /HTTP error: (400|404|501)/.test(msg) || /not found/i.test(msg);
+}
+
 function loadDetail() {
   if (!connId.value || !chainStore.rpc || !chainStore.endpoint?.address) return;
   // Mark each slice loaded ONLY on success. If the active endpoint is dead
@@ -63,27 +72,40 @@ function loadDetail() {
   // .finally (old behaviour) flipped the flag on failure too, so the watch's
   // `!connLoaded` guard never re-fired and the page hung on "Loading" forever.
   // .catch swallows the rejection so it doesn't surface as an unhandled error.
+  // A 404/400/501 means the id itself is bad (or unsupported) — mark the slice
+  // "settled" and flag notFound so the template shows a real empty state instead
+  // of spinning forever and re-firing the retry watch on every endpoint change.
   chainStore.rpc
     .getIBCConnectionsById(connId.value)
     .then((x) => {
       conn.value = x.connection as Connection;
       connLoaded.value = true;
+      connNotFound.value = false;
     })
-    .catch(() => {});
+    .catch((e) => {
+      if (isNotFound(e)) {
+        connLoaded.value = true;
+        connNotFound.value = true;
+      }
+    });
   chainStore.rpc
     .getIBCConnectionsClientState(connId.value)
     .then((x) => {
       clientState.value = x.identified_client_state as any;
       clientStateLoaded.value = true;
     })
-    .catch(() => {});
+    .catch((e) => {
+      if (isNotFound(e)) clientStateLoaded.value = true;
+    });
   chainStore.rpc
     .getIBCConnectionsChannels(connId.value)
     .then((x) => {
       channels.value = x.channels;
       channelsLoaded.value = true;
     })
-    .catch(() => {});
+    .catch((e) => {
+      if (isNotFound(e)) channelsLoaded.value = true;
+    });
 }
 
 onMounted(() => {
@@ -239,6 +261,22 @@ function isPreferredChannel(ch: Channel) {
 
     </div>
 
+    <!-- Bogus / nonexistent connection id: the LCD answers 404 and every slice
+         stays empty. Without this the light-client + channels panels spin on
+         "Loading" forever with no explanation. -->
+    <div
+      v-if="connNotFound"
+      class="mb-4 rounded-xl border border-error/40 bg-error/5 px-4 py-3 text-[12.5px] flex items-center gap-2"
+    >
+      <Icon icon="mdi:link-variant-off" class="text-lg text-error shrink-0" />
+      <div>
+        <span class="font-semibold text-main">Connection not found.</span>
+        <span class="text-secondary">
+          No IBC connection with id <span class="font-mono">{{ connId }}</span> exists on this chain.
+        </span>
+      </div>
+    </div>
+
     <div
       v-if="isPreferredConnection"
       class="mb-4 rounded-xl border border-success/40 bg-success/5 px-4 py-3 text-[12.5px] flex items-center gap-2"
@@ -251,7 +289,7 @@ function isPreferredChannel(ch: Channel) {
       </div>
     </div>
     <div
-      v-else-if="connLoaded && channelsLoaded && openChannels === 0"
+      v-else-if="connLoaded && channelsLoaded && !connNotFound && openChannels === 0"
       class="mb-4 rounded-xl border border-warning/40 bg-warning/5 px-4 py-3 text-[12.5px] flex items-center gap-2"
     >
       <Icon icon="mdi:alert-outline" class="text-lg text-warning shrink-0" />
