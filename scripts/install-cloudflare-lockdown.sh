@@ -148,8 +148,16 @@ verify_conf() {
     https://127.0.0.1/ -H "Host: ${fqdn}" 2>/dev/null || echo "000")
   spoof=$(curl -sk -o /dev/null -w "%{http_code}" --max-time 8 \
     https://127.0.0.1/ -H "Host: ${fqdn}" -H "CF-Connecting-IP: 8.8.8.8" 2>/dev/null || echo "000")
-  via=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 \
-    "https://${fqdn}/" 2>/dev/null || echo "000")
+  # via-CF: retry — graceful reload meninggalkan jendela keepalive di mana CF
+  # edge masih dilayani worker nginx LAMA (config lama) selama beberapa detik,
+  # jadi probe pertama bisa false-negative (kasus nyata 2026-09-01).
+  via="000"
+  for _ in 1 2 3 4; do
+    via=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 \
+      "https://${fqdn}/" 2>/dev/null || echo "000")
+    [ "$via" = "200" ] && break
+    sleep 5
+  done
   echo "    ${fqdn}: via-CF=${via} (expect 200) | direct=${direct} (expect 403) | spoof=${spoof} (expect 403)"
   [ "$via" = "200" ]   || echo "    ^^ WARN: via-CF bukan 200 — pengunjung terganggu"
   [ "$direct" = "403" ] || echo "    ^^ WARN: origin masih bisa diakses langsung"
