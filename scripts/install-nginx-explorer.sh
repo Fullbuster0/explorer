@@ -13,6 +13,9 @@ EXPLORER_SUB="explorer"                    # FQDN = explorer.shazoes.xyz
 WEB_ROOT="/usr/share/nginx/explorer"
 CONF_FILE="/etc/nginx/sites-enabled/explorer"
 WEBROOT_ACME="/var/www/html"               # ACME webroot (bukan SPA root)
+CF_LOCKDOWN="${CF_LOCKDOWN:-1}"            # 1 = origin hanya terima traffic Cloudflare (orange cloud)
+LOCKDOWN_SNIPPET="/etc/nginx/snippets/cloudflare-only.conf"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 FQDN="${EXPLORER_SUB}.${BASE_DOMAIN}"
 CERT_DIR="/etc/letsencrypt/live/${FQDN}"
@@ -140,6 +143,21 @@ if [ "${PEM_BLOCKS}" -lt 2 ]; then
   echo "    WARN: fullchain sebaiknya leaf+intermediate (≥2)"
 fi
 
+# === [2.5] CLOUDFLARE ORIGIN LOCKDOWN (snippet) ===
+# Vhost ini di-PROXY Cloudflare → origin wajib hanya terima traffic CF.
+# Snippet di-generate di sini supaya reinstall TIDAK pernah men-drop proteksi
+# (file ini menulis ulang seluruh conf setiap run). Matikan: CF_LOCKDOWN=0.
+LOCKDOWN_INCLUDE=""
+if [ "$CF_LOCKDOWN" = "1" ]; then
+  echo "==> [2.5/4] Cloudflare lockdown snippet → ${LOCKDOWN_SNIPPET}"
+  if SNIPPET="$LOCKDOWN_SNIPPET" bash "${SCRIPT_DIR}/install-cloudflare-lockdown.sh" snippet; then
+    LOCKDOWN_INCLUDE="    # Cloudflare-only origin lockdown (install-cloudflare-lockdown.sh)
+    include ${LOCKDOWN_SNIPPET};"
+  else
+    echo "    WARN: snippet gagal di-generate — lanjut TANPA lockdown (CF_LOCKDOWN=0)"
+  fi
+fi
+
 # === [3] HTTP + HTTPS FULL ===
 echo "==> [3/4] Tulis konfigurasi Nginx lengkap → ${CONF_FILE}"
 tee "$CONF_FILE" > /dev/null <<EOF
@@ -170,6 +188,7 @@ server {
     listen [::]:443 ssl http2;
     server_name ${FQDN};
 
+${LOCKDOWN_INCLUDE}
     ssl_certificate     ${FULLCHAIN};
     ssl_certificate_key ${PRIVKEY};
 ${SSL_OPTIONS}
@@ -302,6 +321,17 @@ if [ "$HTTP_CODE" = "200" ]; then
   echo "    index.html: HTTP ${HTTP_CODE} OK"
 else
   echo "    WARN: index.html HTTP ${HTTP_CODE} (SPA belum di-deploy?)"
+fi
+
+# Lockdown: direct-origin harus 403 (127.0.0.1 bukan IP Cloudflare)
+if [ -n "$LOCKDOWN_INCLUDE" ]; then
+  DIRECT_CODE=$(curl -sk -o /dev/null -w "%{http_code}" --max-time 8 \
+    https://127.0.0.1/ -H "Host: ${FQDN}" 2>/dev/null || echo "000")
+  if [ "$DIRECT_CODE" = "403" ]; then
+    echo "    lockdown: direct-origin HTTP 403 OK (bypass CF mati)"
+  else
+    echo "    WARN: direct-origin HTTP ${DIRECT_CODE} — lockdown belum efektif"
+  fi
 fi
 
 # Cek asset caching
